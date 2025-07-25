@@ -8,6 +8,7 @@ import json
 import sqlite3
 import tempfile
 import zipfile
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -134,10 +135,10 @@ class DatabaseStats:
                 size_info["used_bytes"] = (
                     size_info["total_pages_bytes"] - size_info["free_bytes"]
                 )
-                size_info["utilization_percent"] = (
+                size_info["utilization_percent"] = int(
                     (size_info["used_bytes"] / size_info["total_pages_bytes"]) * 100
                     if size_info["total_pages_bytes"] > 0
-                    else 0.0
+                    else 0
                 )
 
         else:
@@ -160,7 +161,7 @@ class DatabaseStats:
         Returns:
             Dictionary with performance metrics
         """
-        stats = {}
+        stats: dict[str, Any] = {}
 
         with sqlite3.connect(self.db_path) as conn:
             # SQLite compile options
@@ -173,7 +174,8 @@ class DatabaseStats:
             stats["cache_size_pages"] = cursor.fetchone()[0]
 
             cursor = conn.execute("PRAGMA cache_spill")
-            stats["cache_spill"] = bool(cursor.fetchone()[0])
+            cache_spill_result = cursor.fetchone()[0]
+            stats["cache_spill"] = bool(cache_spill_result)
 
             # Journal mode
             cursor = conn.execute("PRAGMA journal_mode")
@@ -522,7 +524,7 @@ class DatabaseMaintenance:
         """
         logger.info("Starting database optimization")
 
-        operations = [
+        operations: list[tuple[str, Callable[[], bool]]] = [
             ("analyze", self.analyze),
             ("vacuum", self.vacuum),
             ("reindex", self.reindex),
@@ -676,10 +678,18 @@ def get_database_health_report(db_path: str | Path) -> dict[str, Any]:
         if not integrity_ok:
             issues.append("Integrity check failed")
 
-        if report["fragmentation"].get("fragmentation_percent", 0) > 20:
+        fragmentation_data = report.get("fragmentation", {})
+        if (
+            isinstance(fragmentation_data, dict)
+            and fragmentation_data.get("fragmentation_percent", 0) > 20
+        ):
             issues.append("High fragmentation detected")
 
-        if report["size_info"]["utilization_percent"] < 50:
+        size_info_data = report.get("size_info", {})
+        if (
+            isinstance(size_info_data, dict)
+            and size_info_data.get("utilization_percent", 100) < 50
+        ):
             issues.append("Low space utilization")
 
         report["status"] = "HEALTHY" if not issues else "NEEDS_ATTENTION"

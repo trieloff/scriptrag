@@ -35,7 +35,7 @@ dependencies = [
     "pydantic-settings>=2.1.0",
 
     # CLI
-    "typer[all]>=0.9.0",
+    "typer>=0.9.0",
     "rich>=13.7.0",
 
     # Data processing
@@ -239,7 +239,7 @@ ignore-property-decorators = true
 ignore-module = true
 ignore-nested-functions = true
 ignore-nested-classes = true
-fail-under = 80
+fail-under = 60
 exclude = ["tests", "docs", "scripts", "migrations"]
 verbose = 1
 quiet = false

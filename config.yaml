@@ -1,0 +1,39 @@
+# ScriptRAG Configuration File
+# This file contains default settings for ScriptRAG
+
+environment: development
+debug: true
+
+database:
+  path: ./data/screenplay.db
+  pool_size: 10
+  enable_wal_mode: true
+  synchronous_mode: NORMAL
+
+llm:
+  endpoint: http://localhost:1234/v1
+  timeout: 120
+  max_tokens: 2048
+  temperature: 0.7
+  top_p: 0.9
+
+logging:
+  level: INFO
+  format: structured
+  json_logs: false
+
+mcp:
+  host: localhost
+  port: 8080
+  enable_all_tools: true
+
+performance:
+  max_graph_nodes: 100000
+  enable_query_cache: true
+  cache_ttl: 3600
+
+paths:
+  data_dir: ./data
+  cache_dir: ./cache
+  logs_dir: ./logs
+  scripts_dir: ./scripts

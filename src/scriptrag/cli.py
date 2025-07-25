@@ -6,11 +6,10 @@ script parsing, searching, configuration management, and development utilities.
 
 import sys
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.console import Console
-from rich.panel import Panel
-from rich.syntax import Syntax
 from rich.table import Table
 
 from . import ScriptRAG
@@ -29,42 +28,38 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-# Create console for rich output
 console = Console()
 
 
-# Global options
 @app.callback()
 def main(
     config_file: Path | None = None,
-    config_file_opt: Path = typer.Option(
-        None,
-        "--config",
-        "-c",
-        help="Path to configuration file",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-    ),
-    verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        "-v",
-        help="Enable verbose logging",
-    ),
-    quiet: bool = typer.Option(
-        False,
-        "--quiet",
-        "-q",
-        help="Suppress output except errors",
-    ),
-    environment: str = typer.Option(
-        "development",
-        "--env",
-        "-e",
-        help="Environment (development, testing, production)",
-    ),
-):
+    config_file_opt: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+        ),
+    ] = None,
+    verbose: Annotated[
+        bool, typer.Option("--verbose", "-v", help="Enable verbose logging")
+    ] = False,
+    quiet: Annotated[
+        bool, typer.Option("--quiet", "-q", help="Suppress output except errors")
+    ] = False,
+    environment: Annotated[
+        str,
+        typer.Option(
+            "--env",
+            "-e",
+            help="Environment (development, testing, production)",
+        ),
+    ] = "development",
+) -> None:
     """ScriptRAG: A Graph-Based Screenwriting Assistant.
 
     [bold green]Features:[/bold green]
@@ -82,11 +77,11 @@ def main(
     else:
         log_level = "INFO"
 
-    # Load configuration
-    if config_file:
-        settings = load_settings(config_file)
-    else:
-        settings = get_settings()
+    # Use config_file_opt if provided, otherwise use config_file
+    actual_config_file = config_file_opt or config_file
+    settings = (
+        load_settings(actual_config_file) if actual_config_file else get_settings()
+    )
 
     # Override environment if specified
     settings.environment = environment
@@ -99,7 +94,7 @@ def main(
     )
 
 
-# Configuration commands
+# Configuration management commands
 config_app = typer.Typer(
     name="config",
     help="Configuration management commands",
@@ -110,19 +105,23 @@ app.add_typer(config_app)
 
 @config_app.command("init")
 def config_init(
-    output: Path = typer.Option(
-        Path("config.yaml"),
-        "--output",
-        "-o",
-        help="Output path for configuration file",
-    ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="Overwrite existing configuration file",
-    ),
-):
+    output: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Output path for configuration file",
+        ),
+    ] = Path("config.yaml"),
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            "-f",
+            help="Overwrite existing configuration file",
+        ),
+    ] = False,
+) -> None:
     """Initialize a new configuration file with default settings."""
     if output.exists() and not force:
         print(f"Configuration file already exists: {output}", file=sys.stderr)
@@ -131,80 +130,86 @@ def config_init(
 
     try:
         create_default_config(output)
-        console.print(f"[green]✓[/green] Created configuration file: {output}")
+        console.print(f"[green]✓[/green] Configuration created: {output}")
         console.print("[dim]Edit the file to customize your settings[/dim]")
     except Exception as e:
         print(f"Error creating configuration: {e}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @config_app.command("show")
 def config_show(
-    config_file: Path | None = typer.Option(
-        None,
-        "--config",
-        "-c",
-        help="Path to configuration file",
-    ),
-    section: str | None = typer.Option(
-        None,
-        "--section",
-        "-s",
-        help="Show only specific section (database, llm, logging, etc.)",
-    ),
-):
+    config_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file",
+        ),
+    ] = None,
+    section: Annotated[
+        str | None,
+        typer.Option(
+            "--section",
+            "-s",
+            help="Show only specific section (database, llm, logging, etc.)",
+        ),
+    ] = None,
+) -> None:
     """Display current configuration settings."""
     try:
-        if config_file:
-            settings = load_settings(config_file)
-        else:
-            settings = get_settings()
+        settings = load_settings(config_file) if config_file else get_settings()
 
         if section:
             # Show specific section
-            section_data = getattr(settings, section, None)
-            if section_data is None:
-                print(f"Unknown section: {section}", file=sys.stderr)
+            if hasattr(settings, section):
+                section_data = getattr(settings, section)
+                console.print(f"[bold blue]{section}:[/bold blue]")
+                if hasattr(section_data, "model_dump"):
+                    # Pydantic model
+                    for key, value in section_data.model_dump().items():
+                        console.print(f"  {key}: {value}")
+                else:
+                    # Regular value
+                    console.print(f"  {section_data}")
+            else:
+                available_sections = [
+                    attr
+                    for attr in dir(settings)
+                    if not attr.startswith("_") and attr != "model_dump"
+                ]
+                console.print(f"[red]Unknown section: {section}[/red]")
+                console.print(f"Available sections: {', '.join(available_sections)}")
                 raise typer.Exit(1)
-
-            table = Table(title=f"Configuration: {section}")
-            table.add_column("Setting", style="cyan")
-            table.add_column("Value", style="green")
-
-            for key, value in section_data.dict().items():
-                table.add_row(key, str(value))
-
-            console.print(table)
         else:
-            # Show all settings
-            config_dict = settings.dict()
-            console.print(
-                Panel(
-                    Syntax(
-                        str(config_dict),
-                        "python",
-                        theme="monokai",
-                        line_numbers=True,
-                    ),
-                    title="ScriptRAG Configuration",
-                    border_style="blue",
-                )
-            )
+            # Show all configuration
+            console.print("[bold blue]Current Configuration:[/bold blue]")
+            if hasattr(settings, "model_dump"):
+                config_dict = settings.model_dump()
+                for section_name, section_data in config_dict.items():
+                    console.print(f"\n[bold]{section_name}:[/bold]")
+                    if isinstance(section_data, dict):
+                        for key, value in section_data.items():
+                            console.print(f"  {key}: {value}")
+                    else:
+                        console.print(f"  {section_data}")
 
     except Exception as e:
         print(f"Error loading configuration: {e}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @config_app.command("validate")
 def config_validate(
-    config_file: Path | None = typer.Option(
-        None,
-        "--config",
-        "-c",
-        help="Path to configuration file to validate",
-    ),
-):
+    config_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file to validate",
+        ),
+    ] = None,
+) -> None:
     """Validate configuration file."""
     try:
         if config_file:
@@ -214,23 +219,27 @@ def config_validate(
             )
         else:
             settings = get_settings()
-            console.print("[green]✓[/green] Current configuration is valid")
+            console.print("[green]✓[/green] Default configuration is valid")
 
-        # Show summary
-        table = Table(title="Configuration Summary")
-        table.add_column("Component", style="cyan")
-        table.add_column("Status", style="green")
+        # Additional validation checks
+        errors = []
 
-        table.add_row("Environment", settings.environment)
-        table.add_row("Database Path", str(settings.get_database_path()))
-        table.add_row("LLM Endpoint", settings.llm.endpoint)
-        table.add_row("Log Level", settings.logging.level)
+        # Check database path
+        if hasattr(settings, "database") and hasattr(settings.database, "path"):
+            db_path = Path(settings.database.path)
+            if not db_path.parent.exists():
+                errors.append(f"Database directory does not exist: {db_path.parent}")
 
-        console.print(table)
+        if errors:
+            console.print("[yellow]⚠[/yellow] Configuration warnings:")
+            for error in errors:
+                console.print(f"  • {error}")
+        else:
+            console.print("[green]✓[/green] All configuration checks passed")
 
     except Exception as e:
         print(f"✗ Configuration validation failed: {e}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 # Script management commands
@@ -244,58 +253,53 @@ app.add_typer(script_app)
 
 @script_app.command("parse")
 def script_parse(
-    script_path: Path = typer.Argument(
-        ...,
-        help="Path to Fountain screenplay file",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-    ),
-    output_db: Path | None = typer.Option(
-        None,
-        "--output",
-        "-o",
-        help="Output database path (default: from config)",
-    ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="Overwrite existing database",
-    ),
-):
+    script_path: Annotated[
+        Path,
+        typer.Argument(
+            help="Path to Fountain screenplay file",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+        ),
+    ],
+    output_db: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Output database path (default: from config)",
+        ),
+    ] = None,
+) -> None:
     """Parse a Fountain screenplay into the graph database."""
     try:
         settings = get_settings()
-        if output_db:
-            settings.database.path = output_db
-
-        # Initialize ScriptRAG
-        scriptrag = ScriptRAG(config=settings)
+        db_path = output_db or Path(settings.database.path)
 
         console.print(f"[blue]Parsing screenplay:[/blue] {script_path}")
-        console.print(f"[blue]Database:[/blue] {settings.get_database_path()}")
+        console.print(f"[blue]Database:[/blue] {db_path}")
 
-        # TODO: Implement actual parsing when parser is ready
+        # Initialize ScriptRAG and parse
+        scriptrag = ScriptRAG(db_path=str(db_path))
         scriptrag.parse_fountain(str(script_path))
 
-        console.print("[green]✓[/green] Screenplay parsed successfully")
+        console.print("[green]✓[/green] Successfully parsed screenplay")
+        console.print(
+            "[dim]Detailed parsing results will be available in future versions[/dim]"
+        )
 
-    except NotImplementedError:
-        console.print("[yellow]⚠[/yellow] Parser not yet implemented")
-        console.print("This command will be available in Phase 2 of development")
     except Exception as e:
         print(f"Error parsing screenplay: {e}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 @script_app.command("info")
 def script_info(
-    script_path: Path | None = typer.Argument(
-        None,
-        help="Path to Fountain screenplay file",
-    ),
-):
+    script_path: Annotated[
+        Path | None,
+        typer.Argument(help="Path to Fountain screenplay file"),
+    ] = None,
+) -> None:
     """Display information about a screenplay or database."""
     if script_path:
         # Show info about a specific script file
@@ -305,34 +309,32 @@ def script_info(
 
         # Basic file info for now
         stat = script_path.stat()
+        console.print(f"[bold blue]Screenplay Info:[/bold blue] {script_path}")
+        console.print(f"Size: {stat.st_size:,} bytes")
+        console.print(f"Modified: {stat.st_mtime}")
+
+        # TODO: Parse and show more detailed info
         console.print(
-            Panel(
-                f"[bold]File:[/bold] {script_path}\n"
-                f"[bold]Size:[/bold] {stat.st_size:,} bytes\n"
-                f"[bold]Modified:[/bold] {stat.st_mtime}",
-                title="Screenplay Information",
-                border_style="blue",
-            )
+            "[dim]Detailed screenplay analysis will be available "
+            "in future versions[/dim]"
         )
     else:
-        # Show database info
+        # Show info about current database
         settings = get_settings()
-        db_path = settings.get_database_path()
+        db_path = Path(settings.database.path)
 
         if db_path.exists():
-            stat = db_path.stat()
+            console.print(f"[bold blue]Database Info:[/bold blue] {db_path}")
+            console.print(f"Size: {db_path.stat().st_size:,} bytes")
+
+            # TODO: Query database for more info
             console.print(
-                Panel(
-                    f"[bold]Database:[/bold] {db_path}\n"
-                    f"[bold]Size:[/bold] {stat.st_size:,} bytes\n"
-                    f"[bold]Modified:[/bold] {stat.st_mtime}",
-                    title="Database Information",
-                    border_style="green",
-                )
+                "[dim]Database statistics will be available in future versions[/dim]"
             )
         else:
             console.print(
-                "[yellow]No database found. Use 'scriptrag script parse' to create one.[/yellow]"
+                "[yellow]No database found. Use 'scriptrag script parse' "
+                "to create one.[/yellow]"
             )
 
 
@@ -347,44 +349,34 @@ app.add_typer(search_app)
 
 @search_app.command("scenes")
 def search_scenes(
-    query: str = typer.Argument(..., help="Search query"),
-    character: str | None = typer.Option(
-        None, "--character", "-c", help="Filter by character"
-    ),
-    location: str | None = typer.Option(
-        None, "--location", "-l", help="Filter by location"
-    ),
-    limit: int = typer.Option(10, "--limit", "-n", help="Maximum results to return"),
-):
-    """Search for scenes matching criteria."""
+    query: Annotated[str, typer.Argument(help="Search query")],
+    character: Annotated[
+        str | None, typer.Option("--character", "-c", help="Filter by character")
+    ] = None,
+    location: Annotated[
+        str | None, typer.Option("--location", "-l", help="Filter by location")
+    ] = None,
+    limit: Annotated[
+        int, typer.Option("--limit", "-n", help="Limit number of results")
+    ] = 10,
+) -> None:
+    """Search scenes using semantic similarity."""
     try:
-        settings = get_settings()
-        scriptrag = ScriptRAG(config=settings)
-
-        console.print(f"[blue]Searching scenes:[/blue] {query}")
+        # Placeholder implementation
+        console.print(f"[blue]Searching for:[/blue] {query}")
         if character:
             console.print(f"[blue]Character filter:[/blue] {character}")
         if location:
             console.print(f"[blue]Location filter:[/blue] {location}")
+        console.print(f"[blue]Limit:[/blue] {limit}")
 
-        # TODO: Implement actual search when ready
-        results = scriptrag.search_scenes(
-            query=query,
-            character=character,
-            location=location,
-            limit=limit,
+        console.print(
+            "[yellow]⚠[/yellow] Scene search functionality is not yet implemented"
         )
-
-        # For now, handle the None return
-        results = results or []
-        console.print(f"[green]Found {len(results)} scenes[/green]")
-
-    except NotImplementedError:
-        console.print("[yellow]⚠[/yellow] Search not yet implemented")
         console.print("This command will be available in Phase 4 of development")
     except Exception as e:
         print(f"Error searching scenes: {e}", file=sys.stderr)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
 
 
 # Development commands
@@ -398,178 +390,140 @@ app.add_typer(dev_app)
 
 @dev_app.command("init")
 def dev_init(
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="Overwrite existing files",
-    ),
-):
-    """Initialize development environment."""
-    console.print("[blue]Initializing ScriptRAG development environment...[/blue]")
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            "-f",
+            help="Force initialization even if files exist",
+        ),
+    ] = False,
+) -> None:
+    """Initialize development environment with sample data."""
+    console.print("[blue]Initializing development environment...[/blue]")
 
-    # Create directories
+    # Create sample directories
     dirs_to_create = [
-        Path("data"),
-        Path("cache"),
-        Path("logs"),
-        Path("temp"),
-        Path("scripts"),
-        Path("exports"),
+        "data/scripts",
+        "data/databases",
+        "logs",
+        "temp",
     ]
 
     for dir_path in dirs_to_create:
-        if not dir_path.exists():
-            dir_path.mkdir(parents=True, exist_ok=True)
-            console.print(f"[green]✓[/green] Created directory: {dir_path}")
+        path = Path(dir_path)
+        if path.exists() and not force:
+            console.print(f"[yellow]Directory exists:[/yellow] {path}")
         else:
-            console.print(f"[dim]Directory exists: {dir_path}[/dim]")
+            path.mkdir(parents=True, exist_ok=True)
+            console.print(f"[green]Created:[/green] {path}")
 
-    # Create default config if it doesn't exist
+    # Create sample config if it doesn't exist
     config_path = Path("config.yaml")
     if not config_path.exists() or force:
-        create_default_config(config_path)
-        console.print(f"[green]✓[/green] Created configuration: {config_path}")
-    else:
-        console.print(f"[dim]Configuration exists: {config_path}[/dim]")
+        try:
+            create_default_config(config_path)
+            console.print(f"[green]Created:[/green] {config_path}")
+        except Exception as e:
+            console.print(f"[red]Error creating config:[/red] {e}")
 
-    # Create .env file if it doesn't exist
-    env_path = Path(".env")
-    env_example = Path(".env.example")
-    if not env_path.exists() and env_example.exists():
-        env_path.write_text(env_example.read_text())
-        console.print(f"[green]✓[/green] Created environment file: {env_path}")
-
-    console.print("\n[bold green]Development environment ready![/bold green]")
-    console.print("[dim]Next steps:[/dim]")
-    console.print("1. Edit [cyan]config.yaml[/cyan] to customize settings")
-    console.print("2. Edit [cyan].env[/cyan] for environment-specific values")
-    console.print("3. Start LMStudio at http://localhost:1234")
-    console.print(
-        "4. Parse a screenplay: [cyan]scriptrag script parse screenplay.fountain[/cyan]"
-    )
+    console.print("[green]✓[/green] Development environment initialized")
 
 
 @dev_app.command("status")
 def dev_status() -> None:
     """Show development environment status."""
-    settings = get_settings()
+    console.print("[bold blue]Development Environment Status[/bold blue]")
 
-    # Check configuration
-    table = Table(title="ScriptRAG Development Status")
-    table.add_column("Component", style="cyan")
-    table.add_column("Status", style="white")
-    table.add_column("Details", style="dim")
+    # Check key files and directories
+    checks = [
+        ("Configuration", Path("config.yaml")),
+        ("Scripts directory", Path("data/scripts")),
+        ("Database directory", Path("data/databases")),
+        ("Logs directory", Path("logs")),
+    ]
 
-    # Configuration
-    config_path = Path("config.yaml")
-    config_status = "✓ Found" if config_path.exists() else "✗ Missing"
-    table.add_row("Configuration", config_status, str(config_path))
+    table = Table(show_header=True, header_style="bold blue")
+    table.add_column("Component")
+    table.add_column("Status")
+    table.add_column("Path")
 
-    # Database
-    db_path = settings.get_database_path()
-    db_status = "✓ Found" if db_path.exists() else "✗ Missing"
-    table.add_row("Database", db_status, str(db_path))
-
-    # Directories
-    for dir_name, dir_path in [
-        ("Data", settings.paths.data_dir),
-        ("Cache", settings.paths.cache_dir),
-        ("Logs", settings.paths.logs_dir),
-        ("Scripts", settings.paths.scripts_dir),
-    ]:
-        dir_status = "✓ Found" if dir_path.exists() else "✗ Missing"
-        table.add_row(dir_name, dir_status, str(dir_path))
-
-    # LLM endpoint (basic check)
-    import httpx
-
-    try:
-        response = httpx.get(f"{settings.llm.endpoint}/models", timeout=5.0)
-        llm_status = "✓ Connected" if response.status_code == 200 else "⚠ Error"
-    except Exception:
-        llm_status = "✗ Unreachable"
-
-    table.add_row("LLM Endpoint", llm_status, settings.llm.endpoint)
+    for name, path in checks:
+        status = "[green]✓ Exists[/green]" if path.exists() else "[red]✗ Missing[/red]"
+        table.add_row(name, status, str(path))
 
     console.print(table)
 
 
 @dev_app.command("test-llm")
 def dev_test_llm() -> None:
-    """Test LLM connection and functionality."""
-    settings = get_settings()
-
-    console.print(f"[blue]Testing LLM connection:[/blue] {settings.llm.endpoint}")
-
-    import httpx
+    """Test LLM connection and basic functionality."""
+    console.print("[blue]Testing LLM connection...[/blue]")
 
     try:
-        # Test models endpoint
-        with console.status("Checking models endpoint..."):
-            response = httpx.get(f"{settings.llm.endpoint}/models", timeout=10.0)
+        import requests
 
-        if response.status_code == 200:
-            console.print("[green]✓[/green] Models endpoint accessible")
-            models = response.json().get("data", [])
-            console.print(f"[dim]Available models: {len(models)}[/dim]")
+        settings = get_settings()
+
+        # Test embeddings endpoint
+        embed_url = f"{settings.llm.base_url}/embeddings"
+        embed_data = {"input": "test", "model": settings.llm.embedding_model}
+
+        console.print(f"[dim]Testing embeddings: {embed_url}[/dim]")
+        embed_response = requests.post(embed_url, json=embed_data, timeout=10)
+
+        if embed_response.status_code == 200:
+            console.print("[green]✓[/green] Embeddings endpoint working")
         else:
-            console.print(f"[red]✗[/red] Models endpoint error: {response.status_code}")
-
-        # Test simple completion
-        with console.status("Testing completion..."):
-            completion_response = httpx.post(
-                f"{settings.llm.endpoint}/chat/completions",
-                json={
-                    "model": settings.llm.default_model,
-                    "messages": [{"role": "user", "content": "Hello, test message."}],
-                    "max_tokens": 10,
-                },
-                timeout=30.0,
+            console.print(
+                f"[red]✗[/red] Embeddings endpoint error: {embed_response.status_code}"
             )
+
+        # Test completion endpoint
+        completion_url = f"{settings.llm.base_url}/chat/completions"
+        completion_data = {
+            "model": settings.llm.model,
+            "messages": [{"role": "user", "content": "Say 'test successful'"}],
+            "max_tokens": 10,
+        }
+
+        console.print(f"[dim]Testing completions: {completion_url}[/dim]")
+        completion_response = requests.post(
+            completion_url, json=completion_data, timeout=10
+        )
 
         if completion_response.status_code == 200:
             console.print("[green]✓[/green] Completion endpoint working")
             result = completion_response.json()
-            message = (
-                result.get("choices", [{}])[0].get("message", {}).get("content", "")
-            )
-            console.print(f"[dim]Response: {message.strip()}[/dim]")
+            if result.get("choices"):
+                message = result["choices"][0]["message"]["content"]
+                console.print(f"[dim]Response: {message.strip()}[/dim]")
         else:
             console.print(
-                f"[red]✗[/red] Completion endpoint error: {completion_response.status_code}"
+                f"[red]✗[/red] Completion endpoint error: "
+                f"{completion_response.status_code}"
             )
 
     except Exception as e:
-        console.print(f"[red]✗ Connection failed: {e}[/red]")
-        console.print(
-            "[dim]Make sure LMStudio is running at the configured endpoint[/dim]"
-        )
+        console.print(f"[red]✗[/red] LLM test failed: {e}")
+        raise typer.Exit(1) from e
 
 
 # Server commands
 server_app = typer.Typer(
     name="server",
-    help="MCP server management commands",
+    help="MCP server commands",
     rich_markup_mode="rich",
 )
 app.add_typer(server_app)
 
 
 @server_app.command("start")
-def server_start(
-    host: str | None = typer.Option(None, "--host", "-h", help="Server host"),
-    port: int | None = typer.Option(None, "--port", "-p", help="Server port"),
-    config_file: Path | None = typer.Option(
-        None, "--config", "-c", help="Configuration file"
-    ),
-):
+def server_start() -> None:
     """Start the MCP server."""
     console.print("[blue]Starting ScriptRAG MCP server...[/blue]")
-
-    # TODO: Implement actual MCP server startup
-    console.print("[yellow]⚠[/yellow] MCP server not yet implemented")
-    console.print("This command will be available in Phase 7 of development")
+    console.print("[yellow]⚠[/yellow] MCP server functionality is not yet implemented")
+    console.print("This command will be available in Phase 5 of development")
 
 
 if __name__ == "__main__":

@@ -130,7 +130,7 @@ def get_logger(name: str) -> structlog.BoundLogger:
     Returns:
         Configured structlog logger instance
     """
-    return structlog.get_logger(name)  # type: ignore[no-any-return]
+    return structlog.get_logger(name)
 
 
 def configure_sqlalchemy_logging(log_level: str = "WARNING") -> None:

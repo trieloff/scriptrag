@@ -15,6 +15,33 @@ install: ## Install the project in development mode with all dependencies
 	uv pip install -e ".[dev,test,docs]"
 	@echo "✅ Installation complete. Activate venv with: source .venv/bin/activate"
 
+.PHONY: setup-dev
+setup-dev: ## Complete developer environment setup (venv, deps, hooks, tools)
+	@echo "🚀 Setting up complete developer environment..."
+	@echo "1️⃣ Creating virtual environment..."
+	uv venv
+	@echo "2️⃣ Installing all dependencies..."
+	@bash -c 'source .venv/bin/activate && uv pip install -e ".[dev,test,docs]"'
+	@echo "3️⃣ Installing pre-commit hooks..."
+	@bash -c 'source .venv/bin/activate && pre-commit install'
+	@bash -c 'source .venv/bin/activate && pre-commit install --hook-type commit-msg'
+	@echo "4️⃣ Running initial pre-commit checks..."
+	@bash -c 'source .venv/bin/activate && pre-commit run --all-files || echo "⚠️  Some pre-commit checks failed. Run '\''make format'\'' to fix."'
+	@echo "5️⃣ Checking for Node.js dependencies..."
+	@if command -v npm >/dev/null 2>&1; then \
+		echo "Installing markdownlint-cli..."; \
+		npm install -g markdownlint-cli; \
+	else \
+		echo "⚠️  npm not found. Install Node.js for markdown linting support."; \
+	fi
+	@echo "✅ Developer environment setup complete!"
+	@echo ""
+	@echo "📝 Next steps:"
+	@echo "   - Activate virtual environment: source .venv/bin/activate"
+	@echo "   - Run tests: make test"
+	@echo "   - Check code quality: make check"
+	@echo "   - See all commands: make help"
+
 .PHONY: install-pre-commit
 install-pre-commit: ## Install pre-commit hooks
 	pre-commit install

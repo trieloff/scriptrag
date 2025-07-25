@@ -4,7 +4,7 @@ This directory contains the documentation for the ScriptRAG project.
 
 ## Documentation Structure
 
-```
+```text
 docs/
 ├── README.md              # This file
 ├── index.md              # Documentation home page
@@ -39,19 +39,23 @@ docs/
 ## Documentation Standards
 
 ### Markdown Format
+
 All documentation is written in Markdown format with the following conventions:
+
 - Use ATX-style headers (`#` for h1, `##` for h2, etc.)
 - Code blocks should specify the language for syntax highlighting
 - Include a table of contents for documents longer than 3 sections
 - Use relative links for internal documentation references
 
 ### Code Examples
+
 - All code examples should be tested and working
 - Include necessary imports and setup code
 - Provide both simple and advanced examples where appropriate
 - Add comments explaining non-obvious code
 
 ### API Documentation
+
 - Document all public classes, methods, and functions
 - Include type hints in Python code examples
 - Provide parameter descriptions and return value information
@@ -110,7 +114,7 @@ python scripts/generate_api_docs.py
 ## Documentation TODO
 
 - [ ] Complete installation guide
-- [ ] Write fountain format reference
+- [ ] Write Fountain format reference
 - [ ] Create video tutorials
 - [ ] Add troubleshooting guide
 - [ ] Document common patterns

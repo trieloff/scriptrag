@@ -5,6 +5,8 @@ an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmen
 Generation) pattern.
 """
 
+from typing import Any
+
 __version__ = "0.1.0"
 __author__ = "Your Name"
 __email__ = "your.email@example.com"
@@ -20,45 +22,48 @@ __all__ = [
 ]
 
 # Imports will be added as modules are created
-# from .core import ScriptRAG
-# from .parser import FountainParser
-# from .database import GraphDatabase
-# from .llm import LLMClient
+
 
 # For now, we'll define placeholder classes
 class ScriptRAG:
     """Main ScriptRAG interface."""
 
-    def __init__(self, llm_endpoint: str = "http://localhost:1234/v1",
-                 db_path: str = "./screenplay.db"):
+    def __init__(
+        self,
+        llm_endpoint: str = "http://localhost:1234/v1",
+        db_path: str = "./screenplay.db",
+    ):
         """Initialize ScriptRAG with LLM endpoint and database path."""
         self.llm_endpoint = llm_endpoint
         self.db_path = db_path
         # TODO: Initialize components
 
-    def parse_fountain(self, path: str):
+    def parse_fountain(self, path: str) -> None:
         """Parse a screenplay in Fountain format."""
         raise NotImplementedError("Parser not yet implemented")
 
-    def search_scenes(self, **kwargs):
+    def search_scenes(self, **kwargs: Any) -> None:
         """Search for scenes based on various criteria."""
         raise NotImplementedError("Search not yet implemented")
 
-    def update_scene(self, scene_id: int, **kwargs):
+    def update_scene(self, scene_id: int, **kwargs: Any) -> None:
         """Update a scene with new information."""
         raise NotImplementedError("Scene update not yet implemented")
 
 
 class FountainParser:
     """Fountain format parser placeholder."""
+
     pass
 
 
 class GraphDatabase:
     """Graph database interface placeholder."""
+
     pass
 
 
 class LLMClient:
     """LLM client interface placeholder."""
+
     pass

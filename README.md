@@ -1,6 +1,6 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-ScriptRAG is a novel screenwriting tool that combines fountain parsing, graph databases, and local LLMs to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented Generation) pattern.
+ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented Generation) pattern.
 
 ## Features
 
@@ -15,7 +15,7 @@ ScriptRAG is a novel screenwriting tool that combines fountain parsing, graph da
 
 - **Language**: Python with uv package manager
 - **Database**: SQLite as a graph database
-- **LLM**: Local LLMs via LMStudio (OpenAI-compatible API at http://localhost:1234/v1)
+- **LLM**: Local LLMs via LMStudio (OpenAI-compatible API at <http://localhost:1234/v1>)
 - **Parser**: Fountain screenplay format parser
 - **Pattern**: GraphRAG (Graph + Retrieval-Augmented Generation)
 - **Interface**: MCP (Model Context Protocol) server for AI assistant integration
@@ -29,20 +29,20 @@ ScriptRAG is a novel screenwriting tool that combines fountain parsing, graph da
   - [x] Create directory structure (src/, tests/, data/, docs/)
   - [x] Initialize git repository
   - [x] Create .gitignore for Python/uv projects
-  - [x] Set up pyproject.toml with dependencies
+  - [x] Set up pyproject.TOML with dependencies
 
-- [ ] **1.2 Development Environment**
-  - [ ] Configure uv virtual environment
-  - [ ] Create requirements files (dev, prod)
-  - [ ] Set up pre-commit hooks
+- [ ] **1.2 Development Environment** *(3/5 complete)*
+  - [x] Configure uv virtual environment
+  - [x] Create requirements files (dev, prod)
+  - [x] Set up pre-commit hooks
   - [ ] Configure logging framework
-  - [ ] Create configuration management (config.yaml/env)
+  - [ ] Create configuration management (config.YAML/env)
 
 ### Phase 2: Core Components
 
 - [ ] **2.1 Fountain Parser Integration**
-  - [ ] Research and evaluate fountain parsing libraries
-  - [ ] Integrate fountain parser (based on Tagirijus/fountain)
+  - [ ] Research and evaluate Fountain parsing libraries
+  - [ ] Integrate Fountain parser (based on Tagirijus/Fountain)
   - [ ] Create data models for screenplay elements:
     - [ ] Script/Show
     - [ ] Season
@@ -78,7 +78,7 @@ ScriptRAG is a novel screenwriting tool that combines fountain parsing, graph da
 ### Phase 3: LLM Integration
 
 - [ ] **3.1 LMStudio Client**
-  - [ ] Create OpenAI-compatible API client for http://localhost:1234/v1
+  - [ ] Create OpenAI-compatible API client for <http://localhost:1234/v1>
   - [ ] Implement model listing and selection
   - [ ] Create abstraction layer for:
     - [ ] Text generation
@@ -247,7 +247,7 @@ ScriptRAG is a novel screenwriting tool that combines fountain parsing, graph da
 - Python 3.11+
 - uv package manager
 - SQLite 3.35+
-- LMStudio running at http://localhost:1234
+- LMStudio running at <http://localhost:1234>
 
 ### Installation
 
@@ -306,7 +306,7 @@ scriptrag-mcp serve --config mcp_config.json
 ## References
 
 - [Fountain Format](https://fountain.io/)
-- [Tagirijus/fountain](https://deepwiki.com/Tagirijus/fountain)
+- [Tagirijus/Fountain](https://deepwiki.com/Tagirijus/fountain)
 - [GraphRAG with SQLite Example](https://deepwiki.com/stephenc222/example-graphrag-with-sqlite/1-overview)
 - [LMStudio](https://lmstudio.ai/)
 - [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)

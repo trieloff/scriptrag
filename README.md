@@ -64,7 +64,7 @@ Generation) pattern.
     - [x] Nodes (entities: scenes, characters, locations, etc.)
     - [x] Edges (relationships: FOLLOWS, APPEARS_IN, SPEAKS_TO, etc.)
     - [x] Properties (metadata for nodes and edges)
-    - [ ] Embeddings (vector storage for semantic search)
+    - [x] Embeddings (vector storage for semantic search)
   - [x] Implement database initialization scripts
   - [x] Create database migration system
 

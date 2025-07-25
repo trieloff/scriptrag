@@ -1,5 +1,4 @@
-"""
-Fountain Parser Integration
+"""Fountain Parser Integration.
 
 This module provides integration with the Jouvence fountain parser library
 to convert Fountain screenplay files into ScriptRAG data models.
@@ -7,26 +6,21 @@ to convert Fountain screenplay files into ScriptRAG data models.
 
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import ClassVar
 from uuid import UUID, uuid4
 
-from jouvence.parser import JouvenceParser, JouvenceParserError
 from jouvence.document import JouvenceDocument, JouvenceScene, JouvenceSceneElement
+from jouvence.parser import JouvenceParser, JouvenceParserError
 
-from ..models import (
+from scriptrag.models import (
     Action,
     Character,
-    CharacterAppears,
-    CharacterSpeaksTo,
     Dialogue,
     ElementType,
     Location,
     Parenthetical,
     Scene,
-    SceneAtLocation,
     SceneElement,
-    SceneFollows,
-    SceneOrderType,
     Script,
     Transition,
 )
@@ -34,12 +28,12 @@ from ..models import (
 
 class FountainParsingError(Exception):
     """Exception raised when fountain parsing fails."""
+
     pass
 
 
 class FountainParser:
-    """
-    Parses Fountain screenplay files and converts them to ScriptRAG data models.
+    """Parses Fountain screenplay files and converts them to ScriptRAG data models.
 
     This parser uses the Jouvence library to handle the low-level fountain
     parsing and then converts the result into ScriptRAG's graph-friendly
@@ -47,7 +41,7 @@ class FountainParser:
     """
 
     # Mapping from Jouvence element types to ScriptRAG ElementType
-    JOUVENCE_TYPE_MAP = {
+    JOUVENCE_TYPE_MAP: ClassVar[dict[int, ElementType]] = {
         0: ElementType.ACTION,
         1: ElementType.SCENE_HEADING,
         2: ElementType.CHARACTER,
@@ -62,24 +56,24 @@ class FountainParser:
     }
 
     # Regular expressions for parsing scene headings
-    SCENE_HEADING_REGEX = re.compile(
-        r'^(INT\.|EXT\.)\s+(.+?)(?:\s+-\s+(.+))?$',
-        re.IGNORECASE
+    SCENE_HEADING_REGEX: ClassVar = re.compile(
+        r"^(INT\.|EXT\.)\s+(.+?)(?:\s+-\s+(.+))?$", re.IGNORECASE
     )
 
     # Regular expressions for character name variations
-    CHARACTER_CLEANUP_REGEX = re.compile(r'[^A-Z0-9\s]')
-    CHARACTER_EXTENSION_REGEX = re.compile(r'\s*\([^)]*\)|\s*(O\.S\.|V\.O\.|CONT\'D)$', re.IGNORECASE)
+    CHARACTER_CLEANUP_REGEX: ClassVar = re.compile(r"[^A-Z0-9\s]")
+    CHARACTER_EXTENSION_REGEX: ClassVar = re.compile(
+        r"\s*\([^)]*\)|\s*(O\.S\.|V\.O\.|CONT\'D)$", re.IGNORECASE
+    )
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the fountain parser."""
         self.jouvence_parser = JouvenceParser()
-        self._characters_cache: Dict[str, Character] = {}
+        self._characters_cache: dict[str, Character] = {}
         self._scene_count = 0
 
-    def parse_file(self, file_path: Union[str, Path]) -> Script:
-        """
-        Parse a fountain file and return a Script model.
+    def parse_file(self, file_path: str | Path) -> Script:
+        """Parse a fountain file and return a Script model.
 
         Args:
             file_path: Path to the fountain file
@@ -96,16 +90,15 @@ class FountainParser:
             raise FountainParsingError(f"File not found: {file_path}")
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with file_path.open(encoding="utf-8") as f:
                 content = f.read()
-        except (IOError, UnicodeDecodeError) as e:
-            raise FountainParsingError(f"Failed to read file {file_path}: {e}")
+        except (OSError, UnicodeDecodeError) as e:
+            raise FountainParsingError(f"Failed to read file {file_path}: {e}") from e
 
         return self.parse_string(content, source_file=str(file_path))
 
-    def parse_string(self, content: str, source_file: Optional[str] = None) -> Script:
-        """
-        Parse fountain content from a string and return a Script model.
+    def parse_string(self, content: str, source_file: str | None = None) -> Script:
+        """Parse fountain content from a string and return a Script model.
 
         Args:
             content: Fountain screenplay content
@@ -120,9 +113,9 @@ class FountainParser:
         try:
             document = self.jouvence_parser.parseString(content)
         except JouvenceParserError as e:
-            raise FountainParsingError(f"Fountain parsing error: {e}")
+            raise FountainParsingError(f"Fountain parsing error: {e}") from e
         except Exception as e:
-            raise FountainParsingError(f"Unexpected parsing error: {e}")
+            raise FountainParsingError(f"Unexpected parsing error: {e}") from e
 
         return self._convert_document_to_script(document, content, source_file)
 
@@ -130,10 +123,9 @@ class FountainParser:
         self,
         document: JouvenceDocument,
         original_content: str,
-        source_file: Optional[str] = None
+        source_file: str | None = None,
     ) -> Script:
         """Convert a Jouvence document to a ScriptRAG Script model."""
-
         # Reset parser state
         self._characters_cache.clear()
         self._scene_count = 0
@@ -144,21 +136,24 @@ class FountainParser:
         # If title page is empty, try to extract from first scene content
         if not title_values and document.scenes and document.scenes[0].paragraphs:
             first_scene = document.scenes[0]
-            if not first_scene.header:  # First scene with no header likely contains title page
+            if (
+                not first_scene.header
+            ):  # First scene with no header likely contains title page
                 first_paragraph = first_scene.paragraphs[0]
                 if first_paragraph.type == 0:  # ACTION type
                     title_values = self._extract_title_from_text(first_paragraph.text)
 
         # Create the script entity
         script = Script(
-            title=self._extract_title(title_values) or 'Untitled Script',
+            title=self._extract_title(title_values) or "Untitled Script",
             fountain_source=original_content,
             source_file=source_file,
             title_page=title_values,
-            author=title_values.get('Author') or title_values.get('author'),
-            description=title_values.get('Description') or title_values.get('description'),
-            genre=title_values.get('Genre') or title_values.get('genre'),
-            logline=title_values.get('Logline') or title_values.get('logline'),
+            author=title_values.get("Author") or title_values.get("author"),
+            description=title_values.get("Description")
+            or title_values.get("description"),
+            genre=title_values.get("Genre") or title_values.get("genre"),
+            logline=title_values.get("Logline") or title_values.get("logline"),
         )
 
         # Parse all scenes
@@ -171,19 +166,17 @@ class FountainParser:
 
         return script
 
-    def _extract_title(self, title_values: Dict[str, str]) -> str:
+    def _extract_title(self, title_values: dict[str, str]) -> str:
         """Extract script title from title page metadata."""
-        title = title_values.get('Title', '').strip()
+        title = title_values.get("Title", "").strip()
         if not title:
             # Try alternative title fields (Jouvence uses lowercase keys)
-            title = (
-                title_values.get('title', '') or
-                title_values.get('TITLE', '') or
-                ''
-            )
-        return title.strip() if title else ''
+            title = title_values.get("title", "") or title_values.get("TITLE", "") or ""
+        return title.strip() if title else ""
 
-    def _parse_scenes(self, jouvence_scenes: List[JouvenceScene], script_id: UUID) -> List[Scene]:
+    def _parse_scenes(
+        self, jouvence_scenes: list[JouvenceScene], script_id: UUID
+    ) -> list[Scene]:
         """Parse all scenes from the Jouvence document."""
         scenes = []
 
@@ -199,13 +192,9 @@ class FountainParser:
         return scenes
 
     def _parse_single_scene(
-        self,
-        jouvence_scene: JouvenceScene,
-        script_id: UUID,
-        scene_index: int
-    ) -> Optional[Scene]:
+        self, jouvence_scene: JouvenceScene, script_id: UUID, _scene_index: int
+    ) -> Scene | None:
         """Parse a single scene from Jouvence format."""
-
         self._scene_count += 1
 
         # Parse location from scene heading
@@ -227,9 +216,7 @@ class FountainParser:
 
         for element_index, jouvence_element in enumerate(jouvence_scene.paragraphs):
             element, character_ids = self._parse_scene_element(
-                jouvence_element,
-                scene.id,
-                element_index
+                jouvence_element, scene.id, element_index
             )
             if element:
                 elements.append(element)
@@ -240,7 +227,7 @@ class FountainParser:
 
         return scene
 
-    def _parse_location(self, scene_heading: str) -> Optional[Location]:
+    def _parse_location(self, scene_heading: str) -> Location | None:
         """Parse location information from a scene heading."""
         match = self.SCENE_HEADING_REGEX.match(scene_heading.strip())
         if not match:
@@ -249,20 +236,16 @@ class FountainParser:
         int_ext, location_name, time = match.groups()
 
         return Location(
-            interior=int_ext.upper() == 'INT.',
+            interior=int_ext.upper() == "INT.",
             name=location_name.strip(),
             time=time.strip() if time else None,
             raw_text=scene_heading,
         )
 
     def _parse_scene_element(
-        self,
-        jouvence_element: JouvenceSceneElement,
-        scene_id: UUID,
-        order: int
-    ) -> Tuple[Optional[SceneElement], Set[UUID]]:
-        """
-        Parse a single scene element from Jouvence format.
+        self, jouvence_element: JouvenceSceneElement, scene_id: UUID, order: int
+    ) -> tuple[SceneElement | None, set[UUID]]:
+        """Parse a single scene element from Jouvence format.
 
         Returns:
             Tuple of (element, set of character IDs referenced)
@@ -277,29 +260,35 @@ class FountainParser:
 
         character_ids = set()
 
-        # Create appropriate element type
+        # Create appropriate element type and return directly
         if element_type == ElementType.ACTION:
             # Extract character mentions from action text
             character_ids = self._extract_character_mentions_from_action(text)
-            element = Action(
-                text=text,
-                raw_text=jouvence_element.text,
-                scene_id=scene_id,
-                order_in_scene=order,
+            return (
+                Action(
+                    text=text,
+                    raw_text=jouvence_element.text,
+                    scene_id=scene_id,
+                    order_in_scene=order,
+                ),
+                character_ids,
             )
 
-        elif element_type == ElementType.DIALOGUE:
+        if element_type == ElementType.DIALOGUE:
             # For dialogue, we need the previous element to be a character
-            element = Dialogue(
-                text=text,
-                raw_text=jouvence_element.text,
-                scene_id=scene_id,
-                order_in_scene=order,
-                character_id=uuid4(),  # Will be updated by caller
-                character_name="UNKNOWN",  # Will be updated by caller
+            return (
+                Dialogue(
+                    text=text,
+                    raw_text=jouvence_element.text,
+                    scene_id=scene_id,
+                    order_in_scene=order,
+                    character_id=uuid4(),  # Will be updated by caller
+                    character_name="UNKNOWN",  # Will be updated by caller
+                ),
+                character_ids,
             )
 
-        elif element_type == ElementType.CHARACTER:
+        if element_type == ElementType.CHARACTER:
             # Character name - this indicates who speaks next
             character = self._get_or_create_character(text)
             character_ids.add(character.id)
@@ -308,32 +297,38 @@ class FountainParser:
             # They're handled as metadata for dialogue
             return None, character_ids
 
-        elif element_type == ElementType.PARENTHETICAL:
-            element = Parenthetical(
+        if element_type == ElementType.PARENTHETICAL:
+            return (
+                Parenthetical(
+                    text=text,
+                    raw_text=jouvence_element.text,
+                    scene_id=scene_id,
+                    order_in_scene=order,
+                ),
+                character_ids,
+            )
+
+        if element_type == ElementType.TRANSITION:
+            return (
+                Transition(
+                    text=text,
+                    raw_text=jouvence_element.text,
+                    scene_id=scene_id,
+                    order_in_scene=order,
+                ),
+                character_ids,
+            )
+
+        # Handle other element types as actions for now
+        return (
+            Action(
                 text=text,
                 raw_text=jouvence_element.text,
                 scene_id=scene_id,
                 order_in_scene=order,
-            )
-
-        elif element_type == ElementType.TRANSITION:
-            element = Transition(
-                text=text,
-                raw_text=jouvence_element.text,
-                scene_id=scene_id,
-                order_in_scene=order,
-            )
-
-        else:
-            # Handle other element types as actions for now
-            element = Action(
-                text=text,
-                raw_text=jouvence_element.text,
-                scene_id=scene_id,
-                order_in_scene=order,
-            )
-
-        return element, character_ids
+            ),
+            character_ids,
+        )
 
     def _get_or_create_character(self, character_text: str) -> Character:
         """Get or create a character from character name text."""
@@ -345,7 +340,10 @@ class FountainParser:
             character = self._characters_cache[clean_name]
             # Add alias if the original text was different and not already in aliases
             original_text = character_text.strip()
-            if original_text.upper() != clean_name and original_text not in character.aliases:
+            if (
+                original_text.upper() != clean_name
+                and original_text not in character.aliases
+            ):
                 character.aliases.append(original_text)
             return character
 
@@ -362,17 +360,15 @@ class FountainParser:
     def _clean_character_name(self, character_text: str) -> str:
         """Clean and normalize character name."""
         # Remove extensions like (O.S.), (V.O.), (CONT'D)
-        name = self.CHARACTER_EXTENSION_REGEX.sub('', character_text).strip()
+        name = self.CHARACTER_EXTENSION_REGEX.sub("", character_text).strip()
 
         # Remove non-alphanumeric characters except spaces
-        name = self.CHARACTER_CLEANUP_REGEX.sub('', name)
+        name = self.CHARACTER_CLEANUP_REGEX.sub("", name)
 
         # Normalize whitespace and convert to uppercase
-        name = ' '.join(name.split()).upper()
+        return " ".join(name.split()).upper()
 
-        return name
-
-    def _extract_character_mentions_from_action(self, action_text: str) -> Set[UUID]:
+    def _extract_character_mentions_from_action(self, action_text: str) -> set[UUID]:
         """Extract character mentions from action text."""
         character_ids = set()
 
@@ -380,7 +376,19 @@ class FountainParser:
         words = action_text.split()
         for word in words:
             # Skip common action words
-            if word.upper() in {'THE', 'AND', 'OR', 'BUT', 'TO', 'OF', 'IN', 'ON', 'AT', 'BY', 'FOR'}:
+            if word.upper() in {
+                "THE",
+                "AND",
+                "OR",
+                "BUT",
+                "TO",
+                "OF",
+                "IN",
+                "ON",
+                "AT",
+                "BY",
+                "FOR",
+            }:
                 continue
 
             # Check if this looks like a character name (all caps, letters only)
@@ -392,26 +400,36 @@ class FountainParser:
 
         return character_ids
 
-    def _extract_title_from_text(self, text: str) -> Dict[str, str]:
+    def _extract_title_from_text(self, text: str) -> dict[str, str]:
         """Extract title page metadata from text content."""
         title_values = {}
 
         # Split into lines and look for title page format
-        lines = text.strip().split('\n')
+        lines = text.strip().split("\n")
 
         for line in lines:
             line = line.strip()
-            if ':' in line:
-                key, value = line.split(':', 1)
+            if ":" in line:
+                key, value = line.split(":", 1)
                 key = key.strip()
                 value = value.strip()
 
                 # Normalize common title page keys
-                if key.lower() in ['title', 'author', 'format', 'description', 'genre', 'logline']:
+                if key.lower() in [
+                    "title",
+                    "author",
+                    "format",
+                    "description",
+                    "genre",
+                    "logline",
+                ]:
                     title_values[key.lower()] = value
 
         return title_values
 
 
 # Export the main parser class
-__all__ = ["FountainParser", "FountainParsingError"]
+__all__ = [
+    "FountainParser",
+    "FountainParsingError",
+]

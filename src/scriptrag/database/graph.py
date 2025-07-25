@@ -5,6 +5,8 @@ node and edge management, graph traversal, and query operations.
 """
 
 import json
+import math
+from collections import defaultdict, deque
 from typing import Any
 from uuid import uuid4
 
@@ -632,3 +634,252 @@ class GraphDatabase:
 
         row = self.connection.fetch_one(sql, params)
         return row["degree"] if row else 0
+
+    def calculate_degree_centrality(self, node_id: str = None, normalized: bool = True) -> dict[str, float] | float:
+        """Calculate degree centrality for all nodes or a specific node.
+
+        Degree centrality is the fraction of nodes a node is connected to.
+
+        Args:
+            node_id: Specific node ID to calculate centrality for (None for all nodes)
+            normalized: Whether to normalize by (n-1) where n is total nodes
+
+        Returns:
+            Dictionary of {node_id: centrality} or single centrality value
+        """
+        # Get all nodes if calculating for all
+        if node_id is None:
+            rows = self.connection.fetch_all("SELECT id FROM nodes")
+            all_node_ids = [row["id"] for row in rows]
+        else:
+            all_node_ids = [node_id]
+
+        total_nodes = self.connection.fetch_one("SELECT COUNT(*) as count FROM nodes")["count"]
+        # For bidirectional edge representation of undirected graphs, max degree is 2*(n-1)
+        max_degree = 2 * (total_nodes - 1) if total_nodes > 1 else 1
+
+        centralities = {}
+        for nid in all_node_ids:
+            degree = self.get_node_degree(nid, direction="both")
+            if normalized and max_degree > 0:
+                centralities[nid] = degree / max_degree
+            else:
+                centralities[nid] = float(degree)
+
+        return centralities if node_id is None else centralities[node_id]
+
+    def calculate_betweenness_centrality(self, node_id: str = None, normalized: bool = True) -> dict[str, float] | float:
+        """Calculate betweenness centrality for all nodes or a specific node.
+
+        Betweenness centrality measures how often a node lies on shortest paths between other nodes.
+
+        Args:
+            node_id: Specific node ID to calculate centrality for (None for all nodes)
+            normalized: Whether to normalize by maximum possible betweenness
+
+        Returns:
+            Dictionary of {node_id: centrality} or single centrality value
+        """
+        # Get all nodes
+        rows = self.connection.fetch_all("SELECT id FROM nodes")
+        all_nodes = [row["id"] for row in rows]
+
+        if not all_nodes:
+            return {} if node_id is None else 0.0
+
+        # Calculate for specific node or all nodes
+        target_nodes = [node_id] if node_id else all_nodes
+        betweenness = {nid: 0.0 for nid in target_nodes}
+
+        # For each pair of nodes, find shortest paths and count how many pass through each node
+        for s in all_nodes:
+            # Single source shortest paths using BFS
+            distances = {s: 0}
+            predecessors = defaultdict(list)
+            sigma = defaultdict(int)
+            sigma[s] = 1
+            queue = deque([s])
+
+            # BFS to find shortest paths
+            while queue:
+                v = queue.popleft()
+                neighbors = self.get_neighbors(v, direction="out")
+
+                for neighbor_obj in neighbors:
+                    w = neighbor_obj.id
+                    # Path discovery
+                    if w not in distances:
+                        queue.append(w)
+                        distances[w] = distances[v] + 1
+
+                    # Path counting
+                    if distances[w] == distances[v] + 1:
+                        sigma[w] += sigma[v]
+                        predecessors[w].append(v)
+
+            # Accumulation phase
+            delta = defaultdict(float)
+            # Sort nodes by distance (furthest first)
+            sorted_nodes = sorted(distances.keys(), key=lambda x: distances[x], reverse=True)
+
+            for w in sorted_nodes:
+                for v in predecessors[w]:
+                    delta[v] += (sigma[v] / sigma[w]) * (1 + delta[w])
+
+            # Add to betweenness scores (excluding source node)
+            for nid in target_nodes:
+                if nid != s and nid in delta:
+                    betweenness[nid] += delta[nid]
+
+        # Normalize if requested
+        if normalized:
+            n = len(all_nodes)
+            if n > 2:
+                # For undirected graphs: 2/((n-1)(n-2))
+                # For directed graphs: 1/((n-1)(n-2))
+                # We'll use the undirected formula as screenplay graphs are typically undirected
+                norm_factor = 2.0 / ((n - 1) * (n - 2))
+                for nid in betweenness:
+                    betweenness[nid] *= norm_factor
+
+        return betweenness if node_id is None else betweenness.get(node_id, 0.0)
+
+    def calculate_closeness_centrality(self, node_id: str = None, normalized: bool = True) -> dict[str, float] | float:
+        """Calculate closeness centrality for all nodes or a specific node.
+
+        Closeness centrality is the reciprocal of the sum of shortest path distances
+        to all other nodes.
+
+        Args:
+            node_id: Specific node ID to calculate centrality for (None for all nodes)
+            normalized: Whether to normalize by (n-1) where n is total nodes
+
+        Returns:
+            Dictionary of {node_id: centrality} or single centrality value
+        """
+        # Get all nodes
+        rows = self.connection.fetch_all("SELECT id FROM nodes")
+        all_nodes = [row["id"] for row in rows]
+
+        if not all_nodes:
+            return {} if node_id is None else 0.0
+
+        target_nodes = [node_id] if node_id else all_nodes
+        closeness = {}
+
+        for source in target_nodes:
+            # BFS to calculate shortest distances
+            distances = {source: 0}
+            queue = deque([source])
+            visited = {source}
+
+            while queue:
+                current = queue.popleft()
+                neighbors = self.get_neighbors(current, direction="both")
+
+                for neighbor_obj in neighbors:
+                    neighbor_id = neighbor_obj.id
+                    if neighbor_id not in visited:
+                        visited.add(neighbor_id)
+                        distances[neighbor_id] = distances[current] + 1
+                        queue.append(neighbor_id)
+
+            # Calculate closeness centrality
+            total_distance = sum(distances.values())
+            reachable_nodes = len(distances) - 1  # Exclude the source node itself
+
+            if total_distance > 0 and reachable_nodes > 0:
+                if normalized:
+                    # Normalize by (n-1) and multiply by reachable nodes
+                    n = len(all_nodes)
+                    closeness[source] = (reachable_nodes / total_distance) * (reachable_nodes / (n - 1))
+                else:
+                    closeness[source] = reachable_nodes / total_distance
+            else:
+                closeness[source] = 0.0
+
+        return closeness if node_id is None else closeness.get(node_id, 0.0)
+
+    def calculate_eigenvector_centrality(
+        self,
+        node_id: str = None,
+        max_iterations: int = 100,
+        tolerance: float = 1e-6
+    ) -> dict[str, float] | float:
+        """Calculate eigenvector centrality using power iteration method.
+
+        Eigenvector centrality assigns relative scores based on the principle that
+        connections to high-scoring nodes contribute more than connections to low-scoring nodes.
+
+        Args:
+            node_id: Specific node ID to calculate centrality for (None for all nodes)
+            max_iterations: Maximum number of iterations for convergence
+            tolerance: Convergence tolerance
+
+        Returns:
+            Dictionary of {node_id: centrality} or single centrality value
+        """
+        # Get all nodes
+        rows = self.connection.fetch_all("SELECT id FROM nodes")
+        all_nodes = [row["id"] for row in rows]
+
+        if not all_nodes:
+            return {} if node_id is None else 0.0
+
+        n = len(all_nodes)
+        node_to_index = {node: i for i, node in enumerate(all_nodes)}
+
+        # Build adjacency matrix
+        adjacency = [[0.0] * n for _ in range(n)]
+
+        for i, node in enumerate(all_nodes):
+            neighbors = self.get_neighbors(node, direction="both")
+            for neighbor_obj in neighbors:
+                j = node_to_index.get(neighbor_obj.id)
+                if j is not None:
+                    adjacency[i][j] = 1.0
+
+        # Initialize eigenvector with equal values
+        eigenvector = [1.0] * n
+
+        # Power iteration
+        for iteration in range(max_iterations):
+            new_eigenvector = [0.0] * n
+
+            # Matrix-vector multiplication: A * eigenvector
+            for i in range(n):
+                for j in range(n):
+                    new_eigenvector[i] += adjacency[i][j] * eigenvector[j]
+
+            # Normalize the eigenvector
+            norm = math.sqrt(sum(x * x for x in new_eigenvector))
+            if norm > 0:
+                new_eigenvector = [x / norm for x in new_eigenvector]
+
+            # Check for convergence
+            diff = sum(abs(new_eigenvector[i] - eigenvector[i]) for i in range(n))
+            if diff < tolerance:
+                break
+
+            eigenvector = new_eigenvector
+
+        # Create result dictionary
+        centralities = {all_nodes[i]: eigenvector[i] for i in range(n)}
+
+        return centralities if node_id is None else centralities.get(node_id, 0.0)
+
+    def get_centrality_summary(self, node_id: str) -> dict[str, float]:
+        """Get a summary of all centrality measures for a specific node.
+
+        Args:
+            node_id: Node identifier
+
+        Returns:
+            Dictionary with all centrality measures
+        """
+        return {
+            "degree_centrality": self.calculate_degree_centrality(node_id),
+            "betweenness_centrality": self.calculate_betweenness_centrality(node_id),
+            "closeness_centrality": self.calculate_closeness_centrality(node_id),
+            "eigenvector_centrality": self.calculate_eigenvector_centrality(node_id)
+        }

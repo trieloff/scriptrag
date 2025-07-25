@@ -130,7 +130,7 @@ class TestDatabaseSchema:
 
         assert temp_db_path.exists()
         assert schema.validate_schema()
-        assert schema.get_current_version() == 1
+        assert schema.get_current_version() == 2
 
     def test_schema_validation(self, temp_db_path):
         """Test schema validation."""
@@ -336,6 +336,128 @@ class TestGraphDatabase:
         nodes = graph_db.find_nodes(label_pattern="%COFFEE%")
         assert len(nodes) == 1
         assert nodes[0].label == "COFFEE SHOP"
+
+    def test_centrality_calculations(self, graph_db):
+        """Test node centrality calculation methods."""
+        # Create a small known graph:
+        #     A
+        #    / \
+        #   B---C
+        #   |   |
+        #   D---E
+
+        node_a = graph_db.add_node("test", label="A")
+        node_b = graph_db.add_node("test", label="B")
+        node_c = graph_db.add_node("test", label="C")
+        node_d = graph_db.add_node("test", label="D")
+        node_e = graph_db.add_node("test", label="E")
+
+        # Add edges (undirected graph via bidirectional edges)
+        edges = [
+            (node_a, node_b), (node_b, node_a),  # A-B
+            (node_a, node_c), (node_c, node_a),  # A-C
+            (node_b, node_c), (node_c, node_b),  # B-C
+            (node_b, node_d), (node_d, node_b),  # B-D
+            (node_c, node_e), (node_e, node_c),  # C-E
+            (node_d, node_e), (node_e, node_d),  # D-E
+        ]
+
+        for from_node, to_node in edges:
+            graph_db.add_edge(from_node, to_node, "CONNECTS_TO")
+
+        # Test degree centrality
+        degree_centralities = graph_db.calculate_degree_centrality()
+        assert len(degree_centralities) == 5
+
+        # Node A has degree 4 (2 undirected connections × 2 for bidirectional edges)
+        # In a 5-node graph with bidirectional representation, max degree is 2*(n-1) = 8
+        # So normalized centrality is 4/8 = 0.5
+        assert degree_centralities[node_a] == 0.5
+
+        # Test single node degree centrality
+        single_centrality = graph_db.calculate_degree_centrality(node_a)
+        assert single_centrality == 0.5
+
+        # Test betweenness centrality
+        betweenness_centralities = graph_db.calculate_betweenness_centrality()
+        assert len(betweenness_centralities) == 5
+
+        # All nodes should have some betweenness centrality values
+        for centrality in betweenness_centralities.values():
+            assert centrality >= 0.0
+
+        # Test single node betweenness centrality
+        single_betweenness = graph_db.calculate_betweenness_centrality(node_a)
+        assert single_betweenness >= 0.0
+
+        # Test closeness centrality
+        closeness_centralities = graph_db.calculate_closeness_centrality()
+        assert len(closeness_centralities) == 5
+
+        # All nodes should have positive closeness centrality
+        for centrality in closeness_centralities.values():
+            assert centrality > 0.0
+
+        # Test single node closeness centrality
+        single_closeness = graph_db.calculate_closeness_centrality(node_a)
+        assert single_closeness > 0.0
+
+        # Test eigenvector centrality
+        eigenvector_centralities = graph_db.calculate_eigenvector_centrality()
+        assert len(eigenvector_centralities) == 5
+
+        # All nodes should have non-negative eigenvector centrality
+        for centrality in eigenvector_centralities.values():
+            assert centrality >= 0.0
+
+        # Test single node eigenvector centrality
+        single_eigenvector = graph_db.calculate_eigenvector_centrality(node_a)
+        assert single_eigenvector >= 0.0
+
+        # Test centrality summary
+        summary = graph_db.get_centrality_summary(node_a)
+        assert "degree_centrality" in summary
+        assert "betweenness_centrality" in summary
+        assert "closeness_centrality" in summary
+        assert "eigenvector_centrality" in summary
+
+        # Verify summary values match individual calculations
+        assert summary["degree_centrality"] == single_centrality
+        assert summary["betweenness_centrality"] == single_betweenness
+        assert summary["closeness_centrality"] == single_closeness
+        assert summary["eigenvector_centrality"] == single_eigenvector
+
+    def test_centrality_empty_graph(self, graph_db):
+        """Test centrality calculations on empty graph."""
+        # Test with no nodes
+        degree_centralities = graph_db.calculate_degree_centrality()
+        assert degree_centralities == {}
+
+        betweenness_centralities = graph_db.calculate_betweenness_centrality()
+        assert betweenness_centralities == {}
+
+        closeness_centralities = graph_db.calculate_closeness_centrality()
+        assert closeness_centralities == {}
+
+        eigenvector_centralities = graph_db.calculate_eigenvector_centrality()
+        assert eigenvector_centralities == {}
+
+    def test_centrality_single_node(self, graph_db):
+        """Test centrality calculations with single isolated node."""
+        node_a = graph_db.add_node("test", label="A")
+
+        # Single node should have centrality of 0 for most measures
+        degree_centrality = graph_db.calculate_degree_centrality(node_a)
+        assert degree_centrality == 0.0
+
+        betweenness_centrality = graph_db.calculate_betweenness_centrality(node_a)
+        assert betweenness_centrality == 0.0
+
+        closeness_centrality = graph_db.calculate_closeness_centrality(node_a)
+        assert closeness_centrality == 0.0
+
+        eigenvector_centrality = graph_db.calculate_eigenvector_centrality(node_a)
+        assert eigenvector_centrality >= 0.0  # Should be normalized to some value
 
 
 class TestGraphOperations:

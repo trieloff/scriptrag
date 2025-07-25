@@ -9,7 +9,7 @@ provides efficient SIMD-accelerated vector operations.
 """
 
 import json
-from typing import Any, Dict, List, Optional, Tuple, TypeAlias, Union
+from typing import Any, List, TypeAlias
 
 import numpy as np
 import sqlite_vec

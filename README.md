@@ -74,7 +74,7 @@ Generation) pattern.
     - [x] Add/update/delete edges
     - [x] Traverse graph (BFS/DFS)
     - [x] Find paths between nodes
-    - [ ] Calculate node centrality
+    - [x] Calculate node centrality
   - [x] Create query builder for complex graph queries
   - [x] Implement transaction support
 

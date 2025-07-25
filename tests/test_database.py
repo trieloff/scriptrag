@@ -354,12 +354,18 @@ class TestGraphDatabase:
 
         # Add edges (undirected graph via bidirectional edges)
         edges = [
-            (node_a, node_b), (node_b, node_a),  # A-B
-            (node_a, node_c), (node_c, node_a),  # A-C
-            (node_b, node_c), (node_c, node_b),  # B-C
-            (node_b, node_d), (node_d, node_b),  # B-D
-            (node_c, node_e), (node_e, node_c),  # C-E
-            (node_d, node_e), (node_e, node_d),  # D-E
+            (node_a, node_b),
+            (node_b, node_a),  # A-B
+            (node_a, node_c),
+            (node_c, node_a),  # A-C
+            (node_b, node_c),
+            (node_c, node_b),  # B-C
+            (node_b, node_d),
+            (node_d, node_b),  # B-D
+            (node_c, node_e),
+            (node_e, node_c),  # C-E
+            (node_d, node_e),
+            (node_e, node_d),  # D-E
         ]
 
         for from_node, to_node in edges:
@@ -369,7 +375,7 @@ class TestGraphDatabase:
         degree_centralities = graph_db.calculate_degree_centrality()
         assert len(degree_centralities) == 5
 
-        # Node A has degree 4 (2 undirected connections × 2 for bidirectional edges)
+        # Node A has degree 4 (2 undirected connections x 2 for bidirectional edges)
         # In a 5-node graph with bidirectional representation, max degree is 2*(n-1) = 8
         # So normalized centrality is 4/8 = 0.5
         assert degree_centralities[node_a] == 0.5

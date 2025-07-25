@@ -9,7 +9,7 @@ provides efficient SIMD-accelerated vector operations.
 """
 
 import json
-from typing import Any, List, TypeAlias
+from typing import Any, TypeAlias
 
 import numpy as np
 import sqlite_vec
@@ -19,7 +19,7 @@ from scriptrag.config import get_logger
 logger = get_logger(__name__)
 
 # Vector types supported by sqlite-vec
-VectorType: TypeAlias = List[float] | np.ndarray | bytes
+VectorType: TypeAlias = list[float] | np.ndarray | bytes
 DistanceMetric = str  # 'cosine', 'l2', 'l1', 'hamming'
 
 
@@ -485,7 +485,7 @@ class VectorOperations:
 
             with self.db_connection.get_connection() as conn:
                 cursor = conn.cursor()
-                cursor.execute(f"DELETE FROM embeddings WHERE {where_clause}", params)  # noqa: S608
+                cursor.execute(f"DELETE FROM embeddings WHERE {where_clause}", params)
                 deleted_count = cursor.rowcount
                 conn.commit()
 

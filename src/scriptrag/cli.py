@@ -466,7 +466,7 @@ def dev_test_llm() -> None:
         settings = get_settings()
 
         # Test embeddings endpoint
-        embed_url = f"{settings.llm.base_url}/embeddings"
+        embed_url = f"{settings.llm.endpoint}/embeddings"
         embed_data = {"input": "test", "model": settings.llm.embedding_model}
 
         console.print(f"[dim]Testing embeddings: {embed_url}[/dim]")
@@ -480,9 +480,9 @@ def dev_test_llm() -> None:
             )
 
         # Test completion endpoint
-        completion_url = f"{settings.llm.base_url}/chat/completions"
+        completion_url = f"{settings.llm.endpoint}/chat/completions"
         completion_data = {
-            "model": settings.llm.model,
+            "model": settings.llm.default_model,
             "messages": [{"role": "user", "content": "Say 'test successful'"}],
             "max_tokens": 10,
         }

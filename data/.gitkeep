@@ -1,0 +1,6 @@
+# This file ensures the data directory is tracked by git
+# The data directory will contain:
+# - Raw screenplay files (.fountain)
+# - Processed data
+# - Sample scripts for testing
+# - Exported graphs and analyses

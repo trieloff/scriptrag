@@ -3,23 +3,18 @@
 Unit tests for the Fountain parser integration.
 """
 
-import pytest
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from uuid import UUID
 
-from scriptrag.parser import FountainParser, FountainParsingError
+import pytest
+
 from scriptrag.models import (
-    Action,
     Character,
-    Dialogue,
     ElementType,
     Location,
-    Parenthetical,
-    Scene,
     Script,
-    Transition,
 )
+from scriptrag.parser import FountainParser, FountainParsingError
 
 
 class TestFountainParser:
@@ -86,11 +81,13 @@ FADE OUT.
         assert script.author == "Test Author"
         assert script.format == "screenplay"
         assert script.fountain_source == sample_fountain_content
-        assert len(script.scenes) == 2  # Two actual scenes (EXT. COFFEE SHOP and INT. APARTMENT)
+        assert (
+            len(script.scenes) == 2
+        )  # Two actual scenes (EXT. COFFEE SHOP and INT. APARTMENT)
 
     def test_parse_file(self, parser, sample_fountain_content):
         """Test file parsing functionality."""
-        with NamedTemporaryFile(mode='w', suffix='.fountain', delete=False) as f:
+        with NamedTemporaryFile(mode="w", suffix=".fountain", delete=False) as f:
             f.write(sample_fountain_content)
             temp_path = f.name
 
@@ -330,7 +327,8 @@ FADE OUT.
         """Test that parser state resets between parses."""
         # Parse first script
         script1 = parser.parse_string(sample_fountain_content)
-        chars_count_1 = len(script1.characters)
+        # Verify first script has characters
+        assert len(script1.characters) > 0
 
         # Parse second script - should not carry over characters
         simple_content = """
@@ -378,7 +376,7 @@ class TestLocationModel:
             interior=True,
             name="COFFEE SHOP",
             time="DAY",
-            raw_text="INT. COFFEE SHOP - DAY"
+            raw_text="INT. COFFEE SHOP - DAY",
         )
 
         assert location.interior is True
@@ -389,10 +387,7 @@ class TestLocationModel:
     def test_location_exterior(self):
         """Test exterior location."""
         location = Location(
-            interior=False,
-            name="PARK",
-            time="NIGHT",
-            raw_text="EXT. PARK - NIGHT"
+            interior=False, name="PARK", time="NIGHT", raw_text="EXT. PARK - NIGHT"
         )
 
         assert location.interior is False
@@ -400,11 +395,7 @@ class TestLocationModel:
 
     def test_location_no_time(self):
         """Test location without time specification."""
-        location = Location(
-            interior=True,
-            name="APARTMENT",
-            raw_text="INT. APARTMENT"
-        )
+        location = Location(interior=True, name="APARTMENT", raw_text="INT. APARTMENT")
 
         assert location.time is None
         assert str(location) == "INT. APARTMENT"

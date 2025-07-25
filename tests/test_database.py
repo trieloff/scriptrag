@@ -1,0 +1,524 @@
+"""Tests for ScriptRAG database functionality.
+
+This module contains tests for the database schema, connections, and operations.
+"""
+
+import tempfile
+from pathlib import Path
+from uuid import uuid4
+
+import pytest
+
+from scriptrag.config import get_logger
+from scriptrag.database import (
+    DatabaseConnection,
+    DatabaseSchema,
+    GraphDatabase,
+    GraphOperations,
+    create_database,
+)
+from scriptrag.models import (
+    Character,
+    Episode,
+    Location,
+    Scene,
+    SceneOrderType,
+    Script,
+    Season,
+)
+
+logger = get_logger(__name__)
+
+
+@pytest.fixture
+def temp_db_path():
+    """Create a temporary database file for testing."""
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = Path(f.name)
+
+    yield db_path
+
+    # Cleanup
+    if db_path.exists():
+        db_path.unlink()
+
+
+@pytest.fixture
+def db_connection(temp_db_path):
+    """Create a database connection for testing."""
+    # Create the schema first
+    schema = create_database(temp_db_path)
+
+    # Create connection
+    connection = DatabaseConnection(temp_db_path)
+
+    yield connection
+
+    connection.close()
+
+
+@pytest.fixture
+def graph_db(db_connection):
+    """Create a graph database instance for testing."""
+    return GraphDatabase(db_connection)
+
+
+@pytest.fixture
+def graph_ops(db_connection):
+    """Create graph operations instance for testing."""
+    return GraphOperations(db_connection)
+
+
+@pytest.fixture
+def sample_script():
+    """Create a sample script for testing."""
+    return Script(
+        title="Test Screenplay",
+        author="Test Author",
+        format="screenplay",
+        genre="Drama",
+        description="A test screenplay for unit testing",
+        is_series=False,
+    )
+
+
+@pytest.fixture
+def sample_character():
+    """Create a sample character for testing."""
+    return Character(
+        name="PROTAGONIST",
+        description="The main character of our test story",
+        aliases=["HERO", "MAIN_CHAR"],
+    )
+
+
+@pytest.fixture
+def sample_location():
+    """Create a sample location for testing."""
+    return Location(
+        interior=True,
+        name="COFFEE SHOP",
+        time="DAY",
+        raw_text="INT. COFFEE SHOP - DAY",
+    )
+
+
+@pytest.fixture
+def sample_scene():
+    """Create a sample scene for testing."""
+    return Scene(
+        script_id=uuid4(),
+        heading="INT. COFFEE SHOP - DAY",
+        description="Our protagonist enters a busy coffee shop",
+        script_order=1,
+        temporal_order=1,
+        estimated_duration_minutes=2.5,
+    )
+
+
+class TestDatabaseSchema:
+    """Test database schema creation and validation."""
+
+    def test_schema_creation(self, temp_db_path):
+        """Test creating a new database schema."""
+        schema = DatabaseSchema(temp_db_path)
+        schema.create_schema()
+
+        assert temp_db_path.exists()
+        assert schema.validate_schema()
+        assert schema.get_current_version() == 1
+
+    def test_schema_validation(self, temp_db_path):
+        """Test schema validation."""
+        schema = create_database(temp_db_path)
+        assert schema.validate_schema()
+
+    def test_migration_check(self, temp_db_path):
+        """Test migration status checking."""
+        schema = DatabaseSchema(temp_db_path)
+
+        # New database should need migration
+        assert schema.needs_migration()
+
+        # After creation, should not need migration
+        schema.create_schema()
+        assert not schema.needs_migration()
+
+
+class TestDatabaseConnection:
+    """Test database connection management."""
+
+    def test_connection_creation(self, temp_db_path):
+        """Test creating a database connection."""
+        # Create schema first
+        create_database(temp_db_path)
+
+        connection = DatabaseConnection(temp_db_path)
+
+        with connection.get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table'"
+            )
+            result = cursor.fetchone()
+            assert result["count"] > 0  # Should have tables
+
+    def test_transaction_rollback(self, db_connection):
+        """Test transaction rollback on error."""
+        try:
+            with db_connection.transaction() as conn:
+                conn.execute(
+                    "INSERT INTO scripts (id, title) VALUES (?, ?)", ("test-id", "Test")
+                )
+                # Force an error
+                conn.execute(
+                    "INSERT INTO scripts (id, title) VALUES (?, ?)", ("test-id", "Test")
+                )  # Duplicate
+        except Exception:
+            pass  # Expected
+
+        # Check that rollback worked
+        result = db_connection.fetch_one(
+            "SELECT COUNT(*) as count FROM scripts WHERE id = ?", ("test-id",)
+        )
+        assert result["count"] == 0
+
+    def test_query_methods(self, db_connection):
+        """Test various query methods."""
+        # Insert test data
+        script_id = str(uuid4())
+        with db_connection.transaction() as conn:
+            conn.execute(
+                "INSERT INTO scripts (id, title, author) VALUES (?, ?, ?)",
+                (script_id, "Test Script", "Test Author"),
+            )
+
+        # Test fetch_one
+        result = db_connection.fetch_one(
+            "SELECT * FROM scripts WHERE id = ?", (script_id,)
+        )
+        assert result is not None
+        assert result["title"] == "Test Script"
+
+        # Test fetch_all
+        results = db_connection.fetch_all("SELECT * FROM scripts")
+        assert len(results) >= 1
+
+    def test_table_operations(self, db_connection):
+        """Test table information methods."""
+        tables = db_connection.get_table_names()
+        assert "scripts" in tables
+        assert "scenes" in tables
+        assert "characters" in tables
+
+        script_info = db_connection.get_table_info("scripts")
+        assert len(script_info) > 0
+
+
+class TestGraphDatabase:
+    """Test basic graph database operations."""
+
+    def test_node_operations(self, graph_db):
+        """Test node creation, retrieval, update, and deletion."""
+        # Create node
+        node_id = graph_db.add_node(
+            node_type="test", label="Test Node", properties={"key": "value"}
+        )
+
+        # Retrieve node
+        node = graph_db.get_node(node_id)
+        assert node is not None
+        assert node.node_type == "test"
+        assert node.label == "Test Node"
+        assert node.properties["key"] == "value"
+
+        # Update node
+        updated = graph_db.update_node(
+            node_id,
+            label="Updated Node",
+            properties={"key": "new_value", "new_key": "new_value"},
+        )
+        assert updated
+
+        # Verify update
+        node = graph_db.get_node(node_id)
+        assert node.label == "Updated Node"
+        assert node.properties["key"] == "new_value"
+        assert node.properties["new_key"] == "new_value"
+
+        # Delete node
+        deleted = graph_db.delete_node(node_id)
+        assert deleted
+
+        # Verify deletion
+        node = graph_db.get_node(node_id)
+        assert node is None
+
+    def test_edge_operations(self, graph_db):
+        """Test edge creation, retrieval, and deletion."""
+        # Create nodes
+        node1_id = graph_db.add_node("test", label="Node 1")
+        node2_id = graph_db.add_node("test", label="Node 2")
+
+        # Create edge
+        edge_id = graph_db.add_edge(
+            from_node_id=node1_id,
+            to_node_id=node2_id,
+            edge_type="CONNECTS_TO",
+            properties={"strength": 0.8},
+            weight=0.8,
+        )
+
+        # Retrieve edge
+        edge = graph_db.get_edge(edge_id)
+        assert edge is not None
+        assert edge.from_node_id == node1_id
+        assert edge.to_node_id == node2_id
+        assert edge.edge_type == "CONNECTS_TO"
+        assert edge.properties["strength"] == 0.8
+        assert edge.weight == 0.8
+
+        # Delete edge
+        deleted = graph_db.delete_edge(edge_id)
+        assert deleted
+
+        # Verify deletion
+        edge = graph_db.get_edge(edge_id)
+        assert edge is None
+
+    def test_graph_traversal(self, graph_db):
+        """Test graph traversal operations."""
+        # Create a small graph: A -> B -> C
+        node_a = graph_db.add_node("test", label="A")
+        node_b = graph_db.add_node("test", label="B")
+        node_c = graph_db.add_node("test", label="C")
+
+        graph_db.add_edge(node_a, node_b, "CONNECTS_TO")
+        graph_db.add_edge(node_b, node_c, "CONNECTS_TO")
+
+        # Test neighbors
+        neighbors = graph_db.get_neighbors(
+            node_a, edge_type="CONNECTS_TO", direction="out"
+        )
+        assert len(neighbors) == 1
+        assert neighbors[0].id == node_b
+
+        # Test path finding
+        path = graph_db.find_path(node_a, node_c, edge_type="CONNECTS_TO")
+        assert path is not None
+        assert path == [node_a, node_b, node_c]
+
+        # Test subgraph
+        nodes, edges = graph_db.get_subgraph(node_b, radius=1, edge_type="CONNECTS_TO")
+        assert len(nodes) == 3  # All nodes should be included
+        assert len(edges) == 2  # Both edges should be included
+
+    def test_node_search(self, graph_db):
+        """Test node search functionality."""
+        # Create test nodes
+        graph_db.add_node("character", label="PROTAGONIST", entity_id="char-1")
+        graph_db.add_node("character", label="ANTAGONIST", entity_id="char-2")
+        graph_db.add_node("location", label="COFFEE SHOP", entity_id="loc-1")
+
+        # Test search by type
+        characters = graph_db.find_nodes(node_type="character")
+        assert len(characters) == 2
+
+        # Test search by entity_id
+        nodes = graph_db.find_nodes(entity_id="char-1")
+        assert len(nodes) == 1
+        assert nodes[0].label == "PROTAGONIST"
+
+        # Test search by label pattern
+        nodes = graph_db.find_nodes(label_pattern="%COFFEE%")
+        assert len(nodes) == 1
+        assert nodes[0].label == "COFFEE SHOP"
+
+
+class TestGraphOperations:
+    """Test screenplay-specific graph operations."""
+
+    def test_script_graph_creation(self, graph_ops, sample_script):
+        """Test creating a script graph."""
+        script_node_id = graph_ops.create_script_graph(sample_script)
+
+        node = graph_ops.graph.get_node(script_node_id)
+        assert node is not None
+        assert node.node_type == "script"
+        assert node.label == sample_script.title
+        assert node.properties["author"] == sample_script.author
+
+    def test_character_operations(self, graph_ops, sample_script, sample_character):
+        """Test character node operations."""
+        # Create script first
+        script_node_id = graph_ops.create_script_graph(sample_script)
+
+        # Create character
+        char_node_id = graph_ops.create_character_node(sample_character, script_node_id)
+
+        # Verify character node
+        char_node = graph_ops.graph.get_node(char_node_id)
+        assert char_node is not None
+        assert char_node.node_type == "character"
+        assert char_node.label == sample_character.name
+
+        # Verify connection to script
+        neighbors = graph_ops.graph.get_neighbors(
+            script_node_id, edge_type="HAS_CHARACTER"
+        )
+        assert len(neighbors) == 1
+        assert neighbors[0].id == char_node_id
+
+    def test_location_operations(self, graph_ops, sample_script, sample_location):
+        """Test location node operations."""
+        script_node_id = graph_ops.create_script_graph(sample_script)
+
+        loc_node_id = graph_ops.create_location_node(sample_location, script_node_id)
+
+        loc_node = graph_ops.graph.get_node(loc_node_id)
+        assert loc_node is not None
+        assert loc_node.node_type == "location"
+        assert loc_node.properties["name"] == sample_location.name
+
+    def test_scene_operations(self, graph_ops, sample_script, sample_scene):
+        """Test scene node operations."""
+        script_node_id = graph_ops.create_script_graph(sample_script)
+
+        scene_node_id = graph_ops.create_scene_node(sample_scene, script_node_id)
+
+        scene_node = graph_ops.graph.get_node(scene_node_id)
+        assert scene_node is not None
+        assert scene_node.node_type == "scene"
+        assert scene_node.properties["script_order"] == sample_scene.script_order
+
+    def test_scene_ordering(self, graph_ops, sample_script):
+        """Test scene ordering operations."""
+        script_node_id = graph_ops.create_script_graph(sample_script)
+
+        # Create multiple scenes
+        scenes = []
+        scene_node_ids = []
+        for i in range(3):
+            scene = Scene(
+                script_id=sample_script.id,
+                heading=f"Scene {i + 1}",
+                script_order=i + 1,
+                temporal_order=i + 1,
+            )
+            scenes.append(scene)
+            scene_node_id = graph_ops.create_scene_node(scene, script_node_id)
+            scene_node_ids.append(scene_node_id)
+
+        # Create sequence
+        edge_ids = graph_ops.create_scene_sequence(
+            scene_node_ids, SceneOrderType.SCRIPT
+        )
+        assert len(edge_ids) == 2  # 3 scenes = 2 edges
+
+        # Test getting ordered scenes
+        ordered_scenes = graph_ops.get_script_scenes(
+            script_node_id, SceneOrderType.SCRIPT
+        )
+        assert len(ordered_scenes) == 3
+        assert ordered_scenes[0].properties["script_order"] == 1
+        assert ordered_scenes[1].properties["script_order"] == 2
+        assert ordered_scenes[2].properties["script_order"] == 3
+
+    def test_character_scene_connections(
+        self, graph_ops, sample_script, sample_character, sample_scene
+    ):
+        """Test connecting characters to scenes."""
+        script_node_id = graph_ops.create_script_graph(sample_script)
+        char_node_id = graph_ops.create_character_node(sample_character, script_node_id)
+        scene_node_id = graph_ops.create_scene_node(sample_scene, script_node_id)
+
+        # Connect character to scene
+        edge_id = graph_ops.connect_character_to_scene(
+            char_node_id, scene_node_id, speaking_lines=5, action_mentions=2
+        )
+
+        edge = graph_ops.graph.get_edge(edge_id)
+        assert edge is not None
+        assert edge.edge_type == "APPEARS_IN"
+        assert edge.properties["speaking_lines"] == 5
+        assert edge.properties["action_mentions"] == 2
+
+        # Test getting character scenes
+        char_scenes = graph_ops.get_character_scenes(char_node_id)
+        assert len(char_scenes) == 1
+        assert char_scenes[0].id == scene_node_id
+
+    def test_character_interactions(self, graph_ops, sample_script):
+        """Test character interaction tracking."""
+        script_node_id = graph_ops.create_script_graph(sample_script)
+
+        # Create two characters
+        char1 = Character(name="ALICE", description="First character")
+        char2 = Character(name="BOB", description="Second character")
+
+        char1_node_id = graph_ops.create_character_node(char1, script_node_id)
+        char2_node_id = graph_ops.create_character_node(char2, script_node_id)
+
+        # Create a scene
+        scene = Scene(script_id=sample_script.id, heading="Test Scene", script_order=1)
+        scene_node_id = graph_ops.create_scene_node(scene, script_node_id)
+
+        # Connect characters to scene
+        graph_ops.connect_character_to_scene(char1_node_id, scene_node_id)
+        graph_ops.connect_character_to_scene(char2_node_id, scene_node_id)
+
+        # Create interaction
+        interaction_edge_id = graph_ops.connect_character_interaction(
+            char1_node_id, char2_node_id, scene_node_id, dialogue_count=3
+        )
+
+        # Test getting interactions
+        interactions = graph_ops.get_character_interactions(
+            char1_node_id, scene_node_id
+        )
+        assert len(interactions) == 1
+
+        target_char, interaction_edge = interactions[0]
+        assert target_char.id == char2_node_id
+        assert interaction_edge.properties["dialogue_count"] == 3
+
+    def test_centrality_analysis(self, graph_ops, sample_script):
+        """Test character centrality analysis."""
+        script_node_id = graph_ops.create_script_graph(sample_script)
+
+        # Create characters
+        characters = []
+        char_node_ids = []
+        for i in range(3):
+            char = Character(name=f"CHAR_{i}", description=f"Character {i}")
+            char_node_id = graph_ops.create_character_node(char, script_node_id)
+            characters.append(char)
+            char_node_ids.append(char_node_id)
+
+        # Create scenes and interactions to give one character higher centrality
+        scene = Scene(script_id=sample_script.id, heading="Test Scene", script_order=1)
+        scene_node_id = graph_ops.create_scene_node(scene, script_node_id)
+
+        # Connect all characters to scene
+        for char_node_id in char_node_ids:
+            graph_ops.connect_character_to_scene(char_node_id, scene_node_id)
+
+        # Make character 0 interact with others (higher centrality)
+        for i in range(1, 3):
+            graph_ops.connect_character_interaction(
+                char_node_ids[0], char_node_ids[i], scene_node_id
+            )
+
+        # Analyze centrality
+        centrality_scores = graph_ops.analyze_character_centrality(script_node_id)
+
+        assert len(centrality_scores) == 3
+
+        # Character 0 should have higher interaction diversity
+        char0_scores = centrality_scores[char_node_ids[0]]
+        char1_scores = centrality_scores[char_node_ids[1]]
+
+        assert (
+            char0_scores["interaction_diversity"]
+            > char1_scores["interaction_diversity"]
+        )
+        assert char0_scores["scene_frequency"] == 1  # All appear in same scene

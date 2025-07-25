@@ -195,9 +195,7 @@ ignore = [
 convention = "google"
 
 # Temporarily disable mypy for problematic database files
-[[tool.mypy.overrides]]
-module = "scriptrag.database.vectors"
-ignore_errors = true
+
 
 
 

@@ -194,10 +194,7 @@ ignore = [
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-# Temporarily disable mypy for database module to commit formatting changes
-[[tool.mypy.overrides]]
-module = "scriptrag.database.*"
-ignore_errors = true
+
 
 [tool.ruff.format]
 quote-style = "double"

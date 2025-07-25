@@ -67,12 +67,12 @@ class DatabaseStats:
         stats = {}
 
         # Row count
-        cursor = conn.execute(f"SELECT COUNT(*) as count FROM {table}")  # noqa: S608
+        cursor = conn.execute(f"SELECT COUNT(*) as count FROM {table}")
         stats["row_count"] = cursor.fetchone()["count"]
 
         # Table size (approximate)
         cursor = conn.execute(
-            f"SELECT SUM(pgsize) as size FROM dbstat WHERE name='{table}'"  # noqa: S608
+            f"SELECT SUM(pgsize) as size FROM dbstat WHERE name='{table}'"
         )
         result = cursor.fetchone()
         stats["size_bytes"] = result["size"] if result["size"] else 0
@@ -137,7 +137,7 @@ class DatabaseStats:
                 size_info["utilization_percent"] = (
                     (size_info["used_bytes"] / size_info["total_pages_bytes"]) * 100
                     if size_info["total_pages_bytes"] > 0
-                    else 0
+                    else 0.0
                 )
 
         else:
@@ -239,7 +239,10 @@ class DatabaseBackup:
             True if successful
         """
         # Use SQLite's backup API for consistency
-        with sqlite3.connect(self.db_path) as source, sqlite3.connect(backup_path) as backup:
+        with (
+            sqlite3.connect(self.db_path) as source,
+            sqlite3.connect(backup_path) as backup,
+        ):
             source.backup(backup)
 
         logger.info(f"Created backup at {backup_path}")
@@ -326,7 +329,10 @@ class DatabaseBackup:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Use SQLite's backup API
-        with sqlite3.connect(backup_path) as source, sqlite3.connect(self.db_path) as target:
+        with (
+            sqlite3.connect(backup_path) as source,
+            sqlite3.connect(self.db_path) as target,
+        ):
             source.backup(target)
 
         logger.info(f"Restored database from {backup_path}")
@@ -364,7 +370,7 @@ class DatabaseBackup:
             List of backup information
         """
         backup_dir = Path(backup_dir)
-        backups = []
+        backups: list[dict[str, Any]] = []
 
         if not backup_dir.exists():
             return backups
@@ -392,7 +398,7 @@ class DatabaseBackup:
                             metadata = json.loads(metadata_content.decode())
                             backup_info["metadata"] = metadata
                 except Exception:
-                    logger.debug("Failed to parse backup metadata")  # noqa: S110
+                    logger.debug("Failed to parse backup metadata")
 
             backups.append(backup_info)
 
@@ -610,7 +616,7 @@ def export_data_to_json(
 
             # Export each table
             for table in tables:
-                cursor = conn.execute(f"SELECT * FROM {table}")  # noqa: S608
+                cursor = conn.execute(f"SELECT * FROM {table}")
                 rows = cursor.fetchall()
                 data[table] = [dict(row) for row in rows]
 

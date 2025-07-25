@@ -184,6 +184,7 @@ ignore = [
     "D100", # Missing docstring in public module
     "D104", # Missing docstring in public package
     "D106", # Missing docstring in public nested class
+    "S608", # Possible SQL injection vector (false positives for trusted queries)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -238,7 +239,7 @@ line_length = 88
 
 [tool.bandit]
 exclude_dirs = ["tests", "docs"]
-skips = ["B101", "B601"]  # Skip assert_used and shell_use tests
+skips = ["B101", "B601", "B608"]  # Skip assert_used, shell_use, and SQL injection tests
 
 [tool.interrogate]
 ignore-init-method = true

@@ -129,8 +129,7 @@ MD035:
   style: "---"
 
 # MD036/no-emphasis-as-heading - Emphasis used instead of a heading
-MD036:
-  punctuation: ".,;:!?。，；：！？"
+MD036: false  # Disabled to allow movie quotes in italics
 
 # MD037/no-space-in-emphasis - Spaces inside emphasis markers
 MD037: true

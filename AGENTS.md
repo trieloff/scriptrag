@@ -1,12 +1,14 @@
 # AI Agent Guidelines for ScriptRAG
 
-This document contains guidelines and rules for AI agents working on the ScriptRAG project. Following these guidelines ensures consistency and adds character to our development process.
+This document contains guidelines and rules for AI agents working on the ScriptRAG project. Following
+these guidelines ensures consistency and adds character to our development process.
 
 ## 📝 Commit Message Guidelines
 
 ### Rule 1: Semantic Commits with Movie Quotes
 
-All commit messages MUST follow the semantic-commit format AND include a fitting, memorable movie quote that relates to the change being made.
+All commit messages MUST follow the semantic-commit format AND include a fitting, memorable movie quote
+that relates to the change being made.
 
 #### Format
 
@@ -131,11 +133,14 @@ ordering algorithms.
 
 ## 🎬 Why Movie Quotes?
 
-ScriptRAG is a screenwriting assistant, making movie quotes a natural fit for our commit messages. They add personality to our git history while maintaining the semantic commit format's clarity and usefulness. Plus, they make reviewing git logs more enjoyable!
+ScriptRAG is a screenwriting assistant, making movie quotes a natural fit for our commit messages. They
+add personality to our git history while maintaining the semantic commit format's clarity and usefulness.
+Plus, they make reviewing git logs more enjoyable!
 
 ## 📚 Future Guidelines
 
-This document will be expanded with additional guidelines as the project evolves. Check back regularly for updates.
+This document will be expanded with additional guidelines as the project evolves. Check back regularly
+for updates.
 
 ---
 

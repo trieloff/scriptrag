@@ -1,13 +1,16 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented Generation) pattern.
+ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
+to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
+Generation) pattern.
 
 ## Features
 
 - **Fountain Parser**: Read and parse screenplays in Fountain format
 - **Graph Database**: SQLite-based lightweight graph database for screenplay structure
 - **Local LLM Integration**: Uses LMStudio for text generation and embeddings
-- **Advanced Search**: Find shows, seasons, episodes, scenes, characters, locations, concepts, objects, and temporal points
+- **Advanced Search**: Find shows, seasons, episodes, scenes, characters, locations, concepts, objects,
+  and temporal points
 - **Scene Management**: Order scenes by script order, temporal order, or logical dependencies
 - **Scene Editing**: Update, delete, or inject new scenes while maintaining screenplay integrity
 

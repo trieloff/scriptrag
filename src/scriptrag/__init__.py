@@ -95,8 +95,12 @@ class ScriptRAG:
         self.logger.info("Parsing Fountain screenplay", path=path)
         raise NotImplementedError("Parser not yet implemented")
 
-    def search_scenes(self, **kwargs: Any) -> None:
-        """Search for scenes based on various criteria."""
+    def search_scenes(self, **kwargs: Any) -> list[Any]:
+        """Search for scenes based on various criteria.
+
+        Returns:
+            List of matching scenes
+        """
         self.logger.debug("Searching scenes", criteria=kwargs)
         raise NotImplementedError("Search not yet implemented")
 

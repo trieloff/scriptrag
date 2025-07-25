@@ -216,7 +216,6 @@ warn_unused_ignores = true
 warn_no_return = true
 follow_imports = "normal"
 ignore_missing_imports = true
-exclude = ["src/scriptrag/config/__init__.py"]
 
 [tool.pyright]
 venvPath = "."

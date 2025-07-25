@@ -51,7 +51,7 @@ def temp_db_path():
 def db_connection(temp_db_path):
     """Create a database connection for testing."""
     # Create the schema first
-    create_database(temp_db_path)
+    initialize_database(temp_db_path)
 
     # Create connection
     connection = DatabaseConnection(temp_db_path)
@@ -664,7 +664,7 @@ class TestMigrationRunner:
         runner = MigrationRunner(temp_db_path)
 
         assert runner.get_current_version() == 0
-        assert runner.get_target_version() == 1
+        assert runner.get_target_version() == 3
         assert runner.needs_migration()
 
     def test_apply_initial_migration(self, temp_db_path):
@@ -673,6 +673,10 @@ class TestMigrationRunner:
 
         assert runner.apply_migration(1)
         assert runner.get_current_version() == 1
+        assert runner.needs_migration()  # Still needs migration 2
+
+        # Apply all migrations to test complete migration
+        assert runner.migrate_to_latest()
         assert not runner.needs_migration()
 
     def test_migrate_to_latest(self, temp_db_path):
@@ -688,8 +692,10 @@ class TestMigrationRunner:
         runner.migrate_to_latest()
 
         history = runner.get_migration_history()
-        assert len(history) == 1
+        assert len(history) == 3
         assert history[0]["version"] == 1
+        assert history[1]["version"] == 2
+        assert history[2]["version"] == 3
         assert "description" in history[0]
 
     def test_initialize_database_function(self, temp_db_path):
@@ -768,7 +774,7 @@ class TestDatabaseBackup:
         restore_path = temp_db_path.parent / "restored.db"
         restore_backup = DatabaseBackup(restore_path)
 
-        result = restore_backup.restore_backup(backup_path)
+        result = restore_backup.restore_backup(backup_path, force=True)
         assert result
         assert restore_path.exists()
 

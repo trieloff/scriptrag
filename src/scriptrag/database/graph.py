@@ -616,10 +616,13 @@ class GraphDatabase:
         Returns:
             Node degree
         """
+        params: tuple[str] | tuple[str, str]
         if direction == "out":
             sql = "SELECT COUNT(*) as degree FROM edges WHERE from_node_id = ?"
+            params = (node_id,)
         elif direction == "in":
             sql = "SELECT COUNT(*) as degree FROM edges WHERE to_node_id = ?"
+            params = (node_id,)
         elif direction == "both":
             sql = (
                 "SELECT COUNT(*) as degree FROM edges "
@@ -628,9 +631,6 @@ class GraphDatabase:
             params = (node_id, node_id)
         else:
             raise ValueError("Direction must be 'in', 'out', or 'both'")
-
-        if direction != "both":
-            params = (node_id,)
 
         row = self.connection.fetch_one(sql, params)
         return row["degree"] if row else 0
@@ -656,9 +656,8 @@ class GraphDatabase:
         else:
             all_node_ids = [node_id]
 
-        total_nodes = self.connection.fetch_one("SELECT COUNT(*) as count FROM nodes")[
-            "count"
-        ]
+        count_row = self.connection.fetch_one("SELECT COUNT(*) as count FROM nodes")
+        total_nodes = count_row["count"] if count_row else 0
         # For bidirectional edge representation of undirected graphs,
         # max degree is 2*(n-1)
         max_degree = 2 * (total_nodes - 1) if total_nodes > 1 else 1
@@ -817,7 +816,10 @@ class GraphDatabase:
         return closeness if node_id is None else closeness.get(node_id, 0.0)
 
     def calculate_eigenvector_centrality(
-        self, node_id: str | None = None, max_iterations: int = 100, tolerance: float = 1e-6
+        self,
+        node_id: str | None = None,
+        max_iterations: int = 100,
+        tolerance: float = 1e-6,
     ) -> dict[str, float] | float:
         """Calculate eigenvector centrality using power iteration method.
 
@@ -897,8 +899,20 @@ class GraphDatabase:
         eigenvector_centrality = self.calculate_eigenvector_centrality(node_id)
 
         return {
-            "degree_centrality": degree_centrality if isinstance(degree_centrality, float) else 0.0,
-            "betweenness_centrality": betweenness_centrality if isinstance(betweenness_centrality, float) else 0.0,
-            "closeness_centrality": closeness_centrality if isinstance(closeness_centrality, float) else 0.0,
-            "eigenvector_centrality": eigenvector_centrality if isinstance(eigenvector_centrality, float) else 0.0,
+            "degree_centrality": (
+                degree_centrality if isinstance(degree_centrality, float) else 0.0
+            ),
+            "betweenness_centrality": (
+                betweenness_centrality
+                if isinstance(betweenness_centrality, float)
+                else 0.0
+            ),
+            "closeness_centrality": (
+                closeness_centrality if isinstance(closeness_centrality, float) else 0.0
+            ),
+            "eigenvector_centrality": (
+                eigenvector_centrality
+                if isinstance(eigenvector_centrality, float)
+                else 0.0
+            ),
         }

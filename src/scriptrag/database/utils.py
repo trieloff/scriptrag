@@ -10,7 +10,7 @@ import tempfile
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from scriptrag.config import get_logger
 
@@ -28,7 +28,7 @@ class DatabaseStats:
         """
         self.db_path = Path(db_path)
 
-    def get_table_stats(self) -> Dict[str, Dict[str, Any]]:
+    def get_table_stats(self) -> dict[str, dict[str, Any]]:
         """Get statistics for all tables.
 
         Returns:
@@ -41,7 +41,8 @@ class DatabaseStats:
 
             # Get all table names
             cursor = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name NOT LIKE 'sqlite_%'"
             )
             tables = [row["name"] for row in cursor.fetchall()]
 
@@ -51,7 +52,9 @@ class DatabaseStats:
 
         return stats
 
-    def _get_single_table_stats(self, conn: sqlite3.Connection, table: str) -> Dict[str, Any]:
+    def _get_single_table_stats(
+        self, conn: sqlite3.Connection, table: str
+    ) -> dict[str, Any]:
         """Get statistics for a single table.
 
         Args:
@@ -64,11 +67,13 @@ class DatabaseStats:
         stats = {}
 
         # Row count
-        cursor = conn.execute(f"SELECT COUNT(*) as count FROM {table}")
+        cursor = conn.execute(f"SELECT COUNT(*) as count FROM {table}")  # noqa: S608
         stats["row_count"] = cursor.fetchone()["count"]
 
         # Table size (approximate)
-        cursor = conn.execute(f"SELECT SUM(pgsize) as size FROM dbstat WHERE name='{table}'")
+        cursor = conn.execute(
+            f"SELECT SUM(pgsize) as size FROM dbstat WHERE name='{table}'"  # noqa: S608
+        )
         result = cursor.fetchone()
         stats["size_bytes"] = result["size"] if result["size"] else 0
 
@@ -90,11 +95,13 @@ class DatabaseStats:
         cursor = conn.execute(f"PRAGMA index_list({table})")
         indexes = cursor.fetchall()
         stats["index_count"] = len(indexes)
-        stats["indexes"] = [{"name": idx["name"], "unique": bool(idx["unique"])} for idx in indexes]
+        stats["indexes"] = [
+            {"name": idx["name"], "unique": bool(idx["unique"])} for idx in indexes
+        ]
 
         return stats
 
-    def get_database_size(self) -> Dict[str, Any]:
+    def get_database_size(self) -> dict[str, Any]:
         """Get overall database size information.
 
         Returns:
@@ -124,7 +131,9 @@ class DatabaseStats:
                 size_info["free_bytes"] = free_pages * page_size
 
                 # Used space
-                size_info["used_bytes"] = size_info["total_pages_bytes"] - size_info["free_bytes"]
+                size_info["used_bytes"] = (
+                    size_info["total_pages_bytes"] - size_info["free_bytes"]
+                )
                 size_info["utilization_percent"] = (
                     (size_info["used_bytes"] / size_info["total_pages_bytes"]) * 100
                     if size_info["total_pages_bytes"] > 0
@@ -145,7 +154,7 @@ class DatabaseStats:
 
         return size_info
 
-    def get_query_performance_stats(self) -> Dict[str, Any]:
+    def get_query_performance_stats(self) -> dict[str, Any]:
         """Get query performance statistics.
 
         Returns:
@@ -214,8 +223,7 @@ class DatabaseBackup:
 
             if compress:
                 return self._create_compressed_backup(backup_path)
-            else:
-                return self._create_simple_backup(backup_path)
+            return self._create_simple_backup(backup_path)
 
         except Exception as e:
             logger.error(f"Failed to create backup: {e}")
@@ -231,9 +239,8 @@ class DatabaseBackup:
             True if successful
         """
         # Use SQLite's backup API for consistency
-        with sqlite3.connect(self.db_path) as source:
-            with sqlite3.connect(backup_path) as backup:
-                source.backup(backup)
+        with sqlite3.connect(self.db_path) as source, sqlite3.connect(backup_path) as backup:
+            source.backup(backup)
 
         logger.info(f"Created backup at {backup_path}")
         return True
@@ -248,7 +255,7 @@ class DatabaseBackup:
             True if successful
         """
         # Ensure .zip extension
-        if not backup_path.suffix == ".zip":
+        if backup_path.suffix != ".zip":
             backup_path = backup_path.with_suffix(backup_path.suffix + ".zip")
 
         with tempfile.NamedTemporaryFile(suffix=".db") as temp_file:
@@ -268,7 +275,9 @@ class DatabaseBackup:
                     "backup_time": datetime.utcnow().isoformat(),
                     "source_size_bytes": self.db_path.stat().st_size,
                 }
-                zip_file.writestr("backup_metadata.json", json.dumps(metadata, indent=2))
+                zip_file.writestr(
+                    "backup_metadata.json", json.dumps(metadata, indent=2)
+                )
 
         logger.info(f"Created compressed backup at {backup_path}")
         return True
@@ -291,13 +300,14 @@ class DatabaseBackup:
                 return False
 
             if self.db_path.exists() and not force:
-                logger.error(f"Database {self.db_path} exists. Use force=True to overwrite")
+                logger.error(
+                    f"Database {self.db_path} exists. Use force=True to overwrite"
+                )
                 return False
 
             if backup_path.suffix == ".zip":
                 return self._restore_compressed_backup(backup_path)
-            else:
-                return self._restore_simple_backup(backup_path)
+            return self._restore_simple_backup(backup_path)
 
         except Exception as e:
             logger.error(f"Failed to restore backup: {e}")
@@ -316,9 +326,8 @@ class DatabaseBackup:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Use SQLite's backup API
-        with sqlite3.connect(backup_path) as source:
-            with sqlite3.connect(self.db_path) as target:
-                source.backup(target)
+        with sqlite3.connect(backup_path) as source, sqlite3.connect(self.db_path) as target:
+            source.backup(target)
 
         logger.info(f"Restored database from {backup_path}")
         return True
@@ -345,7 +354,7 @@ class DatabaseBackup:
 
                 return self._restore_simple_backup(temp_path)
 
-    def list_backups(self, backup_dir: str | Path) -> List[Dict[str, Any]]:
+    def list_backups(self, backup_dir: str | Path) -> list[dict[str, Any]]:
         """List available backups in a directory.
 
         Args:
@@ -368,7 +377,9 @@ class DatabaseBackup:
                 "path": str(backup_file),
                 "name": backup_file.name,
                 "size_bytes": backup_file.stat().st_size,
-                "created_at": datetime.fromtimestamp(backup_file.stat().st_mtime).isoformat(),
+                "created_at": datetime.fromtimestamp(
+                    backup_file.stat().st_mtime
+                ).isoformat(),
                 "compressed": backup_file.suffix == ".zip",
             }
 
@@ -381,7 +392,7 @@ class DatabaseBackup:
                             metadata = json.loads(metadata_content.decode())
                             backup_info["metadata"] = metadata
                 except Exception:
-                    pass  # Ignore metadata errors
+                    logger.debug("Failed to parse backup metadata")  # noqa: S110
 
             backups.append(backup_info)
 
@@ -433,7 +444,7 @@ class DatabaseMaintenance:
             logger.error(f"ANALYZE failed: {e}")
             return False
 
-    def reindex(self, table: Optional[str] = None) -> bool:
+    def reindex(self, table: str | None = None) -> bool:
         """Rebuild indexes.
 
         Args:
@@ -459,7 +470,7 @@ class DatabaseMaintenance:
             logger.error(f"Reindex failed: {e}")
             return False
 
-    def check_integrity(self) -> Tuple[bool, List[str]]:
+    def check_integrity(self) -> tuple[bool, list[str]]:
         """Check database integrity.
 
         Returns:
@@ -482,7 +493,9 @@ class DatabaseMaintenance:
                 fk_violations = cursor.fetchall()
 
                 for violation in fk_violations:
-                    issues.append(f"Foreign key violation in table {violation[0]}: {violation}")
+                    issues.append(
+                        f"Foreign key violation in table {violation[0]}: {violation}"
+                    )
 
         except Exception as e:
             issues.append(f"Integrity check failed: {e}")
@@ -523,7 +536,7 @@ class DatabaseMaintenance:
 
         return success
 
-    def get_fragmentation_info(self) -> Dict[str, Any]:
+    def get_fragmentation_info(self) -> dict[str, Any]:
         """Get database fragmentation information.
 
         Returns:
@@ -545,7 +558,9 @@ class DatabaseMaintenance:
 
                 # Calculate fragmentation
                 used_pages = total_pages - free_pages
-                fragmentation_percent = (free_pages / total_pages) * 100 if total_pages > 0 else 0
+                fragmentation_percent = (
+                    (free_pages / total_pages) * 100 if total_pages > 0 else 0
+                )
 
                 info = {
                     "total_pages": total_pages,
@@ -563,7 +578,9 @@ class DatabaseMaintenance:
         return info
 
 
-def export_data_to_json(db_path: str | Path, output_path: str | Path, tables: Optional[List[str]] = None) -> bool:
+def export_data_to_json(
+    db_path: str | Path, output_path: str | Path, tables: list[str] | None = None
+) -> bool:
     """Export database data to JSON format.
 
     Args:
@@ -586,19 +603,20 @@ def export_data_to_json(db_path: str | Path, output_path: str | Path, tables: Op
             # Get table list
             if tables is None:
                 cursor = conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+                    "SELECT name FROM sqlite_master WHERE type='table' "
+                    "AND name NOT LIKE 'sqlite_%'"
                 )
                 tables = [row["name"] for row in cursor.fetchall()]
 
             # Export each table
             for table in tables:
-                cursor = conn.execute(f"SELECT * FROM {table}")
+                cursor = conn.execute(f"SELECT * FROM {table}")  # noqa: S608
                 rows = cursor.fetchall()
                 data[table] = [dict(row) for row in rows]
 
         # Write JSON
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w", encoding="utf-8") as f:
+        with output_path.open("w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
 
         logger.info(f"Exported {len(tables)} tables to {output_path}")
@@ -609,7 +627,7 @@ def export_data_to_json(db_path: str | Path, output_path: str | Path, tables: Op
         return False
 
 
-def get_database_health_report(db_path: str | Path) -> Dict[str, Any]:
+def get_database_health_report(db_path: str | Path) -> dict[str, Any]:
     """Generate comprehensive database health report.
 
     Args:
@@ -670,7 +688,7 @@ def get_database_health_report(db_path: str | Path) -> Dict[str, Any]:
     return report
 
 
-def _get_health_recommendations(report: Dict[str, Any]) -> List[str]:
+def _get_health_recommendations(report: dict[str, Any]) -> list[str]:
     """Generate health recommendations based on report.
 
     Args:

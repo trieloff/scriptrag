@@ -36,7 +36,8 @@ console = Console()
 # Global options
 @app.callback()
 def main(
-    config_file: Path | None = typer.Option(
+    config_file: Path | None = None,
+    config_file_opt: Path = typer.Option(
         None,
         "--config",
         "-c",

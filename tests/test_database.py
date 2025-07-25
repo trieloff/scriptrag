@@ -15,16 +15,20 @@ from scriptrag.database import (
     DatabaseSchema,
     GraphDatabase,
     GraphOperations,
+    MigrationRunner,
+    DatabaseStats,
+    DatabaseBackup,
+    DatabaseMaintenance,
     create_database,
+    initialize_database,
+    get_database_health_report,
 )
 from scriptrag.models import (
     Character,
-    Episode,
     Location,
     Scene,
     SceneOrderType,
     Script,
-    Season,
 )
 
 logger = get_logger(__name__)
@@ -47,7 +51,7 @@ def temp_db_path():
 def db_connection(temp_db_path):
     """Create a database connection for testing."""
     # Create the schema first
-    schema = create_database(temp_db_path)
+    create_database(temp_db_path)
 
     # Create connection
     connection = DatabaseConnection(temp_db_path)
@@ -522,3 +526,179 @@ class TestGraphOperations:
             > char1_scores["interaction_diversity"]
         )
         assert char0_scores["scene_frequency"] == 1  # All appear in same scene
+
+
+class TestMigrationRunner:
+    """Test database migration system."""
+
+    def test_migration_runner_initialization(self, temp_db_path):
+        """Test migration runner initialization."""
+        runner = MigrationRunner(temp_db_path)
+
+        assert runner.get_current_version() == 0
+        assert runner.get_target_version() == 1
+        assert runner.needs_migration()
+
+    def test_apply_initial_migration(self, temp_db_path):
+        """Test applying initial migration."""
+        runner = MigrationRunner(temp_db_path)
+
+        assert runner.apply_migration(1)
+        assert runner.get_current_version() == 1
+        assert not runner.needs_migration()
+
+    def test_migrate_to_latest(self, temp_db_path):
+        """Test migrating to latest version."""
+        runner = MigrationRunner(temp_db_path)
+
+        assert runner.migrate_to_latest()
+        assert runner.get_current_version() == runner.get_target_version()
+
+    def test_migration_history(self, temp_db_path):
+        """Test migration history tracking."""
+        runner = MigrationRunner(temp_db_path)
+        runner.migrate_to_latest()
+
+        history = runner.get_migration_history()
+        assert len(history) == 1
+        assert history[0]["version"] == 1
+        assert "description" in history[0]
+
+    def test_initialize_database_function(self, temp_db_path):
+        """Test initialize_database convenience function."""
+        result = initialize_database(temp_db_path)
+        assert result
+        assert temp_db_path.exists()
+
+
+class TestDatabaseStats:
+    """Test database statistics functionality."""
+
+    def test_table_stats(self, db_connection):
+        """Test getting table statistics."""
+        stats = DatabaseStats(db_connection.db_path)
+        table_stats = stats.get_table_stats()
+
+        assert "scripts" in table_stats
+        assert "scenes" in table_stats
+        assert "characters" in table_stats
+
+        script_stats = table_stats["scripts"]
+        assert "row_count" in script_stats
+        assert "column_count" in script_stats
+        assert "size_bytes" in script_stats
+
+    def test_database_size(self, db_connection):
+        """Test getting database size information."""
+        stats = DatabaseStats(db_connection.db_path)
+        size_info = stats.get_database_size()
+
+        assert "file_size_bytes" in size_info
+        assert "page_count" in size_info
+        assert "utilization_percent" in size_info
+
+    def test_performance_stats(self, db_connection):
+        """Test getting performance statistics."""
+        stats = DatabaseStats(db_connection.db_path)
+        perf_stats = stats.get_query_performance_stats()
+
+        assert "journal_mode" in perf_stats
+        assert "cache_size_pages" in perf_stats
+
+
+class TestDatabaseBackup:
+    """Test database backup functionality."""
+
+    def test_create_simple_backup(self, db_connection, temp_db_path):
+        """Test creating a simple backup."""
+        backup_path = temp_db_path.parent / "backup.db"
+
+        backup = DatabaseBackup(db_connection.db_path)
+        result = backup.create_backup(backup_path, compress=False)
+
+        assert result
+        assert backup_path.exists()
+
+    def test_create_compressed_backup(self, db_connection, temp_db_path):
+        """Test creating a compressed backup."""
+        backup_path = temp_db_path.parent / "backup"
+
+        backup = DatabaseBackup(db_connection.db_path)
+        result = backup.create_backup(backup_path, compress=True)
+
+        assert result
+        assert (backup_path.parent / "backup.zip").exists()
+
+    def test_restore_backup(self, db_connection, temp_db_path):
+        """Test restoring from backup."""
+        # Create backup
+        backup_path = temp_db_path.parent / "backup.db"
+        backup = DatabaseBackup(db_connection.db_path)
+        backup.create_backup(backup_path, compress=False)
+
+        # Create new database path for restore
+        restore_path = temp_db_path.parent / "restored.db"
+        restore_backup = DatabaseBackup(restore_path)
+
+        result = restore_backup.restore_backup(backup_path)
+        assert result
+        assert restore_path.exists()
+
+
+class TestDatabaseMaintenance:
+    """Test database maintenance operations."""
+
+    def test_vacuum(self, db_connection):
+        """Test VACUUM operation."""
+        maintenance = DatabaseMaintenance(db_connection.db_path)
+        result = maintenance.vacuum()
+        assert result
+
+    def test_analyze(self, db_connection):
+        """Test ANALYZE operation."""
+        maintenance = DatabaseMaintenance(db_connection.db_path)
+        result = maintenance.analyze()
+        assert result
+
+    def test_integrity_check(self, db_connection):
+        """Test integrity check."""
+        maintenance = DatabaseMaintenance(db_connection.db_path)
+        is_valid, issues = maintenance.check_integrity()
+        assert is_valid
+        assert len(issues) == 0
+
+    def test_fragmentation_info(self, db_connection):
+        """Test getting fragmentation information."""
+        maintenance = DatabaseMaintenance(db_connection.db_path)
+        frag_info = maintenance.get_fragmentation_info()
+
+        assert "total_pages" in frag_info
+        assert "fragmentation_percent" in frag_info
+
+    def test_optimize(self, db_connection):
+        """Test full optimization."""
+        maintenance = DatabaseMaintenance(db_connection.db_path)
+        result = maintenance.optimize()
+        assert result
+
+
+class TestDatabaseHealth:
+    """Test database health reporting."""
+
+    def test_health_report(self, db_connection):
+        """Test generating health report."""
+        report = get_database_health_report(db_connection.db_path)
+
+        assert "status" in report
+        assert "size_info" in report
+        assert "table_stats" in report
+        assert "integrity" in report
+        assert report["exists"] is True
+
+    def test_health_report_nonexistent_db(self, temp_db_path):
+        """Test health report for non-existent database."""
+        nonexistent_path = temp_db_path.parent / "nonexistent.db"
+        report = get_database_health_report(nonexistent_path)
+
+        assert report["status"] == "NOT_FOUND"
+        assert report["exists"] is False

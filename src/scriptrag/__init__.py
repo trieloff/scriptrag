@@ -14,11 +14,11 @@ __license__ = "MIT"
 
 # Package metadata
 __all__ = [
-    "__version__",
-    "ScriptRAG",
     "FountainParser",
     "GraphDatabase",
     "LLMClient",
+    "ScriptRAG",
+    "__version__",
 ]
 
 # Imports will be added as modules are created

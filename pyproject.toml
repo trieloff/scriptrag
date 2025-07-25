@@ -199,9 +199,9 @@ convention = "google"
 module = "scriptrag.database.vectors"
 ignore_errors = true
 
-[[tool.mypy.overrides]]
-module = "scriptrag.database.connection"
-ignore_errors = true
+
+
+
 
 
 

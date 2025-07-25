@@ -9,7 +9,7 @@ provides efficient SIMD-accelerated vector operations.
 """
 
 import json
-from typing import Any, TypeAlias
+from typing import Any, TypeAlias, cast
 
 import numpy as np
 import sqlite_vec
@@ -394,13 +394,13 @@ class VectorOperations:
             return vector
 
         if vector_type == "float32":
-            return vector.astype(np.float32).tobytes()
+            return cast(bytes, vector.astype(np.float32).tobytes())  # type: ignore
         if vector_type == "int8":
-            return vector.astype(np.int8).tobytes()
+            return cast(bytes, vector.astype(np.int8).tobytes())  # type: ignore
         if vector_type == "bit":
             # Convert to binary vector (0/1 values)
             binary_vector = (vector > 0).astype(np.uint8)
-            return np.packbits(binary_vector).tobytes()
+            return cast(bytes, np.packbits(binary_vector).tobytes())  # type: ignore
         raise VectorError(f"Unsupported vector type: {vector_type}")
 
     def _convert_from_blob(
@@ -421,7 +421,7 @@ class VectorOperations:
         if isinstance(vector, list):
             return len(vector)
         if isinstance(vector, np.ndarray):
-            return vector.shape[0]
+            return cast(int, vector.shape[0])
         if isinstance(vector, bytes):
             # Cannot determine dimension from bytes alone
             raise VectorError("Cannot determine dimension from bytes vector")
@@ -486,7 +486,7 @@ class VectorOperations:
             with self.db_connection.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute(f"DELETE FROM embeddings WHERE {where_clause}", params)
-                deleted_count = cursor.rowcount
+                deleted_count = cast(int, cursor.rowcount)
                 conn.commit()
 
             logger.info(f"Deleted {deleted_count} embeddings")

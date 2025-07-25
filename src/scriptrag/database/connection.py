@@ -9,7 +9,7 @@ import threading
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from scriptrag.config import get_logger
 
@@ -54,7 +54,7 @@ class DatabaseConnection:
 
             self._local.connection = conn
 
-        return self._local.connection
+        return cast(sqlite3.Connection, self._local.connection)
 
     def _configure_connection(self, conn: sqlite3.Connection) -> None:
         """Configure SQLite connection with optimal settings.
@@ -174,7 +174,7 @@ class DatabaseConnection:
             Single row result or None
         """
         cursor = self.execute(sql, parameters)
-        return cursor.fetchone()
+        return cast(sqlite3.Row | None, cursor.fetchone())
 
     def fetch_all(
         self, sql: str, parameters: tuple | dict | None = None

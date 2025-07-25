@@ -1,0 +1,147 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_language_version:
+  python: python3.11
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--unsafe]
+      - id: check-toml
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-case-conflict
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: check-json
+      - id: pretty-format-json
+        args: ['--autofix', '--indent=2']
+        exclude: '\.ipynb$'
+      - id: detect-private-key
+      - id: fix-byte-order-marker
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+      - id: debug-statements
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-docstring-first
+
+  # Python code formatting with Black
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3.11
+        args: ['--line-length=88']
+
+  # Python linting and import sorting with Ruff
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.11
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [ --fix ]
+      # Run the formatter
+      - id: ruff-format
+
+  # Type checking with mypy
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - types-pyyaml
+          - types-requests
+          - types-setuptools
+          - types-pkg-resources
+          - pydantic
+        args: [--ignore-missing-imports, --check-untyped-defs]
+        exclude: '^(tests/|docs/|scripts/)'
+
+  # Security checks with bandit
+  - repo: https://github.com/PyCQA/bandit
+    rev: '1.7.6'
+    hooks:
+      - id: bandit
+        args: ['-c', 'pyproject.toml', '-ll']
+        additional_dependencies: ['bandit[toml]']
+        exclude: '^tests/'
+
+  # Docstring coverage
+  - repo: https://github.com/econchick/interrogate
+    rev: 1.5.0
+    hooks:
+      - id: interrogate
+        args: [--quiet, --fail-under=80, --ignore-init-method, --ignore-init-module, --ignore-magic, --ignore-semiprivate, --ignore-private, --ignore-property-decorators, --ignore-module, --ignore-nested-functions, --ignore-nested-classes, --exclude, 'tests', --exclude, 'docs', --exclude, 'scripts', --verbose]
+
+  # Check for common security issues
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: '^(poetry\.lock|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.secrets\.baseline)$'
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.38.0
+    hooks:
+      - id: markdownlint
+        args: ['--fix', '--config', '.markdownlint.yaml']
+        exclude: '^\.github/.*\.md$'
+
+  # YAML linting
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.33.0
+    hooks:
+      - id: yamllint
+        args: ['-c', '.yamllint.yaml']
+
+  # Python dependency safety check
+  - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
+    rev: v1.3.3
+    hooks:
+      - id: python-safety-dependencies-check
+
+  # Spell checking
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.6
+    hooks:
+      - id: codespell
+        args: ['--skip=*.lock,*.json', '--ignore-words-list=crate,ser,couldnt']
+        exclude: '^(poetry\.lock|package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$'
+
+  # Check for print statements
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-no-log-warn
+      - id: python-no-eval
+      - id: python-use-type-annotations
+
+  # Validate pyproject.toml
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.15
+    hooks:
+      - id: validate-pyproject
+
+  # Check Python package metadata
+  - repo: https://github.com/python-jsonschema/check-jsonschema
+    rev: 0.27.3
+    hooks:
+      - id: check-github-workflows
+      - id: check-github-actions
+      - id: check-readthedocs
+
+ci:
+  autoupdate_schedule: weekly
+  skip: [mypy]  # mypy is too slow for CI
+  submodules: false

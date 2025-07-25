@@ -1,0 +1,94 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# Universal settings for all files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+# Python files
+[*.py]
+indent_size = 4
+max_line_length = 88
+
+# YAML files
+[*.{yaml,yml}]
+indent_size = 2
+
+# JSON files
+[*.json]
+indent_size = 2
+
+# TOML files
+[*.toml]
+indent_size = 4
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+max_line_length = 100
+
+# reStructuredText files
+[*.rst]
+indent_size = 3
+max_line_length = 80
+
+# Shell scripts
+[*.{sh,bash,zsh}]
+indent_size = 2
+
+# Batch files
+[*.{bat,cmd}]
+end_of_line = crlf
+indent_size = 2
+
+# Makefiles
+[Makefile]
+indent_style = tab
+
+# Git files
+[.git*]
+indent_size = 2
+
+# Docker files
+[{Dockerfile,*.dockerfile}]
+indent_size = 4
+
+# HTML/XML files
+[*.{html,xml}]
+indent_size = 2
+
+# CSS/SCSS files
+[*.{css,scss,sass}]
+indent_size = 2
+
+# JavaScript/TypeScript files
+[*.{js,jsx,ts,tsx}]
+indent_size = 2
+max_line_length = 100
+
+# Configuration files
+[*.{ini,cfg}]
+indent_size = 4
+
+# Fountain screenplay files
+[*.fountain]
+indent_size = 4
+trim_trailing_whitespace = false
+
+# Jupyter notebooks
+[*.ipynb]
+indent_size = 1
+
+# SQL files
+[*.sql]
+indent_size = 2
+
+# Protocol Buffer files
+[*.proto]
+indent_size = 2

@@ -1,0 +1,125 @@
+# yamllint configuration for ScriptRAG project
+# https://yamllint.readthedocs.io/en/stable/configuration.html
+
+extends: default
+
+# Rules configuration
+rules:
+  # Line rules
+  line-length:
+    max: 100
+    level: warning
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+
+  # Indentation rules
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+  # Bracket rules
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+    min-spaces-inside-empty: 0
+    max-spaces-inside-empty: 0
+
+  # Brace rules
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+    min-spaces-inside-empty: 0
+    max-spaces-inside-empty: 0
+
+  # Colon rules
+  colons:
+    max-spaces-before: 0
+    max-spaces-after: 1
+
+  # Comma rules
+  commas:
+    max-spaces-before: 0
+    min-spaces-after: 1
+    max-spaces-after: 1
+
+  # Comment rules
+  comments:
+    require-starting-space: true
+    ignore-shebangs: true
+    min-spaces-from-content: 1
+
+  # Document rules
+  document-start:
+    present: false
+
+  document-end:
+    present: false
+
+  # Empty lines
+  empty-lines:
+    max: 2
+    max-start: 0
+    max-end: 1
+
+  # Empty values
+  empty-values:
+    forbid-in-block-mappings: false
+    forbid-in-flow-mappings: true
+
+  # Hyphens
+  hyphens:
+    max-spaces-after: 1
+
+  # Key duplicates
+  key-duplicates: enable
+
+  # Key ordering
+  key-ordering: disable
+
+  # New line at end of file
+  new-line-at-end-of-file: enable
+
+  # New lines
+  new-lines:
+    type: unix
+
+  # Octal values
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: false
+
+  # Quoted strings
+  quoted-strings:
+    quote-type: any
+    required: only-when-needed
+    extra-required: []
+    extra-allowed: []
+    allow-quoted-quotes: false
+
+  # Trailing spaces
+  trailing-spaces: enable
+
+  # Truthy values
+  truthy:
+    allowed-values: ['true', 'false']
+    check-keys: false
+    level: warning
+
+# File ignore patterns
+ignore: |
+  .venv/
+  venv/
+  node_modules/
+  .tox/
+  build/
+  dist/
+  *.egg-info/
+  htmlcov/
+  .mypy_cache/
+  .pytest_cache/
+  .ruff_cache/
+  .git/
+  site/
+
+# vim: ft=yaml

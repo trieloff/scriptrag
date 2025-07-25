@@ -5,7 +5,6 @@ configuration for different environments (development, production).
 """
 
 import logging
-import logging.config
 import sys
 from pathlib import Path
 from typing import Any

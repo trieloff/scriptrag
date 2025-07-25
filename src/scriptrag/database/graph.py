@@ -5,7 +5,7 @@ node and edge management, graph traversal, and query operations.
 """
 
 import json
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 from uuid import uuid4
 
 from scriptrag.config import get_logger
@@ -72,7 +72,7 @@ class GraphNode:
                 )
 
         return cls(
-            id=row["id"],
+            node_id=row["id"],
             node_type=row["node_type"],
             entity_id=row["entity_id"],
             label=row["label"],
@@ -89,7 +89,7 @@ class GraphEdge:
         from_node_id: str,
         to_node_id: str,
         edge_type: str,
-        properties: Optional[Dict[str, Any]] = None,
+        properties: dict[str, Any] | None = None,
         weight: float = 1.0,
     ) -> None:
         """Initialize a graph edge.
@@ -140,7 +140,7 @@ class GraphEdge:
                 )
 
         return cls(
-            id=row["id"],
+            edge_id=row["id"],
             from_node_id=row["from_node_id"],
             to_node_id=row["to_node_id"],
             edge_type=row["edge_type"],
@@ -254,7 +254,7 @@ class GraphDatabase:
             return False
 
         params.append(node_id)
-        sql = f"UPDATE nodes SET {', '.join(updates)} WHERE id = ?"
+        sql = f"UPDATE nodes SET {', '.join(updates)} WHERE id = ?"  # noqa: S608
 
         with self.connection.transaction() as conn:
             cursor = conn.execute(sql, params)
@@ -326,7 +326,7 @@ class GraphDatabase:
         where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         limit_clause = f"LIMIT {limit}" if limit else ""
 
-        sql = f"SELECT * FROM nodes {where_clause} ORDER BY created_at {limit_clause}"
+        sql = f"SELECT * FROM nodes {where_clause} ORDER BY created_at {limit_clause}"  # noqa: S608
 
         rows = self.connection.fetch_all(sql, tuple(params) if params else None)
         return [GraphNode.from_row(row) for row in rows]
@@ -440,7 +440,7 @@ class GraphDatabase:
         where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         limit_clause = f"LIMIT {limit}" if limit else ""
 
-        sql = f"SELECT * FROM edges {where_clause} ORDER BY created_at {limit_clause}"
+        sql = f"SELECT * FROM edges {where_clause} ORDER BY created_at {limit_clause}"  # noqa: S608
 
         rows = self.connection.fetch_all(sql, tuple(params) if params else None)
         return [GraphEdge.from_row(row) for row in rows]
@@ -493,11 +493,11 @@ class GraphDatabase:
         where_clause = f"WHERE {' AND '.join(conditions)}"
 
         sql = f"""
-        SELECT DISTINCT n.* FROM nodes n
-        JOIN edges e ON {join_condition}
-        {where_clause}
-        ORDER BY n.created_at
-        """
+      SELECT DISTINCT n.* FROM nodes n
+      JOIN edges e ON {join_condition}
+      {where_clause}
+      ORDER BY n.created_at
+      """  # noqa: S608
 
         rows = self.connection.fetch_all(sql, tuple(params) if params else None)
         return [GraphNode.from_row(row) for row in rows]
@@ -581,7 +581,7 @@ class GraphDatabase:
         # Get all nodes in subgraph
         node_ids = list(nodes_in_subgraph)
         placeholders = ", ".join(["?"] * len(node_ids))
-        nodes_sql = f"SELECT * FROM nodes WHERE id IN ({placeholders})"
+        nodes_sql = f"SELECT * FROM nodes WHERE id IN ({placeholders})"  # noqa: S608
         node_rows = self.connection.fetch_all(nodes_sql, tuple(node_ids))
         nodes = [GraphNode.from_row(row) for row in node_rows]
 
@@ -598,7 +598,7 @@ class GraphDatabase:
             edge_conditions.append("edge_type = ?")
             edge_params.append(edge_type)
 
-        edges_sql = f"SELECT * FROM edges WHERE {' AND '.join(edge_conditions)}"
+        edges_sql = f"SELECT * FROM edges WHERE {' AND '.join(edge_conditions)}"  # noqa: S608
         edge_rows = self.connection.fetch_all(edges_sql, tuple(edge_params))
         edges = [GraphEdge.from_row(row) for row in edge_rows]
 

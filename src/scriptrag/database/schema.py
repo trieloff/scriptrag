@@ -309,7 +309,8 @@ CREATE TRIGGER IF NOT EXISTS scene_elements_fts_update
     AFTER UPDATE ON scene_elements
     BEGIN
         UPDATE scene_elements_fts
-        SET text = NEW.text, character_name = COALESCE(NEW.character_name, ''), scene_id = NEW.scene_id
+        SET text = NEW.text, character_name = COALESCE(NEW.character_name, ''),
+            scene_id = NEW.scene_id
         WHERE element_id = NEW.id;
     END;
 
@@ -369,7 +370,8 @@ class DatabaseSchema:
 
             # Record schema version
             conn.execute(
-                "INSERT OR REPLACE INTO schema_info (version, description) VALUES (?, ?)",
+                "INSERT OR REPLACE INTO schema_info (version, description) "
+                "VALUES (?, ?)",
                 (SCHEMA_VERSION, f"Initial schema creation v{SCHEMA_VERSION}"),
             )
 

@@ -11,17 +11,17 @@ import pytest
 
 from scriptrag.config import get_logger
 from scriptrag.database import (
+    DatabaseBackup,
     DatabaseConnection,
+    DatabaseMaintenance,
     DatabaseSchema,
+    DatabaseStats,
     GraphDatabase,
     GraphOperations,
     MigrationRunner,
-    DatabaseStats,
-    DatabaseBackup,
-    DatabaseMaintenance,
     create_database,
-    initialize_database,
     get_database_health_report,
+    initialize_database,
 )
 from scriptrag.models import (
     Character,
@@ -471,7 +471,7 @@ class TestGraphOperations:
         graph_ops.connect_character_to_scene(char2_node_id, scene_node_id)
 
         # Create interaction
-        interaction_edge_id = graph_ops.connect_character_interaction(
+        graph_ops.connect_character_interaction(
             char1_node_id, char2_node_id, scene_node_id, dialogue_count=3
         )
 

@@ -15,6 +15,7 @@ from scriptrag.models import (
     Script,
     Season,
 )
+
 from .connection import DatabaseConnection
 from .graph import GraphDatabase, GraphEdge, GraphNode
 

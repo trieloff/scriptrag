@@ -43,20 +43,20 @@ Generation) pattern.
 
 ### Phase 2: Core Components
 
-- [ ] **2.1 Fountain Parser Integration**
-  - [ ] Research and evaluate Fountain parsing libraries
-  - [ ] Integrate Fountain parser (based on Tagirijus/Fountain)
-  - [ ] Create data models for screenplay elements:
-    - [ ] Script/Show
-    - [ ] Season
-    - [ ] Episode
-    - [ ] Scene
-    - [ ] Character
-    - [ ] Location
-    - [ ] Action
-    - [ ] Dialogue
-    - [ ] Parenthetical
-  - [ ] Write unit tests for parser
+- [x] **2.1 Fountain Parser Integration**
+  - [x] Research and evaluate Fountain parsing libraries
+  - [x] Integrate Fountain parser (using Jouvence)
+  - [x] Create data models for screenplay elements:
+    - [x] Script/Show
+    - [x] Season
+    - [x] Episode
+    - [x] Scene
+    - [x] Character
+    - [x] Location
+    - [x] Action
+    - [x] Dialogue
+    - [x] Parenthetical
+  - [x] Write unit tests for parser
 
 - [ ] **2.2 SQLite Graph Database Design**
   - [ ] Design graph schema for screenplay structure

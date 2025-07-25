@@ -58,25 +58,25 @@ Generation) pattern.
     - [x] Parenthetical
   - [x] Write unit tests for parser
 
-- [ ] **2.2 SQLite Graph Database Design**
-  - [ ] Design graph schema for screenplay structure
-  - [ ] Create tables for:
-    - [ ] Nodes (entities: scenes, characters, locations, etc.)
-    - [ ] Edges (relationships: FOLLOWS, APPEARS_IN, SPEAKS_TO, etc.)
-    - [ ] Properties (metadata for nodes and edges)
+- [x] **2.2 SQLite Graph Database Design**
+  - [x] Design graph schema for screenplay structure
+  - [x] Create tables for:
+    - [x] Nodes (entities: scenes, characters, locations, etc.)
+    - [x] Edges (relationships: FOLLOWS, APPEARS_IN, SPEAKS_TO, etc.)
+    - [x] Properties (metadata for nodes and edges)
     - [ ] Embeddings (vector storage for semantic search)
-  - [ ] Implement database initialization scripts
-  - [ ] Create database migration system
+  - [x] Implement database initialization scripts
+  - [x] Create database migration system
 
-- [ ] **2.3 Graph Database Interface**
-  - [ ] Implement graph operations:
-    - [ ] Add/update/delete nodes
-    - [ ] Add/update/delete edges
-    - [ ] Traverse graph (BFS/DFS)
-    - [ ] Find paths between nodes
+- [x] **2.3 Graph Database Interface**
+  - [x] Implement graph operations:
+    - [x] Add/update/delete nodes
+    - [x] Add/update/delete edges
+    - [x] Traverse graph (BFS/DFS)
+    - [x] Find paths between nodes
     - [ ] Calculate node centrality
-  - [ ] Create query builder for complex graph queries
-  - [ ] Implement transaction support
+  - [x] Create query builder for complex graph queries
+  - [x] Implement transaction support
 
 ### Phase 3: LLM Integration
 

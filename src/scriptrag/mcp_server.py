@@ -137,6 +137,7 @@ async def run_server(
 
     logger = get_logger(__name__)
 
+    server = None
     try:
         # Create and start server
         server = ScriptRAGMCPServer(settings)
@@ -148,7 +149,7 @@ async def run_server(
         logger.error("MCP server error", error=str(e), exc_info=True)
         raise
     finally:
-        if "server" in locals():
+        if server is not None:
             await server.stop()
 
 
@@ -166,10 +167,7 @@ def main(
     """
     try:
         # Load settings
-        if config_file:
-            settings = load_settings(Path(config_file))
-        else:
-            settings = get_settings()
+        settings = load_settings(Path(config_file)) if config_file else get_settings()
 
         # Apply command line overrides
         if host:

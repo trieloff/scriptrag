@@ -192,6 +192,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D"]
+"src/scriptrag/config/settings.py" = ["N805"]  # Pydantic field validators use cls, not self
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -215,6 +216,21 @@ warn_unused_ignores = true
 warn_no_return = true
 follow_imports = "normal"
 ignore_missing_imports = true
+exclude = ["src/scriptrag/config/__init__.py"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["src"]
+exclude = ["**/__pycache__", "**/node_modules", ".venv", "build", "dist", "tests"]
+pythonVersion = "3.12"
+pythonPlatform = "Darwin"
+typeCheckingMode = "basic"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportOptionalMemberAccess = false
+reportGeneralTypeIssues = false
+stubPath = "./typings"
 
 [tool.isort]
 profile = "black"

@@ -43,7 +43,7 @@ class DatabaseSettings(BaseSettings):
     )
 
     @field_validator("path")
-    def ensure_parent_directory(cls, v):
+    def ensure_parent_directory(cls, v: Path) -> Path:
         """Ensure the database directory exists."""
         v.parent.mkdir(parents=True, exist_ok=True)
         return v
@@ -107,13 +107,15 @@ class LLMSettings(BaseSettings):
     )
 
     @field_validator("temperature")
-    def validate_temperature(cls, v):
+    def validate_temperature(cls: type["LLMSettings"], v: float) -> float:
+        """Validate temperature is within valid range (0.0-2.0)."""
         if not 0.0 <= v <= 2.0:
             raise ValueError("Temperature must be between 0.0 and 2.0")
         return v
 
     @field_validator("top_p")
-    def validate_top_p(cls, v):
+    def validate_top_p(cls: type["LLMSettings"], v: float) -> float:
+        """Validate top-p is within valid range (0.0-1.0)."""
         if not 0.0 <= v <= 1.0:
             raise ValueError("Top-p must be between 0.0 and 1.0")
         return v
@@ -161,7 +163,8 @@ class LoggingSettings(BaseSettings):
     httpx_level: str = Field(default="WARNING", description="Log level for HTTPX")
 
     @field_validator("level", "sqlalchemy_level", "httpx_level")
-    def validate_log_level(cls, v):
+    def validate_log_level(cls: type["LoggingSettings"], v: str) -> str:
+        """Validate log level is one of the standard logging levels."""
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if v.upper() not in valid_levels:
             raise ValueError(f"Log level must be one of: {valid_levels}")
@@ -290,7 +293,7 @@ class PathSettings(BaseSettings):
     @field_validator(
         "data_dir", "cache_dir", "logs_dir", "temp_dir", "scripts_dir", "exports_dir"
     )
-    def ensure_directory_exists(cls, v):
+    def ensure_directory_exists(cls, v: Path) -> Path:
         """Ensure directory exists."""
         v.mkdir(parents=True, exist_ok=True)
         return v
@@ -321,7 +324,8 @@ class ScriptRAGSettings(BaseSettings):
     paths: PathSettings = Field(default_factory=PathSettings)
 
     @field_validator("environment")
-    def validate_environment(cls, v):
+    def validate_environment(cls: type["ScriptRAGSettings"], v: str) -> str:
+        """Validate environment is one of the supported environments."""
         valid_envs = ["development", "testing", "production"]
         if v not in valid_envs:
             raise ValueError(f"Environment must be one of: {valid_envs}")
@@ -348,7 +352,7 @@ class ScriptRAGSettings(BaseSettings):
         if not file_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {file_path}")
 
-        with open(file_path, encoding="utf-8") as f:
+        with file_path.open(encoding="utf-8") as f:
             config_data = yaml.safe_load(f)
 
         return cls(**config_data)
@@ -362,7 +366,7 @@ class ScriptRAGSettings(BaseSettings):
         file_path = Path(file_path)
         file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(file_path, "w", encoding="utf-8") as f:
+        with file_path.open("w", encoding="utf-8") as f:
             yaml.safe_dump(
                 self.model_dump(),
                 f,
@@ -476,5 +480,5 @@ def create_default_config(file_path: str | Path) -> None:
     file_path = Path(file_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(file_path, "w", encoding="utf-8") as f:
+    with file_path.open("w", encoding="utf-8") as f:
         f.write(DEFAULT_CONFIG_TEMPLATE.strip())

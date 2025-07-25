@@ -137,6 +137,32 @@ ScriptRAG is a screenwriting assistant, making movie quotes a natural fit for ou
 add personality to our git history while maintaining the semantic commit format's clarity and usefulness.
 Plus, they make reviewing git logs more enjoyable!
 
+## 🔧 Project Diagnostics
+
+### Rule 2: Clean Working Copy First
+
+Before proceeding with any development work, ALWAYS check and fix project diagnostics
+to maintain a clean working copy.
+
+#### Process
+
+1. **Check Diagnostics**: Run project diagnostics to identify any errors or warnings
+2. **Fix Issues**: Address all diagnostics before starting new work
+3. **Verify Clean State**: Ensure the working copy is clean before proceeding
+
+#### Rationale
+
+- Prevents accumulation of technical debt
+- Ensures new changes don't mask existing issues
+- Maintains code quality and project health
+- Makes it easier to identify issues introduced by new changes
+
+A dirty working copy with unresolved diagnostics makes it difficult to distinguish
+between pre-existing issues and newly introduced problems. Always start with a clean
+slate.
+
+---
+
 ## 📚 Future Guidelines
 
 This document will be expanded with additional guidelines as the project evolves. Check back regularly

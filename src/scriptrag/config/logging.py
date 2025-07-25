@@ -48,19 +48,22 @@ def configure_logging(
 
     if dev_mode and not json_logs:
         # Development mode: human-readable colorized output
-        processors = shared_processors + [
+        processors = [
+            *shared_processors,
             structlog.processors.TimeStamper(fmt="ISO"),
             structlog.dev.ConsoleRenderer(colors=True),
         ]
     elif json_logs:
         # Production mode: JSON structured logs
-        processors = shared_processors + [
+        processors = [
+            *shared_processors,
             structlog.processors.TimeStamper(fmt="ISO"),
             structlog.processors.JSONRenderer(),
         ]
     else:
         # Production mode: plain text structured logs
-        processors = shared_processors + [
+        processors = [
+            *shared_processors,
             structlog.processors.TimeStamper(fmt="ISO"),
             structlog.processors.KeyValueRenderer(),
         ]
@@ -221,20 +224,28 @@ def setup_logging_for_environment(
 
 
 # Context manager for temporary log level changes
-class temporary_log_level:
+class TemporaryLogLevel:
     """Context manager to temporarily change log level."""
 
-    def __init__(self, level: str):
+    def __init__(self, level: str) -> None:
+        """Initialize with target log level."""
         self.level = level
-        self.original_level = None
+        self.original_level: int = 0
 
-    def __enter__(self):
+    def __enter__(self) -> "TemporaryLogLevel":
+        """Enter context and set new log level."""
         root_logger = logging.getLogger()
         self.original_level = root_logger.level
         root_logger.setLevel(getattr(logging, self.level.upper()))
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any | None,
+    ) -> None:
+        """Exit context and restore original log level."""
         if self.original_level is not None:
             root_logger = logging.getLogger()
             root_logger.setLevel(self.original_level)

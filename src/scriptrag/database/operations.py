@@ -509,7 +509,7 @@ class GraphOperations:
         ordered_scenes = []
 
         for start_scene_id in start_scenes:
-            current_id = start_scene_id
+            current_id: str | None = start_scene_id
             visited = set()
 
             while current_id and current_id not in visited:
@@ -641,7 +641,7 @@ class GraphOperations:
 
     def analyze_character_centrality(
         self, script_node_id: str
-    ) -> dict[str, dict[str, float]]:
+    ) -> dict[str, dict[str, float | str]]:
         """Analyze character centrality in the script's interaction network.
 
         Args:
@@ -657,7 +657,7 @@ class GraphOperations:
             direction="out",
         )
 
-        centrality_scores = {}
+        centrality_scores: dict[str, dict[str, float | str]] = {}
 
         for character in characters:
             char_id = character.id
@@ -673,10 +673,10 @@ class GraphOperations:
             unique_interactions = len({edge.to_node_id for _, edge in interactions})
 
             centrality_scores[char_id] = {
-                "degree_centrality": degree,
-                "scene_frequency": scene_count,
-                "interaction_diversity": unique_interactions,
-                "character_name": character.label,
+                "degree_centrality": float(degree),
+                "scene_frequency": float(scene_count),
+                "interaction_diversity": float(unique_interactions),
+                "character_name": str(character.label or "Unknown"),
             }
 
         return centrality_scores

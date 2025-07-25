@@ -203,9 +203,7 @@ ignore_errors = true
 module = "scriptrag.database.connection"
 ignore_errors = true
 
-[[tool.mypy.overrides]]
-module = "scriptrag.database.operations"
-ignore_errors = true
+
 
 
 

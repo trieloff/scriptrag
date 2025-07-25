@@ -374,7 +374,9 @@ def search_scenes(
             limit=limit,
         )
 
-        console.print(f"[green]Found {len(results) if results else 0} scenes[/green]")
+        # For now, handle the None return
+        results = results or []
+        console.print(f"[green]Found {len(results)} scenes[/green]")
 
     except NotImplementedError:
         console.print("[yellow]⚠[/yellow] Search not yet implemented")
@@ -448,7 +450,7 @@ def dev_init(
 
 
 @dev_app.command("status")
-def dev_status():
+def dev_status() -> None:
     """Show development environment status."""
     settings = get_settings()
 
@@ -493,7 +495,7 @@ def dev_status():
 
 
 @dev_app.command("test-llm")
-def dev_test_llm():
+def dev_test_llm() -> None:
     """Test LLM connection and functionality."""
     settings = get_settings()
 

@@ -5,10 +5,10 @@ This package provides centralized configuration management and logging setup.
 
 from .logging import (
     LOGGING_CONFIGS,
+    TemporaryLogLevel,
     configure_logging,
     get_logger,
     setup_logging_for_environment,
-    temporary_log_level,
 )
 from .settings import (
     DatabaseSettings,
@@ -29,7 +29,7 @@ __all__ = [
     "configure_logging",
     "get_logger",
     "setup_logging_for_environment",
-    "temporary_log_level",
+    "TemporaryLogLevel",
     "LOGGING_CONFIGS",
     # Settings
     "ScriptRAGSettings",

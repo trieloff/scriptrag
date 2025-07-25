@@ -46,23 +46,25 @@ def configure_logging(
         structlog.dev.set_exc_info,
     ]
 
+    # Build final processors list based on configuration
+    final_processors: list[Processor]
     if dev_mode and not json_logs:
         # Development mode: human-readable colorized output
-        processors = [
+        final_processors = [
             *shared_processors,
             structlog.processors.TimeStamper(fmt="ISO"),
             structlog.dev.ConsoleRenderer(colors=True),
         ]
     elif json_logs:
         # Production mode: JSON structured logs
-        processors = [
+        final_processors = [
             *shared_processors,
             structlog.processors.TimeStamper(fmt="ISO"),
             structlog.processors.JSONRenderer(),
         ]
     else:
         # Production mode: plain text structured logs
-        processors = [
+        final_processors = [
             *shared_processors,
             structlog.processors.TimeStamper(fmt="ISO"),
             structlog.processors.KeyValueRenderer(),
@@ -70,7 +72,7 @@ def configure_logging(
 
     # Configure structlog
     structlog.configure(
-        processors=processors,
+        processors=final_processors,
         wrapper_class=structlog.make_filtering_bound_logger(numeric_level),
         logger_factory=structlog.WriteLoggerFactory(),
         cache_logger_on_first_use=True,
@@ -129,7 +131,7 @@ def get_logger(name: str) -> structlog.BoundLogger:
     Returns:
         Configured structlog logger instance
     """
-    return structlog.get_logger(name)
+    return structlog.get_logger(name)  # type: ignore[no-any-return]
 
 
 def configure_sqlalchemy_logging(log_level: str = "WARNING") -> None:

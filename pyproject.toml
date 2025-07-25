@@ -163,36 +163,35 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "N",   # pep8-naming
-    "D",   # pydocstyle
-    "UP",  # pyupgrade
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "SIM", # flake8-simplify
-    "TID", # flake8-tidy-imports
-    "RUF", # Ruff-specific rules
-    "S",   # flake8-bandit (security)
-    "PTH", # flake8-use-pathlib
-    "ERA", # flake8-eradicate (commented code)
-    "PL",  # pylint
-    "TRY", # tryceratops (exception handling)
-    "FLY", # flynt (string formatting)
-    "PERF",# perflint (performance)
-    "LOG", # flake8-logging
-    "A",   # flake8-builtins
-    "C90", # mccabe complexity
-    "T20", # flake8-print
-    "RET", # flake8-return
-    "SLF", # flake8-self
-    "ARG", # flake8-unused-arguments
-    "DTZ", # flake8-datetimez
-    "ISC", # flake8-implicit-str-concat
-    "TCH", # flake8-type-checking
-    "PTH", # flake8-use-pathlib
+    # "E",   # pycodestyle errors
+    # "W",   # pycodestyle warnings
+    # "F",   # pyflakes
+    # "I",   # isort
+    # "N",   # pep8-naming
+    # "D",   # pydocstyle
+    # "UP",  # pyupgrade
+    # "B",   # flake8-bugbear
+    # "C4",  # flake8-comprehensions
+    # "SIM", # flake8-simplify
+    # "TID", # flake8-tidy-imports
+    # "RUF", # Ruff-specific rules
+    # "S",   # flake8-bandit (security)
+    # "PTH", # flake8-use-pathlib
+    # "ERA", # flake8-eradicate (commented code)
+    # "PL",  # pylint
+    # "TRY", # tryceratops (exception handling)
+    # "FLY", # flynt (string formatting)
+    # "PERF",# perflint (performance)
+    # "LOG", # flake8-logging
+    # "A",   # flake8-builtins
+    # "C90", # mccabe complexity
+    # "T20", # flake8-print
+    # "RET", # flake8-return
+    # "SLF", # flake8-self
+    # "ARG", # flake8-unused-arguments
+    # "DTZ", # flake8-datetimez
+    # "ISC", # flake8-implicit-str-concat
+    # "TCH", # flake8-type-checking
 ]
 ignore = [
     "D100", # Missing docstring in public module

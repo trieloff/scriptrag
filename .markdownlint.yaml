@@ -45,7 +45,6 @@ MD013:
   code_blocks: false
   tables: false
   headings: true
-  headers: true
   strict: false
   stern: false
 
@@ -244,6 +243,5 @@ MD052: true
 # MD053/link-image-reference-definitions - Link and image reference definitions should be needed
 MD053:
   ignored_definitions: [
-    "//",
     "//"
   ]

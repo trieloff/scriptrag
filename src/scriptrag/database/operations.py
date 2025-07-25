@@ -5,6 +5,8 @@ in the graph database, including entity management, relationship creation,
 and screenplay-specific queries.
 """
 
+from typing import Any
+
 from scriptrag.config import get_logger
 from scriptrag.models import (
     Character,
@@ -18,6 +20,7 @@ from scriptrag.models import (
 
 from .connection import DatabaseConnection
 from .graph import GraphDatabase, GraphEdge, GraphNode
+from .vectors import VectorOperations
 
 logger = get_logger(__name__)
 
@@ -33,6 +36,7 @@ class GraphOperations:
         """
         self.connection = connection
         self.graph = GraphDatabase(connection)
+        self.vectors = VectorOperations(connection)
 
     # Script-level operations
     def create_script_graph(self, script: Script) -> str:
@@ -676,3 +680,261 @@ class GraphOperations:
             }
 
         return centrality_scores
+
+    # Vector operations for semantic search
+    def store_scene_embedding(
+        self, scene_id: str, content: str, embedding: list[float], model_name: str
+    ) -> bool:
+        """Store embedding for a scene.
+
+        Args:
+            scene_id: Scene entity ID
+            content: Text content that was embedded
+            embedding: Vector embedding
+            model_name: Name of the embedding model
+
+        Returns:
+            True if successful
+        """
+        return self.vectors.store_embedding(
+            entity_type="scene",
+            entity_id=scene_id,
+            content=content,
+            embedding=embedding,
+            model_name=model_name,
+        )
+
+    def store_character_embedding(
+        self, character_id: str, content: str, embedding: list[float], model_name: str
+    ) -> bool:
+        """Store embedding for a character.
+
+        Args:
+            character_id: Character entity ID
+            content: Text content that was embedded
+            embedding: Vector embedding
+            model_name: Name of the embedding model
+
+        Returns:
+            True if successful
+        """
+        return self.vectors.store_embedding(
+            entity_type="character",
+            entity_id=character_id,
+            content=content,
+            embedding=embedding,
+            model_name=model_name,
+        )
+
+    def store_dialogue_embedding(
+        self, dialogue_id: str, content: str, embedding: list[float], model_name: str
+    ) -> bool:
+        """Store embedding for dialogue.
+
+        Args:
+            dialogue_id: Dialogue entity ID
+            content: Text content that was embedded
+            embedding: Vector embedding
+            model_name: Name of the embedding model
+
+        Returns:
+            True if successful
+        """
+        return self.vectors.store_embedding(
+            entity_type="dialogue",
+            entity_id=dialogue_id,
+            content=content,
+            embedding=embedding,
+            model_name=model_name,
+        )
+
+    def find_similar_scenes(
+        self,
+        query_scene_id: str,
+        model_name: str,
+        limit: int = 10,
+        distance_metric: str = "cosine",
+    ) -> list[tuple[str, float, dict[str, Any]]]:
+        """Find scenes similar to a given scene.
+
+        Args:
+            query_scene_id: ID of the scene to find similarities for
+            model_name: Embedding model name
+            limit: Maximum number of results
+            distance_metric: Distance metric to use
+
+        Returns:
+            List of (scene_id, distance, metadata) tuples
+        """
+        results = self.vectors.find_similar_to_entity(
+            entity_type="scene",
+            entity_id=query_scene_id,
+            model_name=model_name,
+            target_entity_type="scene",
+            distance_metric=distance_metric,
+            limit=limit,
+            exclude_self=True,
+        )
+
+        return [
+            (entity_id, distance, metadata)
+            for _, entity_id, distance, metadata in results
+        ]
+
+    def find_similar_characters(
+        self,
+        query_character_id: str,
+        model_name: str,
+        limit: int = 10,
+        distance_metric: str = "cosine",
+    ) -> list[tuple[str, float, dict[str, Any]]]:
+        """Find characters similar to a given character.
+
+        Args:
+            query_character_id: ID of the character to find similarities for
+            model_name: Embedding model name
+            limit: Maximum number of results
+            distance_metric: Distance metric to use
+
+        Returns:
+            List of (character_id, distance, metadata) tuples
+        """
+        results = self.vectors.find_similar_to_entity(
+            entity_type="character",
+            entity_id=query_character_id,
+            model_name=model_name,
+            target_entity_type="character",
+            distance_metric=distance_metric,
+            limit=limit,
+            exclude_self=True,
+        )
+
+        return [
+            (entity_id, distance, metadata)
+            for _, entity_id, distance, metadata in results
+        ]
+
+    def semantic_search_scenes(
+        self,
+        query_embedding: list[float],
+        model_name: str,
+        limit: int = 10,
+        distance_metric: str = "cosine",
+        threshold: float | None = None,
+    ) -> list[tuple[str, float, dict[str, Any]]]:
+        """Search for scenes using semantic similarity.
+
+        Args:
+            query_embedding: Query vector for similarity search
+            model_name: Embedding model name
+            limit: Maximum number of results
+            distance_metric: Distance metric to use
+            threshold: Minimum similarity threshold
+
+        Returns:
+            List of (scene_id, distance, metadata) tuples
+        """
+        results = self.vectors.find_similar(
+            query_vector=query_embedding,
+            entity_type="scene",
+            model_name=model_name,
+            distance_metric=distance_metric,
+            limit=limit,
+            threshold=threshold,
+        )
+
+        return [
+            (entity_id, distance, metadata)
+            for _, entity_id, distance, metadata in results
+        ]
+
+    def semantic_search_dialogue(
+        self,
+        query_embedding: list[float],
+        model_name: str,
+        limit: int = 10,
+        distance_metric: str = "cosine",
+        threshold: float | None = None,
+    ) -> list[tuple[str, float, dict[str, Any]]]:
+        """Search for dialogue using semantic similarity.
+
+        Args:
+            query_embedding: Query vector for similarity search
+            model_name: Embedding model name
+            limit: Maximum number of results
+            distance_metric: Distance metric to use
+            threshold: Minimum similarity threshold
+
+        Returns:
+            List of (dialogue_id, distance, metadata) tuples
+        """
+        results = self.vectors.find_similar(
+            query_vector=query_embedding,
+            entity_type="dialogue",
+            model_name=model_name,
+            distance_metric=distance_metric,
+            limit=limit,
+            threshold=threshold,
+        )
+
+        return [
+            (entity_id, distance, metadata)
+            for _, entity_id, distance, metadata in results
+        ]
+
+    def get_embedding_stats(self) -> dict[str, Any]:
+        """Get statistics about stored embeddings.
+
+        Returns:
+            Dictionary with embedding statistics
+        """
+        return self.vectors.get_vector_stats()
+
+    def delete_entity_embeddings(
+        self, entity_type: str, entity_id: str, model_name: str | None = None
+    ) -> int:
+        """Delete embeddings for a specific entity.
+
+        Args:
+            entity_type: Type of entity
+            entity_id: Entity ID
+            model_name: Optional model name filter
+
+        Returns:
+            Number of embeddings deleted
+        """
+        return self.vectors.delete_embeddings(
+            entity_type=entity_type, entity_id=entity_id, model_name=model_name
+        )
+
+    def batch_store_embeddings(
+        self, embeddings_data: list[dict[str, Any]]
+    ) -> list[bool]:
+        """Store multiple embeddings in batch.
+
+        Args:
+            embeddings_data: List of embedding data dictionaries with keys:
+                - entity_type: str
+                - entity_id: str
+                - content: str
+                - embedding: List[float]
+                - model_name: str
+
+        Returns:
+            List of success flags for each embedding
+        """
+        results = []
+        for data in embeddings_data:
+            success = self.vectors.store_embedding(
+                entity_type=data["entity_type"],
+                entity_id=data["entity_id"],
+                content=data["content"],
+                embedding=data["embedding"],
+                model_name=data["model_name"],
+            )
+            results.append(success)
+
+        logger.info(
+            f"Batch stored {sum(results)}/{len(results)} embeddings successfully"
+        )
+        return results

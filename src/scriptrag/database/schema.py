@@ -13,7 +13,7 @@ from scriptrag.config import get_logger
 logger = get_logger(__name__)
 
 # Schema version for migrations
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # SQL DDL statements for creating tables
 SCHEMA_SQL = """
@@ -164,14 +164,16 @@ CREATE TABLE IF NOT EXISTS edges (
     FOREIGN KEY (to_node_id) REFERENCES nodes(id) ON DELETE CASCADE
 );
 
--- Embeddings for semantic search
+-- Embeddings for semantic search with sqlite-vec support
 CREATE TABLE IF NOT EXISTS embeddings (
     id TEXT PRIMARY KEY,
     entity_type TEXT NOT NULL, -- Type of entity (scene, character, dialogue, etc.)
     entity_id TEXT NOT NULL, -- ID of the entity
     content TEXT NOT NULL, -- Text content that was embedded
     embedding_model TEXT NOT NULL, -- Model used for embedding
-    vector_json TEXT NOT NULL, -- JSON array of embedding vector
+    vector_blob BLOB, -- Binary vector storage for sqlite-vec
+    vector_type TEXT DEFAULT 'float32', -- Vector type: float32, int8, bit
+    vector_json TEXT, -- JSON array of embedding vector (legacy format)
     dimension INTEGER NOT NULL, -- Dimension of the embedding vector
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(entity_type, entity_id, embedding_model)

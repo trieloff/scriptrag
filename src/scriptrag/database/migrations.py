@@ -9,7 +9,6 @@ import sqlite3
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Type
 
 from scriptrag.config import get_logger
 
@@ -23,7 +22,7 @@ class Migration(ABC):
         """Initialize migration."""
         self.version: int = 0
         self.description: str = ""
-        self.applied_at: Optional[datetime] = None
+        self.applied_at: datetime | None = None
 
     @abstractmethod
     def up(self, connection: sqlite3.Connection) -> None:
@@ -62,16 +61,19 @@ class InitialSchemaMigration(Migration):
         logger.info("Applying initial schema migration")
 
         # Schema version tracking
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS schema_info (
                 version INTEGER PRIMARY KEY,
                 applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 description TEXT
             )
-        """)
+        """
+        )
 
         # Core entity tables
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS scripts (
                 id TEXT PRIMARY KEY,
                 title TEXT NOT NULL,
@@ -88,9 +90,11 @@ class InitialSchemaMigration(Migration):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
+        """
+        )
 
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS seasons (
                 id TEXT PRIMARY KEY,
                 script_id TEXT NOT NULL,
@@ -104,9 +108,11 @@ class InitialSchemaMigration(Migration):
                 FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
                 UNIQUE(script_id, number)
             )
-        """)
+        """
+        )
 
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS episodes (
                 id TEXT PRIMARY KEY,
                 script_id TEXT NOT NULL,
@@ -123,9 +129,11 @@ class InitialSchemaMigration(Migration):
                 FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
                 FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE
             )
-        """)
+        """
+        )
 
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS characters (
                 id TEXT PRIMARY KEY,
                 script_id TEXT NOT NULL,
@@ -137,9 +145,11 @@ class InitialSchemaMigration(Migration):
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE
             )
-        """)
+        """
+        )
 
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS locations (
                 id TEXT PRIMARY KEY,
                 script_id TEXT NOT NULL,
@@ -152,9 +162,11 @@ class InitialSchemaMigration(Migration):
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE
             )
-        """)
+        """
+        )
 
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS scenes (
                 id TEXT PRIMARY KEY,
                 script_id TEXT NOT NULL,
@@ -177,9 +189,11 @@ class InitialSchemaMigration(Migration):
                 FOREIGN KEY (season_id) REFERENCES seasons(id) ON DELETE CASCADE,
                 FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL
             )
-        """)
+        """
+        )
 
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS scene_elements (
                 id TEXT PRIMARY KEY,
                 scene_id TEXT NOT NULL,
@@ -198,10 +212,12 @@ class InitialSchemaMigration(Migration):
                 FOREIGN KEY (associated_dialogue_id)
                     REFERENCES scene_elements(id) ON DELETE SET NULL
             )
-        """)
+        """
+        )
 
         # Graph database layer
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS nodes (
                 id TEXT PRIMARY KEY,
                 node_type TEXT NOT NULL,
@@ -211,9 +227,11 @@ class InitialSchemaMigration(Migration):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
+        """
+        )
 
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS edges (
                 id TEXT PRIMARY KEY,
                 from_node_id TEXT NOT NULL,
@@ -226,10 +244,12 @@ class InitialSchemaMigration(Migration):
                 FOREIGN KEY (from_node_id) REFERENCES nodes(id) ON DELETE CASCADE,
                 FOREIGN KEY (to_node_id) REFERENCES nodes(id) ON DELETE CASCADE
             )
-        """)
+        """
+        )
 
         # Embeddings for semantic search
-        connection.execute("""
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS embeddings (
                 id TEXT PRIMARY KEY,
                 entity_type TEXT NOT NULL,
@@ -241,7 +261,8 @@ class InitialSchemaMigration(Migration):
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(entity_type, entity_id, embedding_model)
             )
-        """)
+        """
+        )
 
         # Create indexes
         self._create_indexes(connection)
@@ -286,38 +307,53 @@ class InitialSchemaMigration(Migration):
             "CREATE INDEX IF NOT EXISTS idx_scripts_author ON scripts(author)",
             "CREATE INDEX IF NOT EXISTS idx_scripts_genre ON scripts(genre)",
             "CREATE INDEX IF NOT EXISTS idx_seasons_script_id ON seasons(script_id)",
-            "CREATE INDEX IF NOT EXISTS idx_seasons_number ON seasons(script_id, number)",
+            """CREATE INDEX IF NOT EXISTS idx_seasons_number
+                ON seasons(script_id, number)""",
             "CREATE INDEX IF NOT EXISTS idx_episodes_script_id ON episodes(script_id)",
             "CREATE INDEX IF NOT EXISTS idx_episodes_season_id ON episodes(season_id)",
-            "CREATE INDEX IF NOT EXISTS idx_episodes_number ON episodes(season_id, number)",
-            "CREATE INDEX IF NOT EXISTS idx_characters_script_id ON characters(script_id)",
-            "CREATE INDEX IF NOT EXISTS idx_characters_name ON characters(script_id, name)",
-            "CREATE INDEX IF NOT EXISTS idx_locations_script_id ON locations(script_id)",
-            "CREATE INDEX IF NOT EXISTS idx_locations_name ON locations(script_id, name)",
+            """CREATE INDEX IF NOT EXISTS idx_episodes_number
+                ON episodes(season_id, number)""",
+            """CREATE INDEX IF NOT EXISTS idx_characters_script_id
+                ON characters(script_id)""",
+            """CREATE INDEX IF NOT EXISTS idx_characters_name
+                ON characters(script_id, name)""",
+            """CREATE INDEX IF NOT EXISTS idx_locations_script_id
+                ON locations(script_id)""",
+            """CREATE INDEX IF NOT EXISTS idx_locations_name
+                ON locations(script_id, name)""",
             "CREATE INDEX IF NOT EXISTS idx_scenes_script_id ON scenes(script_id)",
             "CREATE INDEX IF NOT EXISTS idx_scenes_episode_id ON scenes(episode_id)",
             "CREATE INDEX IF NOT EXISTS idx_scenes_season_id ON scenes(season_id)",
             "CREATE INDEX IF NOT EXISTS idx_scenes_location_id ON scenes(location_id)",
-            "CREATE INDEX IF NOT EXISTS idx_scenes_script_order ON scenes(script_id, script_order)",
+            """CREATE INDEX IF NOT EXISTS idx_scenes_script_order
+                ON scenes(script_id, script_order)""",
             """CREATE INDEX IF NOT EXISTS idx_scenes_temporal_order
                 ON scenes(script_id, temporal_order)""",
-            "CREATE INDEX IF NOT EXISTS idx_scenes_logical_order ON scenes(script_id, logical_order)",
-            "CREATE INDEX IF NOT EXISTS idx_scene_elements_scene_id ON scene_elements(scene_id)",
+            """CREATE INDEX IF NOT EXISTS idx_scenes_logical_order
+                ON scenes(script_id, logical_order)""",
+            """CREATE INDEX IF NOT EXISTS idx_scene_elements_scene_id
+                ON scene_elements(scene_id)""",
             """CREATE INDEX IF NOT EXISTS idx_scene_elements_character_id
                 ON scene_elements(character_id)""",
             """CREATE INDEX IF NOT EXISTS idx_scene_elements_order
                 ON scene_elements(scene_id, order_in_scene)""",
-            "CREATE INDEX IF NOT EXISTS idx_scene_elements_type ON scene_elements(element_type)",
+            """CREATE INDEX IF NOT EXISTS idx_scene_elements_type
+                ON scene_elements(element_type)""",
             "CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(node_type)",
             "CREATE INDEX IF NOT EXISTS idx_nodes_entity_id ON nodes(entity_id)",
-            "CREATE INDEX IF NOT EXISTS idx_nodes_type_entity ON nodes(node_type, entity_id)",
+            """CREATE INDEX IF NOT EXISTS idx_nodes_type_entity
+                ON nodes(node_type, entity_id)""",
             "CREATE INDEX IF NOT EXISTS idx_edges_from_node ON edges(from_node_id)",
             "CREATE INDEX IF NOT EXISTS idx_edges_to_node ON edges(to_node_id)",
             "CREATE INDEX IF NOT EXISTS idx_edges_type ON edges(edge_type)",
-            "CREATE INDEX IF NOT EXISTS idx_edges_from_to ON edges(from_node_id, to_node_id)",
-            "CREATE INDEX IF NOT EXISTS idx_edges_type_from ON edges(edge_type, from_node_id)",
-            "CREATE INDEX IF NOT EXISTS idx_embeddings_entity ON embeddings(entity_type, entity_id)",
-            "CREATE INDEX IF NOT EXISTS idx_embeddings_model ON embeddings(embedding_model)",
+            """CREATE INDEX IF NOT EXISTS idx_edges_from_to
+                ON edges(from_node_id, to_node_id)""",
+            """CREATE INDEX IF NOT EXISTS idx_edges_type_from
+                ON edges(edge_type, from_node_id)""",
+            """CREATE INDEX IF NOT EXISTS idx_embeddings_entity
+                ON embeddings(entity_type, entity_id)""",
+            """CREATE INDEX IF NOT EXISTS idx_embeddings_model
+                ON embeddings(embedding_model)""",
         ]
 
         for index_sql in indexes:
@@ -339,17 +375,20 @@ class InitialSchemaMigration(Migration):
             """CREATE TRIGGER IF NOT EXISTS update_episodes_timestamp
                 AFTER UPDATE ON episodes
                 BEGIN
-                    UPDATE episodes SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+                    UPDATE episodes SET updated_at = CURRENT_TIMESTAMP
+                    WHERE id = NEW.id;
                 END""",
             """CREATE TRIGGER IF NOT EXISTS update_characters_timestamp
                 AFTER UPDATE ON characters
                 BEGIN
-                    UPDATE characters SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+                    UPDATE characters SET updated_at = CURRENT_TIMESTAMP
+                    WHERE id = NEW.id;
                 END""",
             """CREATE TRIGGER IF NOT EXISTS update_locations_timestamp
                 AFTER UPDATE ON locations
                 BEGIN
-                    UPDATE locations SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+                    UPDATE locations SET updated_at = CURRENT_TIMESTAMP
+                    WHERE id = NEW.id;
                 END""",
             """CREATE TRIGGER IF NOT EXISTS update_scenes_timestamp
                 AFTER UPDATE ON scenes
@@ -359,7 +398,8 @@ class InitialSchemaMigration(Migration):
             """CREATE TRIGGER IF NOT EXISTS update_scene_elements_timestamp
                 AFTER UPDATE ON scene_elements
                 BEGIN
-                    UPDATE scene_elements SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+                    UPDATE scene_elements SET updated_at = CURRENT_TIMESTAMP
+                    WHERE id = NEW.id;
                 END""",
             """CREATE TRIGGER IF NOT EXISTS update_nodes_timestamp
                 AFTER UPDATE ON nodes
@@ -379,7 +419,8 @@ class InitialSchemaMigration(Migration):
     def _create_fts_tables(self, connection: sqlite3.Connection) -> None:
         """Create full-text search tables and triggers."""
         # Create FTS tables
-        connection.execute("""
+        connection.execute(
+            """
             CREATE VIRTUAL TABLE IF NOT EXISTS scene_elements_fts USING fts5(
                 element_id,
                 text,
@@ -388,9 +429,11 @@ class InitialSchemaMigration(Migration):
                 content='scene_elements',
                 content_rowid='rowid'
             )
-        """)
+        """
+        )
 
-        connection.execute("""
+        connection.execute(
+            """
             CREATE VIRTUAL TABLE IF NOT EXISTS characters_fts USING fts5(
                 character_id,
                 name,
@@ -398,21 +441,25 @@ class InitialSchemaMigration(Migration):
                 content='characters',
                 content_rowid='rowid'
             )
-        """)
+        """
+        )
 
         # Create FTS triggers
         fts_triggers = [
             """CREATE TRIGGER IF NOT EXISTS scene_elements_fts_insert
                 AFTER INSERT ON scene_elements
                 BEGIN
-                    INSERT INTO scene_elements_fts(element_id, text, character_name, scene_id)
-                    VALUES (NEW.id, NEW.text, COALESCE(NEW.character_name, ''), NEW.scene_id);
+                    INSERT INTO scene_elements_fts(
+                        element_id, text, character_name, scene_id)
+                    VALUES (NEW.id, NEW.text, COALESCE(NEW.character_name, ''),
+                            NEW.scene_id);
                 END""",
             """CREATE TRIGGER IF NOT EXISTS scene_elements_fts_update
                 AFTER UPDATE ON scene_elements
                 BEGIN
                     UPDATE scene_elements_fts
-                    SET text = NEW.text, character_name = COALESCE(NEW.character_name, ''),
+                    SET text = NEW.text,
+                        character_name = COALESCE(NEW.character_name, ''),
                         scene_id = NEW.scene_id
                     WHERE element_id = NEW.id;
                 END""",
@@ -445,6 +492,171 @@ class InitialSchemaMigration(Migration):
             connection.execute(trigger_sql)
 
 
+class VectorStorageMigration(Migration):
+    """Migration to add sqlite-vec support to embeddings table."""
+
+    def __init__(self) -> None:
+        """Initialize vector storage migration."""
+        super().__init__()
+        self.version = 2
+        self.description = "Add sqlite-vec vector storage support to embeddings table"
+
+    def up(self, connection: sqlite3.Connection) -> None:
+        """Apply vector storage migration.
+
+        Adds vector_blob and vector_type columns to embeddings table
+        and converts existing JSON vectors to binary format.
+
+        Args:
+            connection: Database connection
+        """
+        cursor = connection.cursor()
+
+        try:
+            # Add new columns for sqlite-vec support
+            cursor.execute(
+                """
+                ALTER TABLE embeddings
+                ADD COLUMN vector_blob BLOB
+            """
+            )
+
+            cursor.execute(
+                """
+                ALTER TABLE embeddings
+                ADD COLUMN vector_type TEXT DEFAULT 'float32'
+            """
+            )
+
+            # Make vector_json nullable since we're adding vector_blob
+            cursor.execute(
+                """
+                CREATE TABLE embeddings_new (
+                    id TEXT PRIMARY KEY,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    embedding_model TEXT NOT NULL,
+                    vector_blob BLOB,
+                    vector_type TEXT DEFAULT 'float32',
+                    vector_json TEXT,
+                    dimension INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(entity_type, entity_id, embedding_model)
+                )
+            """
+            )
+
+            # Copy existing data
+            cursor.execute(
+                """
+                INSERT INTO embeddings_new (
+                    id, entity_type, entity_id, content, embedding_model,
+                    vector_json, dimension, created_at
+                )
+                SELECT
+                    id, entity_type, entity_id, content, embedding_model,
+                    vector_json, dimension, created_at
+                FROM embeddings
+            """
+            )
+
+            # Replace old table
+            cursor.execute("DROP TABLE embeddings")
+            cursor.execute("ALTER TABLE embeddings_new RENAME TO embeddings")
+
+            # Recreate index
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_embeddings_entity
+                ON embeddings(entity_type, entity_id)
+            """
+            )
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_embeddings_model
+                ON embeddings(embedding_model)
+            """
+            )
+
+            connection.commit()
+            logger.info("Vector storage migration applied successfully")
+
+        except Exception as e:
+            connection.rollback()
+            logger.error(f"Failed to apply vector storage migration: {e}")
+            raise
+
+    def down(self, connection: sqlite3.Connection) -> None:
+        """Rollback vector storage migration.
+
+        Removes vector_blob and vector_type columns from embeddings table.
+
+        Args:
+            connection: Database connection
+        """
+        cursor = connection.cursor()
+
+        try:
+            # Recreate original table structure
+            cursor.execute(
+                """
+                CREATE TABLE embeddings_rollback (
+                    id TEXT PRIMARY KEY,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    embedding_model TEXT NOT NULL,
+                    vector_json TEXT NOT NULL,
+                    dimension INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(entity_type, entity_id, embedding_model)
+                )
+            """
+            )
+
+            # Copy data back (only records with vector_json)
+            cursor.execute(
+                """
+                INSERT INTO embeddings_rollback (
+                    id, entity_type, entity_id, content, embedding_model,
+                    vector_json, dimension, created_at
+                )
+                SELECT
+                    id, entity_type, entity_id, content, embedding_model,
+                    vector_json, dimension, created_at
+                FROM embeddings
+                WHERE vector_json IS NOT NULL
+            """
+            )
+
+            # Replace table
+            cursor.execute("DROP TABLE embeddings")
+            cursor.execute("ALTER TABLE embeddings_rollback RENAME TO embeddings")
+
+            # Recreate indexes
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_embeddings_entity
+                ON embeddings(entity_type, entity_id)
+            """
+            )
+            cursor.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_embeddings_model
+                ON embeddings(embedding_model)
+            """
+            )
+
+            connection.commit()
+            logger.info("Vector storage migration rolled back successfully")
+
+        except Exception as e:
+            connection.rollback()
+            logger.error(f"Failed to rollback vector storage migration: {e}")
+            raise
+
+
 class MigrationRunner:
     """Manages database migrations."""
 
@@ -455,8 +667,9 @@ class MigrationRunner:
             db_path: Path to SQLite database file
         """
         self.db_path = Path(db_path)
-        self.migrations: Dict[int, Type[Migration]] = {
+        self.migrations: dict[int, type[Migration]] = {
             1: InitialSchemaMigration,
+            2: VectorStorageMigration,
         }
 
     def get_current_version(self) -> int:
@@ -489,7 +702,7 @@ class MigrationRunner:
         """
         return self.get_current_version() < self.get_target_version()
 
-    def get_pending_migrations(self) -> List[int]:
+    def get_pending_migrations(self) -> list[int]:
         """Get list of pending migration versions.
 
         Returns:
@@ -624,13 +837,19 @@ class MigrationRunner:
 
         if target_version > current:
             # Apply migrations
-            versions = [v for v in range(current + 1, target_version + 1) if v in self.migrations]
+            versions = [
+                v
+                for v in range(current + 1, target_version + 1)
+                if v in self.migrations
+            ]
             for version in versions:
                 if not self.apply_migration(version):
                     return False
         else:
             # Rollback migrations
-            versions = [v for v in range(current, target_version, -1) if v in self.migrations]
+            versions = [
+                v for v in range(current, target_version, -1) if v in self.migrations
+            ]
             for version in versions:
                 if not self.rollback_migration(version):
                     return False
@@ -655,7 +874,7 @@ class MigrationRunner:
         logger.info("Database reset completed")
         return True
 
-    def get_migration_history(self) -> List[Dict[str, any]]:
+    def get_migration_history(self) -> list[dict[str, any]]:
         """Get migration history.
 
         Returns:
@@ -665,7 +884,8 @@ class MigrationRunner:
             with sqlite3.connect(self.db_path) as conn:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
-                    "SELECT version, applied_at, description FROM schema_info ORDER BY version"
+                    """SELECT version, applied_at, description
+                       FROM schema_info ORDER BY version"""
                 )
                 return [dict(row) for row in cursor.fetchall()]
         except sqlite3.OperationalError:
@@ -682,7 +902,9 @@ class MigrationRunner:
         # Check for gaps in version sequence
         for i, version in enumerate(versions):
             if i > 0 and version != versions[i - 1] + 1:
-                logger.error(f"Gap in migration sequence: {versions[i-1]} -> {version}")
+                logger.error(
+                    f"Gap in migration sequence: {versions[i - 1]} -> {version}"
+                )
                 return False
 
         logger.info("Migration sequence is valid")
@@ -709,7 +931,7 @@ def initialize_database(db_path: str | Path) -> bool:
     return runner.migrate_to_latest()
 
 
-def migrate_database(db_path: str | Path, target_version: Optional[int] = None) -> bool:
+def migrate_database(db_path: str | Path, target_version: int | None = None) -> bool:
     """Migrate database to target version.
 
     Args:
@@ -723,5 +945,4 @@ def migrate_database(db_path: str | Path, target_version: Optional[int] = None) 
 
     if target_version is None:
         return runner.migrate_to_latest()
-    else:
-        return runner.migrate_to_version(target_version)
+    return runner.migrate_to_version(target_version)

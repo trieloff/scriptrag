@@ -176,6 +176,7 @@ MD043: false  # Don't enforce specific heading structure
 MD044:
   names: [
     "ScriptRAG",
+    "scriptrag",  # Allow lowercase for Python module imports
     "GraphRAG",
     "LMStudio",
     "SQLite",
@@ -193,6 +194,7 @@ MD044:
     "Linux",
     "API",
     "CLI",
+    "cli",  # Allow lowercase for scriptrag.cli module
     "JSON",
     "YAML",
     "TOML",
@@ -207,7 +209,7 @@ MD044:
     "ML",
     "RAG"
   ]
-  code_blocks: true
+  code_blocks: false
   html_elements: false
 
 # MD045/no-alt-text - Images should have alternate text (alt text)

@@ -42,11 +42,10 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          setup_commands:
-            - import sys
-            - sys.path.append('../')
-          selection:
-            new_path_syntax: yes
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
 
 markdown_extensions:
   - pymdownx.highlight:

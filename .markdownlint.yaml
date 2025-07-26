@@ -207,7 +207,7 @@ MD044:
     "ML",
     "RAG"
   ]
-  code_blocks: false
+  code_blocks: true
   html_elements: false
 
 # MD045/no-alt-text - Images should have alternate text (alt text)

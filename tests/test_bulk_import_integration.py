@@ -217,20 +217,25 @@ More action.
 
         # Create importer with custom pattern
         conn = DatabaseConnection(temp_db)
-        graph_ops = GraphOperations(conn)
-        custom_pattern = (
-            r"^(?P<series>.+?)\s+Episode\s+S(?P<season>\d+)E(?P<episode>\d+)\.fountain$"
-        )
-        importer = BulkImporter(graph_ops, custom_pattern=custom_pattern)
+        try:
+            graph_ops = GraphOperations(conn)
+            custom_pattern = (
+                r"^(?P<series>.+?)\s+Episode\s+"
+                r"S(?P<season>\d+)E(?P<episode>\d+)\.fountain$"
+            )
+            importer = BulkImporter(graph_ops, custom_pattern=custom_pattern)
 
-        result = importer.import_files(files)
-        assert result.successful_imports == 2
+            result = importer.import_files(files)
+            assert result.successful_imports == 2
 
-        # Verify series was properly detected
-        series = conn.fetch_one(
-            "SELECT * FROM scripts WHERE title = 'MyShow' AND is_series = 1"
-        )
-        assert series is not None
+            # Verify series was properly detected
+            series = conn.fetch_one(
+                "SELECT * FROM scripts WHERE title = 'MyShow' AND is_series = 1"
+            )
+            assert series is not None
+        finally:
+            # Close connection to allow file deletion on Windows
+            conn.close()
 
     def test_transaction_rollback_on_error(
         self, temp_dir: Path, importer: BulkImporter

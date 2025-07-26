@@ -205,6 +205,7 @@ Generation) pattern.
 ### Phase 8: Pluggable Mentors System 🎭
 
 📋 **[Detailed Mentor System Documentation](MENTOR_SYSTEM.md)**
+
 - [ ] **8.1 Mentor Infrastructure**
   - [ ] Mentor base classes and interfaces
   - [ ] Mentor registry and discovery system

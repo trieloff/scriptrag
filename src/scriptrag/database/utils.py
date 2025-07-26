@@ -9,13 +9,31 @@ import sqlite3
 import tempfile
 import zipfile
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from scriptrag.config import get_logger
+from scriptrag.config import get_logger, get_settings
+
+from .connection import DatabaseConnection
 
 logger = get_logger(__name__)
+
+
+def get_connection(db_path: Path | None = None) -> DatabaseConnection:
+    """Get a database connection.
+
+    Args:
+        db_path: Optional database path (uses settings if not provided)
+
+    Returns:
+        Database connection instance
+    """
+    if db_path is None:
+        settings = get_settings()
+        db_path = settings.get_database_path()
+
+    return DatabaseConnection(db_path)
 
 
 class DatabaseStats:
@@ -249,11 +267,18 @@ class DatabaseBackup:
             True if successful
         """
         # Use SQLite's backup API for consistency
-        with (
-            sqlite3.connect(self.db_path) as source,
-            sqlite3.connect(backup_path) as backup,
-        ):
+        source = None
+        backup = None
+        try:
+            source = sqlite3.connect(self.db_path)
+            backup = sqlite3.connect(backup_path)
             source.backup(backup)
+        finally:
+            # Explicitly close connections to release file handles on Windows
+            if backup:
+                backup.close()
+            if source:
+                source.close()
 
         logger.info(f"Created backup at {backup_path}")
         return True
@@ -271,8 +296,9 @@ class DatabaseBackup:
         if backup_path.suffix != ".zip":
             backup_path = backup_path.with_suffix(backup_path.suffix + ".zip")
 
-        with tempfile.NamedTemporaryFile(suffix=".db") as temp_file:
-            temp_path = Path(temp_file.name)
+        # Use a temporary directory approach that works on Windows
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir) / f"{self.db_path.stem}_backup.db"
 
             # Create temporary backup
             if not self._create_simple_backup(temp_path):
@@ -285,7 +311,7 @@ class DatabaseBackup:
                 # Add metadata
                 metadata = {
                     "source_path": str(self.db_path),
-                    "backup_time": datetime.utcnow().isoformat(),
+                    "backup_time": datetime.now(UTC).isoformat(),
                     "source_size_bytes": self.db_path.stat().st_size,
                 }
                 zip_file.writestr(
@@ -339,11 +365,18 @@ class DatabaseBackup:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Use SQLite's backup API
-        with (
-            sqlite3.connect(backup_path) as source,
-            sqlite3.connect(self.db_path) as target,
-        ):
+        source = None
+        target = None
+        try:
+            source = sqlite3.connect(backup_path)
+            target = sqlite3.connect(self.db_path)
             source.backup(target)
+        finally:
+            # Explicitly close connections to release file handles on Windows
+            if target:
+                target.close()
+            if source:
+                source.close()
 
         logger.info(f"Restored database from {backup_path}")
         return True

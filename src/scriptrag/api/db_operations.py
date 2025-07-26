@@ -17,7 +17,22 @@ logger = get_logger(__name__)
 
 
 class DatabaseOperations:
-    """High-level database operations for API endpoints."""
+    """High-level database operations for API endpoints.
+
+    WARNING: Current implementation uses synchronous SQLite operations
+    in async functions, which blocks the event loop. This is acceptable
+    for development/testing but should be fixed for production use.
+
+    TODO: Implement proper async database operations using one of:
+    1. aiosqlite for native async SQLite support
+    2. asyncio.run_in_executor() to run sync operations in thread pool
+    3. SQLAlchemy async with aiosqlite driver
+
+    TODO: Add proper connection pooling:
+    1. Current implementation uses thread-local connections
+    2. Consider SQLAlchemy connection pooling
+    3. Add connection health checks and retry logic
+    """
 
     def __init__(self, database_url: str) -> None:
         """Initialize database operations.
@@ -32,6 +47,12 @@ class DatabaseOperations:
 
     async def initialize(self) -> None:
         """Initialize database connection and schema."""
+        # Log warning about async/sync mismatch
+        logger.warning(
+            "DatabaseOperations uses synchronous SQLite operations in async functions. "
+            "This blocks the event loop and should be fixed for production use."
+        )
+
         # Extract database path from URL
         db_path = self.database_url.replace("sqlite+aiosqlite:///", "")
 
@@ -51,7 +72,7 @@ class DatabaseOperations:
             # Connection doesn't have async close yet
             pass
 
-    async def store_script(self, script: ScriptModel) -> int:
+    async def store_script(self, script: ScriptModel) -> str:
         """Store a script in the database.
 
         Args:
@@ -67,7 +88,7 @@ class DatabaseOperations:
         with self._connection.transaction() as conn:
             # Insert script using raw SQL
             script_uuid = str(uuid4())
-            cursor = conn.execute(
+            conn.execute(
                 """
                 INSERT INTO scripts (id, title, author, metadata_json)
                 VALUES (?, ?, ?, ?)
@@ -79,7 +100,7 @@ class DatabaseOperations:
                     json.dumps(script.metadata or {}),
                 ),
             )
-            script_id = cursor.lastrowid
+            script_id = script_uuid
 
             # Insert scenes
             for scene in script.scenes:
@@ -99,9 +120,9 @@ class DatabaseOperations:
                 )
 
         logger.info("Stored script", script_id=script_id, title=script.title)
-        return script_id or 0
+        return script_uuid
 
-    async def get_script(self, script_id: int) -> ScriptModel | None:
+    async def get_script(self, script_id: str) -> ScriptModel | None:
         """Get a script by ID.
 
         Args:
@@ -152,7 +173,7 @@ class DatabaseOperations:
             ]
 
             return ScriptModel(
-                id=int(script_result["id"]) if script_result["id"].isdigit() else 0,
+                id=script_result["id"],
                 title=script_result["title"],
                 author=script_result["author"],
                 metadata=metadata,
@@ -195,7 +216,7 @@ class DatabaseOperations:
                 for row in result
             ]
 
-    async def delete_script(self, script_id: int) -> None:
+    async def delete_script(self, script_id: str) -> None:
         """Delete a script and all related data.
 
         Args:
@@ -210,7 +231,7 @@ class DatabaseOperations:
         logger.info("Deleted script", script_id=script_id)
 
     async def generate_embeddings(
-        self, script_id: int, regenerate: bool = False
+        self, script_id: str, regenerate: bool = False
     ) -> dict[str, Any]:
         """Generate embeddings for a script.
 
@@ -245,7 +266,7 @@ class DatabaseOperations:
     async def search_scenes(
         self,
         query: str | None = None,
-        script_id: int | None = None,
+        script_id: str | None = None,
         character: str | None = None,
         limit: int = 10,
         offset: int = 0,
@@ -264,6 +285,14 @@ class DatabaseOperations:
         """
         if not self._connection:
             raise RuntimeError("Database not initialized")
+
+        # Enforce server-side pagination limits
+        if limit > 100:
+            limit = 100
+        if limit < 1:
+            limit = 1
+        if offset < 0:
+            offset = 0
 
         with self._connection.get_connection() as conn:
             # Build SQL query with conditions
@@ -331,12 +360,15 @@ class DatabaseOperations:
 
     async def semantic_search(
         self,
-        query: str,
-        script_id: int | None = None,
+        query: str,  # noqa: ARG002
+        script_id: str | None = None,  # noqa: ARG002
         threshold: float = 0.7,  # noqa: ARG002
         limit: int = 10,
     ) -> dict[str, Any]:
         """Search scenes by semantic similarity.
+
+        NOTE: This feature is not yet implemented. Semantic search requires
+        embedding generation and vector similarity computation infrastructure.
 
         Args:
             query: Search query
@@ -346,34 +378,27 @@ class DatabaseOperations:
 
         Returns:
             Search results with similarity scores
+
+        Raises:
+            NotImplementedError: Semantic search not yet implemented
         """
         if not self._embedding_pipeline:
             raise RuntimeError("Database not initialized")
 
-        # Simplified semantic search - in a real implementation this would
-        # use embeddings
-        # For now, fallback to text search
-        text_results = await self.search_scenes(
-            query=query, script_id=script_id, limit=limit
+        # Enforce server-side pagination limits
+        if limit > 100:
+            limit = 100
+        if limit < 1:
+            limit = 1
+
+        # Semantic search requires proper embedding infrastructure
+        # For now, raise an error indicating the limitation
+        raise NotImplementedError(
+            "Semantic search requires embedding generation and vector similarity "
+            "computation. Please generate embeddings first using POST "
+            "/api/v1/embeddings/{script_id}, then use regular text search via "
+            "GET /api/v1/search/scenes instead."
         )
-
-        # Convert to semantic search format with dummy scores
-        results = []
-        for item in text_results["results"]:
-            results.append(
-                {
-                    "scene": item["scene"],
-                    "score": 0.8,  # Dummy score above threshold
-                    "highlights": [],
-                }
-            )
-
-        return {
-            "results": results,
-            "total": len(results),
-            "limit": limit,
-            "offset": 0,
-        }
 
     def _extract_characters(self, content: str) -> list[str]:
         """Extract character names from scene content.
@@ -411,7 +436,7 @@ class DatabaseOperations:
 
         return list(set(characters))
 
-    async def get_scene(self, scene_id: int) -> dict[str, Any] | None:
+    async def get_scene(self, scene_id: str) -> dict[str, Any] | None:
         """Get a scene by ID."""
         if not self._connection:
             raise RuntimeError("Database not initialized")
@@ -440,25 +465,26 @@ class DatabaseOperations:
             }
 
     async def create_scene(
-        self, script_id: int, scene_number: int, heading: str, content: str
-    ) -> int:
+        self, script_id: str, scene_number: int, heading: str, content: str
+    ) -> str:
         """Create a new scene."""
         if not self._connection:
             raise RuntimeError("Database not initialized")
 
         with self._connection.transaction() as conn:
-            cursor = conn.execute(
+            scene_uuid = str(uuid4())
+            conn.execute(
                 """
                 INSERT INTO scenes (id, script_id, script_order, heading, description)
                 VALUES (?, ?, ?, ?, ?)
                 """,
-                (str(uuid4()), str(script_id), scene_number, heading, content),
+                (scene_uuid, script_id, scene_number, heading, content),
             )
-            return cursor.lastrowid or 0
+            return scene_uuid
 
     async def update_scene(
         self,
-        scene_id: int,
+        scene_id: str,
         scene_number: int | None = None,
         heading: str | None = None,
         content: str | None = None,
@@ -468,25 +494,23 @@ class DatabaseOperations:
             raise RuntimeError("Database not initialized")
 
         with self._connection.transaction() as conn:
-            updates: list[str] = []
-            params: list[Any] = []
-
+            # Use predefined queries to prevent SQL injection
             if scene_number is not None:
-                updates.append("script_order = ?")
-                params.append(scene_number)
+                conn.execute(
+                    "UPDATE scenes SET script_order = ? WHERE id = ?",
+                    (scene_number, scene_id),
+                )
             if heading is not None:
-                updates.append("heading = ?")
-                params.append(heading)
+                conn.execute(
+                    "UPDATE scenes SET heading = ? WHERE id = ?", (heading, scene_id)
+                )
             if content is not None:
-                updates.append("description = ?")
-                params.append(content)
+                conn.execute(
+                    "UPDATE scenes SET description = ? WHERE id = ?",
+                    (content, scene_id),
+                )
 
-            if updates:
-                params.append(scene_id)
-                sql = f"UPDATE scenes SET {', '.join(updates)} WHERE id = ?"
-                conn.execute(sql, params)
-
-    async def delete_scene(self, scene_id: int) -> None:
+    async def delete_scene(self, scene_id: str) -> None:
         """Delete a scene."""
         if not self._connection:
             raise RuntimeError("Database not initialized")
@@ -494,7 +518,7 @@ class DatabaseOperations:
         with self._connection.transaction() as conn:
             conn.execute("DELETE FROM scenes WHERE id = ?", (scene_id,))
 
-    async def shift_scene_numbers(self, script_id: int, from_scene_number: int) -> None:
+    async def shift_scene_numbers(self, script_id: str, from_scene_number: int) -> None:
         """Shift scene numbers to make room for insertion."""
         if not self._connection:
             raise RuntimeError("Database not initialized")
@@ -513,7 +537,7 @@ class DatabaseOperations:
     async def get_character_graph(
         self,
         character_name: str,
-        script_id: int | None = None,  # noqa: ARG002
+        script_id: str | None = None,  # noqa: ARG002
         depth: int = 2,  # noqa: ARG002
         min_interaction_count: int = 1,  # noqa: ARG002
     ) -> dict[str, Any]:
@@ -533,7 +557,7 @@ class DatabaseOperations:
 
     async def get_timeline_graph(
         self,
-        script_id: int,
+        script_id: str,
         group_by: str = "act",  # noqa: ARG002
         include_characters: bool = True,  # noqa: ARG002
     ) -> dict[str, Any]:
@@ -551,7 +575,7 @@ class DatabaseOperations:
             "edges": [],
         }
 
-    async def get_location_graph(self, script_id: int) -> dict[str, Any]:
+    async def get_location_graph(self, script_id: str) -> dict[str, Any]:
         """Get location-based graph data for a specific script."""
         if not self._connection:
             raise RuntimeError("Database not initialized")

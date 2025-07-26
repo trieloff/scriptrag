@@ -46,7 +46,7 @@ async def upload_script(
             raise HTTPException(status_code=500, detail="Failed to store script")
 
         return ScriptResponse(
-            id=stored_script.id or 0,
+            id=stored_script.id or "",
             title=stored_script.title,
             author=stored_script.author,
             created_at=stored_script.created_at or datetime.utcnow(),
@@ -94,7 +94,7 @@ async def upload_script_file(
             raise HTTPException(status_code=500, detail="Failed to store script")
 
         return ScriptResponse(
-            id=stored_script.id or 0,
+            id=stored_script.id or "",
             title=stored_script.title,
             author=stored_script.author,
             created_at=stored_script.created_at or datetime.utcnow(),
@@ -142,7 +142,7 @@ async def list_scripts(
 
 @router.get("/{script_id}", response_model=ScriptDetailResponse)
 async def get_script(
-    script_id: int,
+    script_id: str,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> ScriptDetailResponse:
     """Get script details."""
@@ -152,7 +152,7 @@ async def get_script(
             raise HTTPException(status_code=404, detail="Script not found")
 
         return ScriptDetailResponse(
-            id=script.id or 0,
+            id=script.id or "",
             title=script.title,
             author=script.author,
             created_at=script.created_at or datetime.utcnow(),
@@ -162,8 +162,8 @@ async def get_script(
             has_embeddings=any(scene.embedding is not None for scene in script.scenes),
             scenes=[
                 SceneResponse(
-                    id=scene.id or 0,
-                    script_id=scene.script_id or 0,
+                    id=scene.id or "",
+                    script_id=scene.script_id or "",
                     scene_number=scene.scene_number,
                     heading=scene.heading,
                     content=scene.content,
@@ -188,7 +188,7 @@ async def get_script(
 
 @router.delete("/{script_id}")
 async def delete_script(
-    script_id: int,
+    script_id: str,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> dict[str, str]:
     """Delete a script."""

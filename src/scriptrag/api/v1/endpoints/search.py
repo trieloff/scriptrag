@@ -92,7 +92,7 @@ async def semantic_search(
 @router.get("/scenes/by-character/{character_name}")
 async def search_by_character(
     character_name: str,
-    script_id: int | None = None,
+    script_id: str | None = None,
     limit: int = 10,
     offset: int = 0,
     db_ops: DatabaseOperations = Depends(get_db_ops),

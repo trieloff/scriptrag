@@ -9,8 +9,8 @@ from pydantic import BaseModel, Field
 class SceneModel(BaseModel):
     """Scene model for API operations."""
 
-    id: int | None = None
-    script_id: int | None = None
+    id: str | None = None
+    script_id: str | None = None
     scene_number: int
     heading: str
     content: str
@@ -24,7 +24,7 @@ class SceneModel(BaseModel):
 class ScriptModel(BaseModel):
     """Script model for API operations."""
 
-    id: int | None = None
+    id: str | None = None
     title: str
     author: str | None = None
     metadata: dict[str, Any] | None = None

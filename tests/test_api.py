@@ -1,4 +1,17 @@
-"""Tests for FastAPI REST API endpoints."""
+"""Tests for FastAPI REST API endpoints.
+
+TODO: Comprehensive test improvements needed:
+1. Add database mocking using pytest-mock or unittest.mock
+2. Create test fixtures for sample scripts and scenes
+3. Add integration tests with temporary test database
+4. Test error conditions and edge cases properly
+5. Test authentication when implemented
+6. Add performance tests for large datasets
+7. Test concurrent request handling
+8. Mock external dependencies (embedding pipeline, LLM client)
+
+Current tests are minimal and should not be used for production validation.
+"""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -56,8 +69,10 @@ def test_upload_script(client):
     response = client.post("/api/v1/scripts/upload", json=script_data)
 
     # Note: This will fail in the test environment because the DB isn't initialized
-    # In a real test, we'd mock the database operations
-    assert response.status_code in [200, 400, 500]
+    # TODO: Mock the database operations for proper testing
+    # For now, we expect it to fail with 500 due to uninitialized database
+    assert response.status_code == 500
+    assert "Database not initialized" in response.json()["detail"]
 
 
 def test_scene_search_invalid_params(client):

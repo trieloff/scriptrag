@@ -43,7 +43,7 @@ class ScriptResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: str
     title: str
     author: str | None
     created_at: datetime
@@ -67,8 +67,8 @@ class SceneResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    script_id: int
+    id: str
+    script_id: str
     scene_number: int
     heading: str
     content: str
@@ -108,7 +108,7 @@ class EmbeddingGenerateRequest(BaseModel):
 class EmbeddingResponse(BaseResponse):
     """Embedding generation response."""
 
-    script_id: int
+    script_id: str
     scenes_processed: int
     scenes_skipped: int
     processing_time: float
@@ -126,7 +126,7 @@ class SceneSearchRequest(SearchRequest):
     """Scene search request."""
 
     query: str | None = Field(default=None, description="Text search query")
-    script_id: int | None = Field(default=None, description="Filter by script")
+    script_id: str | None = Field(default=None, description="Filter by script")
     character: str | None = Field(default=None, description="Filter by character")
     scene_numbers: list[int] | None = Field(
         default=None, description="Filter by scene numbers"
@@ -137,7 +137,7 @@ class SemanticSearchRequest(SearchRequest):
     """Semantic similarity search request."""
 
     query: str = Field(description="Semantic search query")
-    script_id: int | None = Field(default=None, description="Filter by script")
+    script_id: str | None = Field(default=None, description="Filter by script")
     threshold: float = Field(
         default=0.7, ge=0.0, le=1.0, description="Similarity threshold"
     )
@@ -200,7 +200,7 @@ class CharacterGraphRequest(BaseModel):
     """Character relationship graph request."""
 
     character_name: str
-    script_id: int | None = None
+    script_id: str | None = None
     depth: int = Field(default=2, ge=1, le=5)
     min_interaction_count: int = Field(default=1, ge=1)
 
@@ -208,7 +208,7 @@ class CharacterGraphRequest(BaseModel):
 class TimelineGraphRequest(BaseModel):
     """Timeline visualization request."""
 
-    script_id: int
+    script_id: str
     group_by: str = Field(default="act", description="Grouping: act, sequence, or none")
     include_characters: bool = Field(default=True)
 

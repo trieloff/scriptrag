@@ -22,7 +22,7 @@ async def get_db_ops(request: Request) -> DatabaseOperations:
 
 @router.get("/{scene_id}", response_model=SceneResponse)
 async def get_scene(
-    scene_id: int,
+    scene_id: str,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> SceneResponse:
     """Get scene details by ID."""
@@ -53,7 +53,7 @@ async def get_scene(
 
 @router.post("/", response_model=SceneResponse)
 async def create_scene(
-    script_id: int,
+    script_id: str,
     scene_data: SceneCreateRequest,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> SceneResponse:
@@ -99,7 +99,7 @@ async def create_scene(
 
 @router.patch("/{scene_id}", response_model=SceneResponse)
 async def update_scene(
-    scene_id: int,
+    scene_id: str,
     scene_update: SceneUpdateRequest,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> SceneResponse:
@@ -145,7 +145,7 @@ async def update_scene(
 
 @router.delete("/{scene_id}")
 async def delete_scene(
-    scene_id: int,
+    scene_id: str,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> dict[str, str]:
     """Delete a scene."""
@@ -169,7 +169,7 @@ async def delete_scene(
 
 @router.post("/{scene_id}/inject-after", response_model=SceneResponse)
 async def inject_scene_after(
-    scene_id: int,
+    scene_id: str,
     scene_data: SceneCreateRequest,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> SceneResponse:

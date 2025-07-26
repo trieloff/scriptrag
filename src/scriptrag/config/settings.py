@@ -316,12 +316,22 @@ class APISettings(BaseSettings):
         description="Allowed CORS origins",
     )
 
+    cors_methods: list[str] = Field(
+        default_factory=lambda: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+        description="Allowed CORS methods",
+    )
+
+    cors_headers: list[str] = Field(
+        default_factory=lambda: ["Content-Type", "Authorization"],
+        description="Allowed CORS headers",
+    )
+
     # Auth settings (placeholder for future implementation)
     enable_auth: bool = Field(default=False, description="Enable authentication")
 
-    secret_key: str = Field(
-        default="change-me-in-production",
-        description="Secret key for JWT tokens",
+    secret_key: str | None = Field(
+        default=None,
+        description="Secret key for JWT tokens (required for production)",
     )
 
     access_token_expire_minutes: int = Field(
@@ -346,13 +356,15 @@ class ScriptRAGSettings(BaseSettings):
     debug: bool = Field(default=True, description="Enable debug mode")
 
     # Sub-configurations
-    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    llm: LLMSettings = Field(default_factory=LLMSettings)
-    logging: LoggingSettings = Field(default_factory=LoggingSettings)
-    mcp: MCPSettings = Field(default_factory=MCPSettings)
-    performance: PerformanceSettings = Field(default_factory=PerformanceSettings)
-    paths: PathSettings = Field(default_factory=PathSettings)
-    api: APISettings = Field(default_factory=APISettings)
+    database: DatabaseSettings = Field(default_factory=lambda: DatabaseSettings())
+    llm: LLMSettings = Field(default_factory=lambda: LLMSettings())
+    logging: LoggingSettings = Field(default_factory=lambda: LoggingSettings())
+    mcp: MCPSettings = Field(default_factory=lambda: MCPSettings())
+    performance: PerformanceSettings = Field(
+        default_factory=lambda: PerformanceSettings()
+    )
+    paths: PathSettings = Field(default_factory=lambda: PathSettings())
+    api: APISettings = Field(default_factory=lambda: APISettings())
 
     @field_validator("environment")
     @classmethod

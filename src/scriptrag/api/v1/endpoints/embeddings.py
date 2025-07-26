@@ -24,7 +24,7 @@ async def get_db_ops(request: Request) -> DatabaseOperations:
 
 @router.post("/scripts/{script_id}/generate", response_model=EmbeddingResponse)
 async def generate_embeddings(
-    script_id: int,
+    script_id: str,
     request: EmbeddingGenerateRequest,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> EmbeddingResponse:
@@ -60,7 +60,7 @@ async def generate_embeddings(
 
 @router.get("/scripts/{script_id}/status")
 async def get_embedding_status(
-    script_id: int,
+    script_id: str,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> dict[str, Any]:
     """Get embedding generation status for a script."""

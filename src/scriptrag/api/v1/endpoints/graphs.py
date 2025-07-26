@@ -153,7 +153,7 @@ async def get_timeline_graph(
 
 @router.get("/scripts/{script_id}/locations")
 async def get_location_graph(
-    script_id: int,
+    script_id: str,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> GraphResponse:
     """Get location-based scene graph for a script."""

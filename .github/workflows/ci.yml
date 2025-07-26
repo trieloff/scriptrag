@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches:
+    branches: [main]
   pull_request:
-    branches:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -37,6 +37,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Create virtual environment
         run: uv venv
@@ -87,6 +88,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Create virtual environment
         run: uv venv
@@ -117,6 +119,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Create virtual environment
         run: uv venv
@@ -183,6 +186,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Create virtual environment
         run: uv venv
@@ -239,6 +243,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Create virtual environment
         run: uv venv
@@ -275,6 +280,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Install build dependencies
         run: |
@@ -342,6 +348,7 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Create virtual environment
         run: uv venv

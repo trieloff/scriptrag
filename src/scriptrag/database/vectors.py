@@ -47,9 +47,16 @@ class VectorOperations:
         """Load sqlite-vec extension into the connection."""
         try:
             with self.db_connection.get_connection() as conn:
-                conn.enable_load_extension(True)
-                sqlite_vec.load(conn)
-                conn.enable_load_extension(False)
+                # Check if enable_load_extension is available
+                # (not available on some macOS Python builds)
+                if hasattr(conn, "enable_load_extension"):
+                    conn.enable_load_extension(True)
+                    sqlite_vec.load(conn)
+                    conn.enable_load_extension(False)
+                else:
+                    # Try loading without enable_load_extension
+                    # sqlite-vec may still work if compiled into sqlite
+                    sqlite_vec.load(conn)
             logger.debug("sqlite-vec extension loaded successfully")
         except Exception as e:
             logger.error(f"Failed to load sqlite-vec extension: {e}")

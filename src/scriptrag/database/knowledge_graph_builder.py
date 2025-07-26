@@ -6,6 +6,7 @@ building, and LLM-powered metadata enrichment.
 """
 
 import asyncio
+import re
 from collections import defaultdict
 from typing import Any
 from uuid import UUID
@@ -293,32 +294,26 @@ class KnowledgeGraphBuilder:
         return dict(character_stats)
 
     def _extract_character_mentions(self, action_text: str) -> set[UUID]:
-        """Extract character mentions from action text."""
+        """Extract character mentions from action text using regex."""
         mentioned_ids = set()
 
-        # Convert action text to uppercase for case-insensitive matching
-        action_upper = action_text.upper()
-
-        # Build a mapping of character names to IDs for faster lookup
+        # Build a mapping of character names to IDs and regex patterns for faster lookup
         # Cache this if not already done
-        if not hasattr(self, "_character_name_map"):
-            self._character_name_map = {}
+        if not hasattr(self, "_character_name_patterns"):
+            self._character_name_patterns = {}
             for char_id, node_id in self._character_nodes.items():
                 node = self.graph_ops.graph.get_node(node_id)
                 if node and node.label:
-                    char_name = node.label.upper()
-                    self._character_name_map[char_name] = char_id
+                    char_name = node.label
+                    # Create regex pattern with word boundaries for case-insensitive
+                    # Escape special regex characters in character names
+                    escaped_name = re.escape(char_name)
+                    pattern = re.compile(rf"\b{escaped_name}\b", re.IGNORECASE)
+                    self._character_name_patterns[pattern] = char_id
 
-        # Check each character name in the action text
-        for char_name, char_id in self._character_name_map.items():
-            # Use word boundaries to avoid partial matches
-            # Check if character name appears as a whole word
-            if (
-                f" {char_name} " in f" {action_upper} "
-                or action_upper.startswith(f"{char_name} ")
-                or action_upper.endswith(f" {char_name}")
-                or action_upper == char_name
-            ):
+        # Check each character pattern against the action text
+        for pattern, char_id in self._character_name_patterns.items():
+            if pattern.search(action_text):
                 mentioned_ids.add(char_id)
 
         return mentioned_ids
@@ -521,10 +516,41 @@ Arc: [potential character development]"""
     def _get_character_dialogue_samples(
         self, character_name: str, scene_nodes: list[Any]
     ) -> str:
-        """Extract sample dialogue for a character."""
-        # In a real implementation, this would fetch actual dialogue
-        # For now, return placeholder
-        return f"[Dialogue samples for {character_name} from {len(scene_nodes)} scenes]"
+        """Extract sample dialogue for a character from scene nodes."""
+        dialogue_samples = []
+
+        # Extract dialogue from scene nodes
+        for scene_node in scene_nodes[:3]:  # Limit to first 3 scenes for samples
+            if hasattr(scene_node, "content") and scene_node.content:
+                lines = scene_node.content.split("\n")
+                current_speaker = None
+
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    # Check if this line is a character name (speaker)
+                    if line.isupper() and len(line) < 50:
+                        current_speaker = line
+                    # Check if this is dialogue for our target character
+                    elif (
+                        current_speaker
+                        and current_speaker.upper() == character_name.upper()
+                        and not line.startswith("(")
+                        and len(line) > 5
+                    ):  # Skip parentheticals and short lines
+                        # This is dialogue from our character
+                        dialogue_samples.append(line[:100])  # Truncate long lines
+                        if len(dialogue_samples) >= 3:  # Limit to 3 samples
+                            break
+
+                if len(dialogue_samples) >= 3:
+                    break
+
+        if dialogue_samples:
+            return " | ".join(dialogue_samples)
+        return f"[Character {character_name} appears in {len(scene_nodes)} scenes]"
 
     async def _generate_embeddings(self, script_node_id: str) -> None:
         """Generate embeddings for all entities in the script."""

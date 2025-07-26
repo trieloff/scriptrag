@@ -24,11 +24,19 @@ from scriptrag.llm.client import LLMClient
 from scriptrag.parser import FountainParser
 
 
-async def main(keep_existing: bool = False) -> None:
+async def main(
+    keep_existing: bool = False,
+    max_scenes_to_enrich: int = 10,
+    max_characters_to_enrich: int = 5,
+    force_delete: bool = False,
+) -> None:
     """Build and analyze a screenplay knowledge graph.
 
     Args:
         keep_existing: If True, keep existing database instead of starting fresh
+        max_scenes_to_enrich: Maximum number of scenes to enrich with LLM (default: 10)
+        max_characters_to_enrich: Max characters to enrich with LLM (default: 5)
+        force_delete: If True, delete existing database without confirmation
     """
     # Configuration
     db_path = Path("example_knowledge_graph.db")
@@ -45,8 +53,19 @@ async def main(keep_existing: bool = False) -> None:
 
     # Option to start fresh (controlled by parameter)
     if not keep_existing and db_path.exists():
-        print("Removing existing database to start fresh")
-        db_path.unlink()
+        if force_delete:
+            print("Removing existing database to start fresh")
+            db_path.unlink()
+        else:
+            response = input(
+                f"Database {db_path} exists. Delete it and start fresh? (y/N): "
+            )
+            if response.lower() in ["y", "yes"]:
+                print("Removing existing database to start fresh")
+                db_path.unlink()
+            else:
+                print("Keeping existing database")
+                keep_existing = True
     elif keep_existing and db_path.exists():
         print("Keeping existing database")
 
@@ -72,13 +91,13 @@ async def main(keep_existing: bool = False) -> None:
             print(f"Embedding pipeline not available: {e}")
 
     # Build knowledge graph
-    # Set limits for enrichment (for demo purposes)
+    # Set limits for enrichment (configurable)
     builder = KnowledgeGraphBuilder(
         conn,
         llm_client,
         embedding_pipeline,
-        max_scenes_to_enrich=10,  # Limit to first 10 scenes
-        max_characters_to_enrich=5,  # Limit to first 5 characters
+        max_scenes_to_enrich=max_scenes_to_enrich,
+        max_characters_to_enrich=max_characters_to_enrich,
     )
 
     print(f"\nParsing screenplay: {fountain_file}")
@@ -311,6 +330,30 @@ if __name__ == "__main__":
         action="store_true",
         help="Keep existing database instead of starting fresh",
     )
+    parser.add_argument(
+        "--max-scenes",
+        type=int,
+        default=10,
+        help="Maximum number of scenes to enrich with LLM (default: 10)",
+    )
+    parser.add_argument(
+        "--max-characters",
+        type=int,
+        default=5,
+        help="Maximum number of characters to enrich with LLM (default: 5)",
+    )
+    parser.add_argument(
+        "--force-delete",
+        action="store_true",
+        help="Delete existing database without confirmation",
+    )
     args = parser.parse_args()
 
-    asyncio.run(main(keep_existing=args.keep_existing))
+    asyncio.run(
+        main(
+            keep_existing=args.keep_existing,
+            max_scenes_to_enrich=args.max_scenes,
+            max_characters_to_enrich=args.max_characters,
+            force_delete=args.force_delete,
+        )
+    )

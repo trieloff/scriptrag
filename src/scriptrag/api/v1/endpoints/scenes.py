@@ -1,0 +1,221 @@
+"""Scene management CRUD endpoints."""
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+
+from scriptrag.api.db_operations import DatabaseOperations
+from scriptrag.api.v1.schemas import (
+    SceneCreateRequest,
+    SceneResponse,
+    SceneUpdateRequest,
+)
+from scriptrag.config import get_logger
+
+logger = get_logger(__name__)
+router = APIRouter()
+
+
+async def get_db_ops(request: Request) -> DatabaseOperations:
+    """Get database operations from app state."""
+    db_ops: DatabaseOperations = request.app.state.db_ops
+    return db_ops
+
+
+@router.get("/{scene_id}", response_model=SceneResponse)
+async def get_scene(
+    scene_id: int,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> SceneResponse:
+    """Get scene details by ID."""
+    try:
+        scene = await db_ops.get_scene(scene_id)
+        if not scene:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        return SceneResponse(
+            id=scene["id"],
+            script_id=scene["script_id"],
+            scene_number=scene["scene_number"],
+            heading=scene["heading"],
+            content=scene["content"],
+            character_count=scene["character_count"],
+            word_count=scene["word_count"],
+            page_start=scene["page_start"],
+            page_end=scene["page_end"],
+            has_embedding=scene["has_embedding"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to get scene", scene_id=scene_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to get scene") from e
+
+
+@router.post("/", response_model=SceneResponse)
+async def create_scene(
+    script_id: int,
+    scene_data: SceneCreateRequest,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> SceneResponse:
+    """Create a new scene in a script."""
+    try:
+        # Check if script exists
+        script = await db_ops.get_script(script_id)
+        if not script:
+            raise HTTPException(status_code=404, detail="Script not found")
+
+        # Create scene
+        scene_id = await db_ops.create_scene(
+            script_id=script_id,
+            scene_number=scene_data.scene_number,
+            heading=scene_data.heading,
+            content=scene_data.content,
+        )
+
+        # Get created scene
+        scene = await db_ops.get_scene(scene_id)
+        if not scene:
+            raise HTTPException(status_code=500, detail="Failed to create scene")
+
+        return SceneResponse(
+            id=scene["id"],
+            script_id=scene["script_id"],
+            scene_number=scene["scene_number"],
+            heading=scene["heading"],
+            content=scene["content"],
+            character_count=scene["character_count"],
+            word_count=scene["word_count"],
+            page_start=scene["page_start"],
+            page_end=scene["page_end"],
+            has_embedding=scene["has_embedding"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to create scene", error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to create scene") from e
+
+
+@router.patch("/{scene_id}", response_model=SceneResponse)
+async def update_scene(
+    scene_id: int,
+    scene_update: SceneUpdateRequest,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> SceneResponse:
+    """Update a scene."""
+    try:
+        # Check if scene exists
+        scene = await db_ops.get_scene(scene_id)
+        if not scene:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        # Update scene
+        await db_ops.update_scene(
+            scene_id=scene_id,
+            scene_number=scene_update.scene_number,
+            heading=scene_update.heading,
+            content=scene_update.content,
+        )
+
+        # Get updated scene
+        updated_scene = await db_ops.get_scene(scene_id)
+        if not updated_scene:
+            raise HTTPException(status_code=500, detail="Failed to update scene")
+
+        return SceneResponse(
+            id=updated_scene["id"],
+            script_id=updated_scene["script_id"],
+            scene_number=updated_scene["scene_number"],
+            heading=updated_scene["heading"],
+            content=updated_scene["content"],
+            character_count=updated_scene["character_count"],
+            word_count=updated_scene["word_count"],
+            page_start=updated_scene["page_start"],
+            page_end=updated_scene["page_end"],
+            has_embedding=updated_scene["has_embedding"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to update scene", scene_id=scene_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to update scene") from e
+
+
+@router.delete("/{scene_id}")
+async def delete_scene(
+    scene_id: int,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> dict[str, str]:
+    """Delete a scene."""
+    try:
+        # Check if scene exists
+        scene = await db_ops.get_scene(scene_id)
+        if not scene:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        # Delete scene
+        await db_ops.delete_scene(scene_id)
+
+        return {"message": f"Scene {scene_id} deleted successfully"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete scene", scene_id=scene_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete scene") from e
+
+
+@router.post("/{scene_id}/inject-after", response_model=SceneResponse)
+async def inject_scene_after(
+    scene_id: int,
+    scene_data: SceneCreateRequest,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> SceneResponse:
+    """Inject a new scene after the specified scene."""
+    try:
+        # Get the reference scene
+        ref_scene = await db_ops.get_scene(scene_id)
+        if not ref_scene:
+            raise HTTPException(status_code=404, detail="Reference scene not found")
+
+        # Create scene with adjusted scene number
+        new_scene_number = ref_scene["scene_number"] + 1
+
+        # Shift subsequent scene numbers
+        await db_ops.shift_scene_numbers(
+            script_id=ref_scene["script_id"], from_scene_number=new_scene_number
+        )
+
+        # Create the new scene
+        new_scene_id = await db_ops.create_scene(
+            script_id=ref_scene["script_id"],
+            scene_number=new_scene_number,
+            heading=scene_data.heading,
+            content=scene_data.content,
+        )
+
+        # Get created scene
+        scene = await db_ops.get_scene(new_scene_id)
+        if not scene:
+            raise HTTPException(status_code=500, detail="Failed to inject scene")
+
+        return SceneResponse(
+            id=scene["id"],
+            script_id=scene["script_id"],
+            scene_number=scene["scene_number"],
+            heading=scene["heading"],
+            content=scene["content"],
+            character_count=scene["character_count"],
+            word_count=scene["word_count"],
+            page_start=scene["page_start"],
+            page_end=scene["page_end"],
+            has_embedding=scene["has_embedding"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to inject scene after", scene_id=scene_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to inject scene") from e

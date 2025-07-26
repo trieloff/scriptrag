@@ -307,6 +307,33 @@ class PathSettings(BaseSettings):
     }
 
 
+class APISettings(BaseSettings):
+    """API server configuration settings."""
+
+    # CORS settings
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000", "http://localhost:8000"],
+        description="Allowed CORS origins",
+    )
+
+    # Auth settings (placeholder for future implementation)
+    enable_auth: bool = Field(default=False, description="Enable authentication")
+
+    secret_key: str = Field(
+        default="change-me-in-production",
+        description="Secret key for JWT tokens",
+    )
+
+    access_token_expire_minutes: int = Field(
+        default=30, description="Access token expiration in minutes"
+    )
+
+    model_config = {
+        "env_prefix": "SCRIPTRAG_API_",
+        "extra": "ignore",
+    }
+
+
 class ScriptRAGSettings(BaseSettings):
     """Main ScriptRAG configuration settings."""
 
@@ -325,6 +352,7 @@ class ScriptRAGSettings(BaseSettings):
     mcp: MCPSettings = Field(default_factory=MCPSettings)
     performance: PerformanceSettings = Field(default_factory=PerformanceSettings)
     paths: PathSettings = Field(default_factory=PathSettings)
+    api: APISettings = Field(default_factory=APISettings)
 
     @field_validator("environment")
     @classmethod
@@ -402,6 +430,16 @@ class ScriptRAGSettings(BaseSettings):
     def llm_api_key(self) -> str | None:
         """Get the LLM API key."""
         return self.llm.api_key
+
+    @property
+    def database_url(self) -> str:
+        """Get the database URL."""
+        return f"sqlite+aiosqlite:///{self.get_database_path()}"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Get CORS origins."""
+        return self.api.cors_origins
 
 
 # Global settings instance

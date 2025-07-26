@@ -13,9 +13,27 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from scriptrag.config import get_logger
+from scriptrag.config import get_logger, get_settings
+
+from .connection import DatabaseConnection
 
 logger = get_logger(__name__)
+
+
+def get_connection(db_path: Path | None = None) -> DatabaseConnection:
+    """Get a database connection.
+
+    Args:
+        db_path: Optional database path (uses settings if not provided)
+
+    Returns:
+        Database connection instance
+    """
+    if db_path is None:
+        settings = get_settings()
+        db_path = settings.get_database_path()
+
+    return DatabaseConnection(db_path)
 
 
 class DatabaseStats:

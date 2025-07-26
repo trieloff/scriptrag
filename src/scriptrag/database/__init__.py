@@ -27,6 +27,7 @@ from .utils import (
     DatabaseMaintenance,
     DatabaseStats,
     export_data_to_json,
+    get_connection,
     get_database_health_report,
 )
 
@@ -48,6 +49,7 @@ __all__ = [
     "create_database",
     "create_script_embeddings",
     "export_data_to_json",
+    "get_connection",
     "get_database_health_report",
     "initialize_database",
     "migrate_database",

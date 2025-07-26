@@ -11,8 +11,10 @@ Generation) pattern.
 - **Fountain Parser**: Read and parse screenplays in Fountain format
 - **Graph Database**: SQLite-based lightweight graph database for screenplay structure
 - **Local LLM Integration**: Uses LMStudio for text generation and embeddings
+- **Embedding Pipeline**: Comprehensive semantic analysis with content extraction, embedding generation,
+  and similarity search for screenplay elements
 - **Advanced Search**: Find shows, seasons, episodes, scenes, characters, locations, concepts, objects,
-  and temporal points
+  and temporal points with both keyword and semantic search capabilities
 - **Scene Management**: Order scenes by script order, temporal order, or logical dependencies
 - **Scene Editing**: Update, delete, or inject new scenes while maintaining screenplay integrity
 - **Script Bible Support**: Comprehensive continuity management with character development tracking,
@@ -93,12 +95,12 @@ Generation) pattern.
   - [x] Add retry logic and error handling
   - [x] Implement factory functions and configuration integration
 
-- [ ] **3.2 Embedding Pipeline**
-  - [ ] Design embedding strategy for screenplay elements
-  - [ ] Implement batch embedding generation
-  - [ ] Create embedding storage in SQLite
-  - [ ] Build similarity search functionality
-  - [ ] Optimize for performance (chunking, async processing)
+- [x] **3.2 Embedding Pipeline** *(5/5 complete)*
+  - [x] Design embedding strategy for screenplay elements
+  - [x] Implement batch embedding generation
+  - [x] Create embedding storage in SQLite
+  - [x] Build similarity search functionality
+  - [x] Optimize for performance (chunking, async processing)
 
 ### Phase 4: GraphRAG Implementation
 
@@ -436,8 +438,17 @@ srag = ScriptRAG(
 # Parse a screenplay
 script = srag.parse_fountain("path/to/screenplay.fountain")
 
+# Generate embeddings for semantic search
+await srag.process_script_embeddings(script.id)
+
 # Search for scenes with a character
 scenes = srag.search_scenes(character="PROTAGONIST")
+
+# Semantic search for similar scenes
+similar_scenes = await srag.search_similar_scenes(
+    query="emotional confrontation between friends",
+    limit=5
+)
 
 # Update a scene
 srag.update_scene(

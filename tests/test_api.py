@@ -13,6 +13,8 @@ TODO: Comprehensive test improvements needed:
 Current tests are minimal and should not be used for production validation.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -20,8 +22,20 @@ from scriptrag.api.app import create_app
 
 
 @pytest.fixture
-def client():
-    """Create test client."""
+def mock_llm_client():
+    """Mock LLM client to avoid initialization errors in tests."""
+    with patch("scriptrag.database.embedding_pipeline.LLMClient") as mock:
+        # Create a mock instance that doesn't require API credentials
+        mock_instance = MagicMock()
+        mock.return_value = mock_instance
+        yield mock_instance
+
+
+@pytest.fixture
+def client(mock_llm_client):
+    """Create test client with mocked LLM client."""
+    # The fixture ensures LLM client is mocked during app creation
+    _ = mock_llm_client  # Mark as used for linter
     app = create_app()
     with TestClient(app) as client:
         yield client

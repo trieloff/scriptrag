@@ -36,7 +36,7 @@ scriptrag query "What are the main character relationships?"
 
 - [Installation Guide](installation.md)
 - [Usage Examples](usage.md)
-- [API Reference](api.md)
+- [API Reference](API.md)
 - [Development Setup](development.md)
 
 ## License

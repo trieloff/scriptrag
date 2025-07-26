@@ -212,9 +212,10 @@ scriptrag --env production config show --section logging
 
 ## 🎬 Movie Quote Commits
 
-As specified in `AGENTS.md`, all commits follow semantic commit format with movie quotes. The setup completion was committed with:
+As specified in `AGENTS.md`, all commits follow semantic commit format with movie quotes.
+The setup completion was committed with:
 
-```
+```text
 feat(config): complete development environment setup
 
 "I love it when a plan comes together." - Hannibal, The A-Team (2010)
@@ -239,4 +240,6 @@ feat(config): complete development environment setup
 
 **ScriptRAG is now ready for core component development!** 🚀
 
-The foundation is solid, configuration is comprehensive, and the CLI provides excellent developer experience. Time to start building the screenplay parsing and graph database components.
+The foundation is solid, configuration is comprehensive, and the CLI provides excellent
+developer experience. Time to start building the screenplay parsing and graph database
+components.

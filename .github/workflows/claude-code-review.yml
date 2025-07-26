@@ -48,6 +48,9 @@ jobs:
 
             Be constructive and helpful in your feedback.
 
+            IMPORTANT: If you identify any issues that need to be addressed or improvements that should be made,
+            please tag @terragon-labs in your review comment to ensure they are notified.
+
           # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
           # use_sticky_comment: true
           # Optional: Customize review based on file types

@@ -185,7 +185,7 @@ class SearchInterface:
                 result = SearchResult(
                     id=scene["entity_id"],
                     type="scene",
-                    content=scene["content"],
+                    content=scene.get("content", scene.get("text", "")),
                     score=scene["similarity"],
                     metadata=scene.get("entity_details", {}),
                     highlights=[],
@@ -224,7 +224,7 @@ class SearchInterface:
             search_result = SearchResult(
                 id=result["entity_id"],
                 type=result["entity_type"],
-                content=result["content"],
+                content=result.get("content", result.get("text", "")),
                 score=result["similarity"],
                 metadata=result.get("entity_details", {}),
                 highlights=[],
@@ -336,7 +336,7 @@ class SearchInterface:
             search_result = SearchResult(
                 id=result["entity_id"],
                 type=result["entity_type"],
-                content=result["content"],
+                content=result.get("content", result.get("text", "")),
                 score=result["similarity"],
                 metadata=result.get("entity_details", {}),
                 highlights=[],

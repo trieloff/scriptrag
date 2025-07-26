@@ -4,6 +4,7 @@ This module provides connection management for the SQLite-based graph database,
 including transaction support, connection pooling, and error handling.
 """
 
+import contextlib
 import sqlite3
 import threading
 from collections.abc import Generator
@@ -66,7 +67,14 @@ class DatabaseConnection:
         conn.execute("PRAGMA foreign_keys = ON")
 
         # Set journal mode to WAL for better concurrency
-        conn.execute("PRAGMA journal_mode = WAL")
+        # But use DELETE mode in tests or on Windows to avoid file locking issues
+        import os
+        import platform
+
+        if os.environ.get("PYTEST_CURRENT_TEST") or platform.system() == "Windows":
+            conn.execute("PRAGMA journal_mode = DELETE")
+        else:
+            conn.execute("PRAGMA journal_mode = WAL")
 
         # Optimize for better performance
         conn.execute("PRAGMA synchronous = NORMAL")
@@ -253,8 +261,20 @@ class DatabaseConnection:
         """Close the database connection."""
         if hasattr(self._local, "connection") and self._local.connection:
             logger.debug("Closing database connection")
-            self._local.connection.close()
+            # Ensure all transactions are committed or rolled back
+            with contextlib.suppress(Exception):
+                self._local.connection.rollback()
+
+            # Close the connection
+            with contextlib.suppress(Exception):
+                self._local.connection.close()
+
             self._local.connection = None
+
+            # Force garbage collection to help with Windows file locking
+            import gc
+
+            gc.collect()
 
     def __enter__(self) -> "DatabaseConnection":
         """Context manager entry."""

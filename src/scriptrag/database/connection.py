@@ -261,7 +261,7 @@ class DatabaseConnection:
         return self
 
     def __exit__(
-        self, exc_type: type | None, exc_val: Exception | None, exc_tb: Any
+        self, _exc_type: type | None, _exc_val: Exception | None, _exc_tb: Any
     ) -> None:
         """Context manager exit."""
         self.close()

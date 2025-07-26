@@ -10,6 +10,9 @@ from pathlib import Path
 from re import Pattern
 from typing import ClassVar
 
+# Constants
+MAX_DIRECTORY_NAME_LENGTH = 20  # Skip very long directory names (likely temp dirs)
+
 
 @dataclass
 class SeriesInfo:
@@ -143,20 +146,12 @@ class SeriesPatternDetector:
 
                 return info
 
-        # No pattern matched - check if it might still be a series based on path
-        series_name = self._extract_series_from_path(file_path)
-        if series_name:
-            # Extract title from filename
-            title = filename.replace(".fountain", "").strip()
-            return SeriesInfo(
-                series_name=series_name,
-                episode_title=title,
-                is_series=True,
-            )
-
-        # Not a series
+        # No pattern matched - not a series
+        # Use filename without extension as the name
+        name = filename.replace(".fountain", "").strip()
         return SeriesInfo(
-            series_name=filename.replace(".fountain", "").strip(),
+            series_name=name,
+            episode_title=name,
             is_series=False,
         )
 
@@ -204,15 +199,38 @@ class SeriesPatternDetector:
 
     def _extract_series_from_path(self, file_path: Path) -> str | None:
         """Extract series name from directory structure."""
+        # Validate the path is absolute and normalized
+        try:
+            resolved_path = file_path.resolve()
+        except (OSError, ValueError):
+            # Invalid path
+            return None
+
+        # If the file has no real parent directories (bare filename),
+        # extract from filename instead
+        if len(resolved_path.parents) <= 2:  # Just root and maybe one parent
+            # Try to extract from filename
+            match = re.match(r"^([^_\-\s]+?)(?:_|\-|\s)", file_path.name)
+            if match:
+                series_name = match.group(1)
+                # Validate it's not a common pattern
+                if not re.match(r"^S\d+E\d+", series_name, re.IGNORECASE):
+                    return series_name
+            return None
+
         # Look for common patterns in parent directories
-        for parent in file_path.parents:
+        for parent in resolved_path.parents:
             parent_name = parent.name
+
+            # Validate parent name doesn't contain path separators or null bytes
+            if "/" in parent_name or "\\" in parent_name or "\x00" in parent_name:
+                continue
 
             # Skip common directory names and temp directories
             if (
                 parent_name.lower() in {"scripts", "screenplays", "fountain", ".", ".."}
                 or parent_name.startswith(("tmp", "temp"))
-                or len(parent_name) > 20
+                or len(parent_name) > MAX_DIRECTORY_NAME_LENGTH
             ):  # Skip very long directory names (likely temp dirs)
                 continue
 
@@ -221,7 +239,14 @@ class SeriesPatternDetector:
                 # Go up one more level for series name
                 grandparent = parent.parent
                 if grandparent and grandparent.name not in {".", ".."}:
-                    return grandparent.name
+                    # Validate grandparent name
+                    gp_name = grandparent.name
+                    if (
+                        "/" not in gp_name
+                        and "\\" not in gp_name
+                        and "\x00" not in gp_name
+                    ):
+                        return gp_name
             else:
                 # This might be the series name
                 return parent_name

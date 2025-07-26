@@ -502,6 +502,19 @@ def script_import(
 
         console.print(f"[blue]Found {len(file_paths)} fountain files[/blue]")
 
+        # Check bulk import size limit to prevent resource exhaustion
+        max_bulk_import_size = 1000
+        if len(file_paths) > max_bulk_import_size:
+            console.print(
+                f"[red]Error: Too many files ({len(file_paths)}). "
+                f"Maximum allowed is {max_bulk_import_size}.[/red]"
+            )
+            console.print(
+                "[yellow]Consider importing in smaller batches or "
+                "using more specific patterns.[/yellow]"
+            )
+            raise typer.Exit(1)
+
         # Initialize database connection and operations
         conn = DatabaseConnection(db_path)
         graph_ops = GraphOperations(conn)

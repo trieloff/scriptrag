@@ -43,9 +43,8 @@ class BulkImportResult:
         self.failed_imports += 1
         self.errors[file_path] = error
 
-    def add_skipped(self, file_path: str) -> None:
+    def add_skipped(self, _file_path: str) -> None:
         """Record a skipped file."""
-        del file_path  # Unused
         self.skipped_files += 1
 
     def to_dict(self) -> dict[str, Any]:
@@ -196,12 +195,11 @@ class BulkImporter:
 
     def _process_batch(
         self,
-        series_name: str,
+        _series_name: str,
         batch: list[tuple[Path, SeriesInfo]],
         result: BulkImportResult,
     ) -> None:
         """Process a batch of files for a series."""
-        del series_name  # Unused parameter
         # Process each file individually without batch transaction
         # Each file import will handle its own transactions
         for file_path, series_info in batch:
@@ -229,48 +227,66 @@ class BulkImporter:
         except FountainParsingError as e:
             raise ImportError(f"Failed to parse {file_path}: {e}") from e
 
-        # Store graph operations to perform after database operations
-        script_operations: list[Script] = []
-        season_operations: list[tuple[Season, str]] = []
+        # Store operations to track for rollback if needed
+        created_scripts: list[tuple[str, Script]] = []  # (script_id, script_obj)
+        created_seasons: list[tuple[str, Season]] = []  # (script_id, season_obj)
 
-        # Use a single transaction for all database operations for this file
-        with self.graph_ops.connection.transaction() as conn:
-            # Update script metadata based on series info
-            if series_info.is_series:
-                script.is_series = True
-                script.title = series_info.series_name
+        try:
+            # Use a single transaction for all database operations
+            with self.graph_ops.connection.transaction() as conn:
+                # Update script metadata based on series info
+                if series_info.is_series:
+                    script.is_series = True
+                    script.title = series_info.series_name
 
-                # Get or create series script
-                series_script_id, series_script = self._get_or_create_series(
-                    series_info.series_name, script, conn
-                )
-
-                # Store graph operations for series creation if needed
-                if series_script:
-                    script_operations.append(series_script)
-
-                # Handle episodes
-                if series_info.season_number is not None:
-                    season_id, season_obj = self._create_episode_structure(
-                        script, series_info, series_script_id, file_path, conn
+                    # Get or create series script
+                    series_script_id, series_script = self._get_or_create_series(
+                        series_info.series_name, script, conn
                     )
-                    # Store graph operations for later
-                    if season_obj:
-                        season_operations.append((season_obj, series_script_id))
-            else:
-                # Standalone script
-                script_id = self._save_standalone_script(script, file_path, conn)
-                script_operations.append(script)
 
-        # Execute graph operations outside of transaction
-        for script_obj in script_operations:
-            if isinstance(script_obj, Script):
-                self.graph_ops.create_script_graph(script_obj)
+                    # Track for graph creation
+                    if series_script:
+                        created_scripts.append((series_script_id, series_script))
 
-        for season_obj, script_id in season_operations:
-            if isinstance(season_obj, Season):
-                script_node_id = self._get_script_node_id(script_id)
-                self.graph_ops.add_season_to_script(season_obj, script_node_id)
+                    # Handle episodes
+                    if series_info.season_number is not None:
+                        season_id, season_obj = self._create_episode_structure(
+                            script, series_info, series_script_id, file_path, conn
+                        )
+                        # Track for graph creation
+                        if season_obj:
+                            created_seasons.append((series_script_id, season_obj))
+                else:
+                    # Standalone script
+                    script_id = self._save_standalone_script(script, file_path, conn)
+                    # Track for graph creation
+                    created_scripts.append((script_id, script))
+
+            # Now create graph operations after database transaction commits
+            # This ensures database consistency even if graph operations fail
+            for script_id, script_obj in created_scripts:
+                try:
+                    self.graph_ops.create_script_graph(script_obj)
+                except Exception as graph_error:
+                    logger.error(
+                        f"Failed to create graph for script {script_id}: {graph_error}"
+                    )
+                    # Continue with other operations
+
+            for script_id, season_obj in created_seasons:
+                try:
+                    script_node_id = self._get_script_node_id(script_id)
+                    self.graph_ops.add_season_to_script(season_obj, script_node_id)
+                except Exception as graph_error:
+                    logger.error(
+                        f"Failed to add season to graph for "
+                        f"script {script_id}: {graph_error}"
+                    )
+                    # Continue with other operations
+
+        except Exception as e:
+            # Database transaction will be rolled back automatically
+            raise ImportError(f"Failed to import {file_path}: {e}") from e
 
         result.add_success(str(file_path), str(script.id))
 

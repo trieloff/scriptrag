@@ -1,6 +1,6 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-[![77% Vibe_Coded](https://img.shields.io/badge/77%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=zedindustries&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
+[![72% Vibe_Coded](https://img.shields.io/badge/72%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=zedindustries&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
 
 ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
@@ -478,6 +478,28 @@ srag.update_scene(
     scene_id=123,
     new_location="INT. COFFEE SHOP - DAY"
 )
+```
+
+### Command Line Examples
+
+```bash
+# Parse and build knowledge graph from a screenplay
+scriptrag parse examples/data/sample_screenplay.fountain
+
+# Search for dialogue containing specific text
+scriptrag search dialogue "I love you"
+
+# Find scenes with specific characters
+scriptrag search character "PROTAGONIST" "ANTAGONIST"
+
+# Semantic search for thematically similar content
+scriptrag search semantic "betrayal and revenge"
+
+# List all characters and their relationships
+scriptrag graph characters
+
+# Analyze temporal structure of the screenplay
+scriptrag analyze timeline
 ```
 
 ### Using the MCP Server

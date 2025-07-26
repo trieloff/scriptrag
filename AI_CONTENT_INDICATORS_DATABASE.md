@@ -2,7 +2,9 @@
 
 ## Overview
 
-This database compiles comprehensive research on stylistic elements, sentence patterns, figures of speech, phrases, words, and punctuation that indicate AI-generated content ("AI slop"). Based on academic research, industry analysis, and community observations from 2024-2025.
+This database compiles comprehensive research on stylistic elements, sentence patterns, figures of
+speech, phrases, words, and punctuation that indicate AI-generated content ("AI slop"). Based on
+academic research, industry analysis, and community observations from 2024-2025.
 
 ## Table of Contents
 
@@ -83,19 +85,22 @@ This database compiles comprehensive research on stylistic elements, sentence pa
 
 - Align, Allegedly, Arguably, Augment
 - Beacon, Bespoke, Bolster, Bustling
-- Captivate, Catalyst, Celestial, Commendable, Comprehensive, Consequently, Cornerstone, Craft, Crucial, Cultivate
+- Captivate, Catalyst, Celestial, Commendable, Comprehensive, Consequently, Cornerstone, Craft,
+  Crucial, Cultivate
 
 **D-F:**
 
 - Daunting, Delve, Demystify, Delicacy, Discover, Diverse, Dynamic
-- Eerie, Elevate, Elucidate, Embark, Embrace, Empower, Enhance, Enigma, Ensure, Equip, Ethereal, Evocative, Evolving, Excellence, Exemplary, Explore, Exquisite
+- Eerie, Elevate, Elucidate, Embark, Embrace, Empower, Enhance, Enigma, Ensure, Equip, Ethereal,
+  Evocative, Evolving, Excellence, Exemplary, Explore, Exquisite
 - Facilitate, Facet, Fascinating, Foster, Foundational, Fulcrum
 
 **G-L:**
 
 - Grapple, Groundbreaking
 - Harness, Holistic, Hurdles
-- Illuminate, Immerse, Imperative, Implement, Indelible, Indispensable, Ineffable, Inevitably, Innovative, Insightful, Integral, Intricate, Intrinsic
+- Illuminate, Immerse, Imperative, Implement, Indelible, Indispensable, Ineffable, Inevitably,
+  Innovative, Insightful, Integral, Intricate, Intrinsic
 - Journey
 - Kaleidoscope
 - Landscape, Leverage, Lucid, Luminous
@@ -105,13 +110,15 @@ This database compiles comprehensive research on stylistic elements, sentence pa
 - Meticulous, Mitigate, Multifaceted, Myriad
 - Navigate, Nexus, Nuanced
 - Optimize, Orchestrate
-- Paradigm, Paramount, Permeate, Pinnacle, Pioneering, Pivotal, Plethora, Poignant, Potent, Profound, Prowess
+- Paradigm, Paramount, Permeate, Pinnacle, Pioneering, Pivotal, Plethora, Poignant, Potent,
+  Profound, Prowess
 
 **Q-T:**
 
 - Quinoa (oddly specific)
 - Realm, Redefine, Reimagine, Renowned, Repertoire, Resilience, Resonate, Revolutionary, Robust
-- Savvy, Seamless, Sentinel, Showcase, Spearhead, Spectrum, Streamline, Stunning, Substantial, Subtle, Symbiosis, Symphony, Synergy
+- Savvy, Seamless, Sentinel, Showcase, Spearhead, Spectrum, Streamline, Stunning, Substantial,
+  Subtle, Symbiosis, Symphony, Synergy
 - Tailored, Tapestry, Testament, Thriving, Treasure trove, Transformative
 
 **U-Z:**

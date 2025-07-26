@@ -55,8 +55,17 @@ class VectorOperations:
                     conn.enable_load_extension(False)
                 else:
                     # Try loading without enable_load_extension
-                    # sqlite-vec may still work if compiled into sqlite
-                    sqlite_vec.load(conn)
+                    # This will fail on macOS CI where load_extension is also missing
+                    try:
+                        sqlite_vec.load(conn)
+                    except AttributeError as ae:
+                        # If load_extension doesn't exist, log warning but continue
+                        # The extension may be compiled into SQLite or not needed
+                        logger.warning(
+                            f"SQLite extension loading not supported: {ae}. "
+                            "Vector operations may be limited."
+                        )
+                        return
             logger.debug("sqlite-vec extension loaded successfully")
         except Exception as e:
             logger.error(f"Failed to load sqlite-vec extension: {e}")

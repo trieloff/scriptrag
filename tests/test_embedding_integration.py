@@ -51,13 +51,15 @@ def mock_llm_client():
     client.close = AsyncMock()
     client.default_embedding_model = "test-model"
 
-    # Return consistent embeddings for testing
-    client.generate_embedding.return_value = [0.1, 0.2, 0.3, 0.4, 0.5]
-    client.generate_embeddings.return_value = [
-        [0.1, 0.2, 0.3, 0.4, 0.5],
-        [0.2, 0.3, 0.4, 0.5, 0.6],
-        [0.3, 0.4, 0.5, 0.6, 0.7],
-    ]
+    # Return consistent embeddings for testing - use 1536 dimensions to match config
+    client.generate_embedding.return_value = [0.1] * 1536
+
+    # Make generate_embeddings return the correct number of embeddings based on input
+    def mock_generate_embeddings(texts, _model=None):
+        """Return embeddings matching the number of input texts."""
+        return [[0.1 + i * 0.1] * 1536 for i in range(len(texts))]
+
+    client.generate_embeddings.side_effect = mock_generate_embeddings
 
     return client
 
@@ -220,6 +222,7 @@ class TestEmbeddingIntegration:
         assert len(script_contents) == 1
         assert script_contents[0]["entity_type"] == "script"
 
+    @pytest.mark.asyncio
     async def test_embedding_manager_storage_and_retrieval(
         self, db_connection, mock_llm_client
     ):
@@ -242,6 +245,7 @@ class TestEmbeddingIntegration:
         for orig, retr in zip(embedding, retrieved, strict=False):
             assert abs(orig - retr) < 1e-6
 
+    @pytest.mark.asyncio
     async def test_embedding_manager_batch_operations(
         self, db_connection, mock_llm_client
     ):
@@ -285,22 +289,23 @@ class TestEmbeddingIntegration:
             )
             assert retrieved is not None
 
+    @pytest.mark.asyncio
     async def test_similarity_search(self, db_connection, mock_llm_client):
         """Test similarity search functionality."""
         manager = EmbeddingManager(db_connection, mock_llm_client)
 
         # Store some test embeddings with different similarities
         test_embeddings = [
-            ([1.0, 0.0, 0.0, 0.0, 0.0], "scene", "scene-1", "Similar to query"),
-            ([0.0, 1.0, 0.0, 0.0, 0.0], "scene", "scene-2", "Different from query"),
-            ([0.8, 0.2, 0.0, 0.0, 0.0], "scene", "scene-3", "Somewhat similar"),
+            ([1.0] + [0.0] * 1535, "scene", "scene-1", "Similar to query"),
+            ([0.0, 1.0] + [0.0] * 1534, "scene", "scene-2", "Different from query"),
+            ([0.8] + [0.0] * 1535, "scene", "scene-3", "Somewhat similar"),
         ]
 
         for embedding, entity_type, entity_id, content in test_embeddings:
             manager.store_embedding(entity_type, entity_id, content, embedding)
 
         # Search with a query vector similar to the first embedding
-        query_vector = [0.9, 0.1, 0.0, 0.0, 0.0]
+        query_vector = [0.9, 0.1] + [0.0] * 1534
         results = manager.find_similar(query_vector, entity_type="scene", limit=3)
 
         assert len(results) >= 1
@@ -311,6 +316,7 @@ class TestEmbeddingIntegration:
             else True
         )
 
+    @pytest.mark.asyncio
     async def test_pipeline_full_workflow(self, db_connection, mock_llm_client):
         """Test complete pipeline workflow."""
         populate_test_data(db_connection)
@@ -339,11 +345,12 @@ class TestEmbeddingIntegration:
         finally:
             await pipeline.close()
 
+    @pytest.mark.asyncio
     async def test_embedding_persistence(self, db_connection, mock_llm_client):
         """Test that embeddings persist across database connections."""
         # Store embedding with first manager
         manager1 = EmbeddingManager(db_connection, mock_llm_client)
-        test_embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
+        test_embedding = [0.1] * 1536
         manager1.store_embedding("test", "persist-test", "test content", test_embedding)
 
         # Create new manager and retrieve
@@ -353,6 +360,7 @@ class TestEmbeddingIntegration:
         assert retrieved is not None
         assert len(retrieved) == len(test_embedding)
 
+    @pytest.mark.asyncio
     async def test_embedding_stats_accuracy(self, db_connection, mock_llm_client):
         """Test embedding statistics accuracy."""
         manager = EmbeddingManager(db_connection, mock_llm_client)
@@ -365,7 +373,7 @@ class TestEmbeddingIntegration:
             ("location", "loc-1", "Location content 1"),
         ]
 
-        test_embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
+        test_embedding = [0.1] * 1536
         for entity_type, entity_id, content in embeddings_data:
             manager.store_embedding(entity_type, entity_id, content, test_embedding)
 
@@ -387,12 +395,13 @@ class TestEmbeddingIntegration:
         assert extractor.extract_character_content("nonexistent") == []
         assert extractor.extract_script_content("nonexistent") == []
 
+    @pytest.mark.asyncio
     async def test_embedding_deletion(self, db_connection, mock_llm_client):
         """Test embedding deletion functionality."""
         manager = EmbeddingManager(db_connection, mock_llm_client)
 
         # Store an embedding
-        test_embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
+        test_embedding = [0.1] * 1536
         manager.store_embedding("test", "delete-test", "test content", test_embedding)
 
         # Verify it exists
@@ -409,11 +418,12 @@ class TestEmbeddingIntegration:
         deleted_again = manager.delete_embedding("test", "delete-test")
         assert deleted_again is False
 
+    @pytest.mark.asyncio
     async def test_vector_format_compatibility(self, db_connection, mock_llm_client):
         """Test compatibility between blob and JSON vector formats."""
         manager = EmbeddingManager(db_connection, mock_llm_client)
 
-        test_embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
+        test_embedding = [0.1] * 1536
 
         # Store embedding (should create both blob and JSON formats)
         manager.store_embedding("test", "format-test", "test content", test_embedding)

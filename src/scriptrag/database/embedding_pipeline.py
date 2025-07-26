@@ -12,7 +12,7 @@ from scriptrag.llm.client import LLMClient
 
 from .connection import DatabaseConnection
 from .content_extractor import ContentExtractor
-from .embeddings import EmbeddingError, EmbeddingManager
+from .embeddings import EmbeddingContent, EmbeddingError, EmbeddingManager
 
 logger = get_logger(__name__)
 
@@ -47,11 +47,44 @@ class EmbeddingPipeline:
         )
         self.content_extractor = ContentExtractor(connection)
 
+    def _filter_existing_embeddings(
+        self, contents: list[EmbeddingContent], force_refresh: bool
+    ) -> list[EmbeddingContent]:
+        """Filter out existing embeddings unless force refresh is enabled.
+
+        Args:
+            contents: List of content to filter
+            force_refresh: If True, return all contents without filtering
+
+        Returns:
+            Filtered list of contents without existing embeddings
+        """
+        if force_refresh:
+            return contents
+
+        filtered_contents = []
+        for content in contents:
+            existing = self.embedding_manager.get_embedding(
+                content["entity_type"], content["entity_id"]
+            )
+            if existing is None:
+                filtered_contents.append(content)
+
+        skipped_count = len(contents) - len(filtered_contents)
+        if skipped_count > 0:
+            logger.info(
+                "Skipping existing embeddings",
+                skipped=skipped_count,
+                remaining=len(filtered_contents),
+            )
+
+        return filtered_contents
+
     async def process_script(
         self,
         script_id: str,
         force_refresh: bool = False,
-        batch_size: int = 32,
+        batch_size: int | None = None,
     ) -> dict[str, Any]:
         """Process all elements of a script for embedding generation.
 
@@ -59,6 +92,7 @@ class EmbeddingPipeline:
             script_id: Script ID to process
             force_refresh: Force regeneration of existing embeddings
             batch_size: Batch size for embedding generation
+                (uses config default if None)
 
         Returns:
             Processing results with statistics
@@ -66,6 +100,10 @@ class EmbeddingPipeline:
         Raises:
             EmbeddingError: If processing fails
         """
+        # Use configured batch size if none provided
+        if batch_size is None:
+            batch_size = self.config.llm.batch_size
+
         logger.info(
             "Starting script embedding processing",
             script_id=script_id,
@@ -88,23 +126,7 @@ class EmbeddingPipeline:
                 }
 
             # Filter out existing embeddings if not forcing refresh
-            if not force_refresh:
-                filtered_contents = []
-                for content in contents:
-                    existing = self.embedding_manager.get_embedding(
-                        content["entity_type"], content["entity_id"]
-                    )
-                    if existing is None:
-                        filtered_contents.append(content)
-
-                skipped_count = len(contents) - len(filtered_contents)
-                if skipped_count > 0:
-                    logger.info(
-                        "Skipping existing embeddings",
-                        skipped=skipped_count,
-                        remaining=len(filtered_contents),
-                    )
-                contents = filtered_contents
+            contents = self._filter_existing_embeddings(contents, force_refresh)
 
             if not contents:
                 logger.info("All embeddings already exist", script_id=script_id)
@@ -185,15 +207,7 @@ class EmbeddingPipeline:
                 }
 
             # Filter existing if not forcing refresh
-            if not force_refresh:
-                filtered_contents = []
-                for content in contents:
-                    existing = self.embedding_manager.get_embedding(
-                        content["entity_type"], content["entity_id"]
-                    )
-                    if existing is None:
-                        filtered_contents.append(content)
-                contents = filtered_contents
+            contents = self._filter_existing_embeddings(contents, force_refresh)
 
             if not contents:
                 return {
@@ -263,15 +277,7 @@ class EmbeddingPipeline:
                 }
 
             # Filter existing if not forcing refresh
-            if not force_refresh:
-                filtered_contents = []
-                for content in contents:
-                    existing = self.embedding_manager.get_embedding(
-                        content["entity_type"], content["entity_id"]
-                    )
-                    if existing is None:
-                        filtered_contents.append(content)
-                contents = filtered_contents
+            contents = self._filter_existing_embeddings(contents, force_refresh)
 
             if not contents:
                 return {

@@ -57,44 +57,44 @@ update: ## Update all dependencies to latest versions
 # Code quality
 .PHONY: format
 format: ## Format code with black and ruff
-	black src/ tests/
-	ruff check --fix src/ tests/
-	ruff format src/ tests/
+	@bash -c 'source .venv/bin/activate && black src/ tests/'
+	@bash -c 'source .venv/bin/activate && ruff check --fix src/ tests/'
+	@bash -c 'source .venv/bin/activate && ruff format src/ tests/'
 	@echo "✅ Code formatted"
 
 .PHONY: lint
 lint: ## Run all linters (ruff, mypy, bandit, etc.)
 	@echo "🔍 Running Ruff..."
-	ruff check src/ tests/
+	@bash -c 'source .venv/bin/activate && ruff check src/ tests/'
 	@echo "🔍 Running MyPy..."
-	mypy src/
+	@bash -c 'source .venv/bin/activate && mypy src/'
 	@echo "🔍 Running Bandit security checks..."
-	bandit -r src/ -ll
+	@bash -c 'source .venv/bin/activate && bandit -r src/ -ll'
 	@echo "🔍 Checking docstring coverage..."
-	interrogate -c pyproject.toml
+	@bash -c 'source .venv/bin/activate && interrogate -c pyproject.toml'
 	@echo "🔍 Checking for dead code..."
-	vulture src/ --min-confidence 80
+	@bash -c 'source .venv/bin/activate && vulture src/ --min-confidence 80'
 	@echo "✅ All linting checks passed"
 
 .PHONY: type-check
 type-check: ## Run type checking with mypy
-	mypy src/ --show-error-codes --pretty
+	@bash -c 'source .venv/bin/activate && mypy src/ --show-error-codes --pretty'
 
 .PHONY: security
 security: ## Run security checks (bandit, safety, pip-audit)
-	bandit -r src/ -f json -o .bandit-report.json
-	safety check --json --output .safety-report.json || true
-	pip-audit || true
+	@bash -c 'source .venv/bin/activate && bandit -r src/ -f json -o .bandit-report.json'
+	@bash -c 'source .venv/bin/activate && safety check --json --output .safety-report.json || true'
+	@bash -c 'source .venv/bin/activate && pip-audit || true'
 	@echo "✅ Security scan complete (see .bandit-report.json and .safety-report.json)"
 
 # Testing
 .PHONY: test
 test: ## Run all tests with coverage
-	pytest tests/ -v --cov=scriptrag --cov-report=term-missing --cov-report=html
+	@bash -c 'source .venv/bin/activate && pytest tests/ -v --cov=scriptrag --cov-report=term-missing --cov-report=html'
 
 .PHONY: test-fast
 test-fast: ## Run tests without coverage (faster)
-	pytest tests/ -v
+	@bash -c 'source .venv/bin/activate && pytest tests/ -v'
 
 .PHONY: test-watch
 test-watch: ## Run tests in watch mode
@@ -206,13 +206,13 @@ check: lint type-check security test ## Run all quality checks
 
 .PHONY: check-fast
 check-fast: ## Run fast quality checks (no tests)
-	ruff check src/ tests/
-	mypy src/ --no-error-summary
-	black --check src/ tests/
+	@bash -c 'source .venv/bin/activate && ruff check src/ tests/'
+	@bash -c 'source .venv/bin/activate && mypy src/ --no-error-summary'
+	@bash -c 'source .venv/bin/activate && black --check src/ tests/'
 
 .PHONY: pre-commit
 pre-commit: ## Run pre-commit on all files
-	pre-commit run --all-files
+	@bash -c 'source .venv/bin/activate && pre-commit run --all-files'
 
 # Project specific
 .PHONY: parse-fountain

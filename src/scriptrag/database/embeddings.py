@@ -118,7 +118,7 @@ class EmbeddingManager:
         self,
         contents: list[EmbeddingContent],
         model: str | None = None,
-        batch_size: int = 32,
+        batch_size: int | None = None,
     ) -> list[tuple[EmbeddingContent, list[float]]]:
         """Generate embeddings for multiple pieces of content.
 
@@ -126,6 +126,7 @@ class EmbeddingManager:
             contents: List of content to embed
             model: Model to use (defaults to configured model)
             batch_size: Number of embeddings to generate in each batch
+                (uses config default if None)
 
         Returns:
             List of (content, embedding) tuples
@@ -137,6 +138,9 @@ class EmbeddingManager:
             return []
 
         model = model or self.embedding_model
+        # Use configured batch size if none provided
+        if batch_size is None:
+            batch_size = self.config.llm.batch_size
         results = []
 
         logger.info(
@@ -199,6 +203,68 @@ class EmbeddingManager:
         count = len(blob) // 4
         return list(struct.unpack(f"{count}f", blob))
 
+    def _parse_vector_json(self, vector_json_str: str) -> list[float] | None:
+        """Parse and validate vector JSON data.
+
+        Args:
+            vector_json_str: JSON string containing vector data
+
+        Returns:
+            Validated vector as list of floats, or None if invalid
+        """
+        try:
+            vector_data = json.loads(vector_json_str)
+        except json.JSONDecodeError:
+            logger.warning("Invalid JSON in vector data", vector_json=vector_json_str)
+            return None
+
+        if not isinstance(vector_data, list):
+            logger.warning("Vector JSON is not a list", vector_json=vector_json_str)
+            return None
+
+        # Validate all elements are numeric
+        for i, x in enumerate(vector_data):
+            if not isinstance(x, int | float):
+                logger.warning(
+                    "Non-numeric value in vector",
+                    vector_json=vector_json_str,
+                    position=i,
+                    value=x,
+                )
+                return None
+
+        return [float(x) for x in vector_data]
+
+    def _validate_embedding_dimension(
+        self, embedding: list[float], expected_dim: int | None = None
+    ) -> None:
+        """Validate embedding vector dimension.
+
+        Args:
+            embedding: Embedding vector to validate
+            expected_dim: Expected dimension (if None, gets from existing embeddings)
+
+        Raises:
+            EmbeddingError: If dimension validation fails
+        """
+        if not embedding:
+            raise EmbeddingError("Cannot validate empty embedding")
+
+        current_dim = len(embedding)
+
+        if expected_dim is None:
+            # Get expected dimension from existing embeddings, fallback to config
+            stats = self.get_embeddings_stats()
+            expected_dim = (
+                stats.get("dimension") or self.config.llm.embedding_dimensions
+            )
+
+        if expected_dim is not None and current_dim != expected_dim:
+            raise EmbeddingError(
+                f"Embedding dimension mismatch: expected {expected_dim}, "
+                f"got {current_dim}"
+            )
+
     def store_embedding(
         self,
         entity_type: str,
@@ -221,6 +287,9 @@ class EmbeddingManager:
         """
         if not embedding:
             raise EmbeddingError("Cannot store empty embedding")
+
+        # Validate embedding dimension consistency
+        self._validate_embedding_dimension(embedding)
 
         model = model or self.embedding_model
         vector_blob = self._vector_to_blob(embedding)
@@ -300,6 +369,18 @@ class EmbeddingManager:
                         )
                         continue
 
+                    # Validate embedding dimension consistency
+                    try:
+                        self._validate_embedding_dimension(embedding)
+                    except EmbeddingError as e:
+                        logger.warning(
+                            "Skipping embedding with invalid dimension",
+                            entity_type=content["entity_type"],
+                            entity_id=content["entity_id"],
+                            error=str(e),
+                        )
+                        continue
+
                     vector_blob = self._vector_to_blob(embedding)
                     vector_json = json.dumps(embedding)
                     dimension = len(embedding)
@@ -364,16 +445,7 @@ class EmbeddingManager:
             if row["vector_blob"]:
                 return self._blob_to_vector(row["vector_blob"])
             if row["vector_json"]:
-                # json.loads returns Any, but we know this should be list[float]
-                vector_data = json.loads(row["vector_json"])
-                if isinstance(vector_data, list) and all(
-                    isinstance(x, int | float) for x in vector_data
-                ):
-                    return [float(x) for x in vector_data]
-                logger.warning(
-                    "Invalid vector JSON format", vector_json=row["vector_json"]
-                )
-                return None
+                return self._parse_vector_json(row["vector_json"])
 
             return None
 

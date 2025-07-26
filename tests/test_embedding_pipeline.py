@@ -42,8 +42,9 @@ def mock_llm_client():
 
 @pytest.fixture
 def sample_embedding():
-    """Sample embedding vector."""
-    return [0.1, 0.2, 0.3, 0.4, 0.5]
+    """Sample embedding vector with 1536 dimensions to match config."""
+    # Create a 1536-dimensional vector for realistic testing
+    return [0.1] * 1536
 
 
 @pytest.fixture
@@ -57,135 +58,194 @@ def sample_content():
     )
 
 
+@pytest.fixture
+def mock_config():
+    """Mock configuration settings."""
+    config = Mock()
+    config.llm.embedding_dimensions = 1536
+    config.llm.batch_size = 32
+    return config
+
+
 class TestEmbeddingManager:
     """Test the EmbeddingManager class."""
 
-    def test_initialization(self, mock_connection, mock_llm_client):
+    def test_initialization(self, mock_connection, mock_llm_client, mock_config):
         """Test embedding manager initialization."""
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
-        assert manager.connection == mock_connection
-        assert manager.llm_client == mock_llm_client
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
+            assert manager.connection == mock_connection
+            assert manager.llm_client == mock_llm_client
 
     @pytest.mark.asyncio
     async def test_generate_embedding_success(
-        self, mock_connection, mock_llm_client, sample_embedding
+        self, mock_connection, mock_llm_client, sample_embedding, mock_config
     ):
         """Test successful embedding generation."""
         mock_llm_client.generate_embedding.return_value = sample_embedding
 
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
-        result = await manager.generate_embedding("test content")
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
+            result = await manager.generate_embedding("test content")
 
-        assert result == sample_embedding
-        mock_llm_client.generate_embedding.assert_called_once()
+            assert result == sample_embedding
+            mock_llm_client.generate_embedding.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_generate_embedding_empty_content(
-        self, mock_connection, mock_llm_client
+        self, mock_connection, mock_llm_client, mock_config
     ):
         """Test embedding generation with empty content."""
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
-
-        with pytest.raises(
-            EmbeddingError, match="Cannot generate embedding for empty content"
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
         ):
-            await manager.generate_embedding("")
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
+
+            with pytest.raises(
+                EmbeddingError, match="Cannot generate embedding for empty content"
+            ):
+                await manager.generate_embedding("")
 
     @pytest.mark.asyncio
-    async def test_generate_embedding_llm_error(self, mock_connection, mock_llm_client):
+    async def test_generate_embedding_llm_error(
+        self, mock_connection, mock_llm_client, mock_config
+    ):
         """Test embedding generation with LLM error."""
         mock_llm_client.generate_embedding.side_effect = LLMClientError("LLM failed")
 
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
 
-        with pytest.raises(EmbeddingError, match="Embedding generation failed"):
-            await manager.generate_embedding("test content")
+            with pytest.raises(EmbeddingError, match="Embedding generation failed"):
+                await manager.generate_embedding("test content")
 
     @pytest.mark.asyncio
     async def test_generate_embeddings_batch(
-        self, mock_connection, mock_llm_client, sample_content, sample_embedding
+        self,
+        mock_connection,
+        mock_llm_client,
+        sample_content,
+        sample_embedding,
+        mock_config,
     ):
         """Test batch embedding generation."""
         mock_llm_client.generate_embeddings.return_value = [sample_embedding]
 
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
-        contents = [sample_content]
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
+            contents = [sample_content]
 
-        results = await manager.generate_embeddings(contents)
+            results = await manager.generate_embeddings(contents)
 
-        assert len(results) == 1
-        assert results[0][0] == sample_content
-        assert results[0][1] == sample_embedding
+            assert len(results) == 1
+            assert results[0][0] == sample_content
+            assert results[0][1] == sample_embedding
 
     def test_vector_blob_conversion(
-        self, mock_connection, mock_llm_client, sample_embedding
+        self, mock_connection, mock_llm_client, sample_embedding, mock_config
     ):
         """Test vector to blob conversion."""
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
 
-        # Convert to blob and back
-        blob = manager._vector_to_blob(sample_embedding)
-        recovered = manager._blob_to_vector(blob)
+            # Convert to blob and back
+            blob = manager._vector_to_blob(sample_embedding)
+            recovered = manager._blob_to_vector(blob)
 
-        # Should be approximately equal due to float precision
-        assert len(recovered) == len(sample_embedding)
-        for original, recovered_val in zip(sample_embedding, recovered, strict=True):
-            assert abs(original - recovered_val) < 1e-6
+            # Should be approximately equal due to float precision
+            assert len(recovered) == len(sample_embedding)
+            for original, recovered_val in zip(
+                sample_embedding, recovered, strict=True
+            ):
+                assert abs(original - recovered_val) < 1e-6
 
-    def test_store_embedding(self, mock_connection, mock_llm_client, sample_embedding):
+    def test_store_embedding(
+        self, mock_connection, mock_llm_client, sample_embedding, mock_config
+    ):
         """Test embedding storage."""
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
 
-        manager.store_embedding("scene", "test-id", "test content", sample_embedding)
+            manager.store_embedding(
+                "scene", "test-id", "test content", sample_embedding
+            )
 
-        mock_connection.execute.assert_called_once()
+            mock_connection.execute.assert_called_once()
 
-    def test_store_embedding_empty(self, mock_connection, mock_llm_client):
+    def test_store_embedding_empty(self, mock_connection, mock_llm_client, mock_config):
         """Test storing empty embedding raises error."""
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
 
-        with pytest.raises(EmbeddingError, match="Cannot store empty embedding"):
-            manager.store_embedding("scene", "test-id", "test content", [])
+            with pytest.raises(EmbeddingError, match="Cannot store empty embedding"):
+                manager.store_embedding("scene", "test-id", "test content", [])
 
-    def test_get_embedding(self, mock_connection, mock_llm_client, sample_embedding):
+    def test_get_embedding(
+        self, mock_connection, mock_llm_client, sample_embedding, mock_config
+    ):
         """Test embedding retrieval."""
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
-        blob_data = manager._vector_to_blob(sample_embedding)
-        mock_connection.fetch_one.return_value = {
-            "vector_blob": blob_data,
-            "vector_json": None,
-        }
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
+            blob_data = manager._vector_to_blob(sample_embedding)
+            mock_connection.fetch_one.return_value = {
+                "vector_blob": blob_data,
+                "vector_json": None,
+            }
 
-        result = manager.get_embedding("scene", "test-id")
+            result = manager.get_embedding("scene", "test-id")
 
-        # Should get back approximately the same vector
-        assert len(result) == len(sample_embedding)
+            # Should get back approximately the same vector
+            assert len(result) == len(sample_embedding)
 
-    def test_cosine_similarity(self, mock_connection, mock_llm_client):
+    def test_cosine_similarity(self, mock_connection, mock_llm_client, mock_config):
         """Test cosine similarity calculation."""
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
 
-        vec1 = [1.0, 0.0, 0.0]
-        vec2 = [0.0, 1.0, 0.0]
-        vec3 = [1.0, 0.0, 0.0]
+            vec1 = [1.0, 0.0, 0.0]
+            vec2 = [0.0, 1.0, 0.0]
+            vec3 = [1.0, 0.0, 0.0]
 
-        # Orthogonal vectors should have similarity 0
-        assert manager.cosine_similarity(vec1, vec2) == 0.0
+            # Orthogonal vectors should have similarity 0
+            assert manager.cosine_similarity(vec1, vec2) == 0.0
 
-        # Identical vectors should have similarity 1
-        assert manager.cosine_similarity(vec1, vec3) == 1.0
+            # Identical vectors should have similarity 1
+            assert manager.cosine_similarity(vec1, vec3) == 1.0
 
     def test_cosine_similarity_different_dimensions(
-        self, mock_connection, mock_llm_client
+        self, mock_connection, mock_llm_client, mock_config
     ):
         """Test cosine similarity with different vector dimensions."""
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
 
-        vec1 = [1.0, 0.0]
-        vec2 = [0.0, 1.0, 0.0]
+            vec1 = [1.0, 0.0]
+            vec2 = [0.0, 1.0, 0.0]
 
-        with pytest.raises(ValueError, match="Vectors must have the same dimension"):
-            manager.cosine_similarity(vec1, vec2)
+            with pytest.raises(
+                ValueError, match="Vectors must have the same dimension"
+            ):
+                manager.cosine_similarity(vec1, vec2)
 
 
 class TestContentExtractor:
@@ -304,15 +364,19 @@ class TestContentExtractor:
 class TestEmbeddingPipeline:
     """Test the EmbeddingPipeline class."""
 
-    def test_initialization(self, mock_connection, mock_llm_client):
+    def test_initialization(self, mock_connection, mock_llm_client, mock_config):
         """Test pipeline initialization."""
-        pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
-        assert pipeline.connection == mock_connection
-        assert pipeline.llm_client == mock_llm_client
+        with patch(
+            "scriptrag.database.embedding_pipeline.get_settings",
+            return_value=mock_config,
+        ):
+            pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+            assert pipeline.connection == mock_connection
+            assert pipeline.llm_client == mock_llm_client
 
     @pytest.mark.asyncio
     async def test_process_script_success(
-        self, mock_connection, mock_llm_client, sample_embedding
+        self, mock_connection, mock_llm_client, sample_embedding, mock_config
     ):
         """Test successful script processing."""
         # Mock the content extractor to return some content
@@ -340,29 +404,39 @@ class TestEmbeddingPipeline:
                 ) as mock_stats:
                     mock_stats.return_value = {"total_embeddings": 1}
 
-                    pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
-                    result = await pipeline.process_script("script-1")
+                    with patch(
+                        "scriptrag.database.embedding_pipeline.get_settings",
+                        return_value=mock_config,
+                    ):
+                        pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+                        result = await pipeline.process_script("script-1")
 
-                    assert result["status"] == "success"
-                    assert result["embeddings_stored"] == 1
+                        assert result["status"] == "success"
+                        assert result["embeddings_stored"] == 1
 
     @pytest.mark.asyncio
-    async def test_process_script_no_content(self, mock_connection, mock_llm_client):
+    async def test_process_script_no_content(
+        self, mock_connection, mock_llm_client, mock_config
+    ):
         """Test script processing with no content."""
         with patch.object(
             ContentExtractor, "extract_all_script_elements"
         ) as mock_extract:
             mock_extract.return_value = []
 
-            pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
-            result = await pipeline.process_script("script-1")
+            with patch(
+                "scriptrag.database.embedding_pipeline.get_settings",
+                return_value=mock_config,
+            ):
+                pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+                result = await pipeline.process_script("script-1")
 
-            assert result["status"] == "no_content"
-            assert result["embeddings_stored"] == 0
+                assert result["status"] == "no_content"
+                assert result["embeddings_stored"] == 0
 
     @pytest.mark.asyncio
     async def test_semantic_search(
-        self, mock_connection, mock_llm_client, sample_embedding
+        self, mock_connection, mock_llm_client, sample_embedding, mock_config
     ):
         """Test semantic search functionality."""
         # Mock embedding generation for query
@@ -386,16 +460,20 @@ class TestEmbeddingPipeline:
                 "script_order": 1,
             }
 
-            pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
-            results = await pipeline.semantic_search("test query")
+            with patch(
+                "scriptrag.database.embedding_pipeline.get_settings",
+                return_value=mock_config,
+            ):
+                pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+                results = await pipeline.semantic_search("test query")
 
-            assert len(results) == 1
-            assert results[0]["entity_type"] == "scene"
-            assert "entity_details" in results[0]
+                assert len(results) == 1
+                assert results[0]["entity_type"] == "scene"
+                assert "entity_details" in results[0]
 
     @pytest.mark.asyncio
     async def test_get_similar_scenes(
-        self, mock_connection, mock_llm_client, sample_embedding
+        self, mock_connection, mock_llm_client, sample_embedding, mock_config
     ):
         """Test finding similar scenes."""
         # Mock getting reference scene embedding
@@ -421,21 +499,29 @@ class TestEmbeddingPipeline:
                     "description": "A similar scene",
                 }
 
-                pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
-                results = await pipeline.get_similar_scenes("scene-1")
+                with patch(
+                    "scriptrag.database.embedding_pipeline.get_settings",
+                    return_value=mock_config,
+                ):
+                    pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+                    results = await pipeline.get_similar_scenes("scene-1")
 
-                assert len(results) == 1
-                assert results[0]["entity_id"] == "scene-2"
-                assert "entity_details" in results[0]
+                    assert len(results) == 1
+                    assert results[0]["entity_id"] == "scene-2"
+                    assert "entity_details" in results[0]
 
     @pytest.mark.asyncio
-    async def test_close(self, mock_connection, mock_llm_client):
+    async def test_close(self, mock_connection, mock_llm_client, mock_config):
         """Test pipeline cleanup."""
-        pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
-        await pipeline.close()
+        with patch(
+            "scriptrag.database.embedding_pipeline.get_settings",
+            return_value=mock_config,
+        ):
+            pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+            await pipeline.close()
 
-        # Should close the embedding manager
-        mock_llm_client.close.assert_called_once()
+            # Should close the embedding manager
+            mock_llm_client.close.assert_called_once()
 
 
 class TestConvenienceFunctions:
@@ -475,35 +561,52 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_embedding_manager_storage_error(
-        self, mock_connection, mock_llm_client
+        self, mock_connection, mock_llm_client, mock_config
     ):
         """Test error handling in embedding storage."""
         mock_connection.execute.side_effect = Exception("Database error")
 
-        manager = EmbeddingManager(mock_connection, mock_llm_client)
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
 
-        with pytest.raises(EmbeddingError, match="Failed to store embedding"):
-            manager.store_embedding("scene", "test-id", "content", [0.1, 0.2])
+            # Use a 1536-dimensional vector to match the mocked config
+            test_embedding = [0.1] * 1536
+            with pytest.raises(EmbeddingError, match="Failed to store embedding"):
+                manager.store_embedding("scene", "test-id", "content", test_embedding)
 
     @pytest.mark.asyncio
-    async def test_pipeline_extraction_error(self, mock_connection, mock_llm_client):
+    async def test_pipeline_extraction_error(
+        self, mock_connection, mock_llm_client, mock_config
+    ):
         """Test error handling in content extraction."""
         with patch.object(
             ContentExtractor, "extract_all_script_elements"
         ) as mock_extract:
             mock_extract.side_effect = Exception("Extraction failed")
 
-            pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+            with patch(
+                "scriptrag.database.embedding_pipeline.get_settings",
+                return_value=mock_config,
+            ):
+                pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
 
-            with pytest.raises(EmbeddingError, match="Script processing failed"):
-                await pipeline.process_script("script-1")
+                with pytest.raises(EmbeddingError, match="Script processing failed"):
+                    await pipeline.process_script("script-1")
 
     @pytest.mark.asyncio
-    async def test_semantic_search_error(self, mock_connection, mock_llm_client):
+    async def test_semantic_search_error(
+        self, mock_connection, mock_llm_client, mock_config
+    ):
         """Test error handling in semantic search."""
         mock_llm_client.generate_embedding.side_effect = LLMClientError("LLM failed")
 
-        pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+        with patch(
+            "scriptrag.database.embedding_pipeline.get_settings",
+            return_value=mock_config,
+        ):
+            pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
 
-        with pytest.raises(EmbeddingError, match="Semantic search failed"):
-            await pipeline.semantic_search("test query")
+            with pytest.raises(EmbeddingError, match="Semantic search failed"):
+                await pipeline.semantic_search("test query")

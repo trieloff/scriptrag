@@ -190,6 +190,7 @@ ignore = [
     "D104", # Missing docstring in public package
     "D106", # Missing docstring in public nested class
     "S608", # Possible SQL injection vector (false positives for trusted queries)
+    "B008", # FastAPI function call in argument defaults (Depends, File, etc.)
 ]
 
 [tool.ruff.lint.per-file-ignores]

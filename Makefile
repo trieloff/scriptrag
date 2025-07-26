@@ -138,6 +138,14 @@ run: ## Run the CLI application
 run-mcp: ## Run the MCP server
 	python -m scriptrag.mcp_server
 
+.PHONY: run-api
+run-api: ## Run the REST API server
+	python -m scriptrag server api
+
+.PHONY: run-api-dev
+run-api-dev: ## Run the REST API server in development mode with auto-reload
+	python -m scriptrag server api --reload
+
 .PHONY: shell
 shell: ## Start IPython shell with project context
 	ipython -i -c "from scriptrag import *; print('ScriptRAG modules loaded')"

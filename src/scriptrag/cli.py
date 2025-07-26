@@ -1621,5 +1621,34 @@ def server_start() -> None:
     console.print("This command will be available in Phase 5 of development")
 
 
+@server_app.command("api")
+def server_api(
+    host: Annotated[
+        str, typer.Option("--host", "-h", help="API host address")
+    ] = "127.0.0.1",  # Use localhost by default for security
+    port: Annotated[int, typer.Option("--port", "-p", help="API port number")] = 8000,
+    reload: Annotated[
+        bool, typer.Option("--reload", "-r", help="Enable auto-reload")
+    ] = False,
+) -> None:
+    """Start the REST API server."""
+    console.print("[blue]Starting ScriptRAG REST API server...[/blue]")
+    console.print(f"[dim]Host: {host}:{port}[/dim]")
+    console.print(f"[dim]Docs: http://{host}:{port}/api/v1/docs[/dim]")
+
+    import uvicorn
+
+    from scriptrag.api.app import create_app
+
+    app = create_app()
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        reload=reload,
+        log_level="info" if reload else "warning",
+    )
+
+
 if __name__ == "__main__":
     app()

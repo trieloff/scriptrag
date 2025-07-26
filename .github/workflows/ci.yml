@@ -318,16 +318,6 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: [lint, type-check, test]
-    services:
-      lmstudio:
-        image: ghcr.io/lm-studio/lmstudio:latest
-        ports:
-          - 1234:1234
-        options: >-
-          --health-cmd "curl -f http://localhost:1234/v1/models || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
 
     steps:
       - uses: actions/checkout@v4
@@ -356,7 +346,10 @@ jobs:
           source .venv/bin/activate
           pytest tests -v -m integration
         env:
-          LLM_ENDPOINT: http://localhost:1234/v1
+          SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
+          SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}
+          SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
+          SCRIPTRAG_ENVIRONMENT: testing
 
   all-checks:
     name: All Checks Passed

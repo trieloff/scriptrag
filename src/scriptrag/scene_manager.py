@@ -21,6 +21,16 @@ logger = get_logger(__name__)
 class SceneManager:
     """Manages scene ordering, dependencies, and relationships."""
 
+    # Constants for temporal analysis
+    DEFAULT_SCENE_DURATION_MINUTES: ClassVar[int] = 5  # Default duration per scene
+
+    # Time constants in minutes
+    MINUTES_PER_HOUR: ClassVar[int] = 60
+    MINUTES_PER_DAY: ClassVar[int] = 1440
+    MINUTES_PER_WEEK: ClassVar[int] = 10080
+    MINUTES_PER_MONTH: ClassVar[int] = 43200  # Approx 30 days
+    MINUTES_PER_YEAR: ClassVar[int] = 525600
+
     def __init__(self, connection: DatabaseConnection) -> None:
         """Initialize scene manager.
 
@@ -48,12 +58,12 @@ class SceneManager:
     TEMPORAL_INDICATORS: ClassVar[list[tuple[str, int]]] = [
         (r"\b(LATER|MOMENTS LATER|SECONDS LATER)\b", 1),  # Very short time jump
         (r"\b(MINUTES LATER|SHORTLY AFTER)\b", 10),  # Minutes
-        (r"\b(HOURS LATER|LATER THAT DAY)\b", 120),  # Hours
-        (r"\b(THE NEXT DAY|NEXT MORNING|FOLLOWING DAY)\b", 1440),  # Day
-        (r"\b(DAYS LATER|FEW DAYS LATER)\b", 4320),  # Few days
-        (r"\b(WEEKS LATER|WEEK LATER)\b", 10080),  # Week
-        (r"\b(MONTHS LATER|MONTH LATER)\b", 43200),  # Month
-        (r"\b(YEARS LATER|YEAR LATER)\b", 525600),  # Year
+        (r"\b(HOURS LATER|LATER THAT DAY)\b", MINUTES_PER_HOUR * 2),  # 2 hours
+        (r"\b(THE NEXT DAY|NEXT MORNING|FOLLOWING DAY)\b", MINUTES_PER_DAY),  # Day
+        (r"\b(DAYS LATER|FEW DAYS LATER)\b", MINUTES_PER_DAY * 3),  # 3 days
+        (r"\b(WEEKS LATER|WEEK LATER)\b", MINUTES_PER_WEEK),  # Week
+        (r"\b(MONTHS LATER|MONTH LATER)\b", MINUTES_PER_MONTH),  # Month
+        (r"\b(YEARS LATER|YEAR LATER)\b", MINUTES_PER_YEAR),  # Year
         # Flashback indicators (negative time)
         (r"\b(FLASHBACK|EARLIER|PREVIOUSLY|YEARS AGO)\b", -1),
     ]
@@ -99,7 +109,7 @@ class SceneManager:
                 # Normal progression
                 temporal_positions[scene_id] = current_time_minutes
                 # Add small increment for scene duration
-                current_time_minutes += 5  # Default 5 minutes per scene
+                current_time_minutes += self.DEFAULT_SCENE_DURATION_MINUTES
 
         # Convert positions to integer order
         sorted_scenes = sorted(temporal_positions.items(), key=lambda x: x[1])
@@ -160,20 +170,34 @@ class SceneManager:
 
         # Build character appearance map
         character_scenes: dict[str, list[str]] = {}
+
+        # Initialize dependencies dict
         for scene in scenes:
-            scene_id = scene.id
-            dependencies[scene_id] = []
+            dependencies[scene.id] = []
 
-            # Get characters in this scene
-            characters = self.graph.get_neighbors(
-                scene_id, edge_type="APPEARS_IN", direction="in"
-            )
+        # Batch fetch all character appearances for all scenes
+        scene_ids = [scene.id for scene in scenes]
+        if scene_ids:
+            with self.connection.transaction() as conn:
+                # Get all character appearances in one query
+                results = conn.execute(
+                    f"""
+                    SELECT e.from_node_id as char_id, e.to_node_id as scene_id
+                    FROM edges e
+                    JOIN nodes n ON e.from_node_id = n.id
+                    WHERE e.to_node_id IN ({",".join("?" * len(scene_ids))})
+                    AND e.edge_type = 'APPEARS_IN'
+                    AND n.node_type = 'character'
+                    ORDER BY e.to_node_id
+                    """,
+                    scene_ids,
+                ).fetchall()
 
-            for char in characters:
-                char_id = char.id
-                if char_id not in character_scenes:
-                    character_scenes[char_id] = []
-                character_scenes[char_id].append(scene_id)
+                # Build the character_scenes map from results
+                for char_id, scene_id in results:
+                    if char_id not in character_scenes:
+                        character_scenes[char_id] = []
+                    character_scenes[char_id].append(scene_id)
 
         # Analyze dependencies based on character introductions
         for _, scene_list in character_scenes.items():
@@ -261,18 +285,28 @@ class SceneManager:
             True if successful
         """
         try:
-            # Parse the new location
+            # Parse the new location - more flexible regex
             location_match = re.match(
-                r"^(INT\.|EXT\.)\s+(.+?)(?:\s+-\s+(.+))?$",
+                r"^(INT\.|EXT\.|I/E\.|INT\s|EXT\s|I/E\s)?\s*(.+?)(?:\s+-\s+(.+))?$",
                 new_location.strip(),
                 re.IGNORECASE,
             )
 
-            if not location_match:
-                logger.error(f"Invalid location format: {new_location}")
-                return False
-
-            int_ext, location_name, time_of_day = location_match.groups()
+            if location_match:
+                int_ext, location_name, time_of_day = location_match.groups()
+                # Normalize INT/EXT format
+                if int_ext:
+                    int_ext = int_ext.strip().upper()
+                    if not int_ext.endswith("."):
+                        int_ext += "."
+            else:
+                # Fallback: treat entire string as location name
+                logger.warning(
+                    f"Location format not standard, using as-is: {new_location}"
+                )
+                int_ext = ""
+                location_name = new_location.strip()
+                time_of_day = None
 
             # Update scene node properties
             with self.connection.transaction() as conn:

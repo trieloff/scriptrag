@@ -4,15 +4,18 @@ This module provides a comprehensive CLI for ScriptRAG operations including
 script parsing, searching, configuration management, and development utilities.
 """
 
+# Standard library imports
 import sys
 from pathlib import Path
 from typing import Annotated
 
+# Third-party imports
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
+# Local imports
 from . import ScriptRAG
 from .config import (
     create_default_config,
@@ -33,6 +36,44 @@ app = typer.Typer(
 )
 
 console = Console()
+
+
+def get_latest_script_id(connection: DatabaseConnection) -> tuple[str, str] | None:
+    """Get the latest script ID and title from the database.
+
+    Args:
+        connection: Database connection instance
+
+    Returns:
+        Tuple of (script_id, script_title) or None if no scripts found
+    """
+    with connection.transaction() as conn:
+        result = conn.execute(
+            """
+            SELECT id, json_extract(properties_json, '$.title') as title
+            FROM nodes
+            WHERE node_type = 'script'
+            ORDER BY created_at DESC
+            LIMIT 1
+            """
+        ).fetchone()
+
+        if result:
+            return (result[0], result[1])
+        return None
+
+
+def get_latest_script_id_only(connection: DatabaseConnection) -> str | None:
+    """Get only the latest script ID from the database.
+
+    Args:
+        connection: Database connection instance
+
+    Returns:
+        Script ID or None if no scripts found
+    """
+    result = get_latest_script_id(connection)
+    return result[0] if result else None
 
 
 @app.callback()
@@ -477,23 +518,13 @@ def scene_list(
         # Get script node ID
         if not script_id:
             # Get the latest script
-            with connection.transaction() as conn:
-                result = conn.execute(
-                    """
-                    SELECT id, json_extract(properties_json, '$.title') as title
-                    FROM nodes
-                    WHERE node_type = 'script'
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                    """
-                ).fetchone()
+            result = get_latest_script_id(connection)
+            if not result:
+                console.print("[red]No scripts found in database.[/red]")
+                raise typer.Exit(1)
 
-                if not result:
-                    console.print("[red]No scripts found in database.[/red]")
-                    raise typer.Exit(1)
-
-                script_id, script_title = result
-                console.print(f"[blue]Script:[/blue] {script_title}")
+            script_id, script_title = result
+            console.print(f"[blue]Script:[/blue] {script_title}")
 
         # Get scenes
         scenes = manager.operations.get_script_scenes(script_id, order_type)
@@ -515,6 +546,49 @@ def scene_list(
         if show_characters:
             table.add_column("Characters", style="blue")
 
+        # Batch fetch all locations for scenes to avoid N+1 queries
+        scene_ids = [scene.id for scene in scenes]
+        locations_map = {}
+        if scene_ids:
+            with connection.transaction() as conn:
+                # Get all AT_LOCATION edges for the scenes in one query
+                location_results = conn.execute(
+                    f"""
+                    SELECT e.from_node_id, e.to_node_id, n.label
+                    FROM edges e
+                    JOIN nodes n ON e.to_node_id = n.id
+                    WHERE e.from_node_id IN ({",".join("?" * len(scene_ids))})
+                    AND e.edge_type = 'AT_LOCATION'
+                    """,
+                    scene_ids,
+                ).fetchall()
+
+                for scene_id, _location_id, location_label in location_results:
+                    locations_map[scene_id] = location_label or ""
+
+        # Batch fetch all characters for scenes if needed
+        characters_map: dict[str, list[str]] = {}
+        if show_characters and scene_ids:
+            with connection.transaction() as conn:
+                # Get all characters appearing in scenes
+                char_results = conn.execute(
+                    f"""
+                    SELECT e.to_node_id, e.from_node_id, n.label
+                    FROM edges e
+                    JOIN nodes n ON e.from_node_id = n.id
+                    WHERE e.to_node_id IN ({",".join("?" * len(scene_ids))})
+                    AND e.edge_type = 'APPEARS_IN'
+                    AND n.node_type = 'character'
+                    """,
+                    scene_ids,
+                ).fetchall()
+
+                for scene_id, _char_id, char_label in char_results:
+                    if scene_id not in characters_map:
+                        characters_map[scene_id] = []
+                    if char_label:
+                        characters_map[scene_id].append(char_label)
+
         # Add rows
         for idx, scene in enumerate(scenes, 1):
             row = [str(idx)]
@@ -523,15 +597,8 @@ def scene_list(
             heading = scene.properties.get("heading", f"Scene {idx}")
             row.append(heading)
 
-            # Location
-            location_edges = manager.graph.find_edges(
-                from_node_id=scene.id, edge_type="AT_LOCATION"
-            )
-            location = ""
-            if location_edges:
-                location_node = manager.graph.get_node(location_edges[0].to_node_id)
-                if location_node:
-                    location = location_node.label or ""
+            # Location (use pre-fetched data)
+            location = locations_map.get(scene.id, "")
             row.append(location)
 
             # Order-specific columns
@@ -546,12 +613,9 @@ def scene_list(
                 else:
                     row.append("-")
 
-            # Characters
+            # Characters (use pre-fetched data)
             if show_characters:
-                characters = manager.graph.get_neighbors(
-                    scene.id, edge_type="APPEARS_IN", direction="in"
-                )
-                char_names = [char.label for char in characters if char.label]
+                char_names = characters_map.get(scene.id, [])
                 row.append(
                     ", ".join(char_names[:3]) + ("..." if len(char_names) > 3 else "")
                 )
@@ -613,28 +677,24 @@ def scene_update(
         # Get script node ID
         if not script_id:
             # Get the latest script
-            with connection.transaction() as conn:
-                result = conn.execute(
-                    """
-                    SELECT id FROM nodes
-                    WHERE node_type = 'script'
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                    """
-                ).fetchone()
+            result = get_latest_script_id(connection)
+            if not result:
+                console.print("[red]No scripts found in database.[/red]")
+                raise typer.Exit(1)
 
-                if not result:
-                    console.print("[red]No scripts found in database.[/red]")
-                    raise typer.Exit(1)
-
-                script_id = result[0]
+            script_id = result[0]
 
         # Get scene by number
         scenes = manager.operations.get_script_scenes(script_id, SceneOrderType.SCRIPT)
 
+        if not scenes:
+            console.print("[red]No scenes found in the script.[/red]")
+            raise typer.Exit(1)
+
         if scene_number < 1 or scene_number > len(scenes):
             console.print(
-                f"[red]Invalid scene number. Script has {len(scenes)} scenes.[/red]"
+                f"[red]Invalid scene number. "
+                f"Please specify a number between 1 and {len(scenes)}.[/red]"
             )
             raise typer.Exit(1)
 
@@ -715,28 +775,24 @@ def scene_reorder(
         # Get script node ID
         if not script_id:
             # Get the latest script
-            with connection.transaction() as conn:
-                result = conn.execute(
-                    """
-                    SELECT id FROM nodes
-                    WHERE node_type = 'script'
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                    """
-                ).fetchone()
+            result = get_latest_script_id(connection)
+            if not result:
+                console.print("[red]No scripts found in database.[/red]")
+                raise typer.Exit(1)
 
-                if not result:
-                    console.print("[red]No scripts found in database.[/red]")
-                    raise typer.Exit(1)
-
-                script_id = result[0]
+            script_id = result[0]
 
         # Get scenes in current order
         scenes = manager.operations.get_script_scenes(script_id, order_enum)
 
+        if not scenes:
+            console.print("[red]No scenes found in the script.[/red]")
+            raise typer.Exit(1)
+
         if scene_number < 1 or scene_number > len(scenes):
             console.print(
-                f"[red]Invalid scene number. Script has {len(scenes)} scenes.[/red]"
+                f"[red]Invalid scene number. "
+                f"Please specify a number between 1 and {len(scenes)}.[/red]"
             )
             raise typer.Exit(1)
 
@@ -786,14 +842,6 @@ def scene_analyze(
             help="Script ID (uses latest if not specified)",
         ),
     ] = None,
-    output_format: Annotated[  # noqa: ARG001
-        str,
-        typer.Option(
-            "--format",
-            "-f",
-            help="Output format: table or json",
-        ),
-    ] = "table",
 ) -> None:
     """Analyze scene dependencies and relationships."""
     if analysis_type not in ["dependencies", "temporal", "all"]:
@@ -820,23 +868,13 @@ def scene_analyze(
         # Get script node ID
         if not script_id:
             # Get the latest script
-            with connection.transaction() as conn:
-                result = conn.execute(
-                    """
-                    SELECT id, json_extract(properties_json, '$.title') as title
-                    FROM nodes
-                    WHERE node_type = 'script'
-                    ORDER BY created_at DESC
-                    LIMIT 1
-                    """
-                ).fetchone()
+            result = get_latest_script_id(connection)
+            if not result:
+                console.print("[red]No scripts found in database.[/red]")
+                raise typer.Exit(1)
 
-                if not result:
-                    console.print("[red]No scripts found in database.[/red]")
-                    raise typer.Exit(1)
-
-                script_id, script_title = result
-                console.print(f"\n[bold blue]Analyzing:[/bold blue] {script_title}")
+            script_id, script_title = result
+            console.print(f"\n[bold blue]Analyzing:[/bold blue] {script_title}")
 
         # Perform analysis
         if analysis_type in ["dependencies", "all"]:

@@ -69,7 +69,7 @@ lint: ## Run all linters (ruff, mypy, bandit, etc.)
 	@echo "🔍 Running MyPy..."
 	@bash -c 'source .venv/bin/activate && mypy src/'
 	@echo "🔍 Running Bandit security checks..."
-	@bash -c 'source .venv/bin/activate && bandit -r src/ -c pyproject.toml -ll'
+	@bash -c 'source .venv/bin/activate && bandit -r src/ -c pyproject.toml'
 	@echo "🔍 Checking docstring coverage..."
 	@bash -c 'source .venv/bin/activate && interrogate -c pyproject.toml'
 	@echo "🔍 Checking for dead code..."

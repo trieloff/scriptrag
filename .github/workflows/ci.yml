@@ -377,9 +377,11 @@ jobs:
     name: Generate Vibe Badge
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Generate Vibe Badge
-        uses: trieloff/vibe-coded-badge-action@v1
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - name: Generate Vibe Badge
+        uses: trieloff/vibe-coded-badge-action@main

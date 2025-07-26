@@ -38,7 +38,10 @@ class TestBulkImportIntegration:
         """Create a BulkImporter instance for testing."""
         conn = DatabaseConnection(temp_db)
         graph_ops = GraphOperations(conn)
-        return BulkImporter(graph_ops)
+        importer = BulkImporter(graph_ops)
+        yield importer
+        # Close connection to allow file deletion on Windows
+        conn.close()
 
     def create_fountain_file(self, path: Path, content: str | None = None) -> None:
         """Create a fountain file with content."""

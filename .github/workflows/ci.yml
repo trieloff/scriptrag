@@ -2,14 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches:
   pull_request:
-    branches: [ main, develop ]
+    branches:
   workflow_dispatch:
 
 env:
   PYTHON_VERSION: "3.11"
-  UV_VERSION: "0.4.0"
+  UV_VERSION: "0.5.12"
   NODE_VERSION: "20"
 
 permissions:

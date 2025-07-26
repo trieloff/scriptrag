@@ -369,13 +369,14 @@ def search_all(
         async def run_search() -> Any:
             with get_connection() as conn:
                 search = SearchInterface(conn)
-                results = await search.search(
-                    query=query,
-                    limit=limit,
-                    min_score=min_score,
-                )
-                await search.close()
-                return results
+                try:
+                    return await search.search(
+                        query=query,
+                        limit=limit,
+                        min_score=min_score,
+                    )
+                finally:
+                    await search.close()
 
         results = asyncio.run(run_search())
         _display_search_results(results)
@@ -409,13 +410,14 @@ def search_dialogue(
         async def run_search() -> Any:
             with get_connection() as conn:
                 search = SearchInterface(conn)
-                results = await search.search_dialogue(
-                    query=query,
-                    character=character,
-                    limit=limit,
-                )
-                await search.close()
-                return results
+                try:
+                    return await search.search_dialogue(
+                        query=query,
+                        character=character,
+                        limit=limit,
+                    )
+                finally:
+                    await search.close()
 
         results = asyncio.run(run_search())
         _display_search_results(results)
@@ -460,14 +462,15 @@ def search_scenes(
         async def run_search() -> Any:
             with get_connection() as conn:
                 search = SearchInterface(conn)
-                results = await search.search(
-                    query=query,
-                    search_types=[SearchType.SCENE],
-                    entity_filter=filters,
-                    limit=limit,
-                )
-                await search.close()
-                return results
+                try:
+                    return await search.search(
+                        query=query,
+                        search_types=[SearchType.SCENE],
+                        entity_filter=filters,
+                        limit=limit,
+                    )
+                finally:
+                    await search.close()
 
         results = asyncio.run(run_search())
         _display_search_results(results)
@@ -501,13 +504,14 @@ def search_similar(
         async def run_search() -> Any:
             with get_connection() as conn:
                 search = SearchInterface(conn)
-                results = await search.search_similar_scenes(
-                    scene_id=scene_id,
-                    limit=limit,
-                    min_similarity=min_similarity,
-                )
-                await search.close()
-                return results
+                try:
+                    return await search.search_similar_scenes(
+                        scene_id=scene_id,
+                        limit=limit,
+                        min_similarity=min_similarity,
+                    )
+                finally:
+                    await search.close()
 
         results = asyncio.run(run_search())
         _display_search_results(results, show_similarity=True)
@@ -541,13 +545,14 @@ def search_theme(
         async def run_search() -> Any:
             with get_connection() as conn:
                 search = SearchInterface(conn)
-                results = await search.search_by_theme(
-                    theme=theme,
-                    entity_type=entity_type,
-                    limit=limit,
-                )
-                await search.close()
-                return results
+                try:
+                    return await search.search_by_theme(
+                        theme=theme,
+                        entity_type=entity_type,
+                        limit=limit,
+                    )
+                finally:
+                    await search.close()
 
         results = asyncio.run(run_search())
         _display_search_results(results, show_similarity=True)
@@ -594,13 +599,14 @@ def search_temporal(
         async def run_search() -> Any:
             with get_connection() as conn:
                 search = SearchInterface(conn)
-                results = await search.search_temporal(
-                    time_range=time_range,
-                    day_night=day_night,
-                    limit=limit,
-                )
-                await search.close()
-                return results
+                try:
+                    return await search.search_temporal(
+                        time_range=time_range,
+                        day_night=day_night,
+                        limit=limit,
+                    )
+                finally:
+                    await search.close()
 
         results = asyncio.run(run_search())
         _display_search_results(results)

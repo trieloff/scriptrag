@@ -204,6 +204,7 @@ Generation) pattern.
 
 ### Phase 8: Pluggable Mentors System 🎭
 
+📋 **[Detailed Mentor System Documentation](MENTOR_SYSTEM.md)**
 - [ ] **8.1 Mentor Infrastructure**
   - [ ] Mentor base classes and interfaces
   - [ ] Mentor registry and discovery system
@@ -400,6 +401,12 @@ Generation) pattern.
 - SQLite 3.35+
 - LMStudio running at <http://localhost:1234>
 
+### Setup Documentation
+
+- **[Terragon Setup Guide](TERRAGON_SETUP.md)** - Complete Terragon environment configuration
+- **[Setup Summary](SETUP_SUMMARY.md)** - Overview of setup process and scripts
+- **[Setup Complete Guide](SETUP_COMPLETE.md)** - Phase 1.2 completion details
+
 ### Installation
 
 ```bash
@@ -461,6 +468,13 @@ scriptrag-mcp serve --config mcp_config.json
 - [GraphRAG with SQLite Example](https://deepwiki.com/stephenc222/example-graphrag-with-sqlite/1-overview)
 - [LMStudio](https://lmstudio.ai/)
 - [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
+
+## Development Guidelines
+
+### For AI Agents and Contributors
+
+- **[AI Agent Guidelines](AGENTS.md)** - Commit message format with movie quotes and project rules
+- **[Claude Coding Guidelines](CLAUDE.md)** - Comprehensive coding standards and development workflow
 
 ## Contributing
 

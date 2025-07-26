@@ -1,11 +1,17 @@
 """Integration tests for embedding pipeline with real database operations."""
 
+import contextlib
+import gc
+import platform
+import sqlite3
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 
+from scriptrag.config import get_logger
 from scriptrag.database import (
     ContentExtractor,
     DatabaseConnection,
@@ -16,6 +22,28 @@ from scriptrag.database import (
 )
 from scriptrag.llm.client import LLMClient
 
+logger = get_logger(__name__)
+
+
+def _force_close_db_connections(db_path: Path) -> None:
+    """Force close any lingering SQLite connections to a database file.
+
+    This is particularly needed on Windows where file handles might not be
+    released immediately.
+    """
+    # Force garbage collection
+    gc.collect()
+
+    # Try to connect and close to ensure exclusive access
+    with contextlib.suppress(Exception):
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("PRAGMA journal_mode=DELETE")  # Switch from WAL mode
+        conn.close()
+
+    # Give Windows time to release file handles
+    if platform.system() == "Windows":
+        time.sleep(0.1)
+
 
 @pytest.fixture
 def temp_db_path():
@@ -23,9 +51,37 @@ def temp_db_path():
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = Path(f.name)
     yield db_path
-    # Cleanup
+    # Cleanup with Windows compatibility
     if db_path.exists():
-        db_path.unlink()
+        # Force close any lingering connections
+        _force_close_db_connections(db_path)
+        # On Windows, SQLite connections might not be fully closed
+        # Try multiple times with a small delay
+        for attempt in range(5):
+            try:
+                db_path.unlink()
+                break
+            except PermissionError:
+                if attempt < 4:
+                    time.sleep(0.1)  # Wait 100ms before retrying
+                    _force_close_db_connections(db_path)
+                else:
+                    # Last attempt failed, try to at least close WAL files
+                    with contextlib.suppress(Exception):
+                        wal_path = db_path.with_suffix(".db-wal")
+                        shm_path = db_path.with_suffix(".db-shm")
+                        if wal_path.exists():
+                            wal_path.unlink()
+                        if shm_path.exists():
+                            shm_path.unlink()
+                    # Skip cleanup on Windows if file is still locked
+                    if platform.system() == "Windows":
+                        logger.warning(
+                            f"Could not delete test database {db_path} on Windows - "
+                            "this is expected"
+                        )
+                    else:
+                        raise
 
 
 @pytest.fixture
@@ -39,7 +95,13 @@ def test_database(temp_db_path):
 @pytest.fixture
 def db_connection(test_database):
     """Create database connection to test database."""
-    return DatabaseConnection(test_database)
+    connection = DatabaseConnection(test_database)
+    yield connection
+    # Ensure connection is properly closed
+    with contextlib.suppress(Exception):
+        connection.close()
+    # Force close any other connections that might have been created
+    _force_close_db_connections(test_database)
 
 
 @pytest.fixture

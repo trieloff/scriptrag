@@ -722,7 +722,9 @@ class TestDatabaseStats:
         assert "column_count" in script_stats
         assert "size_bytes" in script_stats
         # size_bytes can be None if dbstat is not available (e.g., macOS/Homebrew)
-        assert script_stats["size_bytes"] is None or isinstance(script_stats["size_bytes"], int)
+        assert script_stats["size_bytes"] is None or isinstance(
+            script_stats["size_bytes"], int
+        )
 
     def test_database_size(self, db_connection):
         """Test getting database size information."""

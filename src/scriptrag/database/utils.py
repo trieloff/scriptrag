@@ -668,7 +668,7 @@ def get_database_health_report(db_path: str | Path) -> dict[str, Any]:
         # Basic statistics
         stats = DatabaseStats(db_path)
         report["size_info"] = stats.get_database_size()
-        
+
         # Table stats may fail if dbstat is not available
         try:
             report["table_stats"] = stats.get_table_stats()
@@ -678,7 +678,7 @@ def get_database_health_report(db_path: str | Path) -> dict[str, Any]:
                 report["table_stats"] = {}  # Empty dict to indicate no stats available
             else:
                 raise
-                
+
         report["performance_stats"] = stats.get_query_performance_stats()
 
         # Maintenance checks

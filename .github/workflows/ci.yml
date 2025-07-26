@@ -372,9 +372,11 @@ jobs:
     if: github.ref == 'refs/heads/main'
     permissions:
       contents: write
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Generate Vibe Badge
         uses: trieloff/vibe-coded-badge-action@main
+        continue-on-error: true

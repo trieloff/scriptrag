@@ -25,6 +25,11 @@ from scriptrag.models import (
     Transition,
 )
 
+from .series_detector import SeriesInfo, SeriesPatternDetector
+
+# Note: BulkImporter and BulkImportResult are available in .bulk_import module
+# but not imported here to avoid circular dependencies
+
 
 class FountainParsingError(Exception):
     """Exception raised when fountain parsing fails."""
@@ -430,6 +435,10 @@ class FountainParser:
 
 # Export the main parser class
 __all__ = [
+    "BulkImportResult",
+    "BulkImporter",
     "FountainParser",
     "FountainParsingError",
+    "SeriesInfo",
+    "SeriesPatternDetector",
 ]

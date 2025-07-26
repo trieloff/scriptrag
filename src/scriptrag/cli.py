@@ -10,6 +10,7 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from . import ScriptRAG
@@ -19,6 +20,9 @@ from .config import (
     load_settings,
     setup_logging_for_environment,
 )
+from .database.connection import DatabaseConnection
+from .database.operations import GraphOperations
+from .parser.bulk_import import BulkImporter
 
 # Create main Typer app
 app = typer.Typer(
@@ -290,6 +294,187 @@ def script_parse(
 
     except Exception as e:
         print(f"Error parsing screenplay: {e}", file=sys.stderr)
+        raise typer.Exit(1) from e
+
+
+@script_app.command("import")
+def script_import(
+    path_or_pattern: Annotated[
+        str,
+        typer.Argument(help="Directory path or glob pattern for fountain files"),
+    ],
+    pattern: Annotated[
+        str | None,
+        typer.Option(
+            "--pattern",
+            "-p",
+            help="Custom regex pattern for season/episode extraction",
+        ),
+    ] = None,
+    series_name: Annotated[
+        str | None,
+        typer.Option(
+            "--series-name",
+            "-s",
+            help="Override auto-detected series name",
+        ),
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            "-d",
+            help="Preview what would be imported without actually importing",
+        ),
+    ] = False,
+    skip_existing: Annotated[
+        bool,
+        typer.Option(
+            "--skip-existing",
+            help="Skip files that already exist in database",
+        ),
+    ] = True,
+    update_existing: Annotated[
+        bool,
+        typer.Option(
+            "--update-existing",
+            help="Update existing scripts if file is newer",
+        ),
+    ] = False,
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size",
+            "-b",
+            help="Number of files to process per transaction batch",
+        ),
+    ] = 10,
+    recursive: Annotated[
+        bool,
+        typer.Option(
+            "--recursive",
+            "-r",
+            help="Recursively search directories for fountain files",
+        ),
+    ] = True,
+) -> None:
+    r"""Import multiple fountain files with TV series support.
+
+    Examples:
+        # Import entire TV series
+        scriptrag script import "Breaking Bad/**/*.fountain"
+
+        # Import with custom pattern
+        scriptrag script import "*.fountain" \\
+            --pattern "S(?P<season>\d+)E(?P<episode>\d+)"
+
+        # Preview import
+        scriptrag script import "Season*/*.fountain" --dry-run
+
+        # Import from directory
+        scriptrag script import ./scripts/
+    """
+    try:
+        settings = get_settings()
+        db_path = Path(settings.database.path)
+
+        # Find fountain files
+        file_paths = []
+        path = Path(path_or_pattern)
+
+        if path.is_dir():
+            # Directory provided - search for fountain files
+            if recursive:
+                file_paths = list(path.rglob("*.fountain"))
+            else:
+                file_paths = list(path.glob("*.fountain"))
+        else:
+            # Assume it's a glob pattern
+            # Use Path.glob for pattern matching
+            if recursive:
+                file_paths = list(Path().rglob(path_or_pattern))
+            else:
+                file_paths = list(Path().glob(path_or_pattern))
+
+        if not file_paths:
+            console.print(
+                "[yellow]No fountain files found matching the pattern[/yellow]"
+            )
+            raise typer.Exit(0)
+
+        console.print(f"[blue]Found {len(file_paths)} fountain files[/blue]")
+
+        # Initialize database connection and operations
+        conn = DatabaseConnection(db_path)
+        graph_ops = GraphOperations(conn)
+
+        # Create bulk importer
+        importer = BulkImporter(
+            graph_ops=graph_ops,
+            custom_pattern=pattern,
+            skip_existing=skip_existing,
+            update_existing=update_existing,
+            batch_size=batch_size,
+        )
+
+        # Import with progress tracking
+        if dry_run:
+            console.print("[yellow]DRY RUN MODE - No files will be imported[/yellow]")
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Importing files...", total=len(file_paths))
+
+            def update_progress(pct: float, msg: str) -> None:
+                progress.update(
+                    task, completed=int(pct * len(file_paths)), description=msg
+                )
+
+            result = importer.import_files(
+                file_paths=file_paths,
+                series_name_override=series_name,
+                dry_run=dry_run,
+                progress_callback=update_progress if not dry_run else None,
+            )
+
+        # Display results
+        if dry_run:
+            console.print("\n[bold]Import Preview:[/bold]")
+        else:
+            console.print("\n[bold]Import Results:[/bold]")
+
+        table = Table(show_header=True, header_style="bold blue")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Count", justify="right")
+
+        table.add_row("Total files", str(result.total_files))
+        table.add_row(
+            "Successful imports", f"[green]{result.successful_imports}[/green]"
+        )
+        table.add_row("Failed imports", f"[red]{result.failed_imports}[/red]")
+        table.add_row("Skipped files", f"[yellow]{result.skipped_files}[/yellow]")
+
+        console.print(table)
+
+        # Show errors if any
+        if result.errors:
+            console.print("\n[red]Import Errors:[/red]")
+            for file_path, error in list(result.errors.items())[:5]:
+                console.print(f"  • {file_path}: {error}")
+            if len(result.errors) > 5:
+                console.print(f"  ... and {len(result.errors) - 5} more errors")
+
+        # Show created series
+        if result.series_created:
+            console.print("\n[green]Created TV Series:[/green]")
+            for series_name in result.series_created:
+                console.print(f"  • {series_name}")
+
+    except Exception as e:
+        console.print(f"[red]Error during import: {e}[/red]")
         raise typer.Exit(1) from e
 
 

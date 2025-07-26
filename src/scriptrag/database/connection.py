@@ -137,6 +137,16 @@ class DatabaseConnection:
             conn.rollback()
             raise
 
+    @contextmanager
+    def begin(self) -> Generator[sqlite3.Connection, None, None]:
+        """Alias for transaction() for compatibility.
+
+        Yields:
+            SQLite connection object in transaction mode
+        """
+        with self.transaction() as conn:
+            yield conn
+
     def execute(
         self, sql: str, parameters: tuple | dict | None = None
     ) -> sqlite3.Cursor:

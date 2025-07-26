@@ -762,19 +762,21 @@ class EmbeddingManager:
                 if force:
                     # Force refresh: get all matching embeddings
                     cursor = conn.execute(
-                        f"SELECT entity_type, entity_id, content FROM embeddings WHERE {where_clause}",
+                        f"""SELECT entity_type, entity_id, content
+                        FROM embeddings WHERE {where_clause}""",
                         params,
                     )
                 else:
                     # Only refresh embeddings older than 7 days or with different model
                     cursor = conn.execute(
                         f"""
-                        SELECT entity_type, entity_id, content 
-                        FROM embeddings 
-                        WHERE {where_clause} 
-                        AND (created_at < datetime('now', '-7 days') OR embedding_model != ?)
+                        SELECT entity_type, entity_id, content
+                        FROM embeddings
+                        WHERE {where_clause}
+                        AND (created_at < datetime('now', '-7 days') OR
+                             embedding_model != ?)
                         """,
-                        params + [model],
+                        [*params, model],
                     )
 
                 embeddings_to_refresh = cursor.fetchall()
@@ -802,11 +804,17 @@ class EmbeddingManager:
             for entity_type_db, entity_id, existing_content in embeddings_to_refresh:
                 try:
                     # Generate new embedding for the existing content
-                    new_embedding = await self.generate_embedding(existing_content, model)
+                    new_embedding = await self.generate_embedding(
+                        existing_content, model
+                    )
 
                     # Store the refreshed embedding
-                    await self.store_embedding(
-                        entity_type_db, entity_id, existing_content, new_embedding, model
+                    self.store_embedding(
+                        entity_type_db,
+                        entity_id,
+                        existing_content,
+                        new_embedding,
+                        model,
                     )
 
                     refreshed_count += 1

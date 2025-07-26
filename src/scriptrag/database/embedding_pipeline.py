@@ -499,6 +499,10 @@ class EmbeddingPipeline:
             Number of embeddings removed
         """
         try:
+            # Input validation
+            if older_than_days is not None and older_than_days < 0:
+                raise ValueError("older_than_days must be non-negative")
+
             where_conditions = []
             params = []
 
@@ -509,7 +513,10 @@ class EmbeddingPipeline:
 
             # Add age filter if specified
             if older_than_days:
-                where_conditions.append("created_at < datetime('now', '-{} days')".format(older_than_days))
+                where_conditions.append(
+                    "created_at < datetime('now', '-' || ? || ' days')"
+                )
+                params.append(str(older_than_days))
 
             # Build the WHERE clause
             where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"

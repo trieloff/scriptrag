@@ -147,11 +147,35 @@ fi
 # Run trailing whitespace fixes and other generic fixes
 echo "🧹 Running generic file fixes..."
 
-# Fix trailing whitespace
+# Fix trailing whitespace (consistent with pre-commit hook behavior)
 for file in $MODIFIED_FILES; do
     if [ -f "$file" ]; then
-        # Remove trailing whitespace
-        sed -i 's/[[:space:]]*$//' "$file" 2>/dev/null || true
+        # Handle Markdown files specially (preserve double-space line breaks)
+        if [[ "$file" =~ \.md$ ]]; then
+            # For Markdown: preserve exactly 2 trailing spaces (line breaks), remove others
+            # This matches the behavior of pre-commit's trailing-whitespace with --markdown-linebreak-ext=md
+            python3 -c "
+import re
+with open('$file', 'r') as f: lines = f.readlines()
+# Mimic pre-commit trailing-whitespace --markdown-linebreak-ext=md behavior
+for i, line in enumerate(lines):
+    # Remove newline for processing
+    line_content = line.rstrip('\n\r')
+    # Check for trailing whitespace
+    if re.search(r'\s+$', line_content):
+        # If 2+ whitespace chars, replace with exactly 2 spaces
+        if len(re.search(r'\s+$', line_content).group()) >= 2:
+            line_content = re.sub(r'\s+$', '  ', line_content)
+        else:
+            # If exactly 1 whitespace char, remove it
+            line_content = re.sub(r'\s+$', '', line_content)
+    lines[i] = line_content + '\n'
+with open('$file', 'w') as f: f.writelines(lines)
+" 2>/dev/null || true
+        else
+            # For all other files: remove all trailing whitespace
+            sed -i 's/[[:space:]]*$//' "$file" 2>/dev/null || true
+        fi
 
         # Ensure file ends with newline
         if [ -s "$file" ] && [ "$(tail -c1 "$file" | wc -l)" -eq 0 ]; then

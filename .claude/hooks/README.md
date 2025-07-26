@@ -21,7 +21,7 @@ Comprehensive auto-formatting script that handles:
 - **Markdown files**: markdownlint auto-fix
 - **JSON files**: Python JSON.tool formatting
 - **YAML files**: yamllint validation
-- **All files**: Trailing whitespace removal + newline fixes
+- **All files**: Trailing whitespace removal (preserves Markdown line breaks) + newline fixes
 
 ### `format-python.sh`
 

@@ -70,7 +70,7 @@ after Write/Edit/MultiEdit operations:
 - **Python files**: Automatically formatted with Black and Ruff
 - **Markdown files**: Fixed with markdownlint
 - **JSON/YAML files**: Formatted and validated
-- **All files**: Trailing whitespace removed, proper line endings ensured
+- **All files**: Trailing whitespace removed (preserving Markdown line breaks), proper line endings ensured
 
 **Hook Scripts**:
 

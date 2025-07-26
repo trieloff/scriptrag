@@ -79,13 +79,32 @@ fi
 check_timeout
 
 # Install uv if not present (it should be pre-installed in Terragon)
+UV_CMD="uv"
 if ! command -v uv &> /dev/null; then
     log_info "Installing uv package manager..."
     curl -LsSf https://astral.sh/uv/install.sh | sh || {
         log_error "Failed to install uv"
         exit 1
     }
-    export PATH="$HOME/.cargo/bin:$PATH"
+    export PATH="$HOME/.local/bin:$PATH"
+
+    # Source the uv environment script if it exists
+    if [ -f "$HOME/.local/bin/env" ]; then
+        log_info "Sourcing uv environment script..."
+        source "$HOME/.local/bin/env"
+    fi
+
+    # Verify uv is now available
+    if ! command -v uv &> /dev/null; then
+        log_info "uv not found in PATH after installation, checking explicit location..."
+        if [ -x "$HOME/.local/bin/uv" ]; then
+            log_info "Found uv at $HOME/.local/bin/uv, using explicit path"
+            UV_CMD="$HOME/.local/bin/uv"
+        else
+            log_error "Cannot find uv executable after installation"
+            exit 1
+        fi
+    fi
 fi
 
 check_timeout
@@ -107,7 +126,7 @@ mkdir -p notebooks
 # Set up Python virtual environment
 log_info "Setting up Python virtual environment..."
 if [ ! -d ".venv" ]; then
-    uv venv --python python3.11 || {
+    ${UV_CMD} venv --python python3.11 || {
         log_error "Failed to create virtual environment"
         exit 1
     }
@@ -127,7 +146,7 @@ source .venv/bin/activate || {
 
 # Upgrade pip, setuptools, and wheel
 log_info "Upgrading pip, setuptools, and wheel..."
-uv pip install --upgrade pip setuptools wheel || {
+${UV_CMD} pip install --upgrade pip setuptools wheel || {
     log_warning "Failed to upgrade pip/setuptools/wheel, continuing..."
 }
 
@@ -137,9 +156,9 @@ check_timeout
 log_info "Installing project dependencies..."
 if [ -f "pyproject.toml" ]; then
     # Install in editable mode with all extras for development
-    uv pip install -e ".[dev,test,docs]" || {
+    ${UV_CMD} pip install -e ".[dev,test,docs]" || {
         log_warning "Failed to install with all extras, trying base installation..."
-        uv pip install -e "." || {
+        ${UV_CMD} pip install -e "." || {
             log_error "Failed to install project dependencies"
             exit 1
         }

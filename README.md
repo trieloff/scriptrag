@@ -104,12 +104,22 @@ Generation) pattern.
 
 ### Phase 4: GraphRAG Implementation
 
-- [ ] **4.1 Knowledge Graph Construction**
-  - [ ] Parse screenplays into graph structure
-  - [ ] Extract entities and relationships
-  - [ ] Enrich nodes with LLM-generated metadata
-  - [ ] Build temporal graph layer
-  - [ ] Create logical dependency graph
+- [x] **4.1 Knowledge Graph Construction** *(5/5 complete)*
+  - [x] Parse screenplays into graph structure
+  - [x] Extract entities and relationships
+  - [x] Enrich nodes with LLM-generated metadata
+  - [x] Build temporal graph layer
+  - [x] Create logical dependency graph
+
+- [x] **4.1.1 PR #17 Feedback Resolution** *(7/7 complete)*
+  - [x] Make demo limits configurable in build_knowledge_graph.py example
+    (--max-scenes, --max-characters CLI args)
+  - [x] Complete mock implementation of _get_character_dialogue_samples with proper dialogue extraction
+  - [x] Add confirmation for file deletion in example script (--force-delete bypass option)
+  - [x] Optimize character mentions extraction with regex patterns and caching
+  - [x] Fix all linting issues (line length, whitespace, code style)
+  - [x] Maintain test coverage (all 151 tests passing)
+  - [x] Pass type checking with no mypy issues
 
 - [ ] **4.2 Graph Indexing**
   - [ ] Implement hierarchical indexing (show → season → episode → scene)

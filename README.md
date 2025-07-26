@@ -480,6 +480,28 @@ srag.update_scene(
 )
 ```
 
+### Command Line Examples
+
+```bash
+# Parse and build knowledge graph from a screenplay
+scriptrag parse examples/data/sample_screenplay.fountain
+
+# Search for dialogue containing specific text
+scriptrag search dialogue "I love you"
+
+# Find scenes with specific characters
+scriptrag search character "PROTAGONIST" "ANTAGONIST"
+
+# Semantic search for thematically similar content
+scriptrag search semantic "betrayal and revenge"
+
+# List all characters and their relationships
+scriptrag graph characters
+
+# Analyze temporal structure of the screenplay
+scriptrag analyze timeline
+```
+
 ### Using the MCP Server
 
 ```bash

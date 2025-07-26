@@ -13,9 +13,27 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from scriptrag.config import get_logger
+from scriptrag.config import get_logger, get_settings
+
+from .connection import DatabaseConnection
 
 logger = get_logger(__name__)
+
+
+def get_connection(db_path: Path | None = None) -> DatabaseConnection:
+    """Get a database connection.
+
+    Args:
+        db_path: Optional database path (uses settings if not provided)
+
+    Returns:
+        Database connection instance
+    """
+    if db_path is None:
+        settings = get_settings()
+        db_path = settings.get_database_path()
+
+    return DatabaseConnection(db_path)
 
 
 class DatabaseStats:
@@ -249,11 +267,18 @@ class DatabaseBackup:
             True if successful
         """
         # Use SQLite's backup API for consistency
-        with (
-            sqlite3.connect(self.db_path) as source,
-            sqlite3.connect(backup_path) as backup,
-        ):
+        source = None
+        backup = None
+        try:
+            source = sqlite3.connect(self.db_path)
+            backup = sqlite3.connect(backup_path)
             source.backup(backup)
+        finally:
+            # Explicitly close connections to release file handles on Windows
+            if backup:
+                backup.close()
+            if source:
+                source.close()
 
         logger.info(f"Created backup at {backup_path}")
         return True
@@ -340,11 +365,18 @@ class DatabaseBackup:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Use SQLite's backup API
-        with (
-            sqlite3.connect(backup_path) as source,
-            sqlite3.connect(self.db_path) as target,
-        ):
+        source = None
+        target = None
+        try:
+            source = sqlite3.connect(backup_path)
+            target = sqlite3.connect(self.db_path)
             source.backup(target)
+        finally:
+            # Explicitly close connections to release file handles on Windows
+            if target:
+                target.close()
+            if source:
+                source.close()
 
         logger.info(f"Restored database from {backup_path}")
         return True

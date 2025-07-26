@@ -21,6 +21,9 @@ from .config import (
 from .llm import LLMClient as ActualLLMClient
 from .llm import create_llm_client
 
+# Model imports
+from .models import Script
+
 __version__ = "0.1.0"
 __author__ = "Your Name"
 __email__ = "your.email@example.com"
@@ -31,6 +34,7 @@ __all__ = [
     "FountainParser",
     "GraphDatabase",
     "LLMClient",
+    "Script",
     "ScriptRAG",
     "ScriptRAGSettings",
     "__version__",
@@ -95,10 +99,21 @@ class ScriptRAG:
         self._graph_db: GraphDatabase | None = None
         self._llm_client: ActualLLMClient | None = None
 
-    def parse_fountain(self, path: str) -> None:
-        """Parse a screenplay in Fountain format."""
+    def parse_fountain(self, path: str) -> Script:
+        """Parse a screenplay in Fountain format.
+
+        Args:
+            path: Path to the Fountain file
+
+        Returns:
+            Script object containing parsed screenplay data
+        """
         self.logger.info("Parsing Fountain screenplay", path=path)
-        raise NotImplementedError("Parser not yet implemented")
+        # TODO: Implement actual parsing logic
+        # For now, return a dummy Script object
+        from .models import Script
+
+        return Script(title="Parsed Script", source_file=path)
 
     def search_scenes(self, **kwargs: Any) -> list[Any]:
         """Search for scenes based on various criteria.

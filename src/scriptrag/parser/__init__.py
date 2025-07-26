@@ -75,6 +75,7 @@ class FountainParser:
         """Initialize the fountain parser."""
         self.jouvence_parser = JouvenceParser()
         self._characters_cache: dict[str, Character] = {}
+        self._scenes_cache: list[Scene] = []
         self._scene_count = 0
 
     def parse_file(self, file_path: str | Path) -> Script:
@@ -133,6 +134,7 @@ class FountainParser:
         """Convert a Jouvence document to a ScriptRAG Script model."""
         # Reset parser state
         self._characters_cache.clear()
+        self._scenes_cache.clear()
         self._scene_count = 0
 
         # Extract title page metadata
@@ -164,6 +166,7 @@ class FountainParser:
         # Parse all scenes
         scenes = self._parse_scenes(document.scenes, script.id)
         script.scenes = [scene.id for scene in scenes]
+        self._scenes_cache = scenes  # Store scenes for retrieval
 
         # Extract all characters
         characters = list(self._characters_cache.values())
@@ -431,6 +434,22 @@ class FountainParser:
                     title_values[key.lower()] = value
 
         return title_values
+
+    def get_characters(self) -> list[Character]:
+        """Get all parsed characters.
+
+        Returns:
+            List of Character objects that have been parsed
+        """
+        return list(self._characters_cache.values())
+
+    def get_scenes(self) -> list[Scene]:
+        """Get all parsed scenes.
+
+        Returns:
+            List of Scene objects that have been parsed
+        """
+        return list(self._scenes_cache)
 
 
 # Export the main parser class

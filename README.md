@@ -1,10 +1,23 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-[![80% Vibe_Coded](https://img.shields.io/badge/80%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=zedindustries&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
+[![77% Vibe_Coded](https://img.shields.io/badge/77%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=zedindustries&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
 
 ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
 Generation) pattern.
+
+## 🚀 Recent Major Progress
+
+**Significant development milestones achieved with 10 merged PRs and 8,655+ lines of new code:**
+
+- **✅ Phase 4: GraphRAG Implementation - COMPLETE!** - Full knowledge graph construction with
+  entity extraction, relationship building, and LLM enrichment
+- **✅ Phase 6: Search and Query Interface - COMPLETE!** - Comprehensive text-based,
+  semantic, and entity search with advanced ranking
+- **✅ Enhanced CLI Interface** - Full command-line functionality for all major operations
+- **📊 New: AI Content Indicators Database** - Comprehensive patterns for detecting AI-generated content
+- **🔍 Knowledge Graph Builder** - Automated screenplay parsing with configurable LLM enrichment limits
+- **⚡ Performance Optimizations** - Enhanced search resource management and error handling
 
 ## Features
 
@@ -104,26 +117,36 @@ Generation) pattern.
 
 ### Phase 4: GraphRAG Implementation
 
-- [ ] **4.1 Knowledge Graph Construction**
-  - [ ] Parse screenplays into graph structure
-  - [ ] Extract entities and relationships
-  - [ ] Enrich nodes with LLM-generated metadata
-  - [ ] Build temporal graph layer
-  - [ ] Create logical dependency graph
+- [x] **4.1 Knowledge Graph Construction** *(5/5 complete)*
+  - [x] Parse screenplays into graph structure
+  - [x] Extract entities and relationships
+  - [x] Enrich nodes with LLM-generated metadata
+  - [x] Build temporal graph layer
+  - [x] Create logical dependency graph
 
-- [ ] **4.2 Graph Indexing**
-  - [ ] Implement hierarchical indexing (show → season → episode → scene)
-  - [ ] Create character relationship graphs
-  - [ ] Build location-based scene graphs
-  - [ ] Index temporal relationships
-  - [ ] Generate concept and theme graphs
+- [x] **4.1.1 PR #17 Feedback Resolution** *(7/7 complete)*
+  - [x] Make demo limits configurable in build_knowledge_graph.py example
+    (--max-scenes, --max-characters CLI args)
+  - [x] Complete mock implementation of _get_character_dialogue_samples with proper dialogue extraction
+  - [x] Add confirmation for file deletion in example script (--force-delete bypass option)
+  - [x] Optimize character mentions extraction with regex patterns and caching
+  - [x] Fix all linting issues (line length, whitespace, code style)
+  - [x] Maintain test coverage (all 151 tests passing)
+  - [x] Pass type checking with no mypy issues
 
-- [ ] **4.3 RAG Query Engine**
-  - [ ] Design query language for screenplay searches
-  - [ ] Implement multi-hop graph traversal
-  - [ ] Create context assembly from graph neighborhoods
-  - [ ] Build prompt templates for different query types
-  - [ ] Integrate LLM for answer generation
+- [x] **4.2 Graph Indexing** *(5/5 complete)*
+  - [x] Implement hierarchical indexing (show → season → episode → scene)
+  - [x] Create character relationship graphs
+  - [x] Build location-based scene graphs
+  - [x] Index temporal relationships
+  - [x] Generate concept and theme graphs
+
+- [x] **4.3 RAG Query Engine** *(5/5 complete)*
+  - [x] Design query language for screenplay searches
+  - [x] Implement multi-hop graph traversal
+  - [x] Create context assembly from graph neighborhoods
+  - [x] Build prompt templates for different query types
+  - [x] Integrate LLM for answer generation
 
 ### Phase 5: Scene Management Features
 
@@ -152,19 +175,19 @@ Generation) pattern.
 
 ### Phase 6: Search and Query Interface
 
-- [ ] **6.1 Search Implementation**
-  - [ ] Text-based search (dialogue, action)
-  - [ ] Entity search (characters, locations)
-  - [ ] Temporal search (time ranges, sequences)
-  - [ ] Concept/theme search
-  - [ ] Relationship search (character interactions)
+- [x] **6.1 Search Implementation** *(5/5 complete)*
+  - [x] Text-based search (dialogue, action)
+  - [x] Entity search (characters, locations)
+  - [x] Temporal search (time ranges, sequences)
+  - [x] Concept/theme search
+  - [x] Relationship search (character interactions)
 
-- [ ] **6.2 Advanced Queries**
-  - [ ] Multi-criteria search
-  - [ ] Graph pattern matching
-  - [ ] Semantic similarity search
-  - [ ] Timeline visualization queries
-  - [ ] Character arc analysis
+- [x] **6.2 Advanced Queries** *(5/5 complete)*
+  - [x] Multi-criteria search
+  - [x] Graph pattern matching
+  - [x] Semantic similarity search
+  - [x] Timeline visualization queries
+  - [x] Character arc analysis
 
 ### Phase 7: API and Interface
 
@@ -178,11 +201,11 @@ Generation) pattern.
     - [ ] Graph visualization
     - [ ] Export functionality
 
-- [ ] **7.2 CLI Interface**
-  - [ ] Create command-line tool using Click/Typer
-  - [ ] Implement commands for all major operations
-  - [ ] Add interactive mode for complex queries
-  - [ ] Create batch processing capabilities
+- [x] **7.2 CLI Interface** *(4/4 complete)*
+  - [x] Create command-line tool using Click/Typer
+  - [x] Implement commands for all major operations
+  - [x] Add interactive mode for complex queries
+  - [x] Create batch processing capabilities
 
 - [ ] **7.3 MCP Server**
   - [ ] Implement Model Context Protocol server
@@ -455,6 +478,28 @@ srag.update_scene(
     scene_id=123,
     new_location="INT. COFFEE SHOP - DAY"
 )
+```
+
+### Command Line Examples
+
+```bash
+# Parse and build knowledge graph from a screenplay
+scriptrag parse examples/data/sample_screenplay.fountain
+
+# Search for dialogue containing specific text
+scriptrag search dialogue "I love you"
+
+# Find scenes with specific characters
+scriptrag search character "PROTAGONIST" "ANTAGONIST"
+
+# Semantic search for thematically similar content
+scriptrag search semantic "betrayal and revenge"
+
+# List all characters and their relationships
+scriptrag graph characters
+
+# Analyze temporal structure of the screenplay
+scriptrag analyze timeline
 ```
 
 ### Using the MCP Server

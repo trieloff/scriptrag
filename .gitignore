@@ -170,3 +170,6 @@ temp/
 config/secrets.yaml
 config/local.yaml
 *.secret
+
+# Terragon setup markers
+.terragon-setup-complete

@@ -242,9 +242,9 @@ class TemporaryLogLevel:
 
     def __exit__(
         self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: Any | None,
+        _exc_type: type[BaseException] | None,
+        _exc_val: BaseException | None,
+        _exc_tb: Any | None,
     ) -> None:
         """Exit context and restore original log level."""
         if self.original_level is not None:

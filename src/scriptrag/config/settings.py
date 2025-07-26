@@ -307,6 +307,43 @@ class PathSettings(BaseSettings):
     }
 
 
+class APISettings(BaseSettings):
+    """API server configuration settings."""
+
+    # CORS settings
+    cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000", "http://localhost:8000"],
+        description="Allowed CORS origins",
+    )
+
+    cors_methods: list[str] = Field(
+        default_factory=lambda: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+        description="Allowed CORS methods",
+    )
+
+    cors_headers: list[str] = Field(
+        default_factory=lambda: ["Content-Type", "Authorization"],
+        description="Allowed CORS headers",
+    )
+
+    # Auth settings (placeholder for future implementation)
+    enable_auth: bool = Field(default=False, description="Enable authentication")
+
+    secret_key: str | None = Field(
+        default=None,
+        description="Secret key for JWT tokens (required for production)",
+    )
+
+    access_token_expire_minutes: int = Field(
+        default=30, description="Access token expiration in minutes"
+    )
+
+    model_config = {
+        "env_prefix": "SCRIPTRAG_API_",
+        "extra": "ignore",
+    }
+
+
 class ScriptRAGSettings(BaseSettings):
     """Main ScriptRAG configuration settings."""
 
@@ -319,12 +356,15 @@ class ScriptRAGSettings(BaseSettings):
     debug: bool = Field(default=True, description="Enable debug mode")
 
     # Sub-configurations
-    database: DatabaseSettings = Field(default_factory=DatabaseSettings)
-    llm: LLMSettings = Field(default_factory=LLMSettings)
-    logging: LoggingSettings = Field(default_factory=LoggingSettings)
-    mcp: MCPSettings = Field(default_factory=MCPSettings)
-    performance: PerformanceSettings = Field(default_factory=PerformanceSettings)
-    paths: PathSettings = Field(default_factory=PathSettings)
+    database: DatabaseSettings = Field(default_factory=lambda: DatabaseSettings())
+    llm: LLMSettings = Field(default_factory=lambda: LLMSettings())
+    logging: LoggingSettings = Field(default_factory=lambda: LoggingSettings())
+    mcp: MCPSettings = Field(default_factory=lambda: MCPSettings())
+    performance: PerformanceSettings = Field(
+        default_factory=lambda: PerformanceSettings()
+    )
+    paths: PathSettings = Field(default_factory=lambda: PathSettings())
+    api: APISettings = Field(default_factory=lambda: APISettings())
 
     @field_validator("environment")
     @classmethod
@@ -402,6 +442,16 @@ class ScriptRAGSettings(BaseSettings):
     def llm_api_key(self) -> str | None:
         """Get the LLM API key."""
         return self.llm.api_key
+
+    @property
+    def database_url(self) -> str:
+        """Get the database URL."""
+        return f"sqlite+aiosqlite:///{self.get_database_path()}"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        """Get CORS origins."""
+        return self.api.cors_origins
 
 
 # Global settings instance

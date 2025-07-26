@@ -37,6 +37,15 @@ class SceneOrderType(str, Enum):
     LOGICAL = "logical"  # Logical dependency order
 
 
+class SceneDependencyType(str, Enum):
+    """Types of logical dependencies between scenes."""
+
+    REQUIRES = "requires"  # Scene A requires Scene B to have happened
+    REFERENCES = "references"  # Scene A references events from Scene B
+    CONTINUES = "continues"  # Scene A directly continues from Scene B
+    FLASHBACK_TO = "flashback_to"  # Scene A is a flashback to Scene B
+
+
 class BaseEntity(BaseModel):
     """Base class for all screenplay entities."""
 
@@ -281,6 +290,24 @@ class SceneAtLocation(Relationship):
     relationship_type: Literal["AT_LOCATION"] = "AT_LOCATION"
 
 
+class SceneDependency(BaseEntity):
+    """Represents a logical dependency between scenes."""
+
+    from_scene_id: UUID
+    to_scene_id: UUID
+    dependency_type: SceneDependencyType
+    description: str | None = None
+    strength: float = Field(default=1.0, ge=0.0, le=1.0)  # 0.0 to 1.0
+
+    @field_validator("strength")
+    @classmethod
+    def validate_strength(cls, v: float) -> float:
+        """Validate that strength is between 0 and 1."""
+        if not 0.0 <= v <= 1.0:
+            raise ValueError("Dependency strength must be between 0.0 and 1.0")
+        return v
+
+
 # Export all models
 __all__ = [
     "Action",
@@ -296,6 +323,8 @@ __all__ = [
     "Relationship",
     "Scene",
     "SceneAtLocation",
+    "SceneDependency",
+    "SceneDependencyType",
     "SceneElement",
     "SceneFollows",
     "SceneOrderType",

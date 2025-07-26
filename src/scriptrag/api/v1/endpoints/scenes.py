@@ -1,10 +1,14 @@
 """Scene management CRUD endpoints."""
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from scriptrag.api.db_operations import DatabaseOperations
 from scriptrag.api.v1.schemas import (
     SceneCreateRequest,
+    SceneOrderingRequest,
+    SceneOrderingResponse,
     SceneResponse,
     SceneUpdateRequest,
 )
@@ -219,3 +223,205 @@ async def inject_scene_after(
     except Exception as e:
         logger.error("Failed to inject scene after", scene_id=scene_id, error=str(e))
         raise HTTPException(status_code=500, detail="Failed to inject scene") from e
+
+
+# Scene ordering endpoints
+@router.post("/script/{script_id}/reorder", response_model=SceneOrderingResponse)
+async def reorder_scenes(
+    script_id: str,
+    ordering_request: SceneOrderingRequest,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> SceneOrderingResponse:
+    """Reorder scenes in a script."""
+    try:
+        # Validate script exists
+        script = await db_ops.get_script(script_id)
+        if not script:
+            raise HTTPException(status_code=404, detail="Script not found")
+
+        # Reorder scenes
+        success = await db_ops.reorder_scenes(
+            script_id=script_id,
+            scene_ids=ordering_request.scene_ids,
+            order_type=ordering_request.order_type,
+        )
+
+        if not success:
+            raise HTTPException(status_code=400, detail="Failed to reorder scenes")
+
+        return SceneOrderingResponse(
+            script_id=script_id,
+            order_type=ordering_request.order_type,
+            scene_ids=ordering_request.scene_ids,
+            message=(
+                f"Successfully reordered scenes using "
+                f"{ordering_request.order_type} ordering"
+            ),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to reorder scenes", script_id=script_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to reorder scenes") from e
+
+
+@router.post("/script/{script_id}/infer-temporal-order")
+async def infer_temporal_order(
+    script_id: str,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> dict[str, Any]:
+    """Infer temporal (chronological) order of scenes."""
+    try:
+        # Validate script exists
+        script = await db_ops.get_script(script_id)
+        if not script:
+            raise HTTPException(status_code=404, detail="Script not found")
+
+        # Infer temporal order
+        temporal_order = await db_ops.infer_temporal_order(script_id)
+
+        return {
+            "script_id": script_id,
+            "temporal_order": temporal_order,
+            "scene_count": len(temporal_order),
+            "message": "Successfully inferred temporal order",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to infer temporal order", script_id=script_id, error=str(e)
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to infer temporal order"
+        ) from e
+
+
+@router.post("/script/{script_id}/analyze-dependencies")
+async def analyze_dependencies(
+    script_id: str,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> dict[str, Any]:
+    """Analyze and create logical dependencies between scenes."""
+    try:
+        # Validate script exists
+        script = await db_ops.get_script(script_id)
+        if not script:
+            raise HTTPException(status_code=404, detail="Script not found")
+
+        # Analyze dependencies
+        dependencies = await db_ops.analyze_scene_dependencies(script_id)
+
+        return {
+            "script_id": script_id,
+            "dependencies_created": len(dependencies),
+            "message": "Successfully analyzed scene dependencies",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to analyze dependencies", script_id=script_id, error=str(e)
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to analyze dependencies"
+        ) from e
+
+
+@router.get("/{scene_id}/dependencies")
+async def get_scene_dependencies(
+    scene_id: str,
+    direction: str = "both",
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> dict[str, Any]:
+    """Get dependencies for a specific scene."""
+    try:
+        # Validate scene exists
+        scene = await db_ops.get_scene(scene_id)
+        if not scene:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        # Validate direction parameter
+        if direction not in ["from", "to", "both"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid direction. Must be 'from', 'to', or 'both'",
+            )
+
+        # Get dependencies
+        dependencies = await db_ops.get_scene_dependencies(scene_id, direction)
+
+        return {
+            "scene_id": scene_id,
+            "direction": direction,
+            "dependencies": dependencies,
+            "dependency_count": len(dependencies),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to get scene dependencies", scene_id=scene_id, error=str(e)
+        )
+        raise HTTPException(status_code=500, detail="Failed to get dependencies") from e
+
+
+@router.post("/script/{script_id}/calculate-logical-order")
+async def calculate_logical_order(
+    script_id: str,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> dict[str, Any]:
+    """Calculate logical order based on dependencies."""
+    try:
+        # Validate script exists
+        script = await db_ops.get_script(script_id)
+        if not script:
+            raise HTTPException(status_code=404, detail="Script not found")
+
+        # Calculate logical order
+        logical_order = await db_ops.calculate_logical_order(script_id)
+
+        return {
+            "script_id": script_id,
+            "logical_order": logical_order,
+            "scene_count": len(logical_order),
+            "message": "Successfully calculated logical order",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to calculate logical order", script_id=script_id, error=str(e)
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to calculate logical order"
+        ) from e
+
+
+@router.get("/script/{script_id}/validate-ordering")
+async def validate_ordering(
+    script_id: str,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> dict[str, Any]:
+    """Validate consistency across different ordering systems."""
+    try:
+        # Validate script exists
+        script = await db_ops.get_script(script_id)
+        if not script:
+            raise HTTPException(status_code=404, detail="Script not found")
+
+        # Validate ordering
+        return await db_ops.validate_scene_ordering(script_id)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to validate ordering", script_id=script_id, error=str(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to validate ordering"
+        ) from e

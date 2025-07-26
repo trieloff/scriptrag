@@ -8,7 +8,12 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Usage: usage.md
-  - API Reference: API.md
+  - API Documentation:
+      - Overview: API.md
+      - API Reference: api-reference.md
+      - User Guide: user-guide.md
+      - Developer Guide: developer-guide.md
+      - Architecture: architecture.md
   - Development: development.md
 
 theme:
@@ -60,7 +65,18 @@ markdown_extensions:
       generic: true
   - footnotes
   - pymdownx.details
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.mark
   - attr_list
   - md_in_html
+  - tables
+
+extra_javascript:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.js
+
+extra_css:
+  - https://unpkg.com/mermaid@10/dist/mermaid.min.css

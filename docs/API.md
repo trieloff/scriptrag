@@ -3,6 +3,14 @@
 ScriptRAG provides a comprehensive REST API for integrating screenplay analysis and
 management capabilities into web applications and third-party tools.
 
+## Documentation
+
+- **[API Reference](./api-reference.md)** - Complete endpoint documentation with
+  request/response formats
+- **[User Guide](./user-guide.md)** - Practical guide for scriptwriters using the API
+- **[Developer Guide](./developer-guide.md)** - Integration patterns, code examples, and SDKs
+- **[Architecture](./architecture.md)** - System design and GraphRAG integration details
+
 ## Quick Start
 
 ### Running the API Server
@@ -18,7 +26,8 @@ make run-api-dev
 scriptrag server api --host 0.0.0.0 --port 8000
 ```
 
-The API will be available at `http://localhost:8000` with interactive documentation at `http://localhost:8000/api/v1/docs`.
+The API will be available at `http://localhost:8000` with interactive documentation
+at `http://localhost:8000/api/v1/docs`.
 
 ## API Overview
 
@@ -30,7 +39,8 @@ http://localhost:8000/api/v1
 
 ### Authentication
 
-Currently, the API does not require authentication. Authentication support is planned for a future release.
+Currently, the API does not require authentication. Authentication support is
+planned for a future release.
 
 ### API Endpoints
 

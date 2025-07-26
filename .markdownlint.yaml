@@ -158,7 +158,11 @@ MD040:
     "shell",
     "sh",
     "console",
-    "terminal"
+    "terminal",
+    "mermaid",
+    "typescript",
+    "javascript",
+    "dockerfile"
   ]
 
 # MD041/first-line-heading - First line in file should be a top level heading

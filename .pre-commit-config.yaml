@@ -124,7 +124,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
-        args: ['--skip=*.lock,*.json', '--ignore-words-list=crate,ser,couldnt']
+        args: ['--skip=*.lock,*.json', '--ignore-words-list=crate,ser,couldnt,afterall']
         exclude: '^(poetry\.lock|package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$'
 
   # Check for print statements

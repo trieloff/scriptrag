@@ -69,7 +69,7 @@ lint: ## Run all linters (ruff, mypy, bandit, etc.)
 	@echo "🔍 Running MyPy..."
 	@bash -c 'source .venv/bin/activate && mypy src/'
 	@echo "🔍 Running Bandit security checks..."
-	@bash -c 'source .venv/bin/activate && bandit -r src/ -ll'
+	@bash -c 'source .venv/bin/activate && bandit -r src/ -c pyproject.toml'
 	@echo "🔍 Checking docstring coverage..."
 	@bash -c 'source .venv/bin/activate && interrogate -c pyproject.toml'
 	@echo "🔍 Checking for dead code..."
@@ -82,7 +82,7 @@ type-check: ## Run type checking with mypy
 
 .PHONY: security
 security: ## Run security checks (bandit, safety, pip-audit)
-	@bash -c 'source .venv/bin/activate && bandit -r src/ -f json -o .bandit-report.json'
+	@bash -c 'source .venv/bin/activate && bandit -r src/ -c pyproject.toml -f json -o .bandit-report.json'
 	@bash -c 'source .venv/bin/activate && safety check --json --output .safety-report.json || true'
 	@bash -c 'source .venv/bin/activate && pip-audit || true'
 	@echo "✅ Security scan complete (see .bandit-report.json and .safety-report.json)"

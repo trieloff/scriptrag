@@ -7,13 +7,14 @@ authors = [
 ]
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 keywords = ["screenwriting", "fountain", "graphrag", "llm", "sqlite", "mcp"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -157,7 +158,7 @@ show_missing = true
 skip_covered = false
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py311"
 line-length = 88
 indent-width = 4
 
@@ -217,7 +218,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.11"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -235,7 +236,7 @@ venvPath = "."
 venv = ".venv"
 include = ["src"]
 exclude = ["**/__pycache__", "**/node_modules", ".venv", "build", "dist", "tests"]
-pythonVersion = "3.12"
+pythonVersion = "3.11"
 pythonPlatform = "Darwin"
 typeCheckingMode = "basic"
 reportMissingImports = true
@@ -294,7 +295,7 @@ disable = [
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py312,py313,lint,type,security
+envlist = py311,py312,py313,lint,type,security
 isolated_build = true
 
 [testenv]

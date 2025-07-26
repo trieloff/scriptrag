@@ -9,6 +9,7 @@ This script shows how to:
 5. Query and analyze the resulting graph structure
 """
 
+import argparse
 import asyncio
 import json
 from pathlib import Path
@@ -23,8 +24,12 @@ from scriptrag.llm.client import LLMClient
 from scriptrag.parser import FountainParser
 
 
-async def main() -> None:
-    """Build and analyze a screenplay knowledge graph."""
+async def main(keep_existing: bool = False) -> None:
+    """Build and analyze a screenplay knowledge graph.
+
+    Args:
+        keep_existing: If True, keep existing database instead of starting fresh
+    """
     # Configuration
     db_path = Path("example_knowledge_graph.db")
     fountain_file = Path("examples/data/sample_screenplay.fountain")
@@ -37,8 +42,13 @@ async def main() -> None:
 
     # Initialize database
     print(f"Initializing database at {db_path}")
-    if db_path.exists():
-        db_path.unlink()  # Start fresh
+
+    # Option to start fresh (controlled by parameter)
+    if not keep_existing and db_path.exists():
+        print("Removing existing database to start fresh")
+        db_path.unlink()
+    elif keep_existing and db_path.exists():
+        print("Keeping existing database")
 
     conn = DatabaseConnection(str(db_path))
     initialize_database(str(db_path))
@@ -62,14 +72,27 @@ async def main() -> None:
             print(f"Embedding pipeline not available: {e}")
 
     # Build knowledge graph
-    builder = KnowledgeGraphBuilder(conn, llm_client, embedding_pipeline)
+    # Set limits for enrichment (for demo purposes)
+    builder = KnowledgeGraphBuilder(
+        conn,
+        llm_client,
+        embedding_pipeline,
+        max_scenes_to_enrich=10,  # Limit to first 10 scenes
+        max_characters_to_enrich=5,  # Limit to first 5 characters
+    )
 
     print(f"\nParsing screenplay: {fountain_file}")
     parser = FountainParser()
     script = parser.parse_file(fountain_file)
 
+    # Get the actual Character and Scene objects from the parser
+    characters = parser.get_characters()
+    scenes = parser.get_scenes()
+
     print(f"\nBuilding knowledge graph for: {script.title}")
-    stats = await builder.build_from_script(script, enrich_with_llm=bool(llm_client))
+    stats = await builder.build_from_script(
+        script, enrich_with_llm=bool(llm_client), characters=characters, scenes=scenes
+    )
 
     print("\nGraph Construction Statistics:")
     print(json.dumps(stats, indent=2))
@@ -280,4 +303,14 @@ THE END
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser(
+        description="Build a knowledge graph from a screenplay"
+    )
+    parser.add_argument(
+        "--keep-existing",
+        action="store_true",
+        help="Keep existing database instead of starting fresh",
+    )
+    args = parser.parse_args()
+
+    asyncio.run(main(keep_existing=args.keep_existing))

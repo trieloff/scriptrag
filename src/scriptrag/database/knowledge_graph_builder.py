@@ -45,6 +45,8 @@ class KnowledgeGraphBuilder:
         connection: DatabaseConnection,
         llm_client: LLMClient | None = None,
         embedding_pipeline: EmbeddingPipeline | None = None,
+        max_scenes_to_enrich: int | None = None,
+        max_characters_to_enrich: int | None = None,
     ) -> None:
         """Initialize the knowledge graph builder.
 
@@ -52,6 +54,8 @@ class KnowledgeGraphBuilder:
             connection: Database connection
             llm_client: Optional LLM client for metadata enrichment
             embedding_pipeline: Optional embedding pipeline for semantic enrichment
+            max_scenes_to_enrich: Maximum number of scenes to enrich (None = all)
+            max_characters_to_enrich: Max number of characters to enrich (None = all)
         """
         self.connection = connection
         self.graph_ops = GraphOperations(connection)
@@ -59,19 +63,27 @@ class KnowledgeGraphBuilder:
         self.llm_client = llm_client
         self.embedding_pipeline = embedding_pipeline
         self.logger = logger
+        self.max_scenes_to_enrich = max_scenes_to_enrich
+        self.max_characters_to_enrich = max_characters_to_enrich
 
         # Caches for deduplication
         self._location_nodes: dict[str, str] = {}  # location_str -> node_id
         self._character_nodes: dict[UUID, str] = {}  # character.id -> node_id
 
     async def build_from_script(
-        self, script: Script, enrich_with_llm: bool = True
+        self,
+        script: Script,
+        enrich_with_llm: bool = True,
+        characters: list[Character] | None = None,
+        scenes: list[Scene] | None = None,
     ) -> dict[str, Any]:
         """Build a complete knowledge graph from a Script model.
 
         Args:
             script: Parsed script model
             enrich_with_llm: Whether to enrich with LLM-generated metadata
+            characters: List of Character objects (optional, for when not persisted)
+            scenes: List of Scene objects (optional, for when not persisted)
 
         Returns:
             Dictionary with build statistics and node mappings
@@ -81,6 +93,8 @@ class KnowledgeGraphBuilder:
         # Clear caches for new script
         self._location_nodes.clear()
         self._character_nodes.clear()
+        if hasattr(self, "_character_name_map"):
+            del self._character_name_map
 
         stats: dict[str, Any] = {
             "script_node_id": "",
@@ -98,20 +112,13 @@ class KnowledgeGraphBuilder:
             stats["script_node_id"] = script_node_id
             stats["total_nodes"] += 1
 
-            # Extract entities from the parser
-            parser = FountainParser()
-            characters = list(parser._characters_cache.values())
-            scenes = []
+            # Use provided characters or empty list
+            if characters is None:
+                characters = []
 
-            # Parse scenes from script
-            if script.fountain_source:
-                parsed_script = parser.parse_string(script.fountain_source)
-                scenes = [
-                    scene
-                    for scene_id in parsed_script.scenes
-                    for scene in [self._get_scene_by_id(scene_id, script)]
-                    if scene
-                ]
+            # Use provided scenes or empty list
+            if scenes is None:
+                scenes = []
 
             # Build character nodes
             for character in characters:
@@ -184,15 +191,12 @@ class KnowledgeGraphBuilder:
         """
         parser = FountainParser()
         script = parser.parse_file(file_path)
-        return await self.build_from_script(script, enrich_with_llm)
 
-    def _get_scene_by_id(self, scene_id: UUID, script: Script) -> Scene | None:
-        """Helper to retrieve a scene by ID (mock implementation)."""
-        # In real implementation, this would fetch from database
-        # For now, return None as scenes are embedded in script
-        _ = scene_id  # Unused in mock implementation
-        _ = script  # Unused in mock implementation
-        return None
+        # Get the actual Character and Scene objects from the parser
+        characters = parser.get_characters()
+        scenes = parser.get_scenes()
+
+        return await self.build_from_script(script, enrich_with_llm, characters, scenes)
 
     async def _create_character_node(
         self, character: Character, script_node_id: str
@@ -292,16 +296,30 @@ class KnowledgeGraphBuilder:
         """Extract character mentions from action text."""
         mentioned_ids = set()
 
-        # Simple heuristic: look for character names in uppercase
-        words = action_text.split()
-        for char_id, node_id in self._character_nodes.items():
-            # Get character name from node
-            node = self.graph_ops.graph.get_node(node_id)
-            if node and node.label:
-                char_name = node.label.upper()
-                # Check if character name appears in action
-                if any(char_name in word.upper() for word in words):
-                    mentioned_ids.add(char_id)
+        # Convert action text to uppercase for case-insensitive matching
+        action_upper = action_text.upper()
+
+        # Build a mapping of character names to IDs for faster lookup
+        # Cache this if not already done
+        if not hasattr(self, "_character_name_map"):
+            self._character_name_map = {}
+            for char_id, node_id in self._character_nodes.items():
+                node = self.graph_ops.graph.get_node(node_id)
+                if node and node.label:
+                    char_name = node.label.upper()
+                    self._character_name_map[char_name] = char_id
+
+        # Check each character name in the action text
+        for char_name, char_id in self._character_name_map.items():
+            # Use word boundaries to avoid partial matches
+            # Check if character name appears as a whole word
+            if (
+                f" {char_name} " in f" {action_upper} "
+                or action_upper.startswith(f"{char_name} ")
+                or action_upper.endswith(f" {char_name}")
+                or action_upper == char_name
+            ):
+                mentioned_ids.add(char_id)
 
         return mentioned_ids
 
@@ -351,12 +369,20 @@ class KnowledgeGraphBuilder:
 
         # Enrich scenes with summaries and themes
         scene_tasks = []
-        for scene_node_id in scene_node_ids[:10]:  # Limit to first 10 for demo
+        scenes_to_enrich = scene_node_ids
+        if self.max_scenes_to_enrich is not None:
+            scenes_to_enrich = scene_node_ids[: self.max_scenes_to_enrich]
+
+        for scene_node_id in scenes_to_enrich:
             scene_tasks.append(self._enrich_scene_node(scene_node_id))
 
         # Enrich characters with descriptions
         character_tasks = []
-        for char_node_id in character_node_ids[:5]:  # Limit to first 5 for demo
+        characters_to_enrich = character_node_ids
+        if self.max_characters_to_enrich is not None:
+            characters_to_enrich = character_node_ids[: self.max_characters_to_enrich]
+
+        for char_node_id in characters_to_enrich:
             character_tasks.append(self._enrich_character_node(char_node_id))
 
         # Run enrichment tasks concurrently
@@ -376,6 +402,9 @@ class KnowledgeGraphBuilder:
             if not scene_text:
                 return
 
+            # Sanitize scene text to prevent prompt injection
+            scene_text_sanitized = self._sanitize_for_prompt(scene_text[:1000])
+
             # Generate scene summary and themes
             prompt = f"""Analyze this screenplay scene and provide:
 1. A brief one-sentence summary
@@ -383,7 +412,7 @@ class KnowledgeGraphBuilder:
 3. The emotional tone
 
 Scene:
-{scene_text[:1000]}  # Limit context length
+{scene_text_sanitized}
 
 Respond in this format:
 Summary: [one sentence]
@@ -435,12 +464,16 @@ Tone: [emotional tone]"""
                 node.label, scenes[:3]
             )
 
+            # Sanitize inputs to prevent prompt injection
+            char_name_sanitized = self._sanitize_for_prompt(node.label)
+            dialogue_sanitized = self._sanitize_for_prompt(dialogue_samples[:500])
+
             prompt = f"""Analyze this character from a screenplay:
-Character: {node.label}
+Character: {char_name_sanitized}
 Appears in {len(scenes)} scenes
 
 Sample dialogue:
-{dialogue_samples[:500]}
+{dialogue_sanitized}
 
 Provide:
 1. A brief character description (personality/role)
@@ -523,9 +556,17 @@ Arc: [potential character development]"""
                 properties = char_node.properties
                 description = properties.get("description", "")
                 motivation = properties.get("motivation", "")
-                content = f"{char_node.label}: {description} {motivation}".strip()
 
-                if content:
+                # Build content parts, filtering out empty strings
+                content_parts = [char_node.label]
+                if description:
+                    content_parts.append(description)
+                if motivation:
+                    content_parts.append(motivation)
+
+                content = " - ".join(content_parts)
+
+                if content and content != char_node.label:
                     await self.embedding_pipeline.process_character(
                         char_node.entity_id, force_refresh=False
                     )
@@ -636,3 +677,42 @@ Arc: [potential character development]"""
                     break  # Only one dependency per scene for now
 
         return dependencies
+
+    def _sanitize_for_prompt(self, text: str) -> str:
+        """Sanitize text to prevent prompt injection attacks.
+
+        Args:
+            text: Text to sanitize
+
+        Returns:
+            Sanitized text safe for inclusion in prompts
+        """
+        if not text:
+            return ""
+
+        # Remove potential prompt injection patterns
+        # Replace special characters that could be used for injection
+        sanitized = text.replace("\\", "\\\\")  # Escape backslashes
+        sanitized = sanitized.replace('"', "'")  # Replace double quotes with single
+        sanitized = sanitized.replace("\n\n\n", "\n\n")  # Limit multiple newlines
+
+        # Remove potential instruction markers
+        injection_patterns = [
+            "ignore previous instructions",
+            "disregard above",
+            "forget everything",
+            "new instructions:",
+            "system:",
+            "assistant:",
+            "user:",
+        ]
+
+        lower_text = sanitized.lower()
+        for pattern in injection_patterns:
+            if pattern in lower_text:
+                # Replace the pattern with a safe version
+                sanitized = sanitized.replace(pattern, f"[{pattern}]")
+                sanitized = sanitized.replace(pattern.upper(), f"[{pattern.upper()}]")
+                sanitized = sanitized.replace(pattern.title(), f"[{pattern.title()}]")
+
+        return sanitized.strip()

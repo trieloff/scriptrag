@@ -8,8 +8,7 @@ default: true
 MD001: true
 
 # MD003/heading-style - Heading style
-MD003:
-  style: "atx"  # Use # style headings
+MD003: false  # Disabled due to false positives with YAML frontmatter
 
 # MD004/ul-style - Unordered list style
 MD004:
@@ -165,7 +164,7 @@ MD040:
 # MD041/first-line-heading - First line in file should be a top level heading
 MD041:
   level: 1
-  front_matter_title: "^\\s*title\\s*[:=]"
+  front_matter_title: "^\\s*(title|name)\\s*[:=]"
 
 # MD042/no-empty-links - No empty links
 MD042: true

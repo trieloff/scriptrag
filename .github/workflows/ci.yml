@@ -36,8 +36,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+          enable-cache: false
 
       - name: Create virtual environment
         run: uv venv
@@ -87,8 +86,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+          enable-cache: false
 
       - name: Create virtual environment
         run: uv venv
@@ -118,8 +116,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+          enable-cache: false
 
       - name: Create virtual environment
         run: uv venv
@@ -185,8 +182,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+          enable-cache: false
 
       - name: Create virtual environment
         run: uv venv
@@ -242,8 +238,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+          enable-cache: false
 
       - name: Create virtual environment
         run: uv venv
@@ -279,8 +274,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+          enable-cache: false
 
       - name: Install build dependencies
         run: |
@@ -347,8 +341,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: true
-          cache-dependency-glob: uv.lock
+          enable-cache: false
 
       - name: Create virtual environment
         run: uv venv

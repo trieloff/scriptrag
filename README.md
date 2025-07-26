@@ -191,15 +191,15 @@ Generation) pattern.
 
 ### Phase 7: API and Interface
 
-- [ ] **7.1 REST API**
-  - [ ] Design OpenAPI specification
-  - [ ] Implement FastAPI backend
-  - [ ] Create endpoints for:
-    - [ ] Script upload/parsing
-    - [ ] Search operations
-    - [ ] Scene management
-    - [ ] Graph visualization
-    - [ ] Export functionality
+- [x] **7.1 REST API** *(5/5 complete)*
+  - [x] Design OpenAPI specification
+  - [x] Implement FastAPI backend
+  - [x] Create endpoints for:
+    - [x] Script upload/parsing
+    - [x] Search operations
+    - [x] Scene management
+    - [x] Graph visualization
+    - [x] Export functionality
 
 - [x] **7.2 CLI Interface** *(4/4 complete)*
   - [x] Create command-line tool using Click/Typer

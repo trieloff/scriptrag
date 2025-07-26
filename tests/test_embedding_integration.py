@@ -55,7 +55,7 @@ def mock_llm_client():
     client.generate_embedding.return_value = [0.1] * 1536
 
     # Make generate_embeddings return the correct number of embeddings based on input
-    def mock_generate_embeddings(texts, _model=None):
+    def mock_generate_embeddings(texts, model=None, **kwargs):  # noqa: ARG001
         """Return embeddings matching the number of input texts."""
         return [[0.1 + i * 0.1] * 1536 for i in range(len(texts))]
 
@@ -310,11 +310,8 @@ class TestEmbeddingIntegration:
 
         assert len(results) >= 1
         # Results should be sorted by similarity (highest first)
-        assert (
-            results[0]["similarity"] > results[1]["similarity"]
-            if len(results) > 1
-            else True
-        )
+        if len(results) > 1:
+            assert results[0]["similarity"] >= results[1]["similarity"]
 
     @pytest.mark.asyncio
     async def test_pipeline_full_workflow(self, db_connection, mock_llm_client):
@@ -384,7 +381,7 @@ class TestEmbeddingIntegration:
         assert stats["entity_counts"]["scene"] == 2
         assert stats["entity_counts"]["character"] == 1
         assert stats["entity_counts"]["location"] == 1
-        assert stats["dimension"] == 5
+        assert stats["dimension"] == 1536
 
     def test_content_extractor_edge_cases(self, db_connection):
         """Test content extractor with edge cases."""

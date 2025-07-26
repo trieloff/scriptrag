@@ -9,7 +9,7 @@ provides efficient SIMD-accelerated vector operations.
 """
 
 import json
-from typing import Any, cast
+from typing import Any, TypeAlias, cast
 
 import numpy as np
 import sqlite_vec
@@ -19,8 +19,8 @@ from scriptrag.config import get_logger
 logger = get_logger(__name__)
 
 # Vector types supported by sqlite-vec
-type VectorType = list[float] | np.ndarray | bytes
-DistanceMetric = str  # 'cosine', 'l2', 'l1', 'hamming'
+VectorType: TypeAlias = list[float] | np.ndarray | bytes
+DistanceMetric: TypeAlias = str  # 'cosine', 'l2', 'l1', 'hamming'
 
 
 class VectorError(Exception):

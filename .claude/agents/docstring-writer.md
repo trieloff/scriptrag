@@ -1,6 +1,6 @@
 ---
 name: docstring-writer
-description: Expert documentation specialist for adding comprehensive Google-style docstrings
+description: Expert documentation specialist for adding comprehensive Google-style docstrings - use PROACTIVELY when writing new functions or when existing code lacks proper documentation
 tools: Read, Grep, Glob, Edit, MultiEdit
 ---
 

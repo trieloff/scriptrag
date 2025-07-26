@@ -1,6 +1,6 @@
 ---
 name: test-fixer
-description: Expert test debugging specialist for fixing pytest failures and test issues
+description: Expert test debugging specialist for fixing pytest failures and test issues - use PROACTIVELY when `make test` fails or pytest errors occur
 tools: Read, Grep, Glob, Edit, MultiEdit, Bash, NotebookRead, NotebookEdit
 ---
 

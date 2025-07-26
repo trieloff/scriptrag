@@ -1,6 +1,6 @@
 ---
 name: mypy-fixer
-description: Expert type checking specialist for fixing mypy type annotation issues
+description: Expert type checking specialist for fixing mypy type annotation issues - MUST BE USED PROACTIVELY when `make type-check` or mypy validation fails
 tools: Read, Grep, Glob, Edit, MultiEdit, Bash
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: commit-crafter
-description: Expert commit message writer specializing in movie quote commit messages per ScriptRAG conventions
+description: Expert commit message writer specializing in movie quote commit messages per ScriptRAG conventions - MUST BE USED PROACTIVELY for ALL commit message creation
 tools: Read, Grep, Glob, Bash
 ---
 

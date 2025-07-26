@@ -1,6 +1,6 @@
 ---
 name: ruff-fixer
-description: Expert Python linting specialist for fixing Ruff code quality issues
+description: Expert Python linting specialist for fixing Ruff code quality issues - MUST BE USED PROACTIVELY when `make lint` or ruff checks fail
 tools: Read, Grep, Glob, Edit, MultiEdit, Bash
 ---
 

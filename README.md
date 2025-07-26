@@ -198,41 +198,125 @@ Generation) pattern.
   - [ ] Write MCP client examples
   - [ ] Integration with Claude and other MCP-compatible assistants
 
-### Phase 8: Testing and Optimization
+### Phase 8: Pluggable Mentors System 🎭
 
-- [ ] **8.1 Testing Suite**
+- [ ] **8.1 Mentor Infrastructure**
+  - [ ] Mentor base classes and interfaces
+  - [ ] Mentor registry and discovery system
+  - [ ] Database schema extensions for mentor results
+  - [ ] Mentor file format parsing and validation
+
+- [ ] **8.2 Built-in Mentors**
+  - [ ] Save the Cat mentor implementation
+  - [ ] Hero's Journey mentor implementation
+  - [ ] Three-Act structure mentor
+  - [ ] Character Arc analysis mentor
+
+- [ ] **8.3 Mentor Execution System**
+  - [ ] CLI commands for mentor management
+  - [ ] LLM integration for mentor analysis
+  - [ ] Automated trigger system (script updates, manual requests)
+  - [ ] Mentor result storage and history tracking
+
+- [ ] **8.4 Advanced Mentor Features**
+  - [ ] Custom mentor installation system
+  - [ ] Mentor result visualization and trends
+  - [ ] Collaborative mentor sharing
+  - [ ] MCP server integration for mentors
+
+### Phase 9: Testing and Optimization
+
+- [ ] **9.1 Testing Suite**
   - [ ] Unit tests for all components
   - [ ] Integration tests for GraphRAG pipeline
   - [ ] Performance benchmarks
   - [ ] Test data generation (sample screenplays)
   - [ ] End-to-end testing scenarios
 
-- [ ] **8.2 Performance Optimization**
+- [ ] **9.2 Performance Optimization**
   - [ ] Query optimization for graph traversals
   - [ ] Embedding cache optimization
   - [ ] Async processing for LLM calls
   - [ ] Database indexing strategy
   - [ ] Memory usage profiling
 
-### Phase 9: Documentation and Deployment
+### Phase 10: Documentation and Deployment
 
-- [ ] **9.1 Documentation**
+- [ ] **10.1 Documentation**
   - [ ] API documentation
   - [ ] User guide for scriptwriters
   - [ ] Developer documentation
   - [ ] Example notebooks/tutorials
   - [ ] Architecture diagrams
 
-- [ ] **9.2 Deployment**
+- [ ] **10.2 Deployment**
   - [ ] Create Docker containerization
   - [ ] Write deployment scripts
   - [ ] Create backup/restore procedures
   - [ ] Performance monitoring setup
   - [ ] Create installation guide
 
-### Phase 10: Script Bible and Continuity Management
+### Phase 8: Pluggable Mentors System 🎭
 
-- [ ] **10.1 Script Bible Foundation**
+- [ ] **8.1 Mentor Infrastructure**
+  - [ ] Mentor base classes and interfaces
+  - [ ] Mentor registry and discovery system
+  - [ ] Database schema extensions for mentor results
+  - [ ] Mentor file format parsing and validation
+
+- [ ] **8.2 Built-in Mentors**
+  - [ ] Save the Cat mentor implementation
+  - [ ] Hero's Journey mentor implementation
+  - [ ] Three-Act structure mentor
+  - [ ] Character Arc analysis mentor
+
+- [ ] **8.3 Mentor Execution System**
+  - [ ] CLI commands for mentor management
+  - [ ] LLM integration for mentor analysis
+  - [ ] Automated trigger system (script updates, manual requests)
+  - [ ] Mentor result storage and history tracking
+
+- [ ] **8.4 Advanced Mentor Features**
+  - [ ] Custom mentor installation system
+  - [ ] Mentor result visualization and trends
+  - [ ] Collaborative mentor sharing
+  - [ ] MCP server integration for mentors
+
+### Phase 9: Testing and Optimization
+
+- [ ] **9.1 Testing Suite**
+  - [ ] Unit tests for all components
+  - [ ] Integration tests for GraphRAG pipeline
+  - [ ] Performance benchmarks
+  - [ ] Test data generation (sample screenplays)
+  - [ ] End-to-end testing scenarios
+
+- [ ] **9.2 Performance Optimization**
+  - [ ] Query optimization for graph traversals
+  - [ ] Embedding cache optimization
+  - [ ] Async processing for LLM calls
+  - [ ] Database indexing strategy
+  - [ ] Memory usage profiling
+
+### Phase 10: Documentation and Deployment
+
+- [ ] **10.1 Documentation**
+  - [ ] API documentation
+  - [ ] User guide for scriptwriters
+  - [ ] Developer documentation
+  - [ ] Example notebooks/tutorials
+  - [ ] Architecture diagrams
+
+- [ ] **10.2 Deployment**
+  - [ ] Create Docker containerization
+  - [ ] Write deployment scripts
+  - [ ] Create backup/restore procedures
+  - [ ] Performance monitoring setup
+  - [ ] Create installation guide
+
+### Phase 11: Script Bible and Continuity Management
+
+- [ ] **11.1 Script Bible Foundation**
   - [ ] Design script bible data models:
     - [ ] Series/show overview and premise
     - [ ] Character development arcs and progression
@@ -249,7 +333,7 @@ Generation) pattern.
   - [ ] Implement script bible CRUD operations
   - [ ] Add script bible versioning and change tracking
 
-- [ ] **10.2 Character Development System**
+- [ ] **11.2 Character Development System**
   - [ ] Enhanced character models:
     - [ ] Detailed backstory and history
     - [ ] Personality traits and psychological profiles
@@ -269,7 +353,7 @@ Generation) pattern.
     - [ ] Knowledge progression validation
     - [ ] Character arc coherence analysis
 
-- [ ] **10.3 World-Building and Lore Management**
+- [ ] **11.3 World-Building and Lore Management**
   - [ ] World element models:
     - [ ] Location hierarchies and spatial relationships
     - [ ] Cultural and social structure documentation
@@ -287,7 +371,7 @@ Generation) pattern.
     - [ ] Timeline consistency analysis
     - [ ] Cultural element coherence
 
-- [ ] **10.4 Timeline and Continuity System**
+- [ ] **11.4 Timeline and Continuity System**
   - [ ] Enhanced timeline management:
     - [ ] Chronological event ordering
     - [ ] Flashback/flash-forward documentation
@@ -306,7 +390,7 @@ Generation) pattern.
     - [ ] Continuity error identification
     - [ ] Plot hole detection and reporting
 
-- [ ] **10.5 Script Bible Interface and Tools**
+- [ ] **11.5 Script Bible Interface and Tools**
   - [ ] CLI commands for script bible management:
     - [ ] Create and initialize script bible
     - [ ] Add/edit character profiles and arcs
@@ -324,7 +408,7 @@ Generation) pattern.
     - [ ] Timeline visualization
     - [ ] World map and location guides
 
-- [ ] **10.6 Advanced Continuity Features**
+- [ ] **11.6 Advanced Continuity Features**
   - [ ] Cross-episode analysis:
     - [ ] Character arc progression validation
     - [ ] Relationship development consistency
@@ -341,15 +425,15 @@ Generation) pattern.
     - [ ] Writer room integration features
     - [ ] Producer oversight and approval
 
-### Phase 11: Advanced Features (Future)
+### Phase 12: Advanced Features (Future)
 
-- [ ] **11.1 Collaborative Features**
+- [ ] **12.1 Collaborative Features**
   - [ ] Multi-user support
   - [ ] Version control for scripts
   - [ ] Merge conflict resolution
   - [ ] Real-time collaboration
 
-- [ ] **11.2 AI-Assisted Writing**
+- [ ] **12.2 AI-Assisted Writing**
   - [ ] Scene generation suggestions
   - [ ] Dialogue improvement
   - [ ] Plot consistency checking

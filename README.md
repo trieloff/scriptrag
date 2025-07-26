@@ -124,6 +124,16 @@ Generation) pattern.
   - [x] Build temporal graph layer
   - [x] Create logical dependency graph
 
+- [x] **4.1.1 PR #17 Feedback Resolution** *(7/7 complete)*
+  - [x] Make demo limits configurable in build_knowledge_graph.py example
+    (--max-scenes, --max-characters CLI args)
+  - [x] Complete mock implementation of _get_character_dialogue_samples with proper dialogue extraction
+  - [x] Add confirmation for file deletion in example script (--force-delete bypass option)
+  - [x] Optimize character mentions extraction with regex patterns and caching
+  - [x] Fix all linting issues (line length, whitespace, code style)
+  - [x] Maintain test coverage (all 151 tests passing)
+  - [x] Pass type checking with no mypy issues
+
 - [x] **4.2 Graph Indexing** *(5/5 complete)*
   - [x] Implement hierarchical indexing (show → season → episode → scene)
   - [x] Create character relationship graphs

@@ -372,3 +372,14 @@ jobs:
           else
             echo "All jobs passed successfully"
           fi
+
+  vibe-badge:
+    name: Generate Vibe Badge
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Vibe Badge
+        uses: trieloff/vibe-coded-badge-action@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}

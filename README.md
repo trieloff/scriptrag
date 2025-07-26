@@ -1,5 +1,7 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
+![Vibe](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Ftrieloff%2Fscriptrag2%2Fmain%2Fvibe.json&query=%24.vibe&style=for-the-badge&logo=github&label=Vibe&color=ff69b4)
+
 ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
 Generation) pattern.

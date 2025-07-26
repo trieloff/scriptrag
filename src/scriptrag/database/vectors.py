@@ -394,13 +394,19 @@ class VectorOperations:
             return vector
 
         if vector_type == "float32":
-            return cast(bytes, vector.astype(np.float32).tobytes())
+            # Type annotation: tobytes() returns bytes
+            result: bytes = vector.astype(np.float32).tobytes()
+            return result
         if vector_type == "int8":
-            return cast(bytes, vector.astype(np.int8).tobytes())
+            # Type annotation: tobytes() returns bytes
+            int8_result: bytes = vector.astype(np.int8).tobytes()
+            return int8_result
         if vector_type == "bit":
             # Convert to binary vector (0/1 values)
             binary_vector = (vector > 0).astype(np.uint8)
-            return cast(bytes, np.packbits(binary_vector).tobytes())
+            # Type annotation: packbits().tobytes() returns bytes
+            bit_result: bytes = np.packbits(binary_vector).tobytes()
+            return bit_result
         raise VectorError(f"Unsupported vector type: {vector_type}")
 
     def _convert_from_blob(

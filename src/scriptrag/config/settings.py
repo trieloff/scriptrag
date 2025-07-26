@@ -107,14 +107,16 @@ class LLMSettings(BaseSettings):
     )
 
     @field_validator("temperature")
-    def validate_temperature(cls: type["LLMSettings"], v: float) -> float:
+    @classmethod
+    def validate_temperature(cls, v: float) -> float:
         """Validate temperature is within valid range (0.0-2.0)."""
         if not 0.0 <= v <= 2.0:
             raise ValueError("Temperature must be between 0.0 and 2.0")
         return v
 
     @field_validator("top_p")
-    def validate_top_p(cls: type["LLMSettings"], v: float) -> float:
+    @classmethod
+    def validate_top_p(cls, v: float) -> float:
         """Validate top-p is within valid range (0.0-1.0)."""
         if not 0.0 <= v <= 1.0:
             raise ValueError("Top-p must be between 0.0 and 1.0")
@@ -163,7 +165,8 @@ class LoggingSettings(BaseSettings):
     httpx_level: str = Field(default="WARNING", description="Log level for HTTPX")
 
     @field_validator("level", "sqlalchemy_level", "httpx_level")
-    def validate_log_level(cls: type["LoggingSettings"], v: str) -> str:
+    @classmethod
+    def validate_log_level(cls, v: str) -> str:
         """Validate log level is one of the standard logging levels."""
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if v.upper() not in valid_levels:
@@ -324,7 +327,8 @@ class ScriptRAGSettings(BaseSettings):
     paths: PathSettings = Field(default_factory=PathSettings)
 
     @field_validator("environment")
-    def validate_environment(cls: type["ScriptRAGSettings"], v: str) -> str:
+    @classmethod
+    def validate_environment(cls, v: str) -> str:
         """Validate environment is one of the supported environments."""
         valid_envs = ["development", "testing", "production"]
         if v not in valid_envs:
@@ -388,6 +392,16 @@ class ScriptRAGSettings(BaseSettings):
         if self.database.path.is_absolute():
             return self.database.path
         return self.paths.data_dir / self.database.path.name
+
+    @property
+    def llm_endpoint(self) -> str:
+        """Get the LLM endpoint URL."""
+        return self.llm.endpoint
+
+    @property
+    def llm_api_key(self) -> str | None:
+        """Get the LLM API key."""
+        return self.llm.api_key
 
 
 # Global settings instance

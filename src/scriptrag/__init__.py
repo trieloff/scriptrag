@@ -17,6 +17,10 @@ from .config import (
     setup_logging_for_environment,
 )
 
+# LLM imports
+from .llm import LLMClient as ActualLLMClient
+from .llm import create_llm_client
+
 __version__ = "0.1.0"
 __author__ = "Your Name"
 __email__ = "your.email@example.com"
@@ -30,6 +34,7 @@ __all__ = [
     "ScriptRAG",
     "ScriptRAGSettings",
     "__version__",
+    "create_llm_client",
     "get_settings",
     "load_settings",
     "setup_logging_for_environment",
@@ -88,7 +93,7 @@ class ScriptRAG:
         # TODO: Initialize components
         self._fountain_parser: FountainParser | None = None
         self._graph_db: GraphDatabase | None = None
-        self._llm_client: LLMClient | None = None
+        self._llm_client: ActualLLMClient | None = None
 
     def parse_fountain(self, path: str) -> None:
         """Parse a screenplay in Fountain format."""
@@ -128,10 +133,10 @@ class ScriptRAG:
         return self._graph_db
 
     @property
-    def llm_client(self) -> "LLMClient":
+    def llm_client(self) -> ActualLLMClient:
         """Get the LLM client instance."""
         if self._llm_client is None:
-            self._llm_client = LLMClient(self.config)
+            self._llm_client = create_llm_client()
         if self._llm_client is None:
             raise RuntimeError("Failed to initialize LLM client")
         return self._llm_client
@@ -155,10 +160,5 @@ class GraphDatabase:
         self.logger = get_logger(__name__)
 
 
-class LLMClient:
-    """LLM client interface placeholder."""
-
-    def __init__(self, config: ScriptRAGSettings) -> None:
-        """Initialize LLM client with configuration."""
-        self.config = config
-        self.logger = get_logger(__name__)
+# Alias for backward compatibility
+LLMClient = ActualLLMClient

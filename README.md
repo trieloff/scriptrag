@@ -82,14 +82,14 @@ Generation) pattern.
 
 ### Phase 3: LLM Integration
 
-- [ ] **3.1 LMStudio Client**
-  - [ ] Create OpenAI-compatible API client for <http://localhost:1234/v1>
-  - [ ] Implement model listing and selection
-  - [ ] Create abstraction layer for:
-    - [ ] Text generation
-    - [ ] Embeddings generation
-  - [ ] Add retry logic and error handling
-  - [ ] Implement response caching
+- [x] **3.1 LMStudio Client** *(5/5 complete)*
+  - [x] Create OpenAI-compatible API client for any OpenAI-compatible endpoint
+  - [x] Implement model listing and selection
+  - [x] Create abstraction layer for:
+    - [x] Text generation (with reasoning model support)
+    - [x] Embeddings generation
+  - [x] Add retry logic and error handling
+  - [x] Implement factory functions and configuration integration
 
 - [ ] **3.2 Embedding Pipeline**
   - [ ] Design embedding strategy for screenplay elements

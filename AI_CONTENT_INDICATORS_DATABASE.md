@@ -11,9 +11,10 @@ This database compiles comprehensive research on stylistic elements, sentence pa
 3. [Punctuation and Formatting Patterns](#punctuation-and-formatting-patterns)
 4. [Figures of Speech and Metaphors](#figures-of-speech-and-metaphors)
 5. [Sentence Structure Patterns](#sentence-structure-patterns)
-6. [Domain-Specific Indicators](#domain-specific-indicators)
-7. [Detection Statistics](#detection-statistics)
-8. [Avoiding AI Patterns](#avoiding-ai-patterns)
+6. [Document Structure Patterns](#document-structure-patterns)
+7. [Domain-Specific Indicators](#domain-specific-indicators)
+8. [Detection Statistics](#detection-statistics)
+9. [Avoiding AI Patterns](#avoiding-ai-patterns)
 
 ---
 
@@ -253,6 +254,119 @@ This database compiles comprehensive research on stylistic elements, sentence pa
 
 ---
 
+## Document Structure Patterns
+
+### The "Introduction-Bullet Points-Conclusion" Formula
+
+AI-generated content follows a predictable three-part structure:
+
+1. **Introduction Phase**
+   - Generic opening statements
+   - "In this article, we'll explore..."
+   - Overview of what's to come
+   - Often includes "comprehensive guide" language
+
+2. **Body with Excessive Lists**
+   - Heavy reliance on bullet points
+   - Numbered lists for everything
+   - Subheadings for each minor point
+   - Over-segmentation of content
+
+3. **Persistent Desire to Conclude**
+   - Multiple concluding statements
+   - "In conclusion" / "To sum up" / "In summary"
+   - Redundant wrap-up paragraphs
+   - Future-looking statements: "As I progress in my journey..."
+
+### Structural Red Flags
+
+#### 1. **Compulsive List-Making**
+
+- "Completely impossible to stop ChatGPT from writing every line into its own item"
+- Every sentence becomes a new list item
+- Excessive verbosity through list expansion
+- Lists used even for simple explanations
+
+#### 2. **Traditional Essay Format**
+
+- Rigid adherence to intro-body-conclusion
+- Clear topic sentences for each paragraph
+- Predictable transitions between sections
+- Academic structure in casual contexts
+
+#### 3. **Over-Structuring**
+
+- Excessive subheadings and segmentation
+- Content broken into lists even when unnecessary
+- Bold keywords at start of each point
+- Numbered sections for simple topics
+
+### Emoji Patterns in Headlines
+
+#### Common AI Emoji Usage
+
+- **Beginning-Title-End Format**: 🚀 Your Guide to Success 🎯
+- **Excessive enthusiasm**: 🔥💡✅🚀🎉
+- **Professional content with childish emojis**
+- **LinkedIn post pattern**: Emoji + Enthusiastic Title + Emoji
+
+#### Emoji Red Flags
+
+- Random placement without contextual relevance
+- Overuse making content feel "dumbed down"
+- Professional topics with playful emojis
+- Multiple emojis in single headline
+
+### The Conclusion Obsession
+
+AI models exhibit a compulsive need to conclude:
+
+1. **Multiple Conclusion Attempts**
+   - Several different ways to wrap up
+   - Redundant summarizing statements
+   - "Preachy" endings with advice
+
+2. **Common Conclusion Patterns**
+   - "Remember, when doing X it's always important to consider Y"
+   - "Have fun and good luck!"
+   - "As we move forward..."
+   - "The journey continues..."
+
+3. **Why AI Over-Concludes**
+   - Trained on academic writing
+   - Probability-based predictions favor common endings
+   - Traditional essay structure in training data
+
+### Other Document-Level Patterns
+
+#### 1. **Tricolon Structure**
+
+- Groups of three for emphasis
+- "Research, collaboration, and problem-solving"
+- Rhythmic repetition in threes
+
+#### 2. **Predictable Flow**
+
+- Question → Answer → Example
+- Problem → Solution → Benefits
+- Overview → Details → Summary
+
+#### 3. **Markdown Formatting Overuse**
+
+- Headers for every section
+- Bold text for emphasis
+- Indented lists within lists
+- Code blocks for non-code content
+
+#### 4. **Length Padding**
+
+- Unnecessary elaboration
+- Repetitive rephrasing
+- Multiple examples for simple concepts
+- Verbose explanations of obvious points
+
+---
+
 ## Domain-Specific Indicators
 
 ### Academic Writing
@@ -296,6 +410,8 @@ This database compiles comprehensive research on stylistic elements, sentence pa
    - At least 10% of 2024 academic abstracts showed LLM processing
    - ~20% of bug report submissions in 2025 were AI-generated
    - Valid vulnerability report rate decreased from previous years
+   - 54.5% of readers report decreased trust in publications using clickbait
+   - AI-generated informative headlines viewed as more trustworthy than clickbait
 
 3. **Word Usage Increases:**
    - "Delve": 25x increase
@@ -337,6 +453,10 @@ This database compiles comprehensive research on stylistic elements, sentence pa
    - "Write in a conversational tone"
    - "Vary sentence structure"
    - "Avoid parallel constructions"
+   - "Don't use introduction-bullets-conclusion format"
+   - "Minimize use of lists and bullet points"
+   - "Avoid multiple concluding statements"
+   - "No emojis in professional headlines"
 
 2. **Prompt Engineering**
    - Provide writing samples
@@ -361,6 +481,11 @@ This database compiles comprehensive research on stylistic elements, sentence pa
 3. **Formal, academic tone** in inappropriate contexts suggests AI
 4. **Overuse of metaphors** like "tapestry" and "symphony" are red flags
 5. **Excessive structure** (lists, colons, bold text) indicates AI formatting
+6. **Introduction-bullets-conclusion formula** is a hallmark of AI writing
+7. **Persistent desire to conclude** with multiple wrap-up statements
+8. **Emoji patterns in headlines** (emoji-title-emoji format)
+9. **Compulsive list-making** even for simple explanations
+10. **Tricolon structure** and groups of three for emphasis
 
 ### Important Caveats
 

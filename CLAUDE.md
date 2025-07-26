@@ -56,10 +56,31 @@ Before writing any code, Claude must:
 ### **Development Workflow**
 
 1. **Plan Implementation** - Create clear, actionable todos using TodoWrite
-2. **Write Code** - Follow coding standards below
+2. **Write Code** - Follow coding standards below (auto-formatting hooks active)
 3. **Test Thoroughly** - Write/update tests for all changes
 4. **Quality Check** - Run linting and type checking
 5. **Commit Properly** - Follow the movie quote commit convention
+
+### **Auto-Formatting Hooks**
+
+This project includes Claude Code hooks that automatically format code when
+files are modified. The hooks are configured in `.claude/config.json` and run
+after Write/Edit/MultiEdit operations:
+
+- **Python files**: Automatically formatted with Black and Ruff
+- **Markdown files**: Fixed with markdownlint
+- **JSON/YAML files**: Formatted and validated
+- **All files**: Trailing whitespace removed, proper line endings ensured
+
+**Hook Scripts**:
+
+- `.claude/hooks/auto-format.sh` - Comprehensive formatting for all file types
+- `.claude/hooks/format-python.sh` - Fast Python-only formatting
+
+**Configuration Options**:
+
+- `.claude/config.json` - Full auto-formatting (default)
+- `.claude/config-python-only.json` - Python-only formatting (faster)
 
 ## 🧑‍💻 Coding Standards
 
@@ -494,6 +515,10 @@ make parse-fountain FILE=script.fountain  # Parse fountain file
 make db-init           # Initialize database
 make run               # Run CLI application
 make run-mcp          # Run MCP server
+
+# Claude Code Hooks (manual testing)
+.claude/hooks/auto-format.sh              # Test comprehensive auto-formatting
+.claude/hooks/format-python.sh FILE.py    # Test Python-only formatting
 ```
 
 ## 📚 Learning Resources

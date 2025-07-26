@@ -498,13 +498,45 @@ class EmbeddingPipeline:
         Returns:
             Number of embeddings removed
         """
-        # Placeholder implementation
-        logger.info(
-            "Cleanup embeddings (placeholder)",
-            entity_type=entity_type,
-            older_than_days=older_than_days,
-        )
-        return 0
+        try:
+            where_conditions = []
+            params = []
+
+            # Add entity type filter if specified
+            if entity_type:
+                where_conditions.append("entity_type = ?")
+                params.append(entity_type)
+
+            # Add age filter if specified
+            if older_than_days:
+                where_conditions.append("created_at < datetime('now', '-{} days')".format(older_than_days))
+
+            # Build the WHERE clause
+            where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+
+            with self.connection.transaction() as conn:
+                cursor = conn.execute(
+                    f"DELETE FROM embeddings WHERE {where_clause}",
+                    params,
+                )
+                deleted_count = cursor.rowcount
+
+            logger.info(
+                "Cleanup embeddings completed",
+                entity_type=entity_type,
+                older_than_days=older_than_days,
+                deleted_count=deleted_count,
+            )
+            return deleted_count
+
+        except Exception as e:
+            logger.error(
+                "Failed to cleanup embeddings",
+                entity_type=entity_type,
+                older_than_days=older_than_days,
+                error=str(e),
+            )
+            raise
 
     async def close(self) -> None:
         """Close the pipeline and cleanup resources."""

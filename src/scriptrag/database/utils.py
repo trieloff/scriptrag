@@ -72,11 +72,19 @@ class DatabaseStats:
         stats["row_count"] = cursor.fetchone()["count"]
 
         # Table size (approximate)
-        cursor = conn.execute(
-            f"SELECT SUM(pgsize) as size FROM dbstat WHERE name='{table}'"
-        )
-        result = cursor.fetchone()
-        stats["size_bytes"] = result["size"] if result["size"] else 0
+        try:
+            cursor = conn.execute(
+                f"SELECT SUM(pgsize) as size FROM dbstat WHERE name='{table}'"
+            )
+            result = cursor.fetchone()
+            stats["size_bytes"] = result["size"] if result["size"] else 0
+        except sqlite3.OperationalError as e:
+            # dbstat virtual table not available (common on macOS/Homebrew SQLite)
+            if "no such table: dbstat" in str(e):
+                logger.debug(f"dbstat virtual table not available: {e}")
+                stats["size_bytes"] = None  # Unable to determine size
+            else:
+                raise
 
         # Column information
         cursor = conn.execute(f"PRAGMA table_info({table})")
@@ -660,7 +668,17 @@ def get_database_health_report(db_path: str | Path) -> dict[str, Any]:
         # Basic statistics
         stats = DatabaseStats(db_path)
         report["size_info"] = stats.get_database_size()
-        report["table_stats"] = stats.get_table_stats()
+        
+        # Table stats may fail if dbstat is not available
+        try:
+            report["table_stats"] = stats.get_table_stats()
+        except sqlite3.OperationalError as e:
+            if "no such table: dbstat" in str(e):
+                logger.debug("dbstat not available, skipping detailed table stats")
+                report["table_stats"] = {}  # Empty dict to indicate no stats available
+            else:
+                raise
+                
         report["performance_stats"] = stats.get_query_performance_stats()
 
         # Maintenance checks

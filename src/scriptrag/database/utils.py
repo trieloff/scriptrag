@@ -9,7 +9,7 @@ import sqlite3
 import tempfile
 import zipfile
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -271,8 +271,9 @@ class DatabaseBackup:
         if backup_path.suffix != ".zip":
             backup_path = backup_path.with_suffix(backup_path.suffix + ".zip")
 
-        with tempfile.NamedTemporaryFile(suffix=".db") as temp_file:
-            temp_path = Path(temp_file.name)
+        # Use a temporary directory approach that works on Windows
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir) / f"{self.db_path.stem}_backup.db"
 
             # Create temporary backup
             if not self._create_simple_backup(temp_path):
@@ -285,7 +286,7 @@ class DatabaseBackup:
                 # Add metadata
                 metadata = {
                     "source_path": str(self.db_path),
-                    "backup_time": datetime.utcnow().isoformat(),
+                    "backup_time": datetime.now(UTC).isoformat(),
                     "source_size_bytes": self.db_path.stat().st_size,
                 }
                 zip_file.writestr(

@@ -89,9 +89,8 @@ class BulkImporter:
 
         # Cache for series and season IDs
         self._series_cache: dict[str, str] = {}  # series_name -> script_id
-        self._season_cache: dict[
-            tuple[str, int], str
-        ] = {}  # (script_id, season_num) -> season_id
+        # (script_id, season_num) -> season_id
+        self._season_cache: dict[tuple[str, int], str] = {}
 
     def import_files(
         self,

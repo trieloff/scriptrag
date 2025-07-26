@@ -66,7 +66,7 @@ class SearchInterface:
             List of search results
         """
         if not query.strip():
-            return []
+            return SearchResults([])
 
         # Default to all search types
         if search_types is None:
@@ -103,11 +103,26 @@ class SearchInterface:
         # Execute all searches in parallel
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
-            for result in results:
+            failed_searches = []
+            for i, result in enumerate(results):
                 if isinstance(result, Exception):
-                    logger.error("Search task failed", error=str(result))
+                    search_type = (
+                        list(search_types)[i] if i < len(search_types) else "unknown"
+                    )
+                    logger.error(
+                        f"Search task failed for {search_type}", error=str(result)
+                    )
+                    failed_searches.append(search_type)
                 elif isinstance(result, list):
                     all_results.extend(result)
+
+            # Log warning if some searches failed
+            if failed_searches:
+                logger.warning(
+                    f"Some search types failed: "
+                    f"{', '.join(map(str, failed_searches))}. "
+                    "Results may be incomplete."
+                )
 
         # Rank and filter results
         ranked_results = self.ranker.rank_results(all_results, query)

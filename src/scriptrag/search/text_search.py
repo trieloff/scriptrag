@@ -14,6 +14,13 @@ from .types import SearchResult, SearchResults
 
 logger = get_logger(__name__)
 
+# Valid table names for entity searches
+VALID_ENTITY_TABLES = {"characters", "locations"}
+
+# Limits for input validation
+MAX_SEARCH_LIMIT = 1000
+DEFAULT_SEARCH_LIMIT = 10
+
 
 class TextSearchEngine:
     """Text-based search engine for screenplay content."""
@@ -25,6 +32,25 @@ class TextSearchEngine:
             connection: Database connection
         """
         self.connection = connection
+
+    def _validate_limit(self, limit: int) -> int:
+        """Validate and normalize search limit.
+
+        Args:
+            limit: Requested limit
+
+        Returns:
+            Valid limit value
+        """
+        if limit <= 0:
+            logger.warning(
+                f"Invalid limit {limit}, using default {DEFAULT_SEARCH_LIMIT}"
+            )
+            return DEFAULT_SEARCH_LIMIT
+        if limit > MAX_SEARCH_LIMIT:
+            logger.warning(f"Limit {limit} exceeds max {MAX_SEARCH_LIMIT}, capping")
+            return MAX_SEARCH_LIMIT
+        return limit
 
     async def search_dialogue(
         self,
@@ -42,6 +68,9 @@ class TextSearchEngine:
         Returns:
             Search results from dialogue
         """
+        # Validate limit
+        limit = self._validate_limit(limit)
+
         conditions = ["se.element_type = 'dialogue'"]
         params = []
 
@@ -117,6 +146,9 @@ class TextSearchEngine:
         Returns:
             Search results from action lines
         """
+        # Validate limit
+        limit = self._validate_limit(limit)
+
         conditions = ["se.element_type = 'action'"]
         params = []
 
@@ -184,6 +216,9 @@ class TextSearchEngine:
         Returns:
             Search results from all content
         """
+        # Validate limit
+        limit = self._validate_limit(limit)
+
         # Search dialogue and action in parallel
         dialogue_results = await self.search_dialogue(query, filters, limit)
         action_results = await self.search_action(query, filters, limit)
@@ -213,18 +248,25 @@ class TextSearchEngine:
         Returns:
             Entity search results
         """
+        # Validate limit
+        limit = self._validate_limit(limit)
+
         # Map entity types to tables
         table_map = {
             "character": "characters",
             "location": "locations",
-            "object": "objects",
         }
 
         if entity_type not in table_map:
             logger.warning(f"Unknown entity type: {entity_type}")
-            return []
+            return SearchResults([])
 
         table = table_map[entity_type]
+
+        # Validate table name against whitelist
+        if table not in VALID_ENTITY_TABLES:
+            logger.error(f"Invalid table name: {table}")
+            return SearchResults([])
         conditions = []
         params = []
 
@@ -416,27 +458,35 @@ class TextSearchEngine:
         query_lower = query.lower()
         content_lower = content.lower()
 
-        # Find all occurrences
+        # Find all occurrences using a more efficient approach
+        positions = []
         start = 0
         while True:
             pos = content_lower.find(query_lower, start)
             if pos == -1:
                 break
+            positions.append(pos)
+            start = pos + 1
 
-            # Extract context
+        # Limit number of highlights to avoid performance issues
+        max_highlights = 3
+        for _, pos in enumerate(positions[:max_highlights]):
+            # Extract context with bounds checking
             context_start = max(0, pos - context_length)
             context_end = min(len(content), pos + len(query) + context_length)
 
-            # Find word boundaries
+            # Efficiently find word boundaries using string methods
             if context_start > 0:
-                while context_start < pos and content[context_start] not in " \n\t":
-                    context_start += 1
+                # Find the next space after context_start
+                space_pos = content.find(" ", context_start)
+                if space_pos != -1 and space_pos < pos:
+                    context_start = space_pos + 1
+
             if context_end < len(content):
-                while (
-                    context_end > pos + len(query)
-                    and content[context_end - 1] not in " \n\t"
-                ):
-                    context_end -= 1
+                # Find the last space before context_end
+                space_pos = content.rfind(" ", pos + len(query), context_end)
+                if space_pos != -1:
+                    context_end = space_pos
 
             # Build highlight
             prefix = "..." if context_start > 0 else ""
@@ -444,11 +494,6 @@ class TextSearchEngine:
             highlight = f"{prefix}{content[context_start:context_end]}{suffix}"
 
             highlights.append(highlight)
-            start = pos + 1
-
-            # Limit number of highlights
-            if len(highlights) >= 3:
-                break
 
         return highlights
 

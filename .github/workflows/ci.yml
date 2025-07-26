@@ -129,7 +129,7 @@ jobs:
       - name: Run Bandit security linter
         run: |
           source .venv/bin/activate
-          bandit -r src -ll -f json -o bandit-report.json
+          bandit -r src -c pyproject.toml -f json -o bandit-report.json
 
       - name: Upload Bandit report
         uses: actions/upload-artifact@v4

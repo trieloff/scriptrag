@@ -735,24 +735,125 @@ class EmbeddingManager:
             EmbeddingError: If refresh fails
         """
         model = model or self.embedding_model
+        refreshed_count = 0
 
-        # This is a placeholder implementation
-        # In a real implementation, you would:
-        # 1. Query the entities that need refreshing
-        # 2. Extract their content
-        # 3. Generate new embeddings
-        # 4. Store them in the database
+        try:
+            # Build query to find embeddings that need refreshing
+            where_conditions = []
+            params = []
 
-        logger.info(
-            "Refresh embeddings (placeholder)",
-            entity_type=entity_type,
-            entity_count=len(entity_ids) if entity_ids else "all",
-            model=model,
-            force=force,
-        )
+            if entity_type:
+                where_conditions.append("entity_type = ?")
+                params.append(entity_type)
 
-        # For now, return 0 as this is a placeholder
-        return 0
+            if entity_ids:
+                placeholders = ", ".join("?" * len(entity_ids))
+                where_conditions.append(f"entity_id IN ({placeholders})")
+                params.extend(entity_ids)
+
+            # Add model filter
+            where_conditions.append("embedding_model = ?")
+            params.append(model)
+
+            where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+
+            # Query existing embeddings to refresh
+            with self.connection.transaction() as conn:
+                if force:
+                    # Force refresh: get all matching embeddings
+                    cursor = conn.execute(
+                        f"""SELECT entity_type, entity_id, content
+                        FROM embeddings WHERE {where_clause}""",
+                        params,
+                    )
+                else:
+                    # Only refresh embeddings older than 7 days or with different model
+                    cursor = conn.execute(
+                        f"""
+                        SELECT entity_type, entity_id, content
+                        FROM embeddings
+                        WHERE {where_clause}
+                        AND (created_at < datetime('now', '-7 days') OR
+                             embedding_model != ?)
+                        """,
+                        [*params, model],
+                    )
+
+                embeddings_to_refresh = cursor.fetchall()
+
+            if not embeddings_to_refresh:
+                logger.info(
+                    "No embeddings found to refresh",
+                    entity_type=entity_type,
+                    entity_count=len(entity_ids) if entity_ids else "all",
+                    model=model,
+                    force=force,
+                )
+                return 0
+
+            logger.info(
+                "Refreshing embeddings",
+                entity_type=entity_type,
+                entity_count=len(entity_ids) if entity_ids else "all",
+                embeddings_found=len(embeddings_to_refresh),
+                model=model,
+                force=force,
+            )
+
+            # Process each embedding
+            for entity_type_db, entity_id, existing_content in embeddings_to_refresh:
+                try:
+                    # Generate new embedding for the existing content
+                    new_embedding = await self.generate_embedding(
+                        existing_content, model
+                    )
+
+                    # Store the refreshed embedding
+                    self.store_embedding(
+                        entity_type_db,
+                        entity_id,
+                        existing_content,
+                        new_embedding,
+                        model,
+                    )
+
+                    refreshed_count += 1
+                    logger.debug(
+                        "Refreshed embedding",
+                        entity_type=entity_type_db,
+                        entity_id=entity_id,
+                        model=model,
+                    )
+
+                except Exception as e:
+                    logger.warning(
+                        "Failed to refresh individual embedding",
+                        entity_type=entity_type_db,
+                        entity_id=entity_id,
+                        error=str(e),
+                    )
+                    # Continue with other embeddings rather than failing completely
+
+            logger.info(
+                "Refresh embeddings completed",
+                entity_type=entity_type,
+                requested_count=len(entity_ids) if entity_ids else "all",
+                refreshed_count=refreshed_count,
+                model=model,
+                force=force,
+            )
+
+            return refreshed_count
+
+        except Exception as e:
+            logger.error(
+                "Failed to refresh embeddings",
+                entity_type=entity_type,
+                entity_count=len(entity_ids) if entity_ids else "all",
+                model=model,
+                error=str(e),
+            )
+            raise EmbeddingError(f"Failed to refresh embeddings: {e}") from e
 
     async def close(self) -> None:
         """Close the embedding manager and cleanup resources."""

@@ -256,7 +256,7 @@ class GraphDatabase:
             return False
 
         params.append(node_id)
-        sql = f"UPDATE nodes SET {', '.join(updates)} WHERE id = ?"  # noqa: S608
+        sql = f"UPDATE nodes SET {', '.join(updates)} WHERE id = ?"
 
         with self.connection.transaction() as conn:
             cursor = conn.execute(sql, params)
@@ -328,7 +328,7 @@ class GraphDatabase:
         where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         limit_clause = f"LIMIT {limit}" if limit else ""
 
-        sql = f"SELECT * FROM nodes {where_clause} ORDER BY created_at {limit_clause}"  # noqa: S608
+        sql = f"SELECT * FROM nodes {where_clause} ORDER BY created_at {limit_clause}"
 
         rows = self.connection.fetch_all(sql, tuple(params) if params else None)
         return [GraphNode.from_row(row) for row in rows]
@@ -442,7 +442,7 @@ class GraphDatabase:
         where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
         limit_clause = f"LIMIT {limit}" if limit else ""
 
-        sql = f"SELECT * FROM edges {where_clause} ORDER BY created_at {limit_clause}"  # noqa: S608
+        sql = f"SELECT * FROM edges {where_clause} ORDER BY created_at {limit_clause}"
 
         rows = self.connection.fetch_all(sql, tuple(params) if params else None)
         return [GraphEdge.from_row(row) for row in rows]
@@ -499,7 +499,7 @@ class GraphDatabase:
       JOIN edges e ON {join_condition}
       {where_clause}
       ORDER BY n.created_at
-      """  # noqa: S608
+      """
 
         rows = self.connection.fetch_all(sql, tuple(params) if params else None)
         return [GraphNode.from_row(row) for row in rows]
@@ -583,7 +583,7 @@ class GraphDatabase:
         # Get all nodes in subgraph
         node_ids = list(nodes_in_subgraph)
         placeholders = ", ".join(["?"] * len(node_ids))
-        nodes_sql = f"SELECT * FROM nodes WHERE id IN ({placeholders})"  # noqa: S608
+        nodes_sql = f"SELECT * FROM nodes WHERE id IN ({placeholders})"
         node_rows = self.connection.fetch_all(nodes_sql, tuple(node_ids))
         nodes = [GraphNode.from_row(row) for row in node_rows]
 
@@ -600,7 +600,7 @@ class GraphDatabase:
             edge_conditions.append("edge_type = ?")
             edge_params.append(edge_type)
 
-        edges_sql = f"SELECT * FROM edges WHERE {' AND '.join(edge_conditions)}"  # noqa: S608
+        edges_sql = f"SELECT * FROM edges WHERE {' AND '.join(edge_conditions)}"
         edge_rows = self.connection.fetch_all(edges_sql, tuple(edge_params))
         edges = [GraphEdge.from_row(row) for row in edge_rows]
 

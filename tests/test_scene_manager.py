@@ -612,7 +612,7 @@ class TestSceneInfoRetrieval:
         mock_location_edges = [Mock(to_node_id="location1")]
         mock_location_node = Mock(label="OFFICE")
 
-        def mock_find_edges(*, edge_type=None):
+        def mock_find_edges(_from_node_id=None, edge_type=None, **_kwargs):
             if edge_type == "AT_LOCATION":
                 return mock_location_edges
             return []

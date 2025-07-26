@@ -610,3 +610,238 @@ class TestErrorHandling:
 
             with pytest.raises(EmbeddingError, match="Semantic search failed"):
                 await pipeline.semantic_search("test query")
+
+    @pytest.mark.asyncio
+    async def test_cleanup_embeddings_by_entity_type(
+        self, mock_connection, mock_llm_client, mock_config
+    ):
+        """Test cleanup_embeddings filtering by entity type."""
+        # Mock the transaction context
+        mock_cursor = Mock()
+        mock_cursor.rowcount = 5
+        mock_connection.execute.return_value = mock_cursor
+
+        with patch(
+            "scriptrag.database.embedding_pipeline.get_settings",
+            return_value=mock_config,
+        ):
+            pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+
+            # Test cleanup by entity type
+            result = await pipeline.cleanup_embeddings(entity_type="scene")
+
+            assert result == 5
+            mock_connection.execute.assert_called_once()
+            call_args = mock_connection.execute.call_args
+            assert "DELETE FROM embeddings WHERE entity_type = ?" in call_args[0][0]
+            assert call_args[0][1] == ["scene"]
+
+    @pytest.mark.asyncio
+    async def test_cleanup_embeddings_by_age(
+        self, mock_connection, mock_llm_client, mock_config
+    ):
+        """Test cleanup_embeddings filtering by age."""
+        mock_cursor = Mock()
+        mock_cursor.rowcount = 10
+        mock_connection.execute.return_value = mock_cursor
+
+        with patch(
+            "scriptrag.database.embedding_pipeline.get_settings",
+            return_value=mock_config,
+        ):
+            pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+
+            # Test cleanup by age
+            result = await pipeline.cleanup_embeddings(older_than_days=30)
+
+            assert result == 10
+            mock_connection.execute.assert_called_once()
+            call_args = mock_connection.execute.call_args
+            assert (
+                "created_at < datetime('now', '-' || ? || ' days')" in call_args[0][0]
+            )
+            assert call_args[0][1] == ["30"]
+
+    @pytest.mark.asyncio
+    async def test_cleanup_embeddings_combined_filters(
+        self, mock_connection, mock_llm_client, mock_config
+    ):
+        """Test cleanup_embeddings with both entity type and age filters."""
+        mock_cursor = Mock()
+        mock_cursor.rowcount = 3
+        mock_connection.execute.return_value = mock_cursor
+
+        with patch(
+            "scriptrag.database.embedding_pipeline.get_settings",
+            return_value=mock_config,
+        ):
+            pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+
+            # Test cleanup with both filters
+            result = await pipeline.cleanup_embeddings(
+                entity_type="character", older_than_days=7
+            )
+
+            assert result == 3
+            mock_connection.execute.assert_called_once()
+            call_args = mock_connection.execute.call_args
+            sql = call_args[0][0]
+            params = call_args[0][1]
+
+            assert "entity_type = ?" in sql
+            assert "created_at < datetime('now', '-' || ? || ' days')" in sql
+            assert params == ["character", "7"]
+
+    @pytest.mark.asyncio
+    async def test_cleanup_embeddings_invalid_age(
+        self, mock_connection, mock_llm_client, mock_config
+    ):
+        """Test cleanup_embeddings with invalid age parameter."""
+        with patch(
+            "scriptrag.database.embedding_pipeline.get_settings",
+            return_value=mock_config,
+        ):
+            pipeline = EmbeddingPipeline(mock_connection, mock_llm_client)
+
+            # Test with negative age
+            with pytest.raises(
+                ValueError, match="older_than_days must be non-negative"
+            ):
+                await pipeline.cleanup_embeddings(older_than_days=-5)
+
+    @pytest.mark.asyncio
+    async def test_refresh_embeddings_basic(
+        self, mock_connection, mock_llm_client, mock_config, sample_embedding
+    ):
+        """Test basic refresh_embeddings functionality."""
+        # Mock existing embeddings query
+        existing_embeddings = [
+            ("scene", "scene-1", "Scene content 1"),
+            ("character", "char-1", "Character content 1"),
+        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchall.return_value = existing_embeddings
+        mock_connection.execute.return_value = mock_cursor
+
+        # Mock embedding generation
+        mock_llm_client.generate_embedding.return_value = sample_embedding
+
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
+
+            # Test basic refresh
+            result = await manager.refresh_embeddings()
+
+            assert result == 2
+            assert mock_llm_client.generate_embedding.call_count == 2
+
+            # Verify store_embedding was called (not awaited since it's sync)
+            with patch.object(manager, "store_embedding") as mock_store:
+                await manager.refresh_embeddings()
+                assert mock_store.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_refresh_embeddings_with_filters(
+        self, mock_connection, mock_llm_client, mock_config, sample_embedding
+    ):
+        """Test refresh_embeddings with entity type filter."""
+        # Mock filtered embeddings query
+        existing_embeddings = [
+            ("scene", "scene-1", "Scene content 1"),
+        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchall.return_value = existing_embeddings
+        mock_connection.execute.return_value = mock_cursor
+
+        # Mock embedding generation
+        mock_llm_client.generate_embedding.return_value = sample_embedding
+
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
+
+            # Test refresh with entity type filter
+            result = await manager.refresh_embeddings(entity_type="scene")
+
+            assert result == 1
+
+            # Verify the query included the entity type filter
+            # The execute method is called multiple times - find the SELECT query
+            for call in mock_connection.execute.call_args_list:
+                if "SELECT" in call[0][0] and "FROM embeddings" in call[0][0]:
+                    assert "entity_type = ?" in call[0][0]
+                    assert "scene" in call[0][1]
+                    break
+            else:
+                raise AssertionError("No SELECT query found")
+
+    @pytest.mark.asyncio
+    async def test_refresh_embeddings_force_mode(
+        self, mock_connection, mock_llm_client, mock_config, sample_embedding
+    ):
+        """Test refresh_embeddings in force mode."""
+        # Mock existing embeddings query
+        existing_embeddings = [
+            ("scene", "scene-1", "Scene content 1"),
+        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchall.return_value = existing_embeddings
+        mock_connection.execute.return_value = mock_cursor
+
+        # Mock embedding generation
+        mock_llm_client.generate_embedding.return_value = sample_embedding
+
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
+
+            # Test force refresh (always regenerates)
+            result = await manager.refresh_embeddings(force=True)
+
+            assert result == 1
+
+            # Verify the query behavior in force mode
+            # Find the SELECT query
+            for call in mock_connection.execute.call_args_list:
+                if "SELECT" in call[0][0] and "FROM embeddings" in call[0][0]:
+                    sql = call[0][0]
+                    # In force mode, we don't check for date or model mismatch
+                    assert "created_at <" not in sql
+                    assert "embedding_model !=" not in sql
+                    break
+
+    @pytest.mark.asyncio
+    async def test_refresh_embeddings_error_handling(
+        self, mock_connection, mock_llm_client, mock_config
+    ):
+        """Test refresh_embeddings error handling for individual embeddings."""
+        # Mock existing embeddings
+        existing_embeddings = [
+            ("scene", "scene-1", "Scene content 1"),
+            ("scene", "scene-2", "Scene content 2"),
+        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchall.return_value = existing_embeddings
+        mock_connection.execute.return_value = mock_cursor
+
+        # Mock embedding generation to fail on first, succeed on second
+        mock_llm_client.generate_embedding.side_effect = [
+            Exception("Generation failed"),
+            [0.1] * 1536,  # Success on second
+        ]
+
+        with patch(
+            "scriptrag.database.embeddings.get_settings", return_value=mock_config
+        ):
+            manager = EmbeddingManager(mock_connection, mock_llm_client)
+
+            # Should continue processing despite individual failures
+            result = await manager.refresh_embeddings()
+
+            # Only 1 embedding should be successfully refreshed
+            assert result == 1
+            assert mock_llm_client.generate_embedding.call_count == 2

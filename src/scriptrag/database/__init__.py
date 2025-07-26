@@ -19,6 +19,7 @@ from .embeddings import (
     EmbeddingResult,
 )
 from .graph import GraphDatabase
+from .knowledge_graph_builder import KnowledgeGraphBuilder
 from .migrations import MigrationRunner, initialize_database
 from .operations import GraphOperations
 from .schema import DatabaseSchema, create_database, migrate_database
@@ -45,6 +46,7 @@ __all__ = [
     "EmbeddingResult",
     "GraphDatabase",
     "GraphOperations",
+    "KnowledgeGraphBuilder",
     "MigrationRunner",
     "create_database",
     "create_script_embeddings",

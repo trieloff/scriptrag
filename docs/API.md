@@ -181,7 +181,7 @@ The API provides interactive OpenAPI (Swagger) documentation at:
 
 ### JavaScript/TypeScript
 
-```text
+```typescript
 const scriptragApi = {
     baseUrl: 'http://localhost:8000/api/v1',
 

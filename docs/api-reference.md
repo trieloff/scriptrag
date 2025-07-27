@@ -16,27 +16,32 @@ Currently, the API does not require authentication. All endpoints are publicly a
 
 ## Response Format
 
-All API responses follow a consistent format:
+API responses return data directly for successful requests. Error responses follow a
+consistent format:
 
 ### Success Response
 
-```json
-{
-  "status": "success",
-  "data": { ... },
-  "message": "Optional success message"
-}
-```
+Successful responses return the data directly without a wrapper object.
 
 ### Error Response
 
 ```json
 {
-  "status": "error",
-  "error": "Error message",
-  "details": {
-    "field": "Additional error context"
-  }
+  "detail": "Error message"
+}
+```
+
+For validation errors (422):
+
+```json
+{
+  "detail": [
+    {
+      "loc": ["body", "field_name"],
+      "msg": "Error message",
+      "type": "error_type"
+    }
+  ]
 }
 ```
 
@@ -180,11 +185,12 @@ Generate vector embeddings for semantic search.
 
 ```json
 {
+  "status": "success",
+  "message": "Embeddings generated successfully",
   "script_id": "string",
   "scenes_processed": 0,
-  "embeddings_generated": 0,
-  "status": "completed",
-  "message": "Embeddings generated successfully"
+  "scenes_skipped": 0,
+  "processing_time": 0.0
 }
 ```
 
@@ -235,13 +241,16 @@ Get details of a specific scene.
 
 Create a new scene in a script.
 
-**Endpoint**: `POST /scenes/`
+**Endpoint**: `POST /scenes/?script_id={script_id}`
+
+**Query Parameters**:
+
+- `script_id` (required): The ID of the script
 
 **Request Body**:
 
 ```json
 {
-  "script_id": "string",
   "scene_number": 1,
   "heading": "INT. LOCATION - TIME",
   "content": "Scene content..."

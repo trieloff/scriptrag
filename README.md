@@ -1,6 +1,6 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-[![56% Vibe_Coded](https://img.shields.io/badge/56%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=zedindustries&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
+[![57% Vibe_Coded](https://img.shields.io/badge/57%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=zedindustries&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
 
 ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented

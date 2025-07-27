@@ -45,6 +45,8 @@ def client(mock_llm_client):
     app.state.settings = None  # Not needed for embedding tests
 
     with TestClient(app) as client:
+        # Store original client for reuse
+        client._original_mock = mock_db_ops
         yield client
 
 
@@ -99,6 +101,9 @@ class TestEmbeddingGenerationEndpoint:
         """Test embedding generation with regenerate flag."""
         script_id = str(uuid4())
 
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         request_data = {"regenerate": True}
 
         mock_script = {"id": script_id, "title": "Test Script"}
@@ -108,70 +113,75 @@ class TestEmbeddingGenerationEndpoint:
             "processing_time": 8.2,
         }
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_db.generate_embeddings.return_value = mock_result
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
+        client.app.state.db_ops.generate_embeddings.return_value = mock_result
 
-            response = client.post(
-                f"/api/v1/embeddings/scripts/{script_id}/generate", json=request_data
-            )
+        response = client.post(
+            f"/api/v1/embeddings/scripts/{script_id}/generate", json=request_data
+        )
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["scenes_processed"] == 15
-            assert data["scenes_skipped"] == 0
+        assert response.status_code == 200
+        data = response.json()
+        assert data["scenes_processed"] == 15
+        assert data["scenes_skipped"] == 0
 
-            # Verify regenerate was passed correctly
-            mock_db.generate_embeddings.assert_called_once_with(
-                script_id, regenerate=True
-            )
+        # Verify regenerate was passed correctly
+        client.app.state.db_ops.generate_embeddings.assert_called_once_with(
+            script_id, regenerate=True
+        )
 
     def test_generate_embeddings_script_not_found(self, client):
         """Test embedding generation for non-existent script."""
         script_id = str(uuid4())
 
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         request_data = {"regenerate": False}
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock to raise ValueError for script not found
+        client.app.state.db_ops.generate_embeddings.side_effect = ValueError(
+            f"Script {script_id} not found"
+        )
 
-            response = client.post(
-                f"/api/v1/embeddings/scripts/{script_id}/generate", json=request_data
-            )
+        response = client.post(
+            f"/api/v1/embeddings/scripts/{script_id}/generate", json=request_data
+        )
 
-            assert response.status_code == 404
-            assert "Script not found" in response.json()["detail"]
+        assert response.status_code == 404
+        assert "Script not found" in response.json()["detail"]
 
     def test_generate_embeddings_processing_error(self, client):
         """Test error during embedding generation."""
         script_id = str(uuid4())
 
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         request_data = {"regenerate": False}
 
         mock_script = {"id": script_id, "title": "Test Script"}
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_db.generate_embeddings.side_effect = Exception(
-                "Embedding model unavailable"
-            )
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
+        client.app.state.db_ops.generate_embeddings.side_effect = Exception(
+            "Embedding model unavailable"
+        )
 
-            response = client.post(
-                f"/api/v1/embeddings/scripts/{script_id}/generate", json=request_data
-            )
+        response = client.post(
+            f"/api/v1/embeddings/scripts/{script_id}/generate", json=request_data
+        )
 
-            assert response.status_code == 500
-            assert "Failed to generate embeddings" in response.json()["detail"]
+        assert response.status_code == 500
+        assert "Failed to generate embeddings" in response.json()["detail"]
 
     def test_generate_embeddings_default_regenerate(self, client):
         """Test embedding generation with default regenerate value."""
         script_id = str(uuid4())
+
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
 
         # Empty request body - should use default regenerate=False
         request_data = {}
@@ -183,21 +193,19 @@ class TestEmbeddingGenerationEndpoint:
             "processing_time": 2.1,
         }
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_db.generate_embeddings.return_value = mock_result
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
+        client.app.state.db_ops.generate_embeddings.return_value = mock_result
 
-            response = client.post(
-                f"/api/v1/embeddings/scripts/{script_id}/generate", json=request_data
-            )
+        response = client.post(
+            f"/api/v1/embeddings/scripts/{script_id}/generate", json=request_data
+        )
 
-            assert response.status_code == 200
-            # Verify default regenerate=False was used
-            mock_db.generate_embeddings.assert_called_once_with(
-                script_id, regenerate=False
-            )
+        assert response.status_code == 200
+        # Verify default regenerate=False was used
+        client.app.state.db_ops.generate_embeddings.assert_called_once_with(
+            script_id, regenerate=False
+        )
 
 
 class TestEmbeddingStatusEndpoint:
@@ -206,6 +214,9 @@ class TestEmbeddingStatusEndpoint:
     def test_get_embedding_status_complete(self, client):
         """Test embedding status for fully processed script."""
         script_id = str(uuid4())
+
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
 
         # Mock script with all scenes having embeddings
         mock_scenes = [
@@ -219,21 +230,19 @@ class TestEmbeddingStatusEndpoint:
         mock_script.title = "Test Script"
         mock_script.scenes = mock_scenes
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
 
-            response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
+        response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
 
-            assert response.status_code == 200
-            data = response.json()
+        assert response.status_code == 200
+        data = response.json()
 
-            assert data["script_id"] == script_id
-            assert data["total_scenes"] == 3
-            assert data["scenes_with_embeddings"] == 3
-            assert data["completion_percentage"] == 100.0
-            assert data["is_complete"] is True
+        assert data["script_id"] == script_id
+        assert data["total_scenes"] == 3
+        assert data["scenes_with_embeddings"] == 3
+        assert data["completion_percentage"] == 100.0
+        assert data["is_complete"] is True
 
     def test_get_embedding_status_partial(self, client):
         """Test embedding status for partially processed script."""

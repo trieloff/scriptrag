@@ -53,6 +53,9 @@ class TestCharacterGraphEndpoint:
 
     def test_get_character_graph_success(self, client):
         """Test successful character graph retrieval."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         script_id = str(uuid4())
 
         request_data = {
@@ -100,42 +103,43 @@ class TestCharacterGraphEndpoint:
             ],
         }
 
-        with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_character_graph.return_value = mock_graph_data
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_character_graph.return_value = mock_graph_data
 
-            response = client.post("/api/v1/graphs/characters", json=request_data)
+        response = client.post("/api/v1/graphs/characters", json=request_data)
 
-            assert response.status_code == 200
-            data = response.json()
+        assert response.status_code == 200
+        data = response.json()
 
-            # Check response structure
-            assert data["status"] == "success"
-            assert len(data["nodes"]) == 3
-            assert len(data["edges"]) == 2
+        # Check response structure
+        assert data["status"] == "success"
+        assert len(data["nodes"]) == 3
+        assert len(data["edges"]) == 2
 
-            # Check metadata
-            assert data["metadata"]["character"] == "JOHN"
-            assert data["metadata"]["total_nodes"] == 3
-            assert data["metadata"]["total_edges"] == 2
-            assert data["metadata"]["depth"] == 2
+        # Check metadata
+        assert data["metadata"]["character"] == "JOHN"
+        assert data["metadata"]["total_nodes"] == 3
+        assert data["metadata"]["total_edges"] == 2
+        assert data["metadata"]["depth"] == 2
 
-            # Check node details
-            john_node = next(n for n in data["nodes"] if n["label"] == "JOHN")
-            assert john_node["type"] == "character"
-            assert john_node["properties"]["appearances"] == 15
+        # Check node details
+        john_node = next(n for n in data["nodes"] if n["label"] == "JOHN")
+        assert john_node["type"] == "character"
+        assert john_node["properties"]["appearances"] == 15
 
-            # Verify method call
-            mock_db.get_character_graph.assert_called_once_with(
-                character_name="JOHN",
-                script_id=script_id,
-                depth=2,
-                min_interaction_count=1,
-            )
+        # Verify method call
+        client.app.state.db_ops.get_character_graph.assert_called_once_with(
+            character_name="JOHN",
+            script_id=script_id,
+            depth=2,
+            min_interaction_count=1,
+        )
 
     def test_get_character_graph_empty_result(self, client):
         """Test character graph with no interactions."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         script_id = str(uuid4())
 
         request_data = {
@@ -157,49 +161,53 @@ class TestCharacterGraphEndpoint:
             "edges": [],
         }
 
-        with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_character_graph.return_value = mock_graph_data
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_character_graph.return_value = mock_graph_data
+        response = client.post("/api/v1/graphs/characters", json=request_data)
 
-            response = client.post("/api/v1/graphs/characters", json=request_data)
-
-            assert response.status_code == 200
-            data = response.json()
-            assert len(data["nodes"]) == 1
-            assert len(data["edges"]) == 0
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["nodes"]) == 1
+        assert len(data["edges"]) == 0
 
     def test_get_character_graph_database_error(self, client):
         """Test database error during character graph retrieval."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         request_data = {
             "character_name": "JOHN",
             "script_id": str(uuid4()),
             "depth": 2,
         }
 
-        with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_character_graph.side_effect = Exception(
-                "Database connection failed"
-            )
-            mock_get_db.return_value = mock_db
+        # Configure the mock to raise an exception
+        client.app.state.db_ops.get_character_graph.side_effect = Exception(
+            "Database connection failed"
+        )
 
-            response = client.post("/api/v1/graphs/characters", json=request_data)
+        response = client.post("/api/v1/graphs/characters", json=request_data)
 
-            assert response.status_code == 500
-            assert "Failed to get character graph" in response.json()["detail"]
+        assert response.status_code == 500
+        assert "Failed to get character graph" in response.json()["detail"]
 
     def test_get_character_graph_validation_error(self, client):
         """Test validation error for character graph request."""
-        # Missing required fields
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
+        # Invalid request data that should trigger validation errors
         request_data = {
-            "character_name": "JOHN",
-            # Missing script_id
+            "character_name": "",  # Empty character name
+            "depth": -1,  # Invalid depth (must be >= 1)
+            "min_interaction_count": 0,  # Invalid min_interaction_count (must be >= 1)
         }
 
         response = client.post("/api/v1/graphs/characters", json=request_data)
 
         assert response.status_code == 422  # Validation error
+        data = response.json()
+        assert "detail" in data
 
 
 class TestTimelineGraphEndpoint:
@@ -207,6 +215,9 @@ class TestTimelineGraphEndpoint:
 
     def test_get_timeline_graph_success(self, client):
         """Test successful timeline graph retrieval."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         script_id = str(uuid4())
 
         request_data = {
@@ -215,7 +226,15 @@ class TestTimelineGraphEndpoint:
             "include_characters": True,
         }
 
-        mock_script = {"id": script_id, "title": "Test Script"}
+        from scriptrag.api.models import ScriptModel
+
+        mock_script = ScriptModel(
+            id=script_id,
+            title="Test Script",
+            author="Test Author",
+            scenes=[],
+            characters=set(),
+        )
         mock_graph_data = {
             "nodes": [
                 {
@@ -265,37 +284,37 @@ class TestTimelineGraphEndpoint:
             ],
         }
 
-        with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_db.get_timeline_graph.return_value = mock_graph_data
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
+        client.app.state.db_ops.get_timeline_graph.return_value = mock_graph_data
+        response = client.post("/api/v1/graphs/timeline", json=request_data)
 
-            response = client.post("/api/v1/graphs/timeline", json=request_data)
+        assert response.status_code == 200
+        data = response.json()
 
-            assert response.status_code == 200
-            data = response.json()
+        # Check response structure
+        assert data["status"] == "success"
+        assert len(data["nodes"]) == 4
+        assert len(data["edges"]) == 3
 
-            # Check response structure
-            assert data["status"] == "success"
-            assert len(data["nodes"]) == 4
-            assert len(data["edges"]) == 3
+        # Check metadata
+        assert data["metadata"]["script_id"] == script_id
+        assert data["metadata"]["script_title"] == "Test Script"
+        assert data["metadata"]["group_by"] == "act"
 
-            # Check metadata
-            assert data["metadata"]["script_id"] == script_id
-            assert data["metadata"]["script_title"] == "Test Script"
-            assert data["metadata"]["group_by"] == "act"
-
-            # Verify method calls
-            mock_db.get_script.assert_called_once_with(script_id)
-            mock_db.get_timeline_graph.assert_called_once_with(
-                script_id=script_id,
-                group_by="act",
-                include_characters=True,
-            )
+        # Verify method calls
+        client.app.state.db_ops.get_script.assert_called_once_with(script_id)
+        client.app.state.db_ops.get_timeline_graph.assert_called_once_with(
+            script_id=script_id,
+            group_by="act",
+            include_characters=True,
+        )
 
     def test_get_timeline_graph_script_not_found(self, client):
         """Test timeline graph for non-existent script."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         script_id = str(uuid4())
 
         request_data = {
@@ -303,18 +322,18 @@ class TestTimelineGraphEndpoint:
             "group_by": "scene",
         }
 
-        with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = None
+        response = client.post("/api/v1/graphs/timeline", json=request_data)
 
-            response = client.post("/api/v1/graphs/timeline", json=request_data)
-
-            assert response.status_code == 404
-            assert "Script not found" in response.json()["detail"]
+        assert response.status_code == 404
+        assert "Script not found" in response.json()["detail"]
 
     def test_get_timeline_graph_different_groupings(self, client):
         """Test timeline graph with different grouping options."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         script_id = str(uuid4())
 
         for group_by in ["scene", "location", "day"]:
@@ -324,7 +343,15 @@ class TestTimelineGraphEndpoint:
                 "include_characters": False,
             }
 
-            mock_script = {"id": script_id, "title": "Test Script"}
+            from scriptrag.api.models import ScriptModel
+
+            mock_script = ScriptModel(
+                id=script_id,
+                title="Test Script",
+                author="Test Author",
+                scenes=[],
+                characters=set(),
+            )
             mock_graph_data = {
                 "nodes": [
                     {
@@ -337,17 +364,14 @@ class TestTimelineGraphEndpoint:
                 "edges": [],
             }
 
-            with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-                mock_db = AsyncMock()
-                mock_db.get_script.return_value = mock_script
-                mock_db.get_timeline_graph.return_value = mock_graph_data
-                mock_get_db.return_value = mock_db
+            # Configure mocks for this iteration
+            client.app.state.db_ops.get_script.return_value = mock_script
+            client.app.state.db_ops.get_timeline_graph.return_value = mock_graph_data
+            response = client.post("/api/v1/graphs/timeline", json=request_data)
 
-                response = client.post("/api/v1/graphs/timeline", json=request_data)
-
-                assert response.status_code == 200
-                data = response.json()
-                assert data["metadata"]["group_by"] == group_by
+            assert response.status_code == 200
+            data = response.json()
+            assert data["metadata"]["group_by"] == group_by
 
 
 class TestLocationGraphEndpoint:
@@ -355,9 +379,20 @@ class TestLocationGraphEndpoint:
 
     def test_get_location_graph_success(self, client):
         """Test successful location graph retrieval."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         script_id = str(uuid4())
 
-        mock_script = {"id": script_id, "title": "Test Script"}
+        from scriptrag.api.models import ScriptModel
+
+        mock_script = ScriptModel(
+            id=script_id,
+            title="Test Script",
+            author="Test Author",
+            scenes=[],
+            characters=set(),
+        )
         mock_graph_data = {
             "nodes": [
                 {
@@ -408,88 +443,103 @@ class TestLocationGraphEndpoint:
             ],
         }
 
-        with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_db.get_location_graph.return_value = mock_graph_data
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
+        client.app.state.db_ops.get_location_graph.return_value = mock_graph_data
+        response = client.get(f"/api/v1/graphs/scripts/{script_id}/locations")
 
-            response = client.get(f"/api/v1/graphs/scripts/{script_id}/locations")
+        assert response.status_code == 200
+        data = response.json()
 
-            assert response.status_code == 200
-            data = response.json()
+        # Check response structure
+        assert data["status"] == "success"
+        assert len(data["nodes"]) == 4
+        assert len(data["edges"]) == 3
 
-            # Check response structure
-            assert data["status"] == "success"
-            assert len(data["nodes"]) == 4
-            assert len(data["edges"]) == 3
+        # Check metadata
+        assert data["metadata"]["script_id"] == script_id
+        assert data["metadata"]["script_title"] == "Test Script"
+        assert data["metadata"]["total_locations"] == 2
 
-            # Check metadata
-            assert data["metadata"]["script_id"] == script_id
-            assert data["metadata"]["script_title"] == "Test Script"
-            assert data["metadata"]["total_locations"] == 2
+        # Check location nodes
+        location_nodes = [n for n in data["nodes"] if n["type"] == "location"]
+        assert len(location_nodes) == 2
+        assert any(n["label"] == "COFFEE SHOP" for n in location_nodes)
+        assert any(n["label"] == "OFFICE" for n in location_nodes)
 
-            # Check location nodes
-            location_nodes = [n for n in data["nodes"] if n["type"] == "location"]
-            assert len(location_nodes) == 2
-            assert any(n["label"] == "COFFEE SHOP" for n in location_nodes)
-            assert any(n["label"] == "OFFICE" for n in location_nodes)
-
-            # Verify method calls
-            mock_db.get_script.assert_called_once_with(script_id)
-            mock_db.get_location_graph.assert_called_once_with(script_id)
+        # Verify method calls
+        client.app.state.db_ops.get_script.assert_called_once_with(script_id)
+        client.app.state.db_ops.get_location_graph.assert_called_once_with(script_id)
 
     def test_get_location_graph_script_not_found(self, client):
         """Test location graph for non-existent script."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         script_id = str(uuid4())
 
-        with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = None
+        response = client.get(f"/api/v1/graphs/scripts/{script_id}/locations")
 
-            response = client.get(f"/api/v1/graphs/scripts/{script_id}/locations")
-
-            assert response.status_code == 404
-            assert "Script not found" in response.json()["detail"]
+        assert response.status_code == 404
+        assert "Script not found" in response.json()["detail"]
 
     def test_get_location_graph_empty_script(self, client):
         """Test location graph for script with no scenes."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         script_id = str(uuid4())
 
-        mock_script = {"id": script_id, "title": "Empty Script"}
+        from scriptrag.api.models import ScriptModel
+
+        mock_script = ScriptModel(
+            id=script_id,
+            title="Empty Script",
+            author="Test Author",
+            scenes=[],
+            characters=set(),
+        )
         mock_graph_data = {"nodes": [], "edges": []}
 
-        with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_db.get_location_graph.return_value = mock_graph_data
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
+        client.app.state.db_ops.get_location_graph.return_value = mock_graph_data
+        response = client.get(f"/api/v1/graphs/scripts/{script_id}/locations")
 
-            response = client.get(f"/api/v1/graphs/scripts/{script_id}/locations")
-
-            assert response.status_code == 200
-            data = response.json()
-            assert len(data["nodes"]) == 0
-            assert len(data["edges"]) == 0
-            assert data["metadata"]["total_locations"] == 0
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["nodes"]) == 0
+        assert len(data["edges"]) == 0
+        assert data["metadata"]["total_locations"] == 0
 
     def test_get_location_graph_database_error(self, client):
         """Test database error during location graph retrieval."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         script_id = str(uuid4())
 
-        mock_script = {"id": script_id, "title": "Test Script"}
+        from scriptrag.api.models import ScriptModel
 
-        with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_db.get_location_graph.side_effect = Exception("Database error")
-            mock_get_db.return_value = mock_db
+        mock_script = ScriptModel(
+            id=script_id,
+            title="Test Script",
+            author="Test Author",
+            scenes=[],
+            characters=set(),
+        )
 
-            response = client.get(f"/api/v1/graphs/scripts/{script_id}/locations")
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
+        client.app.state.db_ops.get_location_graph.side_effect = Exception(
+            "Database error"
+        )
+        response = client.get(f"/api/v1/graphs/scripts/{script_id}/locations")
 
-            assert response.status_code == 500
-            assert "Failed to get location graph" in response.json()["detail"]
+        assert response.status_code == 500
+        assert "Failed to get location graph" in response.json()["detail"]
 
 
 class TestGraphNodeTypeConversion:
@@ -497,6 +547,9 @@ class TestGraphNodeTypeConversion:
 
     def test_node_type_conversion(self, client):
         """Test that node types are properly converted to enum values."""
+        # Reset mock state for clean test
+        client.app.state.db_ops.reset_mock()
+
         script_id = str(uuid4())
 
         request_data = {
@@ -504,7 +557,15 @@ class TestGraphNodeTypeConversion:
             "group_by": "scene",
         }
 
-        mock_script = {"id": script_id, "title": "Test Script"}
+        from scriptrag.api.models import ScriptModel
+
+        mock_script = ScriptModel(
+            id=script_id,
+            title="Test Script",
+            author="Test Author",
+            scenes=[],
+            characters=set(),
+        )
         mock_graph_data = {
             "nodes": [
                 {"id": "1", "type": "scene", "label": "Scene 1"},
@@ -515,18 +576,15 @@ class TestGraphNodeTypeConversion:
             "edges": [],
         }
 
-        with patch("scriptrag.api.v1.endpoints.graphs.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_db.get_timeline_graph.return_value = mock_graph_data
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
+        client.app.state.db_ops.get_timeline_graph.return_value = mock_graph_data
+        response = client.post("/api/v1/graphs/timeline", json=request_data)
 
-            response = client.post("/api/v1/graphs/timeline", json=request_data)
+        assert response.status_code == 200
+        data = response.json()
 
-            assert response.status_code == 200
-            data = response.json()
-
-            # Check that all node types are valid enum values
-            node_types = {node["type"] for node in data["nodes"]}
-            expected_types = {"scene", "character", "location", "act"}
-            assert node_types == expected_types
+        # Check that all node types are valid enum values
+        node_types = {node["type"] for node in data["nodes"]}
+        expected_types = {"scene", "character", "location", "act"}
+        assert node_types == expected_types

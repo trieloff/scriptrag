@@ -32,13 +32,34 @@ def mock_llm_client():
 
 
 @pytest.fixture
-def client(mock_llm_client):
-    """Create test client with mocked LLM client."""
+def client(mock_llm_client, temp_db_path):
+    """Create test client with mocked LLM client and temporary database."""
     # The fixture ensures LLM client is mocked during app creation
     _ = mock_llm_client  # Mark as used for linter
-    app = create_app()
-    with TestClient(app) as client:
-        yield client
+
+    # Initialize the test database schema first
+    from scriptrag.database import initialize_database
+
+    initialize_database(temp_db_path)
+
+    # Override database path using environment variable
+    import os
+
+    original_db_path = os.environ.get("SCRIPTRAG_DB_PATH")
+    os.environ["SCRIPTRAG_DB_PATH"] = str(temp_db_path)
+
+    try:
+        # Clear any cached settings to force reload with new environment
+        with patch("scriptrag.config.settings._settings", None):
+            app = create_app()
+            with TestClient(app) as client:
+                yield client
+    finally:
+        # Restore original environment
+        if original_db_path:
+            os.environ["SCRIPTRAG_DB_PATH"] = original_db_path
+        else:
+            os.environ.pop("SCRIPTRAG_DB_PATH", None)
 
 
 def test_root_endpoint(client):

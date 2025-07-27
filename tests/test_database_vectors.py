@@ -393,7 +393,7 @@ class TestDistanceMetrics:
 
     def test_get_distance_function_invalid(self, vector_ops):
         """Test invalid distance metric."""
-        with pytest.raises(ValueError, match="Unsupported distance metric"):
+        with pytest.raises(VectorError, match="Unsupported distance metric"):
             vector_ops._get_distance_function("invalid")
 
 
@@ -413,11 +413,13 @@ class TestVectorDimensions:
         assert dim == 3
 
     def test_get_vector_dimension_bytes(self, vector_ops):
-        """Test getting dimension from bytes."""
-        # For bytes, assume float32 (4 bytes per element)
-        vector = b"\x00" * 20  # 20 bytes = 5 float32s
-        dim = vector_ops._get_vector_dimension(vector)
-        assert dim == 5
+        """Test getting dimension from bytes - should raise error."""
+        # Bytes vectors don't contain dimension information
+        vector = b"\x00" * 20  # 20 bytes
+        with pytest.raises(
+            VectorError, match="Cannot determine dimension from bytes vector"
+        ):
+            vector_ops._get_vector_dimension(vector)
 
 
 class TestBatchOperations:

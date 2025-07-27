@@ -16,7 +16,6 @@ import requests
 
 # Third-party imports
 import typer
-import uvicorn
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
@@ -1622,6 +1621,15 @@ def server_api(
             "[red]Error: API server is not available. Install with 'api' extra.[/red]"
         )
         raise typer.Exit(1)
+
+    try:
+        import uvicorn
+    except ImportError:
+        console.print(
+            "[red]Error: uvicorn is not installed. "
+            "Install with 'pip install uvicorn'.[/red]"
+        )
+        raise typer.Exit(1) from None
 
     app = create_app()
     uvicorn.run(

@@ -38,14 +38,7 @@ MD012:
   maximum: 2
 
 # MD013/line-length - Line length
-MD013:
-  line_length: 300
-  heading_line_length: 300
-  code_blocks: false
-  tables: false
-  headings: true
-  strict: false
-  stern: false
+MD013: false  # Disabled - no line length limit for markdown files
 
 # MD014/commands-show-output - Dollar signs used before commands without showing output
 MD014: true

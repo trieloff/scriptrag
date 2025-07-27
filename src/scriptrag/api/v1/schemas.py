@@ -95,6 +95,25 @@ class SceneUpdateRequest(BaseModel):
     content: str | None = None
 
 
+class SceneOrderingRequest(BaseModel):
+    """Scene ordering request."""
+
+    scene_ids: list[str] = Field(description="List of scene IDs in desired order")
+    order_type: str = Field(
+        default="script",
+        description="Type of ordering: script, temporal, or logical",
+    )
+
+
+class SceneOrderingResponse(BaseModel):
+    """Scene ordering response."""
+
+    script_id: str
+    order_type: str
+    scene_ids: list[str]
+    message: str
+
+
 # Embedding models
 class EmbeddingGenerateRequest(BaseModel):
     """Embedding generation request."""

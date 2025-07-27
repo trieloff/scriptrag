@@ -22,6 +22,7 @@ from .graph import GraphDatabase
 from .knowledge_graph_builder import KnowledgeGraphBuilder
 from .migrations import MigrationRunner, initialize_database
 from .operations import GraphOperations
+from .scene_ordering import SceneOrderingOperations
 from .schema import DatabaseSchema, create_database, migrate_database
 from .utils import (
     DatabaseBackup,
@@ -48,6 +49,7 @@ __all__ = [
     "GraphOperations",
     "KnowledgeGraphBuilder",
     "MigrationRunner",
+    "SceneOrderingOperations",
     "create_database",
     "create_script_embeddings",
     "export_data_to_json",

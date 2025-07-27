@@ -27,9 +27,6 @@ from .config import (
     load_settings,
     setup_logging_for_environment,
 )
-from .database.bible import ScriptBibleOperations
-from .database.connection import DatabaseConnection
-from .database.continuity import ContinuityValidator
 from .models import Script
 
 
@@ -391,93 +388,109 @@ class ScriptRAGMCPServer:
             },
             {
                 "name": "create_character_profile",
-                "description": (
-                    "Create or update a character profile for continuity tracking"
-                ),
+                "description": "Create or update a character profile in the bible",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
+                        "character_id": {
+                            "type": "string",
+                            "description": "Character ID",
+                        },
                         "script_id": {"type": "string", "description": "Script ID"},
-                        "character_name": {
-                            "type": "string",
-                            "description": "Character name",
-                        },
                         "age": {"type": "integer", "description": "Character age"},
-                        "occupation": {
-                            "type": "string",
-                            "description": "Character occupation",
-                        },
+                        "occupation": {"type": "string", "description": "Occupation"},
                         "background": {
                             "type": "string",
-                            "description": "Character background",
+                            "description": "Background story",
                         },
-                        "personality_traits": {
-                            "type": "string",
-                            "description": "Personality traits",
-                        },
-                        "motivations": {
-                            "type": "string",
-                            "description": "Character motivations",
-                        },
-                        "fears": {"type": "string", "description": "Character fears"},
                         "goals": {"type": "string", "description": "Character goals"},
+                        "fears": {"type": "string", "description": "Character fears"},
                         "character_arc": {
                             "type": "string",
                             "description": "Character development arc",
                         },
                     },
-                    "required": ["script_id", "character_name"],
+                    "required": ["character_id", "script_id"],
                 },
             },
             {
-                "name": "create_world_element",
-                "description": (
-                    "Create a world building element for continuity tracking"
-                ),
+                "name": "add_world_element",
+                "description": "Add a world-building element to the script bible",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "script_id": {"type": "string", "description": "Script ID"},
-                        "name": {"type": "string", "description": "Element name"},
                         "element_type": {
                             "type": "string",
                             "enum": [
                                 "location",
-                                "prop",
-                                "concept",
-                                "rule",
                                 "technology",
                                 "culture",
+                                "history",
+                                "rule",
+                                "other",
                             ],
-                            "description": "Element type",
-                            "default": "location",
+                            "description": "Type of world element",
                         },
+                        "name": {"type": "string", "description": "Element name"},
                         "description": {
                             "type": "string",
                             "description": "Element description",
-                        },
-                        "category": {
-                            "type": "string",
-                            "description": "Element category",
                         },
                         "importance_level": {
                             "type": "integer",
                             "minimum": 1,
                             "maximum": 5,
                             "description": "Importance level (1-5)",
-                            "default": 1,
-                        },
-                        "rules_and_constraints": {
-                            "type": "string",
-                            "description": "Rules and constraints",
                         },
                     },
-                    "required": ["script_id", "name"],
+                    "required": ["script_id", "element_type", "name"],
                 },
             },
             {
-                "name": "run_continuity_check",
-                "description": "Run automated continuity validation on a script",
+                "name": "create_timeline_event",
+                "description": "Add an event to the story timeline",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "timeline_id": {"type": "string", "description": "Timeline ID"},
+                        "script_id": {"type": "string", "description": "Script ID"},
+                        "event_name": {"type": "string", "description": "Event name"},
+                        "event_type": {
+                            "type": "string",
+                            "enum": [
+                                "story",
+                                "backstory",
+                                "flashback",
+                                "flashforward",
+                                "parallel",
+                            ],
+                            "description": "Type of event",
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Event description",
+                        },
+                        "story_date": {
+                            "type": "string",
+                            "description": "Date in story time",
+                        },
+                        "episode_id": {
+                            "type": "string",
+                            "description": "Episode ID where event occurs",
+                        },
+                    },
+                    "required": [
+                        "timeline_id",
+                        "script_id",
+                        "event_name",
+                        "event_type",
+                    ],
+                },
+            },
+            {
+                "name": "check_continuity",
+                "description": "Run continuity validation checks on the script",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -487,65 +500,13 @@ class ScriptRAGMCPServer:
                             "description": "Create continuity notes for issues found",
                             "default": False,
                         },
-                        "severity_filter": {
-                            "type": "string",
-                            "enum": ["low", "medium", "high", "critical"],
-                            "description": "Filter issues by severity",
-                        },
-                    },
-                    "required": ["script_id"],
-                },
-            },
-            {
-                "name": "get_continuity_notes",
-                "description": (
-                    "Get continuity notes for a script with optional filters"
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "script_id": {"type": "string", "description": "Script ID"},
-                        "status": {
-                            "type": "string",
-                            "enum": ["open", "resolved", "ignored", "deferred"],
-                            "description": "Filter by status",
-                        },
-                        "note_type": {
-                            "type": "string",
-                            "enum": [
-                                "error",
-                                "inconsistency",
-                                "rule",
-                                "reminder",
-                                "question",
-                            ],
-                            "description": "Filter by type",
-                        },
-                        "severity": {
-                            "type": "string",
-                            "enum": ["low", "medium", "high", "critical"],
-                            "description": "Filter by severity",
-                        },
-                    },
-                    "required": ["script_id"],
-                },
-            },
-            {
-                "name": "generate_continuity_report",
-                "description": (
-                    "Generate a comprehensive continuity report for a script"
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "script_id": {"type": "string", "description": "Script ID"},
                     },
                     "required": ["script_id"],
                 },
             },
             {
                 "name": "add_character_knowledge",
-                "description": "Add character knowledge entry for continuity tracking",
+                "description": "Track character knowledge at different story points",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -572,7 +533,7 @@ class ScriptRAGMCPServer:
                         },
                         "knowledge_description": {
                             "type": "string",
-                            "description": "Knowledge description",
+                            "description": "Detailed description",
                         },
                         "acquired_episode": {
                             "type": "string",
@@ -580,8 +541,7 @@ class ScriptRAGMCPServer:
                         },
                         "acquisition_method": {
                             "type": "string",
-                            "enum": ["witnessed", "told", "discovered", "assumed"],
-                            "description": "How knowledge was acquired",
+                            "description": "How the knowledge was acquired",
                         },
                     },
                     "required": [
@@ -593,40 +553,115 @@ class ScriptRAGMCPServer:
                 },
             },
             {
-                "name": "create_plot_thread",
-                "description": "Create a plot thread for storyline tracking",
+                "name": "get_continuity_report",
+                "description": "Generate a comprehensive continuity report",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "script_id": {"type": "string", "description": "Script ID"},
-                        "name": {"type": "string", "description": "Thread name"},
-                        "thread_type": {
+                    },
+                    "required": ["script_id"],
+                },
+            },
+            {
+                "name": "list_mentors",
+                "description": "List all available screenplay analysis mentors",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                },
+            },
+            {
+                "name": "analyze_script_with_mentor",
+                "description": "Analyze a screenplay using a specific mentor",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
                             "type": "string",
-                            "enum": ["main", "subplot", "arc", "mystery", "romance"],
-                            "description": "Thread type",
-                            "default": "main",
+                            "description": "Script ID to analyze",
                         },
-                        "priority": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "maximum": 5,
-                            "description": "Thread priority (1-5)",
-                            "default": 1,
-                        },
-                        "description": {
+                        "mentor_name": {
                             "type": "string",
-                            "description": "Thread description",
+                            "description": "Name of the mentor to use",
                         },
-                        "initial_setup": {
-                            "type": "string",
-                            "description": "Initial setup",
+                        "config": {
+                            "type": "object",
+                            "description": "Optional mentor configuration",
+                            "additionalProperties": True,
                         },
-                        "central_conflict": {
-                            "type": "string",
-                            "description": "Central conflict",
+                        "save_results": {
+                            "type": "boolean",
+                            "description": "Whether to save results to database",
+                            "default": True,
                         },
                     },
-                    "required": ["script_id", "name"],
+                    "required": ["script_id", "mentor_name"],
+                },
+            },
+            {
+                "name": "get_mentor_results",
+                "description": "Get previous mentor analysis results for a script",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {"type": "string", "description": "Script ID"},
+                        "mentor_name": {
+                            "type": "string",
+                            "description": "Optional: filter by mentor name",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of results",
+                            "default": 10,
+                            "minimum": 1,
+                            "maximum": 100,
+                        },
+                    },
+                    "required": ["script_id"],
+                },
+            },
+            {
+                "name": "search_mentor_analyses",
+                "description": "Search mentor analysis findings",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query"},
+                        "mentor_name": {
+                            "type": "string",
+                            "description": "Optional: filter by mentor name",
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Optional: filter by analysis category",
+                        },
+                        "severity": {
+                            "type": "string",
+                            "enum": ["error", "warning", "suggestion", "info"],
+                            "description": "Optional: filter by severity level",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of results",
+                            "default": 20,
+                            "minimum": 1,
+                            "maximum": 100,
+                        },
+                    },
+                    "required": ["query"],
+                },
+            },
+            {
+                "name": "get_mentor_statistics",
+                "description": "Get statistics about mentor analyses for a script",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {"type": "string", "description": "Script ID"},
+                    },
+                    "required": ["script_id"],
                 },
             },
         ]
@@ -722,15 +757,20 @@ class ScriptRAGMCPServer:
                 "get_scene_details": self._tool_get_scene_details,
                 "get_character_relationships": self._tool_get_character_relationships,
                 "export_data": self._tool_export_data,
-                # Script Bible and Continuity Management Tools
+                # Script Bible tools
                 "create_series_bible": self._tool_create_series_bible,
                 "create_character_profile": self._tool_create_character_profile,
-                "create_world_element": self._tool_create_world_element,
-                "run_continuity_check": self._tool_run_continuity_check,
-                "get_continuity_notes": self._tool_get_continuity_notes,
-                "generate_continuity_report": self._tool_generate_continuity_report,
+                "add_world_element": self._tool_add_world_element,
+                "create_timeline_event": self._tool_create_timeline_event,
+                "check_continuity": self._tool_check_continuity,
                 "add_character_knowledge": self._tool_add_character_knowledge,
-                "create_plot_thread": self._tool_create_plot_thread,
+                "get_continuity_report": self._tool_get_continuity_report,
+                # Mentor tools
+                "list_mentors": self._tool_list_mentors,
+                "analyze_script_with_mentor": self._tool_analyze_script_with_mentor,
+                "get_mentor_results": self._tool_get_mentor_results,
+                "search_mentor_analyses": self._tool_search_mentor_analyses,
+                "get_mentor_statistics": self._tool_get_mentor_statistics,
             }
 
             if tool_name not in tool_handlers:
@@ -995,109 +1035,84 @@ class ScriptRAGMCPServer:
             "include_metadata": include_metadata,
         }
 
-    # Script Bible and Continuity Management Tool Handlers
+    # Script Bible Tool Implementations
 
     async def _tool_create_series_bible(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Create a series bible."""
-        script_id = args.get("script_id")
-        title = args.get("title")
+        """Create a new script bible."""
+        from .database.bible import ScriptBibleOperations
+        from .database.connection import DatabaseConnection
 
-        if not script_id or not title:
-            raise ValueError("script_id and title are required")
-
+        script_id = args["script_id"]
+        title = args["title"]
         description = args.get("description")
         bible_type = args.get("bible_type", "series")
         created_by = args.get("created_by")
 
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
             bible_ops = ScriptBibleOperations(connection)
+
             bible_id = bible_ops.create_series_bible(
                 script_id=script_id,
                 title=title,
                 description=description,
-                created_by=created_by,
                 bible_type=bible_type,
+                created_by=created_by,
             )
 
-        return {
-            "bible_id": bible_id,
-            "script_id": script_id,
-            "title": title,
-            "bible_type": bible_type,
-            "created": True,
-        }
+            return {
+                "bible_id": bible_id,
+                "script_id": script_id,
+                "title": title,
+                "created": True,
+            }
 
     async def _tool_create_character_profile(
         self, args: dict[str, Any]
     ) -> dict[str, Any]:
         """Create a character profile."""
-        script_id = args.get("script_id")
-        character_name = args.get("character_name")
+        from .database.bible import ScriptBibleOperations
+        from .database.connection import DatabaseConnection
 
-        if not script_id or not character_name:
-            raise ValueError("script_id and character_name are required")
+        character_id = args["character_id"]
+        script_id = args["script_id"]
+
+        profile_data = {
+            k: v
+            for k, v in args.items()
+            if k not in ["character_id", "script_id"] and v is not None
+        }
 
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
-            # Find character by name
-            char_row = connection.fetch_one(
-                "SELECT id FROM characters WHERE script_id = ? AND name LIKE ?",
-                (script_id, f"%{character_name}%"),
-            )
-
-            if not char_row:
-                raise ValueError(f"Character '{character_name}' not found")
-
-            character_id = char_row["id"]
             bible_ops = ScriptBibleOperations(connection)
-
-            # Build profile data from arguments
-            profile_data = {}
-            optional_fields = [
-                "age",
-                "occupation",
-                "background",
-                "personality_traits",
-                "motivations",
-                "fears",
-                "goals",
-                "character_arc",
-            ]
-
-            for field in optional_fields:
-                if field in args:
-                    profile_data[field] = args[field]
 
             profile_id = bible_ops.create_character_profile(
                 character_id=character_id, script_id=script_id, **profile_data
             )
 
-        return {
-            "profile_id": profile_id,
-            "character_id": character_id,
-            "character_name": character_name,
-            "script_id": script_id,
-            "created": True,
+            return {
+                "profile_id": profile_id,
+                "character_id": character_id,
+                "script_id": script_id,
+                "created": True,
+            }
+
+    async def _tool_add_world_element(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Add a world-building element."""
+        from .database.bible import ScriptBibleOperations
+        from .database.connection import DatabaseConnection
+
+        script_id = args["script_id"]
+        element_type = args["element_type"]
+        name = args["name"]
+
+        element_data = {
+            k: v
+            for k, v in args.items()
+            if k not in ["script_id", "element_type", "name"] and v is not None
         }
-
-    async def _tool_create_world_element(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Create a world element."""
-        script_id = args.get("script_id")
-        name = args.get("name")
-
-        if not script_id or not name:
-            raise ValueError("script_id and name are required")
-
-        element_type = args.get("element_type", "location")
 
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
             bible_ops = ScriptBibleOperations(connection)
-
-            element_data = {
-                "description": args.get("description"),
-                "category": args.get("category"),
-                "importance_level": args.get("importance_level", 1),
-                "rules_and_constraints": args.get("rules_and_constraints"),
-            }
 
             element_id = bible_ops.create_world_element(
                 script_id=script_id,
@@ -1106,165 +1121,101 @@ class ScriptRAGMCPServer:
                 **element_data,
             )
 
-        return {
-            "element_id": element_id,
-            "name": name,
-            "element_type": element_type,
-            "script_id": script_id,
-            "created": True,
+            return {
+                "element_id": element_id,
+                "script_id": script_id,
+                "element_type": element_type,
+                "name": name,
+                "created": True,
+            }
+
+    async def _tool_create_timeline_event(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Create a timeline event."""
+        from .database.bible import ScriptBibleOperations
+        from .database.connection import DatabaseConnection
+
+        timeline_id = args["timeline_id"]
+        script_id = args["script_id"]
+        event_name = args["event_name"]
+        event_type = args["event_type"]
+
+        event_data = {
+            k: v
+            for k, v in args.items()
+            if k not in ["timeline_id", "script_id", "event_name", "event_type"]
+            and v is not None
         }
-
-    async def _tool_run_continuity_check(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Run continuity validation."""
-        script_id = args.get("script_id")
-
-        if not script_id:
-            raise ValueError("script_id is required")
-
-        create_notes = args.get("create_notes", False)
-        severity_filter = args.get("severity_filter")
-
-        with DatabaseConnection(str(self.config.get_database_path())) as connection:
-            validator = ContinuityValidator(connection)
-            issues = validator.validate_script_continuity(script_id)
-
-            # Filter by severity if requested
-            if severity_filter:
-                issues = [i for i in issues if i.severity == severity_filter]
-
-            # Create notes if requested
-            note_ids = []
-            if create_notes:
-                note_ids = validator.create_continuity_notes_from_issues(
-                    script_id=script_id,
-                    issues=issues,
-                    reported_by="MCP Continuity Check",
-                )
-
-            # Categorize issues by severity
-            by_severity = {"critical": 0, "high": 0, "medium": 0, "low": 0}
-            for issue in issues:
-                by_severity[issue.severity] += 1
-
-        return {
-            "script_id": script_id,
-            "total_issues": len(issues),
-            "by_severity": by_severity,
-            "issues": [
-                {
-                    "type": issue.issue_type,
-                    "severity": issue.severity,
-                    "title": issue.title,
-                    "description": issue.description,
-                    "episode_id": issue.episode_id,
-                    "scene_id": issue.scene_id,
-                    "character_id": issue.character_id,
-                }
-                for issue in issues[:10]  # Return first 10 issues
-            ],
-            "notes_created": len(note_ids) if create_notes else 0,
-        }
-
-    async def _tool_get_continuity_notes(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Get continuity notes."""
-        script_id = args.get("script_id")
-
-        if not script_id:
-            raise ValueError("script_id is required")
-
-        status = args.get("status")
-        note_type = args.get("note_type")
-        severity = args.get("severity")
 
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
             bible_ops = ScriptBibleOperations(connection)
-            notes = bible_ops.get_continuity_notes(
+
+            event_id = bible_ops.add_timeline_event(
+                timeline_id=timeline_id,
                 script_id=script_id,
-                status=status,
-                note_type=note_type,
-                severity=severity,
+                event_name=event_name,
+                event_type=event_type,
+                **event_data,
             )
 
-        return {
-            "script_id": script_id,
-            "total_notes": len(notes),
-            "filters": {
-                "status": status,
-                "note_type": note_type,
-                "severity": severity,
-            },
-            "notes": [
-                {
-                    "id": str(note.id),
-                    "type": note.note_type,
-                    "severity": note.severity,
-                    "status": note.status,
-                    "title": note.title,
-                    "description": note.description,
-                    "episode_id": str(note.episode_id) if note.episode_id else None,
-                    "scene_id": str(note.scene_id) if note.scene_id else None,
-                    "character_id": (
-                        str(note.character_id) if note.character_id else None
-                    ),
-                    "created_at": note.created_at.isoformat(),
-                    "resolved_at": (
-                        note.resolved_at.isoformat() if note.resolved_at else None
-                    ),
-                }
-                for note in notes
-            ],
-        }
+            return {
+                "event_id": event_id,
+                "timeline_id": timeline_id,
+                "event_name": event_name,
+                "created": True,
+            }
 
-    async def _tool_generate_continuity_report(
-        self, args: dict[str, Any]
-    ) -> dict[str, Any]:
-        """Generate continuity report."""
-        script_id = args.get("script_id")
+    async def _tool_check_continuity(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Check script continuity."""
+        from .database.connection import DatabaseConnection
+        from .database.continuity import ContinuityValidator
 
-        if not script_id:
-            raise ValueError("script_id is required")
+        script_id = args["script_id"]
+        create_notes = args.get("create_notes", False)
 
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
             validator = ContinuityValidator(connection)
-            report = validator.generate_continuity_report(script_id)
 
-        # Simplify the report for MCP response
-        return {
-            "script_id": script_id,
-            "script_title": report["script_title"],
-            "is_series": report["is_series"],
-            "generated_at": report["generated_at"],
-            "summary": {
-                "total_issues": report["validation_results"]["issue_statistics"][
-                    "total_issues"
+            issues = validator.validate_script_continuity(script_id)
+
+            note_ids = []
+            if create_notes and issues:
+                note_ids = validator.create_continuity_notes_from_issues(
+                    script_id, issues, "MCP Server"
+                )
+
+            # Group issues by severity
+            by_severity = {"low": 0, "medium": 0, "high": 0, "critical": 0}
+            for issue in issues:
+                if issue.severity in by_severity:
+                    by_severity[issue.severity] += 1
+
+            return {
+                "script_id": script_id,
+                "total_issues": len(issues),
+                "by_severity": by_severity,
+                "notes_created": len(note_ids),
+                "issues": [
+                    {
+                        "type": issue.issue_type,
+                        "severity": issue.severity,
+                        "title": issue.title,
+                        "description": issue.description,
+                    }
+                    for issue in issues[:10]  # First 10 issues
                 ],
-                "issues_by_severity": report["validation_results"]["issue_statistics"][
-                    "by_severity"
-                ],
-                "total_notes": report["existing_notes"]["note_statistics"][
-                    "total_notes"
-                ],
-                "notes_by_status": report["existing_notes"]["note_statistics"][
-                    "by_status"
-                ],
-            },
-            "recommendations": report["recommendations"],
-        }
+            }
 
     async def _tool_add_character_knowledge(
         self, args: dict[str, Any]
     ) -> dict[str, Any]:
-        """Add character knowledge entry."""
-        script_id = args.get("script_id")
-        character_name = args.get("character_name")
-        knowledge_type = args.get("knowledge_type")
-        knowledge_subject = args.get("knowledge_subject")
+        """Add character knowledge."""
+        from .database.bible import ScriptBibleOperations
+        from .database.connection import DatabaseConnection
 
-        if not all([script_id, character_name, knowledge_type, knowledge_subject]):
-            raise ValueError(
-                "script_id, character_name, knowledge_type, and knowledge_subject "
-                "are required"
-            )
+        script_id = args["script_id"]
+        character_name = args["character_name"]
+        knowledge_type = args["knowledge_type"]
+        knowledge_subject = args["knowledge_subject"]
 
         # Type narrowing after validation - we know these are strings now
         # Use runtime type checks to satisfy both mypy and linter
@@ -1288,75 +1239,334 @@ class ScriptRAGMCPServer:
                 raise ValueError(f"Character '{character_name}' not found")
 
             character_id = char_row["id"]
-            bible_ops = ScriptBibleOperations(connection)
 
-            # Find episode by name if provided
-            acquired_episode_id = None
+            # Get optional fields
+            knowledge_description = args.get("knowledge_description")
             acquired_episode = args.get("acquired_episode")
+            acquisition_method = args.get("acquisition_method")
+
+            # Handle episode lookup if provided
+            acquired_episode_id = None
             if acquired_episode:
                 ep_row = connection.fetch_one(
-                    "SELECT id FROM episodes "
-                    "WHERE script_id = ? AND (title LIKE ? OR number = ?)",
+                    "SELECT id FROM episodes WHERE script_id = ? "
+                    "AND (title LIKE ? OR number = ?)",
                     (script_id, f"%{acquired_episode}%", acquired_episode),
                 )
                 if ep_row:
                     acquired_episode_id = ep_row["id"]
 
-            knowledge_data = {
-                "knowledge_description": args.get("knowledge_description"),
-                "acquired_episode_id": acquired_episode_id,
-                "acquisition_method": args.get("acquisition_method"),
-            }
-
+            bible_ops = ScriptBibleOperations(connection)
             knowledge_id = bible_ops.add_character_knowledge(
                 character_id=character_id,
                 script_id=script_id,
                 knowledge_type=knowledge_type,
                 knowledge_subject=knowledge_subject,
-                **knowledge_data,
+                knowledge_description=knowledge_description,
+                acquired_episode_id=acquired_episode_id,
+                acquisition_method=acquisition_method,
             )
 
-        return {
-            "knowledge_id": knowledge_id,
-            "character_id": character_id,
-            "character_name": character_name,
-            "knowledge_type": knowledge_type,
-            "knowledge_subject": knowledge_subject,
-            "script_id": script_id,
-            "created": True,
-        }
-
-    async def _tool_create_plot_thread(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Create a plot thread."""
-        script_id = args.get("script_id")
-        name = args.get("name")
-
-        if not script_id or not name:
-            raise ValueError("script_id and name are required")
-
-        thread_type = args.get("thread_type", "main")
-
-        with DatabaseConnection(str(self.config.get_database_path())) as connection:
-            bible_ops = ScriptBibleOperations(connection)
-
-            thread_data = {
-                "priority": args.get("priority", 1),
-                "description": args.get("description"),
-                "initial_setup": args.get("initial_setup"),
-                "central_conflict": args.get("central_conflict"),
+            return {
+                "knowledge_id": knowledge_id,
+                "character_id": character_id,
+                "character_name": character_name,
+                "knowledge_type": knowledge_type,
+                "knowledge_subject": knowledge_subject,
+                "created": True,
             }
 
-            thread_id = bible_ops.create_plot_thread(
-                script_id=script_id, name=name, thread_type=thread_type, **thread_data
+    async def _tool_get_continuity_report(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Generate continuity report."""
+        from .database.connection import DatabaseConnection
+        from .database.continuity import ContinuityValidator
+
+        script_id = args["script_id"]
+
+        with DatabaseConnection(str(self.config.get_database_path())) as connection:
+            validator = ContinuityValidator(connection)
+            report = validator.generate_continuity_report(script_id)
+
+            # Simplify the report for MCP response
+            return {
+                "script_id": script_id,
+                "script_title": report["script_title"],
+                "is_series": report["is_series"],
+                "total_issues": report["validation_results"]["issue_statistics"][
+                    "total_issues"
+                ],
+                "by_severity": report["validation_results"]["issue_statistics"][
+                    "by_severity"
+                ],
+                "open_notes": report["existing_notes"]["note_statistics"][
+                    "by_status"
+                ].get("open", 0),
+                "recommendations": report["recommendations"],
+            }
+
+    async def _tool_list_mentors(
+        self,
+        args: dict[str, Any],  # noqa: ARG002
+    ) -> dict[str, Any]:
+        """List all available mentors."""
+        from .mentors import get_mentor_registry
+
+        try:
+            registry = get_mentor_registry()
+            mentors = registry.list_mentors()
+
+            return {
+                "mentors": mentors,
+                "total_count": len(mentors),
+            }
+
+        except Exception as e:
+            self.logger.error("Failed to list mentors", error=str(e))
+            raise ValueError(f"Failed to list mentors: {e}") from e
+
+    async def _tool_analyze_script_with_mentor(
+        self, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Analyze a script with a specific mentor."""
+        from uuid import UUID
+
+        from .database.connection import DatabaseConnection
+        from .database.operations import GraphOperations
+        from .mentors import MentorDatabaseOperations, get_mentor_registry
+
+        script_id = args.get("script_id")
+        mentor_name = args.get("mentor_name")
+        config = args.get("config", {})
+        save_results = args.get("save_results", True)
+
+        if not script_id or not mentor_name:
+            raise ValueError("script_id and mentor_name are required")
+
+        try:
+            # Get mentor
+            registry = get_mentor_registry()
+            if not registry.is_registered(mentor_name):
+                available: list[str] = list(registry)
+                raise ValueError(
+                    f"Mentor '{mentor_name}' not found. Available: {available}"
+                )
+
+            mentor = registry.get_mentor(mentor_name, config)
+
+            # Setup database operations
+            db_path = Path(self.config.database.path)
+            connection = DatabaseConnection(str(db_path))
+            graph_ops = GraphOperations(connection)
+
+            # Run analysis
+            result = await mentor.analyze_script(
+                script_id=UUID(script_id),
+                db_operations=graph_ops,
+                progress_callback=None,  # MCP doesn't support progress callbacks yet
             )
 
-        return {
-            "thread_id": thread_id,
-            "name": name,
-            "thread_type": thread_type,
-            "script_id": script_id,
-            "created": True,
-        }
+            # Save results if requested
+            if save_results:
+                mentor_db = MentorDatabaseOperations(connection)
+                mentor_db.store_mentor_result(result)
+
+            # Convert to serializable format
+            return {
+                "result_id": str(result.id),
+                "mentor_name": result.mentor_name,
+                "mentor_version": result.mentor_version,
+                "script_id": str(result.script_id),
+                "summary": result.summary,
+                "score": result.score,
+                "analysis_date": result.analysis_date.isoformat(),
+                "execution_time_ms": result.execution_time_ms,
+                "analyses_count": len(result.analyses),
+                "error_count": result.error_count,
+                "warning_count": result.warning_count,
+                "suggestion_count": result.suggestion_count,
+                "analyses": [
+                    {
+                        "id": str(analysis.id),
+                        "title": analysis.title,
+                        "description": analysis.description,
+                        "severity": analysis.severity.value,
+                        "category": analysis.category,
+                        "confidence": analysis.confidence,
+                        "recommendations": analysis.recommendations,
+                        "scene_id": (
+                            str(analysis.scene_id) if analysis.scene_id else None
+                        ),
+                        "character_id": (
+                            str(analysis.character_id)
+                            if analysis.character_id
+                            else None
+                        ),
+                    }
+                    for analysis in result.analyses
+                ],
+                "saved_to_database": save_results,
+            }
+
+        except Exception as e:
+            self.logger.error(
+                "Mentor analysis failed",
+                mentor=mentor_name,
+                script_id=script_id,
+                error=str(e),
+            )
+            raise ValueError(f"Mentor analysis failed: {e}") from e
+
+    async def _tool_get_mentor_results(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Get previous mentor analysis results."""
+        from uuid import UUID
+
+        from .database.connection import DatabaseConnection
+        from .mentors import MentorDatabaseOperations
+
+        script_id = args.get("script_id")
+        mentor_name = args.get("mentor_name")
+        limit = args.get("limit", 10)
+
+        if not script_id:
+            raise ValueError("script_id is required")
+
+        try:
+            db_path = Path(self.config.database.path)
+            connection = DatabaseConnection(str(db_path))
+            mentor_db = MentorDatabaseOperations(connection)
+
+            results = mentor_db.get_script_mentor_results(UUID(script_id), mentor_name)[
+                :limit
+            ]
+
+            return {
+                "script_id": script_id,
+                "mentor_filter": mentor_name,
+                "results_count": len(results),
+                "results": [
+                    {
+                        "result_id": str(result.id),
+                        "mentor_name": result.mentor_name,
+                        "mentor_version": result.mentor_version,
+                        "summary": result.summary,
+                        "score": result.score,
+                        "analysis_date": result.analysis_date.isoformat(),
+                        "analyses_count": len(result.analyses),
+                        "error_count": result.error_count,
+                        "warning_count": result.warning_count,
+                        "suggestion_count": result.suggestion_count,
+                    }
+                    for result in results
+                ],
+            }
+
+        except Exception as e:
+            self.logger.error(
+                "Failed to get mentor results", script_id=script_id, error=str(e)
+            )
+            raise ValueError(f"Failed to get mentor results: {e}") from e
+
+    async def _tool_search_mentor_analyses(
+        self, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Search mentor analysis findings."""
+        from .database.connection import DatabaseConnection
+        from .mentors import AnalysisSeverity, MentorDatabaseOperations
+
+        query = args.get("query")
+        mentor_name = args.get("mentor_name")
+        category = args.get("category")
+        severity = args.get("severity")
+        limit = args.get("limit", 20)
+
+        if not query:
+            raise ValueError("query is required")
+
+        try:
+            db_path = Path(self.config.database.path)
+            connection = DatabaseConnection(str(db_path))
+            mentor_db = MentorDatabaseOperations(connection)
+
+            # Parse severity
+            severity_enum = None
+            if severity:
+                severity_enum = AnalysisSeverity(severity.lower())
+
+            results = mentor_db.search_analyses(
+                query=query,
+                mentor_name=mentor_name,
+                category=category,
+                severity=severity_enum,
+                limit=limit,
+            )
+
+            return {
+                "query": query,
+                "filters": {
+                    "mentor_name": mentor_name,
+                    "category": category,
+                    "severity": severity,
+                },
+                "results_count": len(results),
+                "results": [
+                    {
+                        "id": str(analysis.id),
+                        "title": analysis.title,
+                        "description": analysis.description,
+                        "severity": analysis.severity.value,
+                        "category": analysis.category,
+                        "mentor_name": analysis.mentor_name,
+                        "confidence": analysis.confidence,
+                        "recommendations": analysis.recommendations,
+                        "examples": analysis.examples,
+                        "scene_id": (
+                            str(analysis.scene_id) if analysis.scene_id else None
+                        ),
+                        "character_id": (
+                            str(analysis.character_id)
+                            if analysis.character_id
+                            else None
+                        ),
+                    }
+                    for analysis in results
+                ],
+            }
+
+        except Exception as e:
+            self.logger.error(
+                "Failed to search mentor analyses", query=query, error=str(e)
+            )
+            raise ValueError(f"Failed to search mentor analyses: {e}") from e
+
+    async def _tool_get_mentor_statistics(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Get mentor analysis statistics for a script."""
+        from uuid import UUID
+
+        from .database.connection import DatabaseConnection
+        from .mentors import MentorDatabaseOperations
+
+        script_id = args.get("script_id")
+
+        if not script_id:
+            raise ValueError("script_id is required")
+
+        try:
+            db_path = Path(self.config.database.path)
+            connection = DatabaseConnection(str(db_path))
+            mentor_db = MentorDatabaseOperations(connection)
+
+            stats = mentor_db.get_mentor_statistics(UUID(script_id))
+
+            return {
+                "script_id": script_id,
+                "statistics": stats,
+            }
+
+        except Exception as e:
+            self.logger.error(
+                "Failed to get mentor statistics", script_id=script_id, error=str(e)
+            )
+            raise ValueError(f"Failed to get mentor statistics: {e}") from e
 
     async def _handle_list_resources(
         self, _request: types.ListResourcesRequest
@@ -1613,6 +1823,8 @@ def main(
         host: Override server host
         port: Override server port
     """
+    logger = get_logger(__name__)
+
     try:
         # Load settings
         settings = load_settings(Path(config_file)) if config_file else get_settings()
@@ -1627,10 +1839,10 @@ def main(
         asyncio.run(run_server(config=settings))
 
     except KeyboardInterrupt:
-        print("\nServer shutdown requested", file=sys.stderr)
+        logger.info("Server shutdown requested")
         sys.exit(0)
     except Exception as e:
-        print(f"Error starting MCP server: {e}", file=sys.stderr)
+        logger.error("Error starting MCP server", error=str(e))
         sys.exit(1)
 
 

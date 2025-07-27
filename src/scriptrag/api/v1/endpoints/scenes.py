@@ -107,25 +107,32 @@ async def update_scene(
     scene_update: SceneUpdateRequest,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> SceneResponse:
-    """Update a scene."""
+    """Update a scene with enhanced graph propagation."""
     try:
         # Check if scene exists
         scene = await db_ops.get_scene(scene_id)
         if not scene:
             raise HTTPException(status_code=404, detail="Scene not found")
 
-        # Update scene
-        await db_ops.update_scene(
+        # Use enhanced update operation with graph propagation
+        success = await db_ops.update_scene_with_graph_propagation(
             scene_id=scene_id,
             scene_number=scene_update.scene_number,
             heading=scene_update.heading,
             content=scene_update.content,
+            location=scene_update.location,
+            time_of_day=scene_update.time_of_day,
         )
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update scene")
 
         # Get updated scene
         updated_scene = await db_ops.get_scene(scene_id)
         if not updated_scene:
-            raise HTTPException(status_code=500, detail="Failed to update scene")
+            raise HTTPException(
+                status_code=500, detail="Failed to retrieve updated scene"
+            )
 
         return SceneResponse(
             id=updated_scene["id"],
@@ -152,17 +159,22 @@ async def delete_scene(
     scene_id: str,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> dict[str, str]:
-    """Delete a scene."""
+    """Delete a scene with reference maintenance."""
     try:
         # Check if scene exists
         scene = await db_ops.get_scene(scene_id)
         if not scene:
             raise HTTPException(status_code=404, detail="Scene not found")
 
-        # Delete scene
-        await db_ops.delete_scene(scene_id)
+        # Use enhanced delete operation with reference maintenance
+        success = await db_ops.delete_scene_with_references(scene_id)
 
-        return {"message": f"Scene {scene_id} deleted successfully"}
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete scene")
+
+        return {
+            "message": f"Scene {scene_id} deleted successfully with reference integrity"
+        }
 
     except HTTPException:
         raise
@@ -424,4 +436,154 @@ async def validate_ordering(
         logger.error("Failed to validate ordering", script_id=script_id, error=str(e))
         raise HTTPException(
             status_code=500, detail="Failed to validate ordering"
+        ) from e
+
+
+# Enhanced Scene Operations for Phase 5.2
+@router.post("/{scene_id}/inject-at-position", response_model=SceneResponse)
+async def inject_scene_at_position(
+    scene_id: str,
+    position: int,
+    scene_data: SceneCreateRequest,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> SceneResponse:
+    """Inject a new scene at a specific position with full re-indexing."""
+    try:
+        # Get the reference scene to find script
+        ref_scene = await db_ops.get_scene(scene_id)
+        if not ref_scene:
+            raise HTTPException(status_code=404, detail="Reference scene not found")
+
+        # Inject scene with enhanced operations
+        new_scene_id = await db_ops.inject_scene_at_position(
+            script_id=ref_scene["script_id"],
+            scene_data=scene_data,
+            position=position,
+        )
+
+        if not new_scene_id:
+            raise HTTPException(status_code=500, detail="Failed to inject scene")
+
+        # Get created scene
+        scene = await db_ops.get_scene(new_scene_id)
+        if not scene:
+            raise HTTPException(
+                status_code=500, detail="Failed to retrieve injected scene"
+            )
+
+        return SceneResponse(
+            id=scene["id"],
+            script_id=scene["script_id"],
+            scene_number=scene["scene_number"],
+            heading=scene["heading"],
+            content=scene["content"],
+            character_count=scene["character_count"],
+            word_count=scene["word_count"],
+            page_start=scene["page_start"],
+            page_end=scene["page_end"],
+            has_embedding=scene["has_embedding"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to inject scene at position",
+            scene_id=scene_id,
+            position=position,
+            error=str(e),
+        )
+        raise HTTPException(status_code=500, detail="Failed to inject scene") from e
+
+
+@router.post("/script/{script_id}/validate-continuity")
+async def validate_story_continuity(
+    script_id: str,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> dict[str, Any]:
+    """Validate story continuity across all scenes in a script."""
+    try:
+        # Validate script exists
+        script = await db_ops.get_script(script_id)
+        if not script:
+            raise HTTPException(status_code=404, detail="Script not found")
+
+        # Validate story continuity
+        results = await db_ops.validate_story_continuity(script_id)
+
+        return {
+            "script_id": script_id,
+            "continuity_results": results,
+            "message": "Continuity validation completed",
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Failed to validate story continuity", script_id=script_id, error=str(e)
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to validate story continuity"
+        ) from e
+
+
+@router.patch("/{scene_id}/metadata", response_model=SceneResponse)
+async def update_scene_metadata(
+    scene_id: str,
+    heading: str | None = None,
+    description: str | None = None,
+    time_of_day: str | None = None,
+    location: str | None = None,
+    propagate_to_graph: bool = True,
+    db_ops: DatabaseOperations = Depends(get_db_ops),
+) -> SceneResponse:
+    """Update scene metadata with optional graph propagation."""
+    try:
+        # Check if scene exists
+        scene = await db_ops.get_scene(scene_id)
+        if not scene:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        # Update metadata with graph propagation
+        success = await db_ops.update_scene_metadata(
+            scene_id=scene_id,
+            heading=heading,
+            description=description,
+            time_of_day=time_of_day,
+            location=location,
+            propagate_to_graph=propagate_to_graph,
+        )
+
+        if not success:
+            raise HTTPException(
+                status_code=500, detail="Failed to update scene metadata"
+            )
+
+        # Get updated scene
+        updated_scene = await db_ops.get_scene(scene_id)
+        if not updated_scene:
+            raise HTTPException(
+                status_code=500, detail="Failed to retrieve updated scene"
+            )
+
+        return SceneResponse(
+            id=updated_scene["id"],
+            script_id=updated_scene["script_id"],
+            scene_number=updated_scene["scene_number"],
+            heading=updated_scene["heading"],
+            content=updated_scene["content"],
+            character_count=updated_scene["character_count"],
+            word_count=updated_scene["word_count"],
+            page_start=updated_scene["page_start"],
+            page_end=updated_scene["page_end"],
+            has_embedding=updated_scene["has_embedding"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to update scene metadata", scene_id=scene_id, error=str(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to update scene metadata"
         ) from e

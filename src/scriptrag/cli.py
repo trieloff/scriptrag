@@ -5,11 +5,15 @@ script parsing, searching, configuration management, and development utilities.
 """
 
 # Standard library imports
-import sys
+import asyncio
+import contextlib
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
+from uuid import UUID
 
 # Third-party imports
+import requests
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -19,17 +23,26 @@ from rich.table import Table
 from . import ScriptRAG
 from .config import (
     create_default_config,
+    get_logger,
     get_settings,
     load_settings,
     setup_logging_for_environment,
 )
+from .database import get_connection
 from .database.bible import ScriptBibleOperations
 from .database.connection import DatabaseConnection
 from .database.continuity import ContinuityValidator
 from .database.operations import GraphOperations
+from .mentors.base import MentorAnalysis, MentorResult
 from .models import SceneOrderType
 from .parser.bulk_import import BulkImporter
 from .scene_manager import SceneManager
+from .search import SearchInterface, SearchType
+
+# Optional imports for server functionality
+create_app: Callable[[], Any] | None = None
+with contextlib.suppress(ImportError):
+    from scriptrag.api.app import create_app
 
 # Create main Typer app
 app = typer.Typer(
@@ -172,17 +185,22 @@ def config_init(
     ] = False,
 ) -> None:
     """Initialize a new configuration file with default settings."""
+    logger = get_logger(__name__)
+
     if output.exists() and not force:
-        print(f"Configuration file already exists: {output}", file=sys.stderr)
-        print("Use --force to overwrite", file=sys.stderr)
+        logger.error("Configuration file already exists", path=str(output))
+        console.print(f"[red]Configuration file already exists: {output}[/red]")
+        console.print("[yellow]Use --force to overwrite[/yellow]")
         raise typer.Exit(1)
 
     try:
         create_default_config(output)
+        logger.info("Configuration file created", path=str(output))
         console.print(f"[green]✓[/green] Configuration created: {output}")
         console.print("[dim]Edit the file to customize your settings[/dim]")
     except Exception as e:
-        print(f"Error creating configuration: {e}", file=sys.stderr)
+        logger.error("Error creating configuration", error=str(e))
+        console.print(f"[red]Error creating configuration: {e}[/red]")
         raise typer.Exit(1) from e
 
 
@@ -244,7 +262,9 @@ def config_show(
                         console.print(f"  {section_data}")
 
     except Exception as e:
-        print(f"Error loading configuration: {e}", file=sys.stderr)
+        logger = get_logger(__name__)
+        logger.error("Error loading configuration", error=str(e))
+        console.print(f"[red]Error loading configuration: {e}[/red]")
         raise typer.Exit(1) from e
 
 
@@ -287,7 +307,9 @@ def config_validate(
             console.print("[green]✓[/green] All configuration checks passed")
 
     except Exception as e:
-        print(f"✗ Configuration validation failed: {e}", file=sys.stderr)
+        logger = get_logger(__name__)
+        logger.error("Configuration validation failed", error=str(e))
+        console.print(f"[red]✗ Configuration validation failed: {e}[/red]")
         raise typer.Exit(1) from e
 
 
@@ -393,7 +415,9 @@ def script_parse(
         console.print(table)
 
     except Exception as e:
-        print(f"Error parsing screenplay: {e}", file=sys.stderr)
+        logger = get_logger(__name__)
+        logger.error("Error parsing screenplay", error=str(e))
+        console.print(f"[red]Error parsing screenplay: {e}[/red]")
         raise typer.Exit(1) from e
 
 
@@ -587,6 +611,8 @@ def script_import(
                 console.print(f"  • {series_name}")
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error during import", error=str(e))
         console.print(f"[red]Error during import: {e}[/red]")
         raise typer.Exit(1) from e
 
@@ -599,10 +625,13 @@ def script_info(
     ] = None,
 ) -> None:
     """Display information about a screenplay or database."""
+    logger = get_logger(__name__)
+
     if script_path:
         # Show info about a specific script file
         if not script_path.exists():
-            print(f"Script file not found: {script_path}", file=sys.stderr)
+            logger.error("Script file not found", path=str(script_path))
+            console.print(f"[red]Script file not found: {script_path}[/red]")
             raise typer.Exit(1)
 
         # Basic file info for now
@@ -826,6 +855,8 @@ def scene_list(
         console.print(f"\n[dim]Total scenes: {len(scenes)}[/dim]")
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error listing scenes", error=str(e))
         console.print(f"[red]Error listing scenes: {e}[/red]")
         raise typer.Exit(1) from e
 
@@ -910,6 +941,8 @@ def scene_update(
                 raise typer.Exit(1)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error updating scene", error=str(e))
         console.print(f"[red]Error updating scene: {e}[/red]")
         raise typer.Exit(1) from e
 
@@ -1022,6 +1055,8 @@ def scene_reorder(
             raise typer.Exit(1)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error reordering scene", error=str(e))
         console.print(f"[red]Error reordering scene: {e}[/red]")
         raise typer.Exit(1) from e
 
@@ -1144,6 +1179,8 @@ def scene_analyze(
                 console.print("  [dim]No temporal markers found[/dim]")
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error analyzing scenes", error=str(e))
         console.print(f"[red]Error analyzing scenes: {e}[/red]")
         raise typer.Exit(1) from e
 
@@ -1168,11 +1205,6 @@ def search_all(
     ] = 0.1,
 ) -> None:
     """Search across all content types."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface
-
     try:
         console.print(f"[blue]Searching for:[/blue] {query}")
 
@@ -1192,6 +1224,8 @@ def search_all(
         _display_search_results(results)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1207,11 +1241,6 @@ def search_dialogue(
     ] = 10,
 ) -> None:
     """Search dialogue content."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface
-
     try:
         console.print(f"[blue]Searching dialogue for:[/blue] {query}")
         if character:
@@ -1233,6 +1262,8 @@ def search_dialogue(
         _display_search_results(results)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Dialogue search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1251,11 +1282,6 @@ def search_scenes(
     ] = 10,
 ) -> None:
     """Search scenes by content or filters."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface, SearchType
-
     try:
         console.print(f"[blue]Searching scenes for:[/blue] {query}")
         if character:
@@ -1286,6 +1312,8 @@ def search_scenes(
         _display_search_results(results)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Scene search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1303,11 +1331,6 @@ def search_similar(
     ] = 0.3,
 ) -> None:
     """Find scenes similar to a given scene using embeddings."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface
-
     try:
         console.print(f"[blue]Finding scenes similar to:[/blue] {scene_id}")
 
@@ -1327,6 +1350,8 @@ def search_similar(
         _display_search_results(results, show_similarity=True)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Similar search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1342,11 +1367,6 @@ def search_theme(
     ] = 10,
 ) -> None:
     """Search for content matching a theme or mood using semantic search."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface
-
     try:
         console.print(f"[blue]Searching for theme:[/blue] {theme}")
         if entity_type:
@@ -1368,6 +1388,8 @@ def search_theme(
         _display_search_results(results, show_similarity=True)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Theme search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1388,11 +1410,6 @@ def search_temporal(
     ] = 10,
 ) -> None:
     """Search based on temporal criteria."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface
-
     try:
         if day_night:
             console.print(f"[blue]Time of day:[/blue] {day_night}")
@@ -1422,6 +1439,8 @@ def search_temporal(
         _display_search_results(results)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Temporal search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1522,6 +1541,8 @@ def dev_init(
             create_default_config(config_path)
             console.print(f"[green]Created:[/green] {config_path}")
         except Exception as e:
+            logger = get_logger(__name__)
+            logger.error("Error creating config", error=str(e))
             console.print(f"[red]Error creating config:[/red] {e}")
 
     console.print("[green]✓[/green] Development environment initialized")
@@ -1558,8 +1579,6 @@ def dev_test_llm() -> None:
     console.print("[blue]Testing LLM connection...[/blue]")
 
     try:
-        import requests
-
         settings = get_settings()
 
         # Test embeddings endpoint
@@ -1602,6 +1621,8 @@ def dev_test_llm() -> None:
             )
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("LLM test failed", error=str(e))
         console.print(f"[red]✗[/red] LLM test failed: {e}")
         raise typer.Exit(1) from e
 
@@ -2248,9 +2269,20 @@ def server_api(
     console.print(f"[dim]Host: {host}:{port}[/dim]")
     console.print(f"[dim]Docs: http://{host}:{port}/api/v1/docs[/dim]")
 
-    import uvicorn
+    if create_app is None:
+        console.print(
+            "[red]Error: API server is not available. Install with 'api' extra.[/red]"
+        )
+        raise typer.Exit(1)
 
-    from scriptrag.api.app import create_app
+    try:
+        import uvicorn
+    except ImportError:
+        console.print(
+            "[red]Error: uvicorn is not installed. "
+            "Install with 'pip install uvicorn'.[/red]"
+        )
+        raise typer.Exit(1) from None
 
     app = create_app()
     uvicorn.run(
@@ -2260,6 +2292,405 @@ def server_api(
         reload=reload,
         log_level="info" if reload else "warning",
     )
+
+
+# Mentor commands
+mentor_app = typer.Typer(
+    name="mentor",
+    help="Screenplay analysis mentors and automated feedback",
+    rich_markup_mode="rich",
+)
+app.add_typer(mentor_app)
+
+
+@mentor_app.command("list")
+def mentor_list() -> None:
+    """List all available mentors."""
+    try:
+        from .mentors import get_mentor_registry
+
+        registry = get_mentor_registry()
+        mentors = registry.list_mentors()
+
+        if not mentors:
+            console.print("[yellow]No mentors available.[/yellow]")
+            return
+
+        table = Table(show_header=True, header_style="bold blue")
+        table.add_column("Name", style="cyan")
+        table.add_column("Type", style="green")
+        table.add_column("Version", style="yellow")
+        table.add_column("Description", style="white")
+
+        for mentor in mentors:
+            table.add_row(
+                str(mentor["name"]),
+                str(mentor["type"]),
+                str(mentor["version"]),
+                (
+                    str(mentor["description"])[:60]
+                    + ("..." if len(str(mentor["description"])) > 60 else "")
+                ),
+            )
+
+        console.print(table)
+        console.print(f"\n[dim]Total mentors: {len(mentors)}[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]Error listing mentors: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
+@mentor_app.command("analyze")
+def mentor_analyze(
+    mentor_name: Annotated[
+        str, typer.Argument(help="Name of the mentor to use for analysis")
+    ],
+    script_id: Annotated[
+        str | None,
+        typer.Option(
+            "--script-id",
+            "-s",
+            help="Script ID to analyze (uses latest if not specified)",
+        ),
+    ] = None,
+    config_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--config", "-c", help="Path to mentor configuration file (JSON/YAML)"
+        ),
+    ] = None,
+    save_results: Annotated[
+        bool,
+        typer.Option("--save", help="Save analysis results to database"),
+    ] = True,
+) -> None:
+    """Run mentor analysis on a screenplay."""
+    import asyncio
+    import json
+    from pathlib import Path
+
+    try:
+        from .database.connection import DatabaseConnection
+        from .database.operations import GraphOperations
+        from .mentors import MentorDatabaseOperations, get_mentor_registry
+
+        settings = get_settings()
+        db_path = Path(settings.database.path)
+
+        if not db_path.exists():
+            console.print(
+                "[red]No database found. Use 'scriptrag script parse' first.[/red]"
+            )
+            raise typer.Exit(1)
+
+        # Get mentor
+        registry = get_mentor_registry()
+        if not registry.is_registered(mentor_name):
+            mentor_list = registry.list_mentors()
+            available = ", ".join([str(m["name"]) for m in mentor_list])
+            console.print(f"[red]Mentor '{mentor_name}' not found.[/red]")
+            console.print(f"Available mentors: {available}")
+            raise typer.Exit(1)
+
+        # Load configuration if provided
+        config = {}
+        if config_file:
+            if config_file.suffix.lower() == ".json":
+                config = json.loads(config_file.read_text())
+            else:
+                # Assume YAML
+                import yaml
+
+                config = yaml.safe_load(config_file.read_text())
+
+        mentor = registry.get_mentor(mentor_name, config)
+
+        # Get script ID
+        connection = DatabaseConnection(str(db_path))
+        if not script_id:
+            result = get_latest_script_id(connection)
+            if not result:
+                console.print("[red]No scripts found in database.[/red]")
+                raise typer.Exit(1)
+            script_id, script_title = result
+            console.print(f"[blue]Analyzing script:[/blue] {script_title}")
+        else:
+            console.print(f"[blue]Analyzing script ID:[/blue] {script_id}")
+
+        # Run analysis
+        console.print(f"[blue]Running {mentor_name} analysis...[/blue]")
+
+        async def run_analysis() -> MentorResult:
+            graph_ops = GraphOperations(connection)
+
+            def progress_callback(pct: float, msg: str) -> None:
+                # Simple progress display
+                progress_bar = "█" * int(pct * 20) + "░" * (20 - int(pct * 20))
+                console.print(f"\r[{progress_bar}] {msg}", end="")
+
+            try:
+                result = await mentor.analyze_script(
+                    script_id=UUID(script_id),
+                    db_operations=graph_ops,
+                    progress_callback=progress_callback,
+                )
+
+                console.print("\n")  # New line after progress
+                return result
+
+            except Exception as e:
+                console.print(f"\n[red]Analysis failed: {e}[/red]")
+                raise
+
+        analysis_result = asyncio.run(run_analysis())
+
+        # Display results
+        console.print("\n[bold green]Analysis Complete![/bold green]")
+        console.print(
+            f"[bold]Mentor:[/bold] {analysis_result.mentor_name} "
+            f"v{analysis_result.mentor_version}"
+        )
+        if analysis_result.score is not None:
+            console.print(f"[bold]Score:[/bold] {analysis_result.score:.1f}/100")
+        console.print(
+            f"[bold]Execution Time:[/bold] {analysis_result.execution_time_ms}ms"
+        )
+        console.print(f"\n[bold]Summary:[/bold]\n{analysis_result.summary}")
+
+        # Show analysis breakdown
+        if analysis_result.analyses:
+            console.print(
+                f"\n[bold blue]Detailed Analysis "
+                f"({len(analysis_result.analyses)} findings):[/bold blue]"
+            )
+
+            # Group by severity
+            by_severity: dict[str, list[MentorAnalysis]] = {}
+            for analysis in analysis_result.analyses:
+                severity = analysis.severity.value
+                if severity not in by_severity:
+                    by_severity[severity] = []
+                by_severity[severity].append(analysis)
+
+            severity_styles = {
+                "error": "red",
+                "warning": "yellow",
+                "suggestion": "blue",
+                "info": "green",
+            }
+
+            for severity, analyses in by_severity.items():
+                style = severity_styles.get(severity, "white")
+                console.print(
+                    f"\n[bold {style}]{severity.upper()} "
+                    f"({len(analyses)}):[/bold {style}]"
+                )
+
+                for analysis in analyses[:3]:  # Show first 3 of each type
+                    console.print(f"  • [bold]{analysis.title}[/bold]")
+                    console.print(f"    {analysis.description}")
+                    if analysis.recommendations:
+                        console.print(
+                            f"    [dim]Recommendations: "
+                            f"{analysis.recommendations[0]}[/dim]"
+                        )
+
+                if len(analyses) > 3:
+                    console.print(
+                        f"    [dim]... and {len(analyses) - 3} more {severity} "
+                        "findings[/dim]"
+                    )
+
+        # Save results if requested
+        if save_results:
+            mentor_db = MentorDatabaseOperations(connection)
+            if mentor_db.store_mentor_result(analysis_result):
+                console.print("\n[green]✓[/green] Analysis results saved to database")
+            else:
+                console.print("\n[yellow]⚠[/yellow] Failed to save analysis results")
+
+    except Exception as e:
+        console.print(f"[red]Error during analysis: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
+@mentor_app.command("results")
+def mentor_results(
+    script_id: Annotated[
+        str | None,
+        typer.Option(
+            "--script-id", "-s", help="Script ID (uses latest if not specified)"
+        ),
+    ] = None,
+    mentor_name: Annotated[
+        str | None,
+        typer.Option("--mentor", "-m", help="Filter by mentor name"),
+    ] = None,
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", help="Limit number of results"),
+    ] = 10,
+) -> None:
+    """Show previous mentor analysis results."""
+    try:
+        from .database.connection import DatabaseConnection
+        from .mentors import MentorDatabaseOperations
+
+        settings = get_settings()
+        db_path = Path(settings.database.path)
+
+        if not db_path.exists():
+            console.print(
+                "[red]No database found. Use 'scriptrag script parse' first.[/red]"
+            )
+            raise typer.Exit(1)
+
+        connection = DatabaseConnection(str(db_path))
+        mentor_db = MentorDatabaseOperations(connection)
+
+        # Get script ID
+        if not script_id:
+            latest_script = get_latest_script_id(connection)
+            if not latest_script:
+                console.print("[red]No scripts found in database.[/red]")
+                raise typer.Exit(1)
+            script_id, script_title = latest_script
+            console.print(f"[blue]Results for script:[/blue] {script_title}")
+
+        # Get results
+        results = mentor_db.get_script_mentor_results(UUID(script_id), mentor_name)[
+            :limit
+        ]
+
+        if not results:
+            console.print("[yellow]No analysis results found.[/yellow]")
+            return
+
+        # Display results table
+        table = Table(show_header=True, header_style="bold blue")
+        table.add_column("Date", style="cyan")
+        table.add_column("Mentor", style="green")
+        table.add_column("Score", style="yellow")
+        table.add_column("Findings", style="white")
+        table.add_column("Summary", style="dim")
+
+        for result in results:
+            date_str = result.analysis_date.strftime("%Y-%m-%d %H:%M")
+            score_str = f"{result.score:.1f}" if result.score else "—"
+            findings_str = f"{len(result.analyses)} findings"
+            summary_short = result.summary[:50] + (
+                "..." if len(result.summary) > 50 else ""
+            )
+
+            table.add_row(
+                date_str, result.mentor_name, score_str, findings_str, summary_short
+            )
+
+        console.print(table)
+        console.print(f"\n[dim]Showing {len(results)} results[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]Error retrieving results: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
+@mentor_app.command("search")
+def mentor_search(
+    query: Annotated[str, typer.Argument(help="Search query for analysis findings")],
+    mentor_name: Annotated[
+        str | None,
+        typer.Option("--mentor", "-m", help="Filter by mentor name"),
+    ] = None,
+    category: Annotated[
+        str | None,
+        typer.Option("--category", "-c", help="Filter by analysis category"),
+    ] = None,
+    severity: Annotated[
+        str | None,
+        typer.Option(
+            "--severity",
+            "-v",
+            help="Filter by severity (error, warning, suggestion, info)",
+        ),
+    ] = None,
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-n", help="Limit number of results"),
+    ] = 20,
+) -> None:
+    """Search mentor analysis findings."""
+    try:
+        from .database.connection import DatabaseConnection
+        from .mentors import AnalysisSeverity, MentorDatabaseOperations
+
+        settings = get_settings()
+        db_path = Path(settings.database.path)
+
+        if not db_path.exists():
+            console.print(
+                "[red]No database found. Use 'scriptrag script parse' first.[/red]"
+            )
+            raise typer.Exit(1)
+
+        connection = DatabaseConnection(str(db_path))
+        mentor_db = MentorDatabaseOperations(connection)
+
+        # Parse severity
+        severity_enum = None
+        if severity:
+            try:
+                severity_enum = AnalysisSeverity(severity.lower())
+            except ValueError as err:
+                console.print(f"[red]Invalid severity: {severity}[/red]")
+                console.print("Valid severities: error, warning, suggestion, info")
+                raise typer.Exit(1) from err
+
+        # Search analyses
+        console.print(f"[blue]Searching for:[/blue] {query}")
+
+        results = mentor_db.search_analyses(
+            query=query,
+            mentor_name=mentor_name,
+            category=category,
+            severity=severity_enum,
+            limit=limit,
+        )
+
+        if not results:
+            console.print("[yellow]No matching analysis findings found.[/yellow]")
+            return
+
+        # Display results
+        console.print(f"\n[bold]Found {len(results)} analysis findings:[/bold]")
+
+        for i, analysis in enumerate(results, 1):
+            severity_style = {
+                "error": "red",
+                "warning": "yellow",
+                "suggestion": "blue",
+                "info": "green",
+            }.get(analysis.severity.value, "white")
+
+            console.print(
+                f"\n[bold cyan]{i}.[/bold cyan] [bold]{analysis.title}[/bold]"
+            )
+            console.print(f"   [bold]Mentor:[/bold] {analysis.mentor_name}")
+            console.print(f"   [bold]Category:[/bold] {analysis.category}")
+            console.print(
+                f"   [bold]Severity:[/bold] [{severity_style}]"
+                f"{analysis.severity.value}[/{severity_style}]"
+            )
+            console.print(f"   [bold]Description:[/bold] {analysis.description}")
+
+            if analysis.recommendations:
+                console.print(
+                    f"   [bold]Recommendation:[/bold] {analysis.recommendations[0]}"
+                )
+
+    except Exception as e:
+        console.print(f"[red]Error searching analyses: {e}[/red]")
+        raise typer.Exit(1) from e
 
 
 if __name__ == "__main__":

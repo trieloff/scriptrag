@@ -51,6 +51,13 @@ async def generate_embeddings(
 
     except HTTPException:
         raise
+    except ValueError as e:
+        if "not found" in str(e).lower():
+            raise HTTPException(status_code=404, detail="Script not found") from e
+        logger.error("Failed to generate embeddings", script_id=script_id, error=str(e))
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate embeddings: {e!s}"
+        ) from e
     except Exception as e:
         logger.error("Failed to generate embeddings", script_id=script_id, error=str(e))
         raise HTTPException(

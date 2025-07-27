@@ -32,13 +32,101 @@ log_error() {
 # Track execution time
 SCRIPT_START=$(date +%s)
 
+# Track completed steps
+declare -A COMPLETED_STEPS=(
+    ["python_check"]=0
+    ["jq_install"]=0
+    ["uv_install"]=0
+    ["directories"]=0
+    ["venv_create"]=0
+    ["venv_activate"]=0
+    ["pip_upgrade"]=0
+    ["dependencies"]=0
+    ["env_file"]=0
+    ["pre_commit"]=0
+    ["db_init"]=0
+)
+
+# List of all steps with descriptions
+declare -A STEP_DESCRIPTIONS=(
+    ["python_check"]="Check Python version (3.11+)"
+    ["jq_install"]="Install jq for git operations"
+    ["uv_install"]="Install uv package manager"
+    ["directories"]="Create required directories"
+    ["venv_create"]="Create Python virtual environment"
+    ["venv_activate"]="Activate virtual environment"
+    ["pip_upgrade"]="Upgrade pip, setuptools, wheel"
+    ["dependencies"]="Install project dependencies"
+    ["env_file"]="Set up .env configuration"
+    ["pre_commit"]="Install pre-commit hooks"
+    ["db_init"]="Initialize database"
+)
+
+# Function to mark step as completed
+mark_completed() {
+    COMPLETED_STEPS["$1"]=1
+}
+
+# Function to show remaining steps
+show_remaining_steps() {
+    log_warning "Setup approaching 3-minute timeout limit."
+    log_info ""
+    log_info "✅ Completed steps:"
+    for step in "${!COMPLETED_STEPS[@]}"; do
+        if [ "${COMPLETED_STEPS[$step]}" -eq 1 ]; then
+            echo "   - ${STEP_DESCRIPTIONS[$step]}"
+        fi
+    done
+
+    log_info ""
+    log_warning "⏳ Remaining steps to complete manually:"
+    local has_remaining=0
+    for step in python_check jq_install uv_install directories venv_create venv_activate pip_upgrade dependencies env_file pre_commit db_init; do
+        if [ "${COMPLETED_STEPS[$step]}" -eq 0 ]; then
+            echo "   - ${STEP_DESCRIPTIONS[$step]}"
+            has_remaining=1
+        fi
+    done
+
+    if [ $has_remaining -eq 0 ]; then
+        log_success "All steps completed!"
+    else
+        log_info ""
+        log_info "To complete setup manually, run these commands:"
+        log_info ""
+
+        # Provide specific commands for remaining steps
+        if [ "${COMPLETED_STEPS[venv_create]}" -eq 0 ]; then
+            echo "   uv venv --python python3.11"
+        fi
+        if [ "${COMPLETED_STEPS[venv_activate]}" -eq 0 ]; then
+            echo "   source .venv/bin/activate"
+        fi
+        if [ "${COMPLETED_STEPS[pip_upgrade]}" -eq 0 ]; then
+            echo "   uv pip install --upgrade pip setuptools wheel"
+        fi
+        if [ "${COMPLETED_STEPS[dependencies]}" -eq 0 ]; then
+            echo "   uv pip install -e '.[dev,test,docs]'"
+        fi
+        if [ "${COMPLETED_STEPS[env_file]}" -eq 0 ] && [ -f ".env.example" ]; then
+            echo "   cp .env.example .env"
+        fi
+        if [ "${COMPLETED_STEPS[pre_commit]}" -eq 0 ] && [ -f ".pre-commit-config.yaml" ]; then
+            echo "   pre-commit install --install-hooks"
+        fi
+        if [ "${COMPLETED_STEPS[db_init]}" -eq 0 ] && [ -f "src/scriptrag/database/init.py" ]; then
+            echo "   python -m scriptrag.database.init"
+        fi
+    fi
+}
+
 # Function to check elapsed time
 check_timeout() {
     local current=$(date +%s)
     local elapsed=$((current - SCRIPT_START))
     if [ $elapsed -gt 150 ]; then  # 2.5 minutes (leaving 30s buffer)
-        log_error "Setup approaching 3-minute timeout limit. Aborting to prevent failure."
-        exit 1
+        show_remaining_steps
+        exit 0  # Exit successfully with helpful output
     fi
 }
 
@@ -76,6 +164,7 @@ if ! python3 -c 'import sys; exit(0 if sys.version_info >= (3, 11) else 1)' 2>/d
     exit 1
 fi
 
+mark_completed "python_check"
 check_timeout
 
 # Install jq if not present (needed for git API operations)
@@ -101,6 +190,7 @@ else
     log_info "jq is already installed"
 fi
 
+mark_completed "jq_install"
 check_timeout
 
 # Install uv if not present (it should be pre-installed in Terragon)
@@ -132,6 +222,7 @@ if ! command -v uv &> /dev/null; then
     fi
 fi
 
+mark_completed "uv_install"
 check_timeout
 
 # Navigate to project directory
@@ -148,6 +239,8 @@ mkdir -p exports
 mkdir -p temp
 mkdir -p notebooks
 
+mark_completed "directories"
+
 # Set up Python virtual environment
 log_info "Setting up Python virtual environment..."
 if [ ! -d ".venv" ]; then
@@ -160,6 +253,7 @@ else
     log_info "Virtual environment already exists"
 fi
 
+mark_completed "venv_create"
 check_timeout
 
 # Activate virtual environment
@@ -169,12 +263,15 @@ source .venv/bin/activate || {
     exit 1
 }
 
+mark_completed "venv_activate"
+
 # Upgrade pip, setuptools, and wheel
 log_info "Upgrading pip, setuptools, and wheel..."
 ${UV_CMD} pip install --upgrade pip setuptools wheel || {
     log_warning "Failed to upgrade pip/setuptools/wheel, continuing..."
 }
 
+mark_completed "pip_upgrade"
 check_timeout
 
 # Install project dependencies
@@ -194,10 +291,12 @@ else
     exit 1
 fi
 
+mark_completed "dependencies"
 check_timeout
 
 # Set up environment variables if .env doesn't exist
-if [ ! -f ".env" ] && [ -f ".env.example" ]; then
+if [ ! -f ".env" ]; then
+  if [ -f ".env.example" ]; then
     log_info "Creating .env file from .env.example..."
     cp .env.example .env
 
@@ -212,18 +311,31 @@ if [ ! -f ".env" ] && [ -f ".env.example" ]; then
         sed -i "s|^LLM_API_URL=.*|LLM_API_URL=$LLM_API_URL|" .env
     fi
     log_success ".env file created"
+  else
+    log_warning "No .env.example file found, skipping .env creation"
+  fi
+else
+    log_info ".env file already exists"
 fi
 
+mark_completed "env_file"
 check_timeout
 
 # Install pre-commit hooks (but don't run them to save time)
-if command -v pre-commit &> /dev/null && [ -f ".pre-commit-config.yaml" ]; then
+if [ -f ".pre-commit-config.yaml" ]; then
+  if command -v pre-commit &> /dev/null; then
     log_info "Installing pre-commit hooks..."
     pre-commit install --install-hooks || {
         log_warning "Failed to install pre-commit hooks, continuing..."
     }
+  else
+    log_warning "pre-commit not available, skipping hook installation"
+  fi
+else
+    log_info "No .pre-commit-config.yaml found, skipping pre-commit setup"
 fi
 
+mark_completed "pre_commit"
 check_timeout
 
 # Initialize database if needed
@@ -233,6 +345,8 @@ if [ -f "src/scriptrag/database/init.py" ]; then
         log_warning "Database initialization failed, may already exist"
     }
 fi
+
+mark_completed "db_init"
 
 # Create a setup completion marker
 echo "Setup completed at: $(date)" > .terragon-setup-complete
@@ -246,6 +360,18 @@ TOTAL_TIME=$((SCRIPT_END - SCRIPT_START))
 
 log_success "✅ ScriptRAG Terragon setup completed successfully!"
 log_info "Total setup time: ${TOTAL_TIME} seconds"
+
+# Show completion summary
+log_info ""
+log_info "📋 Setup Summary:"
+for step in python_check jq_install uv_install directories venv_create venv_activate pip_upgrade dependencies env_file pre_commit db_init; do
+    if [ "${COMPLETED_STEPS[$step]}" -eq 1 ]; then
+        echo "   ✅ ${STEP_DESCRIPTIONS[$step]}"
+    else
+        echo "   ❌ ${STEP_DESCRIPTIONS[$step]} (skipped or failed)"
+    fi
+done
+
 log_info ""
 log_info "Environment ready. You can now run:"
 log_info "  - 'python -m scriptrag' to run the CLI"

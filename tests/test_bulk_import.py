@@ -1,5 +1,6 @@
 """Tests for bulk import functionality."""
 
+import contextlib
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -86,8 +87,13 @@ class TestBulkImporter:
         create_database(db_path)
         yield db_path
 
-        # Cleanup
-        db_path.unlink(missing_ok=True)
+        # Cleanup - Windows needs special handling for locked files
+        with contextlib.suppress(PermissionError):
+            # On Windows, SQLite may keep the file locked
+
+            # This is acceptable as temp files will be cleaned up by the OS
+
+            db_path.unlink(missing_ok=True)
 
     @pytest.fixture
     def importer(self, temp_db: Path) -> BulkImporter:

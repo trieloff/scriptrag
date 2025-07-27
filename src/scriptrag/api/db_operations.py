@@ -168,7 +168,9 @@ class DatabaseOperations:
                     scene_number=scene["script_order"],
                     heading=scene["heading"] or "",
                     content=scene["description"] or "",
-                    characters=self._extract_characters(scene["description"] or ""),
+                    characters=list(
+                        self._extract_characters(scene["description"] or "")
+                    ),
                 )
                 for scene in scenes_result
             ]
@@ -401,24 +403,23 @@ class DatabaseOperations:
             "GET /api/v1/search/scenes instead."
         )
 
-    def _extract_characters(self, content: str) -> list[str]:
+    def _extract_characters(self, content: str) -> set[str]:
         """Extract character names from scene content.
 
         Args:
             content: Scene content
 
         Returns:
-            List of character names
+            Set of character names (deduplicated)
         """
-        characters = []
+        characters = set()
         lines = content.split("\n")
 
         for line in lines:
             line = line.strip()
-            # Character names are typically in uppercase
+            # Character names are typically in uppercase, may have parentheticals
             if (
                 line
-                and line.isupper()
                 and not line.startswith("(")
                 and not line.endswith(":")
                 and not any(
@@ -433,9 +434,13 @@ class DatabaseOperations:
                     ]
                 )
             ):
-                characters.append(line)
+                # Clean character names by removing parentheticals like (CONT'D), etc.
+                cleaned_name = line.split("(")[0].strip()
+                # Check if the cleaned name is uppercase (character name)
+                if cleaned_name and cleaned_name.isupper():
+                    characters.add(cleaned_name)
 
-        return list(set(characters))
+        return characters
 
     async def get_scene(self, scene_id: str) -> dict[str, Any] | None:
         """Get a scene by ID."""
@@ -679,3 +684,108 @@ class DatabaseOperations:
             raise RuntimeError("Database not initialized")
 
         return self._graph_ops.validate_scene_ordering(script_id)
+
+    # Enhanced Scene Operations for Phase 5.2
+    async def update_scene_with_graph_propagation(
+        self,
+        scene_id: str,
+        scene_number: int | None = None,
+        heading: str | None = None,
+        content: str | None = None,
+        location: str | None = None,
+        time_of_day: str | None = None,
+    ) -> bool:
+        """Update scene with enhanced graph propagation."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        # First update basic fields using existing method
+        if scene_number is not None or heading is not None or content is not None:
+            await self.update_scene(scene_id, scene_number, heading, content)
+
+        # Then use enhanced operations for graph propagation
+        return self._graph_ops.update_scene_metadata(
+            scene_node_id=scene_id,
+            heading=heading,
+            description=content,
+            time_of_day=time_of_day,
+            location=location,
+            propagate_to_graph=True,
+        )
+
+    async def delete_scene_with_references(self, scene_id: str) -> bool:
+        """Delete scene with reference maintenance."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        return self._graph_ops.delete_scene_with_references(scene_id)
+
+    async def inject_scene_at_position(
+        self,
+        script_id: str,
+        scene_data: Any,  # SceneCreateRequest
+        position: int,
+    ) -> str | None:
+        """Inject scene at specific position with full re-indexing."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        # Convert script_id to script_node_id
+        # This assumes script_id is the same as script_node_id
+        # In a real implementation, you might need to query for the script node
+        from uuid import UUID, uuid4
+
+        from scriptrag.models import Scene
+
+        # Use the scene ID from scene_data if provided, otherwise generate new
+        scene_id = getattr(scene_data, "id", None)
+        if scene_id and isinstance(scene_id, str):
+            # Convert string UUID to UUID object
+            scene_uuid = UUID(scene_id)
+        else:
+            # Generate new UUID if not provided
+            scene_uuid = uuid4()
+
+        scene = Scene(
+            id=scene_uuid,
+            heading=scene_data.heading,
+            description=scene_data.content,
+            script_order=scene_data.scene_number,
+            script_id=UUID(script_id),
+        )
+
+        return self._graph_ops.inject_scene_at_position(
+            script_node_id=script_id,
+            scene=scene,
+            position=position,
+        )
+
+    async def update_scene_metadata(
+        self,
+        scene_id: str,
+        heading: str | None = None,
+        description: str | None = None,
+        time_of_day: str | None = None,
+        location: str | None = None,
+        propagate_to_graph: bool = True,
+    ) -> bool:
+        """Update scene metadata with optional graph propagation."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        return self._graph_ops.update_scene_metadata(
+            scene_node_id=scene_id,
+            heading=heading,
+            description=description,
+            time_of_day=time_of_day,
+            location=location,
+            propagate_to_graph=propagate_to_graph,
+        )
+
+    async def validate_story_continuity(self, script_id: str) -> dict[str, Any]:
+        """Validate story continuity across all scenes."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        # Convert script_id to script_node_id if needed
+        return self._graph_ops.validate_story_continuity(script_id)

@@ -13,7 +13,7 @@ from scriptrag.config import get_logger
 logger = get_logger(__name__)
 
 # Schema version for migrations
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 # SQL DDL statements for creating tables
 SCHEMA_SQL = """
@@ -794,6 +794,119 @@ CREATE TRIGGER IF NOT EXISTS characters_fts_delete
     BEGIN
         DELETE FROM characters_fts WHERE character_id = OLD.id;
     END;
+
+-- Mentor analysis results table
+CREATE TABLE IF NOT EXISTS mentor_results (
+    id TEXT PRIMARY KEY,
+    mentor_name TEXT NOT NULL,
+    mentor_version TEXT NOT NULL,
+    script_id TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    score REAL,
+    analysis_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    execution_time_ms INTEGER,
+    config_json TEXT, -- JSON string of configuration used
+    metadata_json TEXT, -- JSON string for additional metadata
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE
+);
+
+-- Individual mentor analyses table
+CREATE TABLE IF NOT EXISTS mentor_analyses (
+    id TEXT PRIMARY KEY,
+    result_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    severity TEXT NOT NULL, -- 'info', 'suggestion', 'warning', 'error'
+    scene_id TEXT,
+    character_id TEXT,
+    element_id TEXT,
+    category TEXT NOT NULL,
+    mentor_name TEXT NOT NULL,
+    confidence REAL DEFAULT 1.0,
+    recommendations_json TEXT, -- JSON array of recommendations
+    examples_json TEXT, -- JSON array of examples
+    metadata_json TEXT, -- JSON object for mentor-specific data
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (result_id) REFERENCES mentor_results(id) ON DELETE CASCADE,
+    FOREIGN KEY (scene_id) REFERENCES scenes(id) ON DELETE CASCADE,
+    FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE,
+    FOREIGN KEY (element_id) REFERENCES scene_elements(id) ON DELETE CASCADE
+);
+
+-- Indexes for mentor tables
+CREATE INDEX IF NOT EXISTS idx_mentor_results_script_id
+    ON mentor_results(script_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_results_mentor_name
+    ON mentor_results(mentor_name);
+CREATE INDEX IF NOT EXISTS idx_mentor_results_analysis_date
+    ON mentor_results(analysis_date);
+
+CREATE INDEX IF NOT EXISTS idx_mentor_analyses_result_id
+    ON mentor_analyses(result_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_analyses_scene_id
+    ON mentor_analyses(scene_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_analyses_character_id
+    ON mentor_analyses(character_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_analyses_element_id
+    ON mentor_analyses(element_id);
+CREATE INDEX IF NOT EXISTS idx_mentor_analyses_category
+    ON mentor_analyses(category);
+CREATE INDEX IF NOT EXISTS idx_mentor_analyses_severity
+    ON mentor_analyses(severity);
+CREATE INDEX IF NOT EXISTS idx_mentor_analyses_mentor_name
+    ON mentor_analyses(mentor_name);
+
+-- Triggers for maintaining updated_at timestamps for mentor tables
+CREATE TRIGGER IF NOT EXISTS update_mentor_results_timestamp
+    AFTER UPDATE ON mentor_results
+    BEGIN
+        UPDATE mentor_results SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+CREATE TRIGGER IF NOT EXISTS update_mentor_analyses_timestamp
+    AFTER UPDATE ON mentor_analyses
+    BEGIN
+        UPDATE mentor_analyses SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+-- Full-text search for mentor analyses
+CREATE VIRTUAL TABLE IF NOT EXISTS mentor_analyses_fts USING fts5(
+    analysis_id,
+    title,
+    description,
+    mentor_name,
+    category,
+    content='mentor_analyses',
+    content_rowid='rowid'
+);
+
+-- FTS triggers for mentor analyses
+CREATE TRIGGER IF NOT EXISTS mentor_analyses_fts_insert
+    AFTER INSERT ON mentor_analyses
+    BEGIN
+        INSERT INTO mentor_analyses_fts(
+            analysis_id, title, description, mentor_name, category
+        )
+        VALUES (NEW.id, NEW.title, NEW.description, NEW.mentor_name, NEW.category);
+    END;
+
+CREATE TRIGGER IF NOT EXISTS mentor_analyses_fts_update
+    AFTER UPDATE ON mentor_analyses
+    BEGIN
+        UPDATE mentor_analyses_fts
+        SET title = NEW.title, description = NEW.description,
+            mentor_name = NEW.mentor_name, category = NEW.category
+        WHERE analysis_id = NEW.id;
+    END;
+
+CREATE TRIGGER IF NOT EXISTS mentor_analyses_fts_delete
+    AFTER DELETE ON mentor_analyses
+    BEGIN
+        DELETE FROM mentor_analyses_fts WHERE analysis_id = OLD.id;
+    END;
 """
 
 
@@ -877,6 +990,9 @@ class DatabaseSchema:
             "scene_dependencies",
             "scene_elements_fts",
             "characters_fts",
+            "mentor_results",
+            "mentor_analyses",
+            "mentor_analyses_fts",
             "series_bibles",
             "character_profiles",
             "world_elements",
@@ -996,9 +1112,149 @@ def migrate_database(db_path: str | Path) -> bool:
             conn.commit()
 
         if current_version < 5:
-            # Apply migration to version 5 (Script Bible and Continuity Management)
+            # Apply migration to version 5 (mentor system)
+            logger.info("Applying migration to version 5 (mentor system)")
+
+            # Read and execute migration SQL for mentor system
+            migration_sql = """
+            -- Mentor analysis results table
+            CREATE TABLE IF NOT EXISTS mentor_results (
+                id TEXT PRIMARY KEY,
+                mentor_name TEXT NOT NULL,
+                mentor_version TEXT NOT NULL,
+                script_id TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                score REAL,
+                analysis_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                execution_time_ms INTEGER,
+                config_json TEXT,
+                metadata_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE
+            );
+
+            -- Individual mentor analyses table
+            CREATE TABLE IF NOT EXISTS mentor_analyses (
+                id TEXT PRIMARY KEY,
+                result_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                scene_id TEXT,
+                character_id TEXT,
+                element_id TEXT,
+                category TEXT NOT NULL,
+                mentor_name TEXT NOT NULL,
+                confidence REAL DEFAULT 1.0,
+                recommendations_json TEXT,
+                examples_json TEXT,
+                metadata_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (result_id) REFERENCES mentor_results(id) ON DELETE CASCADE,
+                FOREIGN KEY (scene_id) REFERENCES scenes(id) ON DELETE CASCADE,
+                FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE,
+                FOREIGN KEY (element_id) REFERENCES scene_elements(id) ON DELETE CASCADE
+            );
+
+            -- Indexes for mentor tables
+            CREATE INDEX IF NOT EXISTS idx_mentor_results_script_id
+                ON mentor_results(script_id);
+            CREATE INDEX IF NOT EXISTS idx_mentor_results_mentor_name
+                ON mentor_results(mentor_name);
+            CREATE INDEX IF NOT EXISTS idx_mentor_results_analysis_date
+                ON mentor_results(analysis_date);
+            CREATE INDEX IF NOT EXISTS idx_mentor_analyses_result_id
+                ON mentor_analyses(result_id);
+            CREATE INDEX IF NOT EXISTS idx_mentor_analyses_scene_id
+                ON mentor_analyses(scene_id);
+            CREATE INDEX IF NOT EXISTS idx_mentor_analyses_character_id
+                ON mentor_analyses(character_id);
+            CREATE INDEX IF NOT EXISTS idx_mentor_analyses_element_id
+                ON mentor_analyses(element_id);
+            CREATE INDEX IF NOT EXISTS idx_mentor_analyses_category
+                ON mentor_analyses(category);
+            CREATE INDEX IF NOT EXISTS idx_mentor_analyses_severity
+                ON mentor_analyses(severity);
+            CREATE INDEX IF NOT EXISTS idx_mentor_analyses_mentor_name
+                ON mentor_analyses(mentor_name);
+
+            -- Triggers for mentor tables
+            CREATE TRIGGER IF NOT EXISTS update_mentor_results_timestamp
+                AFTER UPDATE ON mentor_results
+                BEGIN
+                    UPDATE mentor_results
+                    SET updated_at = CURRENT_TIMESTAMP
+                    WHERE id = NEW.id;
+                END;
+
+            CREATE TRIGGER IF NOT EXISTS update_mentor_analyses_timestamp
+                AFTER UPDATE ON mentor_analyses
+                BEGIN
+                    UPDATE mentor_analyses
+                    SET updated_at = CURRENT_TIMESTAMP
+                    WHERE id = NEW.id;
+                END;
+
+            -- Full-text search for mentor analyses
+            CREATE VIRTUAL TABLE IF NOT EXISTS mentor_analyses_fts USING fts5(
+                analysis_id,
+                title,
+                description,
+                mentor_name,
+                category,
+                content='mentor_analyses',
+                content_rowid='rowid'
+            );
+
+            CREATE TRIGGER IF NOT EXISTS mentor_analyses_fts_insert
+                AFTER INSERT ON mentor_analyses
+                BEGIN
+                    INSERT INTO mentor_analyses_fts(
+                        analysis_id, title, description, mentor_name, category
+                    )
+                    VALUES (
+                        NEW.id,
+                        NEW.title,
+                        NEW.description,
+                        NEW.mentor_name,
+                        NEW.category
+                    );
+                END;
+
+            CREATE TRIGGER IF NOT EXISTS mentor_analyses_fts_update
+                AFTER UPDATE ON mentor_analyses
+                BEGIN
+                    UPDATE mentor_analyses_fts
+                    SET title = NEW.title, description = NEW.description,
+                        mentor_name = NEW.mentor_name, category = NEW.category
+                    WHERE analysis_id = NEW.id;
+                END;
+
+            CREATE TRIGGER IF NOT EXISTS mentor_analyses_fts_delete
+                AFTER DELETE ON mentor_analyses
+                BEGIN
+                    DELETE FROM mentor_analyses_fts WHERE analysis_id = OLD.id;
+                END;
+            """
+
+            conn.executescript(migration_sql)
+
+            # Update schema version
+            conn.execute(
+                "INSERT INTO schema_info (version, description) VALUES (?, ?)",
+                (
+                    5,
+                    "Added mentor system tables for automated screenplay analysis",
+                ),
+            )
+            conn.commit()
+
+        if current_version < 6:
+            # Apply migration to version 6 (Script Bible and Continuity Management)
             logger.info(
-                "Applying migration to version 5 "
+                "Applying migration to version 6 "
                 "(Script Bible and Continuity Management)"
             )
 
@@ -1021,7 +1277,7 @@ def migrate_database(db_path: str | Path) -> bool:
             # Update schema version
             conn.execute(
                 "INSERT INTO schema_info (version, description) VALUES (?, ?)",
-                (5, "Added Script Bible and Continuity Management tables"),
+                (6, "Added Script Bible and Continuity Management tables"),
             )
             conn.commit()
 

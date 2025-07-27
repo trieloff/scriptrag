@@ -5,12 +5,18 @@ script parsing, searching, configuration management, and development utilities.
 """
 
 # Standard library imports
+import asyncio
+import contextlib
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
 
+import requests
+
 # Third-party imports
 import typer
+import uvicorn
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
@@ -23,11 +29,18 @@ from .config import (
     load_settings,
     setup_logging_for_environment,
 )
+from .database import get_connection
 from .database.connection import DatabaseConnection
 from .database.operations import GraphOperations
 from .models import SceneOrderType
 from .parser.bulk_import import BulkImporter
 from .scene_manager import SceneManager
+from .search import SearchInterface, SearchType
+
+# Optional imports for server functionality
+create_app: Callable[[], Any] | None = None
+with contextlib.suppress(ImportError):
+    from scriptrag.api.app import create_app
 
 # Create main Typer app
 app = typer.Typer(
@@ -1166,11 +1179,6 @@ def search_all(
     ] = 0.1,
 ) -> None:
     """Search across all content types."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface
-
     try:
         console.print(f"[blue]Searching for:[/blue] {query}")
 
@@ -1205,11 +1213,6 @@ def search_dialogue(
     ] = 10,
 ) -> None:
     """Search dialogue content."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface
-
     try:
         console.print(f"[blue]Searching dialogue for:[/blue] {query}")
         if character:
@@ -1249,11 +1252,6 @@ def search_scenes(
     ] = 10,
 ) -> None:
     """Search scenes by content or filters."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface, SearchType
-
     try:
         console.print(f"[blue]Searching scenes for:[/blue] {query}")
         if character:
@@ -1301,11 +1299,6 @@ def search_similar(
     ] = 0.3,
 ) -> None:
     """Find scenes similar to a given scene using embeddings."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface
-
     try:
         console.print(f"[blue]Finding scenes similar to:[/blue] {scene_id}")
 
@@ -1340,11 +1333,6 @@ def search_theme(
     ] = 10,
 ) -> None:
     """Search for content matching a theme or mood using semantic search."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface
-
     try:
         console.print(f"[blue]Searching for theme:[/blue] {theme}")
         if entity_type:
@@ -1386,11 +1374,6 @@ def search_temporal(
     ] = 10,
 ) -> None:
     """Search based on temporal criteria."""
-    import asyncio
-
-    from .database import get_connection
-    from .search import SearchInterface
-
     try:
         if day_night:
             console.print(f"[blue]Time of day:[/blue] {day_night}")
@@ -1556,8 +1539,6 @@ def dev_test_llm() -> None:
     console.print("[blue]Testing LLM connection...[/blue]")
 
     try:
-        import requests
-
         settings = get_settings()
 
         # Test embeddings endpoint
@@ -1636,9 +1617,11 @@ def server_api(
     console.print(f"[dim]Host: {host}:{port}[/dim]")
     console.print(f"[dim]Docs: http://{host}:{port}/api/v1/docs[/dim]")
 
-    import uvicorn
-
-    from scriptrag.api.app import create_app
+    if create_app is None:
+        console.print(
+            "[red]Error: API server is not available. Install with 'api' extra.[/red]"
+        )
+        raise typer.Exit(1)
 
     app = create_app()
     uvicorn.run(

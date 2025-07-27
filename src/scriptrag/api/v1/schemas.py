@@ -188,6 +188,8 @@ class GraphNodeType(str, Enum):
     SCENE = "scene"
     CHARACTER = "character"
     LOCATION = "location"
+    ACT = "act"
+    DAY = "day"
 
 
 class GraphNode(BaseModel):

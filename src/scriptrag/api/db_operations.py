@@ -168,7 +168,9 @@ class DatabaseOperations:
                     scene_number=scene["script_order"],
                     heading=scene["heading"] or "",
                     content=scene["description"] or "",
-                    characters=self._extract_characters(scene["description"] or ""),
+                    characters=list(
+                        self._extract_characters(scene["description"] or "")
+                    ),
                 )
                 for scene in scenes_result
             ]
@@ -401,24 +403,23 @@ class DatabaseOperations:
             "GET /api/v1/search/scenes instead."
         )
 
-    def _extract_characters(self, content: str) -> list[str]:
+    def _extract_characters(self, content: str) -> set[str]:
         """Extract character names from scene content.
 
         Args:
             content: Scene content
 
         Returns:
-            List of character names
+            Set of character names (deduplicated)
         """
-        characters = []
+        characters = set()
         lines = content.split("\n")
 
         for line in lines:
             line = line.strip()
-            # Character names are typically in uppercase
+            # Character names are typically in uppercase, may have parentheticals
             if (
                 line
-                and line.isupper()
                 and not line.startswith("(")
                 and not line.endswith(":")
                 and not any(
@@ -433,9 +434,13 @@ class DatabaseOperations:
                     ]
                 )
             ):
-                characters.append(line)
+                # Clean character names by removing parentheticals like (CONT'D), etc.
+                cleaned_name = line.split("(")[0].strip()
+                # Check if the cleaned name is uppercase (character name)
+                if cleaned_name and cleaned_name.isupper():
+                    characters.add(cleaned_name)
 
-        return list(set(characters))
+        return characters
 
     async def get_scene(self, scene_id: str) -> dict[str, Any] | None:
         """Get a scene by ID."""

@@ -956,6 +956,74 @@ class GraphOperations:
         )
         return results
 
+    # Direct graph operations (for test compatibility)
+    def add_node(
+        self,
+        node_type: str,
+        entity_id: str | None = None,
+        label: str | None = None,
+        properties: dict[str, Any] | None = None,
+        node_id: str | None = None,
+    ) -> str:
+        """Add a new node to the graph.
+
+        Args:
+            node_type: Type of node
+            entity_id: Reference to entity in another table
+            label: Human-readable label
+            properties: Additional properties
+            node_id: Specific node ID (generated if None)
+
+        Returns:
+            Node ID
+        """
+        return self.graph.add_node(
+            node_type=node_type,
+            entity_id=entity_id,
+            label=label,
+            properties=properties,
+            node_id=node_id,
+        )
+
+    def get_node(self, node_id: str) -> GraphNode | None:
+        """Get a node by ID.
+
+        Args:
+            node_id: ID of the node to retrieve
+
+        Returns:
+            GraphNode if found, None otherwise
+        """
+        return self.graph.get_node(node_id)
+
+    def add_edge(
+        self,
+        source_id: str,
+        target_id: str,
+        edge_type: str,
+        properties: dict[str, Any] | None = None,
+        edge_id: str | None = None,
+    ) -> str:
+        """Add an edge between two nodes.
+
+        Args:
+            source_id: Source node ID
+            target_id: Target node ID
+            edge_type: Type of edge
+            properties: Additional properties
+            edge_id: Specific edge ID (generated if None)
+
+        Returns:
+            Edge ID
+        """
+        return self.graph.add_edge(
+            from_node_id=source_id,
+            to_node_id=target_id,
+            edge_type=edge_type,
+            properties=properties,
+            edge_id=edge_id,
+        )
+
     # Scene ordering operations (delegated to SceneOrderingOperations)
     def ensure_script_order(self, script_id: str) -> bool:
         """Ensure all scenes have proper script_order values.

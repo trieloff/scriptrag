@@ -148,14 +148,18 @@ Already? Give me two minutes.
         assert graph_ops.create_character_node.called
         assert graph_ops.connect_character_to_scene.called
 
-    def test_delete_scene_with_references(self, graph_ops, _sample_script_data):
+    def test_delete_scene_with_references(self, graph_ops, sample_script_data):
         """Test deleting scene while maintaining reference integrity."""
-        scene_id = "scene_002"  # Middle scene
+        scene_id = "scene_002"  # Middle scene from sample data
+        script_data = sample_script_data
+
+        # Use the sample script data to get proper scene information
+        target_scene = next(s for s in script_data["scenes"] if s["id"] == scene_id)
 
         # Setup mocks
         scene_node = Mock()
         scene_node.id = scene_id
-        scene_node.properties = {"script_order": 2}
+        scene_node.properties = {"script_order": target_scene["script_order"]}
 
         graph_ops.graph.get_node = Mock(return_value=scene_node)
         graph_ops.graph.find_edges = Mock(
@@ -372,17 +376,18 @@ Already? Give me two minutes.
             scene_id, "location_001"
         )
 
-    def test_remove_scene_dependencies(self, graph_ops, _db_connection):
+    def test_remove_scene_dependencies(self, graph_ops, db_connection):
         """Test removal of scene dependencies."""
         scene_id = "scene_001"
 
-        # Mock the transaction context and connection
+        # Use the actual db_connection fixture
+        graph_ops.connection = db_connection
+
+        # Mock the transaction context
         mock_conn = Mock()
         mock_transaction = Mock()
         mock_transaction.__enter__ = Mock(return_value=mock_conn)
         mock_transaction.__exit__ = Mock(return_value=None)
-
-        graph_ops.connection = Mock()
         graph_ops.connection.transaction = Mock(return_value=mock_transaction)
 
         # Test dependency removal

@@ -353,74 +353,50 @@ class TestE2ESceneManagementWorkflow:
         assert response.status_code == 200
         script_id = response.json()["id"]
 
-        # Mock database operations for scene management
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = MagicMock()
-            mock_db.get_script.return_value = {
-                "id": script_id,
-                "title": "Scene Management Test",
-            }
+        # Test 1: Create a new scene (using real database)
+        scene_data = {
+            "scene_number": 2,
+            "heading": "EXT. GARDEN - DAY",
+            "content": "A beautiful garden.",
+        }
 
-            # Test 1: Create a new scene
-            new_scene_id = "scene_new_001"
-            mock_db.create_scene.return_value = new_scene_id
-            mock_db.get_scene.return_value = {
-                "id": new_scene_id,
-                "script_id": script_id,
-                "scene_number": 2,
-                "heading": "EXT. GARDEN - DAY",
-                "content": "A beautiful garden.",
-                "character_count": 0,
-                "word_count": 4,
-                "page_start": 2.0,
-                "page_end": 2.1,
-                "has_embedding": False,
-            }
-            mock_get_db.return_value = mock_db
+        response = api_client.post(
+            f"/api/v1/scenes/?script_id={script_id}", json=scene_data
+        )
 
-            scene_data = {
-                "scene_number": 2,
-                "heading": "EXT. GARDEN - DAY",
-                "content": "A beautiful garden.",
-            }
+        assert response.status_code == 200
+        created_scene = response.json()
+        assert created_scene["heading"] == "EXT. GARDEN - DAY"
+        assert created_scene["content"] == "A beautiful garden."
+        assert created_scene["scene_number"] == 2
 
-            response = api_client.post(
-                f"/api/v1/scenes/?script_id={script_id}", json=scene_data
-            )
+        # Test 2: Update the scene (using real database)
+        update_data = {
+            "scene_number": created_scene["scene_number"],
+            "heading": "EXT. GARDEN - SUNSET",
+            "content": "A beautiful garden at sunset.",
+        }
 
-            assert response.status_code == 200
-            created_scene = response.json()
-            assert created_scene["heading"] == "EXT. GARDEN - DAY"
+        response = api_client.patch(
+            f"/api/v1/scenes/{created_scene['id']}", json=update_data
+        )
 
-            # Test 2: Update the scene
-            mock_db.get_scene.side_effect = [
-                created_scene,  # First call for checking existence
-                {**created_scene, "heading": "EXT. GARDEN - SUNSET"},  # After update
-            ]
-            mock_db.update_scene.return_value = None
+        if response.status_code != 200:
+            print(f"Update failed: {response.status_code} - {response.json()}")
+        assert response.status_code == 200
+        updated_scene = response.json()
+        assert updated_scene["heading"] == "EXT. GARDEN - SUNSET"
+        assert updated_scene["content"] == "A beautiful garden at sunset."
 
-            update_data = {
-                "heading": "EXT. GARDEN - SUNSET",
-                "content": "A beautiful garden at sunset.",
-            }
+        # Test 3: Delete the scene (using real database)
+        response = api_client.delete(f"/api/v1/scenes/{created_scene['id']}")
 
-            response = api_client.patch(
-                f"/api/v1/scenes/{created_scene['id']}", json=update_data
-            )
+        assert response.status_code == 200
+        assert "deleted successfully" in response.json()["message"]
 
-            assert response.status_code == 200
-            updated_scene = response.json()
-            assert updated_scene["heading"] == "EXT. GARDEN - SUNSET"
-
-            # Test 3: Delete the scene
-            mock_db.get_scene.side_effect = None
-            mock_db.get_scene.return_value = created_scene
-            mock_db.delete_scene.return_value = None
-
-            response = api_client.delete(f"/api/v1/scenes/{created_scene['id']}")
-
-            assert response.status_code == 200
-            assert "deleted successfully" in response.json()["message"]
+        # Verify deletion
+        response = api_client.get(f"/api/v1/scenes/{created_scene['id']}")
+        assert response.status_code == 404
 
 
 class TestE2ESearchAndRetrievalWorkflow:

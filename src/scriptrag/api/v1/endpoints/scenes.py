@@ -114,18 +114,13 @@ async def update_scene(
         if not scene:
             raise HTTPException(status_code=404, detail="Scene not found")
 
-        # Use enhanced update operation with graph propagation
-        success = await db_ops.update_scene_with_graph_propagation(
+        # Update the scene
+        await db_ops.update_scene(
             scene_id=scene_id,
             scene_number=scene_update.scene_number,
             heading=scene_update.heading,
             content=scene_update.content,
-            location=scene_update.location,
-            time_of_day=scene_update.time_of_day,
         )
-
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to update scene")
 
         # Get updated scene
         updated_scene = await db_ops.get_scene(scene_id)
@@ -166,15 +161,10 @@ async def delete_scene(
         if not scene:
             raise HTTPException(status_code=404, detail="Scene not found")
 
-        # Use enhanced delete operation with reference maintenance
-        success = await db_ops.delete_scene_with_references(scene_id)
+        # Delete the scene
+        await db_ops.delete_scene(scene_id)
 
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to delete scene")
-
-        return {
-            "message": f"Scene {scene_id} deleted successfully with reference integrity"
-        }
+        return {"message": f"Scene {scene_id} deleted successfully"}
 
     except HTTPException:
         raise

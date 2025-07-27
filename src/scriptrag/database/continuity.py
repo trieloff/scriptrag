@@ -147,7 +147,8 @@ class ContinuityValidator:
                             description=(
                                 f"Character uses '{knowledge['knowledge_subject']}' "
                                 f"in episode {knowledge['used_episode']} but doesn't "
-                                f"acquire it until episode {knowledge['acquired_episode']}"
+                                f"acquire it until episode "
+                                f"{knowledge['acquired_episode']}"
                             ),
                             character_id=char_id,
                             episode_id=knowledge["first_used_episode_id"],
@@ -173,7 +174,8 @@ class ContinuityValidator:
                                 issue_type="knowledge_contradiction",
                                 severity="medium",
                                 title=(
-                                    f"{char_name} has contradictory knowledge about {subject}"
+                                    f"{char_name} has contradictory knowledge "
+                                    f"about {subject}"
                                 ),
                                 description=f"Character has conflicting information: "
                                 f"'{existing['knowledge_description']}' vs "
@@ -255,21 +257,31 @@ class ContinuityValidator:
                         )
 
                     # Check story date consistency if available
-                    if event["story_date"] and prev_event["story_date"]:
-                        # Basic date comparison (would need more sophisticated parsing for complex dates)
-                        if event["story_date"] < prev_event["story_date"]:
-                            issues.append(
-                                ContinuityIssue(
-                                    issue_type="timeline_date_order",
-                                    severity="medium",
-                                    title=f"Story date inconsistent with timeline order in {timeline_name}",
-                                    description=f"Event '{event['event_name']}' has story date "
-                                    f"'{event['story_date']}' but follows '{prev_event['event_name']}' "
-                                    f"with date '{prev_event['story_date']}'",
-                                    timeline_id=timeline_id,
-                                    episode_id=event["episode_id"],
-                                )
+                    # Basic date comparison
+                    # (needs sophisticated parsing for complex dates)
+                    if (
+                        event["story_date"]
+                        and prev_event["story_date"]
+                        and event["story_date"] < prev_event["story_date"]
+                    ):
+                        issues.append(
+                            ContinuityIssue(
+                                issue_type="timeline_date_order",
+                                severity="medium",
+                                title=(
+                                    f"Story date inconsistent with timeline order "
+                                    f"in {timeline_name}"
+                                ),
+                                description=(
+                                    f"Event '{event['event_name']}' has story date "
+                                    f"'{event['story_date']}' but follows "
+                                    f"'{prev_event['event_name']}' "
+                                    f"with date '{prev_event['story_date']}'"
+                                ),
+                                timeline_id=timeline_id,
+                                episode_id=event["episode_id"],
                             )
+                        )
 
                 prev_event = event
 
@@ -291,23 +303,30 @@ class ContinuityValidator:
 
         for thread in threads:
             # Check for unresolved high-priority threads
-            if thread.status == "active" and thread.priority >= 4:
-                # Check if thread has been running for many episodes without progress
-                if (
-                    thread.introduced_episode_id
-                    and thread.total_episodes_involved > 10
-                    and not thread.resolved_episode_id
-                ):
-                    issues.append(
-                        ContinuityIssue(
-                            issue_type="plot_thread_stagnant",
-                            severity="medium",
-                            title=f"High-priority plot thread '{thread.name}' lacks resolution",
-                            description=f"Thread has been active for {thread.total_episodes_involved} "
-                            f"episodes without resolution",
-                            plot_thread_id=str(thread.id),
-                        )
+            # Check if thread has been running for many episodes without progress
+            if (
+                thread.status == "active"
+                and thread.priority >= 4
+                and thread.introduced_episode_id
+                and thread.total_episodes_involved > 10
+                and not thread.resolved_episode_id
+            ):
+                issues.append(
+                    ContinuityIssue(
+                        issue_type="plot_thread_stagnant",
+                        severity="medium",
+                        title=(
+                            f"High-priority plot thread '{thread.name}' "
+                            f"lacks resolution"
+                        ),
+                        description=(
+                            f"Thread has been active for "
+                            f"{thread.total_episodes_involved} "
+                            f"episodes without resolution"
+                        ),
+                        plot_thread_id=str(thread.id),
                     )
+                )
 
             # Check for threads marked as resolved but missing resolution description
             if thread.status == "resolved" and not thread.resolution:
@@ -315,8 +334,14 @@ class ContinuityValidator:
                     ContinuityIssue(
                         issue_type="plot_thread_incomplete_resolution",
                         severity="low",
-                        title=f"Plot thread '{thread.name}' marked resolved but missing resolution details",
-                        description="Thread status is resolved but no resolution description provided",
+                        title=(
+                            f"Plot thread '{thread.name}' marked resolved "
+                            f"but missing resolution details"
+                        ),
+                        description=(
+                            "Thread status is resolved but no resolution "
+                            "description provided"
+                        ),
                         plot_thread_id=str(thread.id),
                     )
                 )
@@ -327,8 +352,11 @@ class ContinuityValidator:
                     ContinuityIssue(
                         issue_type="plot_thread_abandoned",
                         severity="medium",
-                        title=f"Important plot thread '{thread.name}' was abandoned",
-                        description=f"Priority {thread.priority} thread was abandoned without resolution",
+                        title=(f"Important plot thread '{thread.name}' was abandoned"),
+                        description=(
+                            f"Priority {thread.priority} thread was abandoned "
+                            f"without resolution"
+                        ),
                         plot_thread_id=str(thread.id),
                     )
                 )
@@ -368,9 +396,14 @@ class ContinuityValidator:
                     ContinuityIssue(
                         issue_type="character_arc_missing",
                         severity="low",
-                        title=f"Major character '{char_name}' lacks defined character arc",
-                        description=f"Character appears in {row['total_appearances']} episodes "
-                        f"but has no defined character arc",
+                        title=(
+                            f"Major character '{char_name}' lacks defined character arc"
+                        ),
+                        description=(
+                            f"Character appears in {row['total_appearances']} "
+                            f"episodes "
+                            f"but has no defined character arc"
+                        ),
                         character_id=char_id,
                     )
                 )
@@ -387,8 +420,13 @@ class ContinuityValidator:
                     ContinuityIssue(
                         issue_type="character_arc_inconsistent",
                         severity="medium",
-                        title=f"Character '{char_name}' has inconsistent arc and growth",
-                        description="Character arc described as positive but growth trajectory indicates regression",
+                        title=(
+                            f"Character '{char_name}' has inconsistent arc and growth"
+                        ),
+                        description=(
+                            "Character arc described as positive but growth "
+                            "trajectory indicates regression"
+                        ),
                         character_id=char_id,
                     )
                 )
@@ -416,9 +454,14 @@ class ContinuityValidator:
                     ContinuityIssue(
                         issue_type="world_element_underused",
                         severity="low",
-                        title=f"Important world element '{element.name}' is underused",
-                        description=f"Element marked as importance level {element.importance_level} "
-                        f"but only used {element.usage_frequency} times",
+                        title=(
+                            f"Important world element '{element.name}' is underused"
+                        ),
+                        description=(
+                            f"Element marked as importance level "
+                            f"{element.importance_level} "
+                            f"but only used {element.usage_frequency} times"
+                        ),
                         world_element_id=str(element.id),
                     )
                 )
@@ -426,17 +469,25 @@ class ContinuityValidator:
             # Check for rule violations in established rules
             if element.established_rules:
                 for rule_key, rule_value in element.established_rules.items():
-                    if isinstance(rule_value, dict) and "violated" in rule_value:
-                        if rule_value["violated"]:
-                            issues.append(
-                                ContinuityIssue(
-                                    issue_type="world_element_rule_violation",
-                                    severity="high",
-                                    title=f"Rule violation for world element '{element.name}'",
-                                    description=f"Rule '{rule_key}' has been violated: {rule_value.get('description', 'No details')}",
-                                    world_element_id=str(element.id),
-                                )
+                    if (
+                        isinstance(rule_value, dict)
+                        and "violated" in rule_value
+                        and rule_value["violated"]
+                    ):
+                        issues.append(
+                            ContinuityIssue(
+                                issue_type="world_element_rule_violation",
+                                severity="high",
+                                title=(
+                                    f"Rule violation for world element '{element.name}'"
+                                ),
+                                description=(
+                                    f"Rule '{rule_key}' has been violated: "
+                                    f"{rule_value.get('description', 'No details')}"
+                                ),
+                                world_element_id=str(element.id),
                             )
+                        )
 
         return issues
 
@@ -511,9 +562,13 @@ class ContinuityValidator:
                             ContinuityIssue(
                                 issue_type="character_absence_gap",
                                 severity="low",
-                                title=f"Character '{char_name}' has unexplained absence",
-                                description=f"Character absent from episode {prev_ep_num + 1} "
-                                f"to {current_ep - 1} without explanation",
+                                title=(
+                                    f"Character '{char_name}' has unexplained absence"
+                                ),
+                                description=(
+                                    f"Character absent from episode {prev_ep_num + 1} "
+                                    f"to {current_ep - 1} without explanation"
+                                ),
                                 character_id=char_id,
                                 episode_id=appearance["episode_id"],
                             )
@@ -646,17 +701,19 @@ class ContinuityValidator:
         for row in knowledge_rows:
             new_status = VerificationStatus.UNVERIFIED
 
-            if auto_verify_obvious:
-                # Auto-verify knowledge that is acquired and used in the same episode
-                if (
+            # Auto-verify knowledge that is acquired and used in the same episode
+            if auto_verify_obvious and (
+                (
                     row["acquired_episode_id"]
                     and row["first_used_episode_id"]
                     and row["acquired_episode_id"] == row["first_used_episode_id"]
-                ) or (
+                )
+                or (
                     row["confidence_level"] >= 0.9
                     and row["acquisition_method"] in ["witnessed", "told"]
-                ):
-                    new_status = VerificationStatus.VERIFIED
+                )
+            ):
+                new_status = VerificationStatus.VERIFIED
 
             # Check for violations (knowledge used before acquisition)
             if (
@@ -669,7 +726,8 @@ class ContinuityValidator:
             if new_status != VerificationStatus.UNVERIFIED:
                 with self.connection.transaction() as conn:
                     conn.execute(
-                        "UPDATE character_knowledge SET verification_status = ? WHERE id = ?",
+                        "UPDATE character_knowledge "
+                        "SET verification_status = ? WHERE id = ?",
                         (new_status, row["id"]),
                     )
                 updated_count += 1
@@ -773,7 +831,8 @@ class ContinuityValidator:
         high_severity_issues = [i for i in issues if i.severity == "high"]
         if high_severity_issues:
             recommendations.append(
-                f"Address {len(high_severity_issues)} high-severity continuity issues immediately"
+                f"Address {len(high_severity_issues)} high-severity "
+                f"continuity issues immediately"
             )
 
         # Unresolved note recommendations
@@ -787,7 +846,8 @@ class ContinuityValidator:
         arc_issues = [i for i in issues if "character_arc" in i.issue_type]
         if arc_issues:
             recommendations.append(
-                "Define character arcs for major characters to improve story consistency"
+                "Define character arcs for major characters to improve "
+                "story consistency"
             )
 
         # Timeline recommendations

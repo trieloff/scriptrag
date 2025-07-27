@@ -244,50 +244,6 @@ CREATE INDEX IF NOT EXISTS idx_edges_type_from ON edges(edge_type, from_node_id)
 CREATE INDEX IF NOT EXISTS idx_embeddings_entity ON embeddings(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_model ON embeddings(embedding_model);
 
--- Indexes for Script Bible tables
-CREATE INDEX IF NOT EXISTS idx_series_bibles_script_id ON series_bibles(script_id);
-CREATE INDEX IF NOT EXISTS idx_series_bibles_status ON series_bibles(status);
-CREATE INDEX IF NOT EXISTS idx_series_bibles_type ON series_bibles(bible_type);
-
-CREATE INDEX IF NOT EXISTS idx_character_profiles_character_id ON character_profiles(character_id);
-CREATE INDEX IF NOT EXISTS idx_character_profiles_script_id ON character_profiles(script_id);
-CREATE INDEX IF NOT EXISTS idx_character_profiles_bible_id ON character_profiles(series_bible_id);
-
-CREATE INDEX IF NOT EXISTS idx_world_elements_script_id ON world_elements(script_id);
-CREATE INDEX IF NOT EXISTS idx_world_elements_bible_id ON world_elements(series_bible_id);
-CREATE INDEX IF NOT EXISTS idx_world_elements_type ON world_elements(element_type);
-CREATE INDEX IF NOT EXISTS idx_world_elements_category ON world_elements(element_type, category);
-
-CREATE INDEX IF NOT EXISTS idx_story_timelines_script_id ON story_timelines(script_id);
-CREATE INDEX IF NOT EXISTS idx_story_timelines_bible_id ON story_timelines(series_bible_id);
-CREATE INDEX IF NOT EXISTS idx_story_timelines_type ON story_timelines(timeline_type);
-
-CREATE INDEX IF NOT EXISTS idx_timeline_events_timeline_id ON timeline_events(timeline_id);
-CREATE INDEX IF NOT EXISTS idx_timeline_events_script_id ON timeline_events(script_id);
-CREATE INDEX IF NOT EXISTS idx_timeline_events_scene_id ON timeline_events(scene_id);
-CREATE INDEX IF NOT EXISTS idx_timeline_events_episode_id ON timeline_events(episode_id);
-CREATE INDEX IF NOT EXISTS idx_timeline_events_order ON timeline_events(timeline_id, relative_order);
-
-CREATE INDEX IF NOT EXISTS idx_continuity_notes_script_id ON continuity_notes(script_id);
-CREATE INDEX IF NOT EXISTS idx_continuity_notes_bible_id ON continuity_notes(series_bible_id);
-CREATE INDEX IF NOT EXISTS idx_continuity_notes_type ON continuity_notes(note_type);
-CREATE INDEX IF NOT EXISTS idx_continuity_notes_severity ON continuity_notes(severity);
-CREATE INDEX IF NOT EXISTS idx_continuity_notes_status ON continuity_notes(status);
-CREATE INDEX IF NOT EXISTS idx_continuity_notes_episode_id ON continuity_notes(episode_id);
-CREATE INDEX IF NOT EXISTS idx_continuity_notes_scene_id ON continuity_notes(scene_id);
-
-CREATE INDEX IF NOT EXISTS idx_character_knowledge_character_id ON character_knowledge(character_id);
-CREATE INDEX IF NOT EXISTS idx_character_knowledge_script_id ON character_knowledge(script_id);
-CREATE INDEX IF NOT EXISTS idx_character_knowledge_type ON character_knowledge(knowledge_type);
-CREATE INDEX IF NOT EXISTS idx_character_knowledge_acquired_episode ON character_knowledge(acquired_episode_id);
-CREATE INDEX IF NOT EXISTS idx_character_knowledge_verification ON character_knowledge(verification_status);
-
-CREATE INDEX IF NOT EXISTS idx_plot_threads_script_id ON plot_threads(script_id);
-CREATE INDEX IF NOT EXISTS idx_plot_threads_bible_id ON plot_threads(series_bible_id);
-CREATE INDEX IF NOT EXISTS idx_plot_threads_type ON plot_threads(thread_type);
-CREATE INDEX IF NOT EXISTS idx_plot_threads_status ON plot_threads(status);
-CREATE INDEX IF NOT EXISTS idx_plot_threads_priority ON plot_threads(priority);
-
 -- Scene dependencies table for logical ordering
 CREATE TABLE IF NOT EXISTS scene_dependencies (
     id TEXT PRIMARY KEY,
@@ -373,7 +329,8 @@ CREATE TABLE IF NOT EXISTS character_profiles (
     FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE,
     FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
     FOREIGN KEY (series_bible_id) REFERENCES series_bibles(id) ON DELETE CASCADE,
-    FOREIGN KEY (first_appearance_episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+    FOREIGN KEY (first_appearance_episode_id) REFERENCES episodes(id)
+        ON DELETE SET NULL,
     FOREIGN KEY (last_appearance_episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
     UNIQUE(character_id, script_id)
 );
@@ -416,7 +373,8 @@ CREATE TABLE IF NOT EXISTS world_elements (
 
     FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
     FOREIGN KEY (series_bible_id) REFERENCES series_bibles(id) ON DELETE CASCADE,
-    FOREIGN KEY (first_introduced_episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+    FOREIGN KEY (first_introduced_episode_id) REFERENCES episodes(id)
+        ON DELETE SET NULL,
     FOREIGN KEY (first_introduced_scene_id) REFERENCES scenes(id) ON DELETE SET NULL
 );
 
@@ -732,6 +690,67 @@ CREATE TRIGGER IF NOT EXISTS update_plot_threads_timestamp
         UPDATE plot_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
     END;
 
+-- Indexes for Script Bible tables
+CREATE INDEX IF NOT EXISTS idx_series_bibles_script_id ON series_bibles(script_id);
+CREATE INDEX IF NOT EXISTS idx_series_bibles_status ON series_bibles(status);
+CREATE INDEX IF NOT EXISTS idx_series_bibles_type ON series_bibles(bible_type);
+
+CREATE INDEX IF NOT EXISTS idx_character_profiles_character_id
+    ON character_profiles(character_id);
+CREATE INDEX IF NOT EXISTS idx_character_profiles_script_id
+    ON character_profiles(script_id);
+CREATE INDEX IF NOT EXISTS idx_character_profiles_bible_id
+    ON character_profiles(series_bible_id);
+
+CREATE INDEX IF NOT EXISTS idx_world_elements_script_id ON world_elements(script_id);
+CREATE INDEX IF NOT EXISTS idx_world_elements_bible_id
+    ON world_elements(series_bible_id);
+CREATE INDEX IF NOT EXISTS idx_world_elements_type ON world_elements(element_type);
+CREATE INDEX IF NOT EXISTS idx_world_elements_category
+    ON world_elements(element_type, category);
+
+CREATE INDEX IF NOT EXISTS idx_story_timelines_script_id ON story_timelines(script_id);
+CREATE INDEX IF NOT EXISTS idx_story_timelines_bible_id
+    ON story_timelines(series_bible_id);
+CREATE INDEX IF NOT EXISTS idx_story_timelines_type ON story_timelines(timeline_type);
+
+CREATE INDEX IF NOT EXISTS idx_timeline_events_timeline_id
+    ON timeline_events(timeline_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_events_script_id ON timeline_events(script_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_events_scene_id ON timeline_events(scene_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_events_episode_id
+    ON timeline_events(episode_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_events_order
+    ON timeline_events(timeline_id, relative_order);
+
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_script_id
+    ON continuity_notes(script_id);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_bible_id
+    ON continuity_notes(series_bible_id);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_type ON continuity_notes(note_type);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_severity ON continuity_notes(severity);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_status ON continuity_notes(status);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_episode_id
+    ON continuity_notes(episode_id);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_scene_id ON continuity_notes(scene_id);
+
+CREATE INDEX IF NOT EXISTS idx_character_knowledge_character_id
+    ON character_knowledge(character_id);
+CREATE INDEX IF NOT EXISTS idx_character_knowledge_script_id
+    ON character_knowledge(script_id);
+CREATE INDEX IF NOT EXISTS idx_character_knowledge_type
+    ON character_knowledge(knowledge_type);
+CREATE INDEX IF NOT EXISTS idx_character_knowledge_acquired_episode
+    ON character_knowledge(acquired_episode_id);
+CREATE INDEX IF NOT EXISTS idx_character_knowledge_verification
+    ON character_knowledge(verification_status);
+
+CREATE INDEX IF NOT EXISTS idx_plot_threads_script_id ON plot_threads(script_id);
+CREATE INDEX IF NOT EXISTS idx_plot_threads_bible_id ON plot_threads(series_bible_id);
+CREATE INDEX IF NOT EXISTS idx_plot_threads_type ON plot_threads(thread_type);
+CREATE INDEX IF NOT EXISTS idx_plot_threads_status ON plot_threads(status);
+CREATE INDEX IF NOT EXISTS idx_plot_threads_priority ON plot_threads(priority);
+
 -- FTS triggers to keep search indexes in sync
 CREATE TRIGGER IF NOT EXISTS scene_elements_fts_insert
     AFTER INSERT ON scene_elements
@@ -979,14 +998,22 @@ def migrate_database(db_path: str | Path) -> bool:
         if current_version < 5:
             # Apply migration to version 5 (Script Bible and Continuity Management)
             logger.info(
-                "Applying migration to version 5 (Script Bible and Continuity Management)"
+                "Applying migration to version 5 "
+                "(Script Bible and Continuity Management)"
             )
 
-            # Use the same SQL from the main schema - extract the Script Bible tables portion
+            # Use the same SQL from the main schema
+            # Extract the Script Bible tables portion
             # Get the Script Bible portion from the schema
             bible_migration_sql = f"""
             -- Script Bible tables for continuity management and series tracking
-            {SCHEMA_SQL[SCHEMA_SQL.find("-- Script Bible tables") : SCHEMA_SQL.find("-- FTS triggers")]}
+            {
+                SCHEMA_SQL[
+                    SCHEMA_SQL.find("-- Script Bible tables") : SCHEMA_SQL.find(
+                        "-- FTS triggers"
+                    )
+                ]
+            }
             """
 
             conn.executescript(bible_migration_sql)

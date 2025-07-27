@@ -8,16 +8,15 @@ import pytest
 from scriptrag.database.bible import ScriptBibleOperations
 from scriptrag.database.connection import DatabaseConnection
 from scriptrag.database.continuity import ContinuityIssue, ContinuityValidator
-from scriptrag.database.schema import create_database
+from scriptrag.database.migrations import initialize_database
 
 
 @pytest.fixture
-def bible_connection():
+def bible_connection(tmp_path):
     """Create a temporary database connection for testing."""
-    db_path = ":memory:"
-    schema = create_database(db_path)
-    schema.create_schema()  # Actually create the tables
-    with DatabaseConnection(db_path) as connection:
+    db_path = tmp_path / "test_bible.db"
+    initialize_database(db_path)  # Apply all migrations including script bible tables
+    with DatabaseConnection(str(db_path)) as connection:
         yield connection
 
 
@@ -125,7 +124,7 @@ class TestScriptBibleOperations:
         assert bible.description == "A comprehensive bible for testing"
         assert bible.created_by == "Test Creator"
         assert bible.bible_type == "series"
-        assert bible.script_id == sample_script_data["script_id"]
+        assert str(bible.script_id) == sample_script_data["script_id"]
 
     def test_get_series_bibles_for_script(self, bible_connection, sample_script_data):
         """Test getting all bibles for a script."""
@@ -220,8 +219,12 @@ class TestScriptBibleOperations:
             sample_script_data["character_id"], sample_script_data["script_id"]
         )
         assert profile is not None
-        assert profile.first_appearance_episode_id == sample_script_data["episode_id"]
-        assert profile.last_appearance_episode_id == sample_script_data["episode_id"]
+        assert (
+            str(profile.first_appearance_episode_id) == sample_script_data["episode_id"]
+        )
+        assert (
+            str(profile.last_appearance_episode_id) == sample_script_data["episode_id"]
+        )
         assert profile.total_appearances == 1
 
     def test_create_world_element(self, bible_connection, sample_script_data):
@@ -658,7 +661,7 @@ class TestScriptBibleIntegration:
 
         # Verify relationships
         bible = bible_ops.get_series_bible(bible_id)
-        assert bible.script_id == sample_script_data["script_id"]
+        assert str(bible.script_id) == sample_script_data["script_id"]
 
         profile = bible_ops.get_character_profile(
             sample_script_data["character_id"], sample_script_data["script_id"]

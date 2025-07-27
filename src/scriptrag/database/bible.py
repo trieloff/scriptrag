@@ -196,6 +196,7 @@ class ScriptBibleOperations:
         character_id: str,
         script_id: str,
         series_bible_id: str | None = None,
+        _conn: Any = None,
         **profile_data: Any,
     ) -> str:
         """Create a character profile.
@@ -204,6 +205,7 @@ class ScriptBibleOperations:
             character_id: Character identifier
             script_id: Script identifier
             series_bible_id: Optional bible identifier
+            _conn: Optional connection to reuse (for internal use)
             **profile_data: Profile data fields
 
         Returns:
@@ -237,6 +239,9 @@ class ScriptBibleOperations:
             "character_arc": "character_arc",
             "growth_trajectory": "growth_trajectory",
             "notes": "notes",
+            "first_appearance_episode_id": "first_appearance_episode_id",
+            "last_appearance_episode_id": "last_appearance_episode_id",
+            "total_appearances": "total_appearances",
         }
 
         for key, db_field in field_mapping.items():
@@ -250,8 +255,13 @@ class ScriptBibleOperations:
             f"VALUES ({placeholders})"
         )
 
-        with self.connection.transaction() as conn:
-            conn.execute(sql, base_values)
+        if _conn:
+            # Use existing connection (no new transaction)
+            _conn.execute(sql, base_values)
+        else:
+            # Create new transaction
+            with self.connection.transaction() as conn:
+                conn.execute(sql, base_values)
 
         logger.info(
             f"Created character profile {profile_id} for character {character_id}"
@@ -318,6 +328,7 @@ class ScriptBibleOperations:
                 self.create_character_profile(
                     character_id=character_id,
                     script_id=script_id,
+                    _conn=conn,
                     first_appearance_episode_id=episode_id,
                     last_appearance_episode_id=episode_id,
                     total_appearances=1,

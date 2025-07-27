@@ -6,8 +6,6 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from scriptrag.api.app import create_app
-
 
 @pytest.fixture
 def mock_llm_client():
@@ -22,7 +20,30 @@ def mock_llm_client():
 def client(mock_llm_client):
     """Create test client with mocked dependencies."""
     _ = mock_llm_client  # Mark as used
-    app = create_app()
+
+    from fastapi import FastAPI
+
+    from scriptrag.api.db_operations import DatabaseOperations
+    from scriptrag.api.v1.api import api_router
+
+    # Create app without lifespan to avoid database initialization
+    app = FastAPI(
+        title="ScriptRAG API",
+        description="Graph-Based Screenwriting Assistant REST API",
+        version="1.0.0",
+        docs_url="/api/v1/docs",
+        redoc_url="/api/v1/redoc",
+        openapi_url="/api/v1/openapi.json",
+    )
+
+    # Include API routers
+    app.include_router(api_router, prefix="/api/v1")
+
+    # Manually set up app state with mocked database operations
+    mock_db_ops = AsyncMock(spec=DatabaseOperations)
+    app.state.db_ops = mock_db_ops
+    app.state.settings = None  # Not needed for embedding tests
+
     with TestClient(app) as client:
         yield client
 
@@ -48,32 +69,31 @@ class TestEmbeddingGenerationEndpoint:
             "processing_time": 5.4,
         }
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_db.generate_embeddings.return_value = mock_result
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_script.return_value = mock_script
+        mock_db_ops.generate_embeddings.return_value = mock_result
 
-            response = client.post(
-                f"/api/v1/embeddings/scripts/{script_id}/generate", json=request_data
-            )
+        response = client.post(
+            f"/api/v1/embeddings/scripts/{script_id}/generate", json=request_data
+        )
 
-            assert response.status_code == 200
-            data = response.json()
+        assert response.status_code == 200
+        data = response.json()
 
-            # Check response structure
-            assert data["status"] == "success"
-            assert data["message"] == "Embeddings generated successfully"
-            assert data["script_id"] == script_id
-            assert data["scenes_processed"] == 10
-            assert data["scenes_skipped"] == 2
-            assert data["processing_time"] == 5.4
+        # Check response structure
+        assert data["status"] == "success"
+        assert data["message"] == "Embeddings generated successfully"
+        assert data["script_id"] == script_id
+        assert data["scenes_processed"] == 10
+        assert data["scenes_skipped"] == 2
+        assert data["processing_time"] == 5.4
 
-            # Verify method calls
-            mock_db.get_script.assert_called_once_with(script_id)
-            mock_db.generate_embeddings.assert_called_once_with(
-                script_id, regenerate=False
-            )
+        # Verify method calls
+        mock_db_ops.get_script.assert_called_once_with(script_id)
+        mock_db_ops.generate_embeddings.assert_called_once_with(
+            script_id, regenerate=False
+        )
 
     def test_generate_embeddings_with_regenerate(self, client):
         """Test embedding generation with regenerate flag."""
@@ -232,21 +252,19 @@ class TestEmbeddingStatusEndpoint:
         mock_script.title = "Test Script"
         mock_script.scenes = mock_scenes
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
 
-            response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
+        response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
 
-            assert response.status_code == 200
-            data = response.json()
+        assert response.status_code == 200
+        data = response.json()
 
-            assert data["script_id"] == script_id
-            assert data["total_scenes"] == 4
-            assert data["scenes_with_embeddings"] == 2
-            assert data["completion_percentage"] == 50.0
-            assert data["is_complete"] is False
+        assert data["script_id"] == script_id
+        assert data["total_scenes"] == 4
+        assert data["scenes_with_embeddings"] == 2
+        assert data["completion_percentage"] == 50.0
+        assert data["is_complete"] is False
 
     def test_get_embedding_status_no_scenes(self, client):
         """Test embedding status for script with no scenes."""
@@ -257,48 +275,44 @@ class TestEmbeddingStatusEndpoint:
         mock_script.title = "Empty Script"
         mock_script.scenes = []
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
 
-            response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
+        response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
 
-            assert response.status_code == 200
-            data = response.json()
+        assert response.status_code == 200
+        data = response.json()
 
-            assert data["total_scenes"] == 0
-            assert data["scenes_with_embeddings"] == 0
-            assert data["completion_percentage"] == 0
-            assert data["is_complete"] is True  # Empty script is considered complete
+        assert data["total_scenes"] == 0
+        assert data["scenes_with_embeddings"] == 0
+        assert data["completion_percentage"] == 0
+        assert data["is_complete"] is True  # Empty script is considered complete
 
     def test_get_embedding_status_script_not_found(self, client):
         """Test embedding status for non-existent script."""
         script_id = str(uuid4())
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = None
 
-            response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
+        response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
 
-            assert response.status_code == 404
-            assert "Script not found" in response.json()["detail"]
+        assert response.status_code == 404
+        assert "Script not found" in response.json()["detail"]
 
     def test_get_embedding_status_database_error(self, client):
         """Test database error during status retrieval."""
         script_id = str(uuid4())
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.side_effect = Exception("Database connection lost")
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.side_effect = Exception(
+            "Database connection lost"
+        )
 
-            response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
+        response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
 
-            assert response.status_code == 500
-            assert "Failed to get embedding status" in response.json()["detail"]
+        assert response.status_code == 500
+        assert "Failed to get embedding status" in response.json()["detail"]
 
     def test_get_embedding_status_no_embeddings(self, client):
         """Test embedding status for script with no embeddings generated."""
@@ -316,17 +330,15 @@ class TestEmbeddingStatusEndpoint:
         mock_script.title = "Test Script"
         mock_script.scenes = mock_scenes
 
-        with patch("scriptrag.api.v1.endpoints.embeddings.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_get_db.return_value = mock_db
+        # Configure the mock that's already set up in the client fixture
+        client.app.state.db_ops.get_script.return_value = mock_script
 
-            response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
+        response = client.get(f"/api/v1/embeddings/scripts/{script_id}/status")
 
-            assert response.status_code == 200
-            data = response.json()
+        assert response.status_code == 200
+        data = response.json()
 
-            assert data["total_scenes"] == 3
-            assert data["scenes_with_embeddings"] == 0
-            assert data["completion_percentage"] == 0.0
-            assert data["is_complete"] is False
+        assert data["total_scenes"] == 3
+        assert data["scenes_with_embeddings"] == 0
+        assert data["completion_percentage"] == 0.0
+        assert data["is_complete"] is False

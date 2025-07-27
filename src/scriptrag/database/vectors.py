@@ -518,6 +518,88 @@ class VectorOperations:
             logger.error(f"Failed to delete embeddings: {e}")
             return 0
 
+    def batch_store_embeddings(
+        self, embeddings: list[dict[str, Any]]
+    ) -> dict[str, bool]:
+        """Store multiple embeddings in batch.
+
+        Args:
+            embeddings: List of embedding dictionaries, each containing:
+                - entity_type: Type of entity (e.g., 'scene', 'character')
+                - entity_id: Unique identifier for the entity
+                - content: Text content that was embedded
+                - embedding: Vector embedding as list/array
+                - model_name: Name of the embedding model used
+
+        Returns:
+            Dictionary mapping entity_ids to success status
+        """
+        results = {}
+
+        for embedding_data in embeddings:
+            try:
+                entity_id = embedding_data["entity_id"]
+                success = self.store_embedding(
+                    entity_type=embedding_data["entity_type"],
+                    entity_id=entity_id,
+                    content=embedding_data["content"],
+                    embedding=embedding_data["embedding"],
+                    model_name=embedding_data["model_name"],
+                )
+                results[entity_id] = success
+            except Exception as e:
+                entity_id = embedding_data.get("entity_id", "unknown")
+                logger.error(f"Failed to store embedding for {entity_id}: {e}")
+                results[embedding_data.get("entity_id", "unknown")] = False
+
+        return results
+
+    def count_embeddings(
+        self,
+        entity_type: str | None = None,
+        model_name: str | None = None,
+        entity_id: str | None = None,
+    ) -> int:
+        """Count embeddings matching the given criteria.
+
+        Args:
+            entity_type: Filter by entity type (optional)
+            model_name: Filter by model name (optional)
+            entity_id: Filter by entity ID (optional)
+
+        Returns:
+            Number of embeddings matching the criteria
+        """
+        try:
+            where_conditions = []
+            params: list[Any] = []
+
+            if entity_type:
+                where_conditions.append("entity_type = ?")
+                params.append(entity_type)
+
+            if model_name:
+                where_conditions.append("embedding_model = ?")
+                params.append(model_name)
+
+            if entity_id:
+                where_conditions.append("entity_id = ?")
+                params.append(entity_id)
+
+            query = "SELECT COUNT(*) FROM embeddings"
+            if where_conditions:
+                query += " WHERE " + " AND ".join(where_conditions)
+
+            with self.db_connection.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(query, params)
+                result = cursor.fetchone()
+                return result[0] if result else 0
+
+        except Exception as e:
+            logger.error(f"Failed to count embeddings: {e}")
+            return 0
+
 
 # Utility functions for vector format compatibility
 

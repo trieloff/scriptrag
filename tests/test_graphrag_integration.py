@@ -125,7 +125,8 @@ THE END"""
 class TestGraphRAGPipelineIntegration:
     """Test the complete GraphRAG pipeline integration."""
 
-    def test_full_pipeline_script_to_search(
+    @pytest.mark.asyncio
+    async def test_full_pipeline_script_to_search(
         self, db_connection, sample_fountain_script
     ):
         """Test the complete pipeline from script ingestion to semantic search."""
@@ -137,52 +138,27 @@ class TestGraphRAGPipelineIntegration:
         assert len(script_model.scenes) == 3
         assert len(script_model.characters) == 2
 
-        # Step 2: Store script in database
-        script_id = str(uuid4())
-        with db_connection.transaction() as conn:
-            # Insert script
-            conn.execute(
-                """
-                INSERT INTO scripts (id, title, author, metadata_json)
-                VALUES (?, ?, ?, ?)
-                """,
-                (script_id, script_model.title, script_model.author, "{}"),
-            )
-
-            # Insert scenes
-            for idx, scene in enumerate(script_model.scenes):
-                scene_id = str(uuid4())
-                conn.execute(
-                    """
-                    INSERT INTO scenes (
-                        id, script_id, script_order, heading, description
-                    ) VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        scene_id,
-                        script_id,
-                        idx + 1,
-                        scene.heading,
-                        scene.full_text,
-                    ),
-                )
-
-        # Step 3: Build knowledge graph
+        # Step 2: Build knowledge graph (which handles database storage)
         graph_builder = KnowledgeGraphBuilder(db_connection)
-        graph_builder.build_from_script(script_model, script_id)
+        characters = parser.get_characters()
+        scenes = parser.get_scenes()
+        stats = await graph_builder.build_from_script(
+            script_model, enrich_with_llm=False, characters=characters, scenes=scenes
+        )
+        script_node_id = stats["script_node_id"]
 
         # Verify graph construction
         graph_ops = GraphOperations(db_connection)
 
         # Check script node exists
-        script_node = graph_ops.get_node(script_id)
+        script_node = graph_ops.get_node(script_node_id)
         assert script_node is not None
-        assert script_node["label"] == "The Coffee Shop Encounter"
+        assert script_node.label == "The Coffee Shop Encounter"
 
         # Check character nodes
         character_nodes = []
         with db_connection.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM nodes WHERE type = 'character'")
+            cursor = conn.execute("SELECT * FROM nodes WHERE node_type = 'character'")
             character_nodes = cursor.fetchall()
 
         assert len(character_nodes) == 2
@@ -193,7 +169,7 @@ class TestGraphRAGPipelineIntegration:
         # Check scene nodes
         scene_nodes = []
         with db_connection.get_connection() as conn:
-            cursor = conn.execute("SELECT * FROM nodes WHERE type = 'scene'")
+            cursor = conn.execute("SELECT * FROM nodes WHERE node_type = 'scene'")
             scene_nodes = cursor.fetchall()
 
         assert len(scene_nodes) == 3
@@ -206,54 +182,19 @@ class TestGraphRAGPipelineIntegration:
 
         # Should have character interactions and scene relationships
         assert len(edges) > 0
-        edge_types = {edge["type"] for edge in edges}
+        edge_types = {edge["edge_type"] for edge in edges}
         assert "APPEARS_IN" in edge_types or "HAS_SCENE" in edge_types
 
-    def test_embedding_pipeline_integration(
-        self, db_connection, sample_fountain_script
-    ):
+    @pytest.mark.asyncio
+    async def test_embedding_pipeline_integration(self, db_connection):
         """Test the embedding generation and retrieval pipeline."""
-        # Parse and store script
-        parser = FountainParser()
-        script_model = parser.parse_string(sample_fountain_script)
-        script_id = str(uuid4())
-
-        # Store script and scenes
-        scene_ids = []
-        with db_connection.transaction() as conn:
-            conn.execute(
-                """
-                INSERT INTO scripts (id, title, author, metadata_json)
-                VALUES (?, ?, ?, ?)
-                """,
-                (script_id, script_model.title, script_model.author, "{}"),
-            )
-
-            for idx, scene in enumerate(script_model.scenes):
-                scene_id = str(uuid4())
-                scene_ids.append(scene_id)
-                conn.execute(
-                    """
-                    INSERT INTO scenes (
-                        id, script_id, script_order, heading, description
-                    ) VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        scene_id,
-                        script_id,
-                        idx + 1,
-                        scene.heading,
-                        scene.full_text,
-                    ),
-                )
-
         # Initialize embedding pipeline (will use mock LLM in tests)
         # This will fail without proper LLM setup, which is expected in tests
         with contextlib.suppress(Exception):
             # Expected to fail in test environment without LLM setup
             EmbeddingPipeline(db_connection)
 
-        # For now, we'll verify the database structure is ready for embeddings
+        # Verify the database structure is ready for embeddings
         with db_connection.get_connection() as conn:
             cursor = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' "
@@ -261,43 +202,20 @@ class TestGraphRAGPipelineIntegration:
             )
             assert cursor.fetchone() is not None
 
-    def test_graph_traversal_queries(self, db_connection, sample_fountain_script):
+    @pytest.mark.asyncio
+    async def test_graph_traversal_queries(self, db_connection, sample_fountain_script):
         """Test complex graph traversal queries."""
-        # Setup: Parse, store, and build graph
+        # Setup: Parse and build graph
         parser = FountainParser()
         script_model = parser.parse_string(sample_fountain_script)
-        script_id = str(uuid4())
-
-        # Store script
-        with db_connection.transaction() as conn:
-            conn.execute(
-                """
-                INSERT INTO scripts (id, title, author, metadata_json)
-                VALUES (?, ?, ?, ?)
-                """,
-                (script_id, script_model.title, script_model.author, "{}"),
-            )
-
-            for idx, scene in enumerate(script_model.scenes):
-                scene_id = str(uuid4())
-                conn.execute(
-                    """
-                    INSERT INTO scenes (
-                        id, script_id, script_order, heading, description
-                    ) VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        scene_id,
-                        script_id,
-                        idx + 1,
-                        scene.heading,
-                        scene.full_text,
-                    ),
-                )
 
         # Build knowledge graph
         graph_builder = KnowledgeGraphBuilder(db_connection)
-        graph_builder.build_from_script(script_model, script_id)
+        characters = parser.get_characters()
+        scenes = parser.get_scenes()
+        await graph_builder.build_from_script(
+            script_model, enrich_with_llm=False, characters=characters, scenes=scenes
+        )
 
         # Test queries use the GraphOperations
         _ = GraphOperations(db_connection)  # Mark as used for graph building
@@ -307,7 +225,7 @@ class TestGraphRAGPipelineIntegration:
         john_node = None
         with db_connection.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM nodes WHERE type = 'character' AND label = 'JOHN'"
+                "SELECT * FROM nodes WHERE node_type = 'character' AND label = 'JOHN'"
             )
             john_node = cursor.fetchone()
 
@@ -319,9 +237,9 @@ class TestGraphRAGPipelineIntegration:
             cursor = conn.execute(
                 """
                 SELECT n2.* FROM edges e
-                JOIN nodes n1 ON e.source_id = n1.id
-                JOIN nodes n2 ON e.target_id = n2.id
-                WHERE n1.id = ? AND e.type = 'APPEARS_IN'
+                JOIN nodes n1 ON e.from_node_id = n1.id
+                JOIN nodes n2 ON e.to_node_id = n2.id
+                WHERE n1.id = ? AND e.edge_type = 'APPEARS_IN'
                 """,
                 (john_node["id"],),
             )
@@ -337,10 +255,10 @@ class TestGraphRAGPipelineIntegration:
                 """
                 SELECT DISTINCT n1.label as char1, n2.label as char2
                 FROM edges e
-                JOIN nodes n1 ON e.source_id = n1.id
-                JOIN nodes n2 ON e.target_id = n2.id
-                WHERE n1.type = 'character' AND n2.type = 'character'
-                AND e.type IN ('INTERACTS_WITH', 'TALKS_TO')
+                JOIN nodes n1 ON e.from_node_id = n1.id
+                JOIN nodes n2 ON e.to_node_id = n2.id
+                WHERE n1.node_type = 'character' AND n2.node_type = 'character'
+                AND e.edge_type IN ('INTERACTS_WITH', 'TALKS_TO')
                 """
             )
             interactions = cursor.fetchall()
@@ -426,12 +344,12 @@ class TestGraphRAGPipelineIntegration:
             cursor = conn.execute(
                 """
                 SELECT n1.* FROM edges e1
-                JOIN edges e2 ON e1.target_id = e2.target_id
-                JOIN nodes n1 ON e1.source_id = n1.id
-                JOIN nodes n2 ON e2.target_id = n2.id
+                JOIN edges e2 ON e1.to_node_id = e2.to_node_id
+                JOIN nodes n1 ON e1.from_node_id = n1.id
+                JOIN nodes n2 ON e2.to_node_id = n2.id
                 WHERE n2.label = 'COFFEE SHOP'
-                AND e1.type = 'OCCURS_IN'
-                AND n1.type = 'scene'
+                AND e1.edge_type = 'OCCURS_IN'
+                AND n1.node_type = 'scene'
                 """
             )
             coffee_shop_scenes = cursor.fetchall()
@@ -493,12 +411,12 @@ class TestGraphRAGPipelineIntegration:
         with db_connection.get_connection() as conn:
             cursor = conn.execute(
                 """
-                SELECT n2.properties, e.properties as edge_props
+                SELECT n2.properties_json, e.properties_json as edge_props
                 FROM edges e
-                JOIN nodes n1 ON e.source_id = n1.id
-                JOIN nodes n2 ON e.target_id = n2.id
-                WHERE n1.id = ? AND e.type = 'APPEARS_IN'
-                ORDER BY json_extract(n2.properties, '$.order')
+                JOIN nodes n1 ON e.from_node_id = n1.id
+                JOIN nodes n2 ON e.to_node_id = n2.id
+                WHERE n1.id = ? AND e.edge_type = 'APPEARS_IN'
+                ORDER BY json_extract(n2.properties_json, '$.order')
                 """,
                 (character_id,),
             )

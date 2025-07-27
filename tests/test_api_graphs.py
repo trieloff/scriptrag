@@ -6,8 +6,6 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from scriptrag.api.app import create_app
-
 
 @pytest.fixture
 def mock_llm_client():
@@ -22,7 +20,30 @@ def mock_llm_client():
 def client(mock_llm_client):
     """Create test client with mocked dependencies."""
     _ = mock_llm_client  # Mark as used
-    app = create_app()
+
+    from fastapi import FastAPI
+
+    from scriptrag.api.db_operations import DatabaseOperations
+    from scriptrag.api.v1.api import api_router
+
+    # Create app without lifespan to avoid database initialization
+    app = FastAPI(
+        title="ScriptRAG API",
+        description="Graph-Based Screenwriting Assistant REST API",
+        version="1.0.0",
+        docs_url="/api/v1/docs",
+        redoc_url="/api/v1/redoc",
+        openapi_url="/api/v1/openapi.json",
+    )
+
+    # Include API routers
+    app.include_router(api_router, prefix="/api/v1")
+
+    # Manually set up app state with mocked database operations
+    mock_db_ops = AsyncMock(spec=DatabaseOperations)
+    app.state.db_ops = mock_db_ops
+    app.state.settings = None  # Not needed for graph tests
+
     with TestClient(app) as client:
         yield client
 

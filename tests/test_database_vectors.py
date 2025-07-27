@@ -449,18 +449,21 @@ class TestBatchOperations:
         """Test deleting embeddings."""
         _, mock_conn, mock_cursor = mock_db_connection
 
+        # Set up mock cursor to return a rowcount
+        mock_cursor.rowcount = 3
+
         result = vector_ops.delete_embeddings(
             entity_type="scene", entity_id="scene_001"
         )
 
-        assert result is True
+        assert result == 3
 
         # Verify delete query
         call_args = mock_cursor.execute.call_args[0]
         assert "DELETE FROM embeddings" in call_args[0]
         assert "entity_type = ?" in call_args[0]
         assert "entity_id = ?" in call_args[0]
-        assert call_args[1] == ("scene", "scene_001")
+        assert call_args[1] == ["scene", "scene_001"]
 
         mock_conn.commit.assert_called_once()
 

@@ -6,8 +6,6 @@ from uuid import uuid4
 import pytest
 from fastapi.testclient import TestClient
 
-from scriptrag.api.app import create_app
-
 # Test constants
 TEST_SCRIPT_TITLE = "Test Script"
 TEST_SCENE_CONTENT = "Test scene content"
@@ -41,7 +39,30 @@ def mock_db_ops():
 def client(mock_llm_client):
     """Create test client with mocked dependencies."""
     _ = mock_llm_client  # Mark as used
-    app = create_app()
+
+    from fastapi import FastAPI
+
+    from scriptrag.api.db_operations import DatabaseOperations
+    from scriptrag.api.v1.api import api_router
+
+    # Create app without lifespan to avoid database initialization
+    app = FastAPI(
+        title="ScriptRAG API",
+        description="Graph-Based Screenwriting Assistant REST API",
+        version="1.0.0",
+        docs_url="/api/v1/docs",
+        redoc_url="/api/v1/redoc",
+        openapi_url="/api/v1/openapi.json",
+    )
+
+    # Include API routers
+    app.include_router(api_router, prefix="/api/v1")
+
+    # Manually set up app state with mocked database operations
+    mock_db_ops = AsyncMock(spec=DatabaseOperations)
+    app.state.db_ops = mock_db_ops
+    app.state.settings = None  # Not needed for scene tests
+
     with TestClient(app) as client:
         yield client
 
@@ -68,47 +89,44 @@ class TestSceneEndpoints:
             "has_embedding": True,
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.return_value = mock_scene
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.return_value = mock_scene
 
-            response = client.get(f"/api/v1/scenes/{scene_id}")
+        response = client.get(f"/api/v1/scenes/{scene_id}")
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["id"] == scene_id
-            assert data["script_id"] == script_id
-            assert data["scene_number"] == 1
-            assert data["heading"] == "INT. COFFEE SHOP - DAY"
-            mock_db.get_scene.assert_called_once_with(scene_id)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == scene_id
+        assert data["script_id"] == script_id
+        assert data["scene_number"] == 1
+        assert data["heading"] == "INT. COFFEE SHOP - DAY"
+        mock_db_ops.get_scene.assert_called_once_with(scene_id)
 
     def test_get_scene_not_found(self, client):
         """Test getting non-existent scene."""
         scene_id = str(uuid4())
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.return_value = None
 
-            response = client.get(f"/api/v1/scenes/{scene_id}")
+        response = client.get(f"/api/v1/scenes/{scene_id}")
 
-            assert_error_response(response, 404, "Scene not found")
+        assert_error_response(response, 404, "Scene not found")
 
     def test_get_scene_database_error(self, client):
         """Test database error during scene retrieval."""
         scene_id = str(uuid4())
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.side_effect = Exception("Database connection failed")
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.side_effect = Exception("Database connection failed")
 
-            response = client.get(f"/api/v1/scenes/{scene_id}")
+        response = client.get(f"/api/v1/scenes/{scene_id}")
 
-            assert response.status_code == 500
-            assert "Failed to get scene" in response.json()["detail"]
+        assert response.status_code == 500
+        assert "Failed to get scene" in response.json()["detail"]
 
     def test_create_scene_success(self, client):
         """Test successful scene creation."""
@@ -135,32 +153,31 @@ class TestSceneEndpoints:
             "has_embedding": False,
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = mock_script
-            mock_db.create_scene.return_value = scene_id
-            mock_db.get_scene.return_value = mock_scene
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_script.return_value = mock_script
+        mock_db_ops.create_scene.return_value = scene_id
+        mock_db_ops.get_scene.return_value = mock_scene
 
-            response = client.post(
-                f"/api/v1/scenes/?script_id={script_id}", json=scene_data
-            )
+        response = client.post(
+            f"/api/v1/scenes/?script_id={script_id}", json=scene_data
+        )
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["id"] == scene_id
-            assert data["script_id"] == script_id
-            assert data["scene_number"] == 5
-            assert data["heading"] == "EXT. BEACH - SUNSET"
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == scene_id
+        assert data["script_id"] == script_id
+        assert data["scene_number"] == 5
+        assert data["heading"] == "EXT. BEACH - SUNSET"
 
-            # Verify method calls
-            mock_db.get_script.assert_called_once_with(script_id)
-            mock_db.create_scene.assert_called_once_with(
-                script_id=script_id,
-                scene_number=5,
-                heading="EXT. BEACH - SUNSET",
-                content="Waves crash against the shore as the sun sets.",
-            )
+        # Verify method calls
+        mock_db_ops.get_script.assert_called_once_with(script_id)
+        mock_db_ops.create_scene.assert_called_once_with(
+            script_id=script_id,
+            scene_number=5,
+            heading="EXT. BEACH - SUNSET",
+            content="Waves crash against the shore as the sun sets.",
+        )
 
     def test_create_scene_script_not_found(self, client):
         """Test scene creation with non-existent script."""
@@ -172,17 +189,16 @@ class TestSceneEndpoints:
             "content": "A simple room.",
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_script.return_value = None
 
-            response = client.post(
-                f"/api/v1/scenes/?script_id={script_id}", json=scene_data
-            )
+        response = client.post(
+            f"/api/v1/scenes/?script_id={script_id}", json=scene_data
+        )
 
-            assert response.status_code == 404
-            assert "Script not found" in response.json()["detail"]
+        assert response.status_code == 404
+        assert "Script not found" in response.json()["detail"]
 
     def test_create_scene_database_error(self, client):
         """Test database error during scene creation."""
@@ -194,18 +210,17 @@ class TestSceneEndpoints:
             "content": "A simple room.",
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_script.return_value = {"id": script_id}
-            mock_db.create_scene.side_effect = Exception("Database write failed")
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_script.return_value = {"id": script_id}
+        mock_db_ops.create_scene.side_effect = Exception("Database write failed")
 
-            response = client.post(
-                f"/api/v1/scenes/?script_id={script_id}", json=scene_data
-            )
+        response = client.post(
+            f"/api/v1/scenes/?script_id={script_id}", json=scene_data
+        )
 
-            assert response.status_code == 500
-            assert "Failed to create scene" in response.json()["detail"]
+        assert response.status_code == 500
+        assert "Failed to create scene" in response.json()["detail"]
 
     def test_update_scene_success(self, client):
         """Test successful scene update."""
@@ -239,27 +254,26 @@ class TestSceneEndpoints:
             "word_count": 5,
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.side_effect = [mock_original_scene, mock_updated_scene]
-            mock_db.update_scene.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.side_effect = [mock_original_scene, mock_updated_scene]
+        mock_db_ops.update_scene.return_value = None
 
-            response = client.patch(f"/api/v1/scenes/{scene_id}", json=update_data)
+        response = client.patch(f"/api/v1/scenes/{scene_id}", json=update_data)
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["id"] == scene_id
-            assert data["scene_number"] == 3
-            assert data["heading"] == "INT. OFFICE - NIGHT"
-            assert data["content"] == "The office is dimly lit."
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == scene_id
+        assert data["scene_number"] == 3
+        assert data["heading"] == "INT. OFFICE - NIGHT"
+        assert data["content"] == "The office is dimly lit."
 
-            mock_db.update_scene.assert_called_once_with(
-                scene_id=scene_id,
-                scene_number=3,
-                heading="INT. OFFICE - NIGHT",
-                content="The office is dimly lit.",
-            )
+        mock_db_ops.update_scene.assert_called_once_with(
+            scene_id=scene_id,
+            scene_number=3,
+            heading="INT. OFFICE - NIGHT",
+            content="The office is dimly lit.",
+        )
 
     def test_update_scene_not_found(self, client):
         """Test updating non-existent scene."""
@@ -271,14 +285,13 @@ class TestSceneEndpoints:
             "content": "Updated content.",
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.return_value = None
 
-            response = client.patch(f"/api/v1/scenes/{scene_id}", json=update_data)
+        response = client.patch(f"/api/v1/scenes/{scene_id}", json=update_data)
 
-            assert_error_response(response, 404, "Scene not found")
+        assert_error_response(response, 404, "Scene not found")
 
     def test_delete_scene_success(self, client):
         """Test successful scene deletion."""
@@ -291,32 +304,28 @@ class TestSceneEndpoints:
             "heading": "INT. ROOM - DAY",
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.return_value = mock_scene
-            mock_db.delete_scene.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.return_value = mock_scene
+        mock_db_ops.delete_scene.return_value = None
 
-            response = client.delete(f"/api/v1/scenes/{scene_id}")
+        response = client.delete(f"/api/v1/scenes/{scene_id}")
 
-            assert response.status_code == 200
-            assert (
-                f"Scene {scene_id} deleted successfully" in response.json()["message"]
-            )
-            mock_db.delete_scene.assert_called_once_with(scene_id)
+        assert response.status_code == 200
+        assert f"Scene {scene_id} deleted successfully" in response.json()["message"]
+        mock_db_ops.delete_scene.assert_called_once_with(scene_id)
 
     def test_delete_scene_not_found(self, client):
         """Test deleting non-existent scene."""
         scene_id = str(uuid4())
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.return_value = None
 
-            response = client.delete(f"/api/v1/scenes/{scene_id}")
+        response = client.delete(f"/api/v1/scenes/{scene_id}")
 
-            assert_error_response(response, 404, "Scene not found")
+        assert_error_response(response, 404, "Scene not found")
 
     def test_inject_scene_after_success(self, client):
         """Test successful scene injection after another scene."""
@@ -350,33 +359,32 @@ class TestSceneEndpoints:
             "has_embedding": False,
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.side_effect = [mock_ref_scene, mock_new_scene]
-            mock_db.shift_scene_numbers.return_value = None
-            mock_db.create_scene.return_value = new_scene_id
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.side_effect = [mock_ref_scene, mock_new_scene]
+        mock_db_ops.shift_scene_numbers.return_value = None
+        mock_db_ops.create_scene.return_value = new_scene_id
 
-            response = client.post(
-                f"/api/v1/scenes/{ref_scene_id}/inject-after", json=scene_data
-            )
+        response = client.post(
+            f"/api/v1/scenes/{ref_scene_id}/inject-after", json=scene_data
+        )
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["id"] == new_scene_id
-            assert data["scene_number"] == 6
-            assert data["heading"] == "INT. HALLWAY - DAY"
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == new_scene_id
+        assert data["scene_number"] == 6
+        assert data["heading"] == "INT. HALLWAY - DAY"
 
-            # Verify method calls
-            mock_db.shift_scene_numbers.assert_called_once_with(
-                script_id=script_id, from_scene_number=6
-            )
-            mock_db.create_scene.assert_called_once_with(
-                script_id=script_id,
-                scene_number=6,
-                heading="INT. HALLWAY - DAY",
-                content="A long hallway stretches ahead.",
-            )
+        # Verify method calls
+        mock_db_ops.shift_scene_numbers.assert_called_once_with(
+            script_id=script_id, from_scene_number=6
+        )
+        mock_db_ops.create_scene.assert_called_once_with(
+            script_id=script_id,
+            scene_number=6,
+            heading="INT. HALLWAY - DAY",
+            content="A long hallway stretches ahead.",
+        )
 
     def test_inject_scene_after_ref_not_found(self, client):
         """Test scene injection with non-existent reference scene."""
@@ -388,17 +396,16 @@ class TestSceneEndpoints:
             "content": "Content.",
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.return_value = None
 
-            response = client.post(
-                f"/api/v1/scenes/{ref_scene_id}/inject-after", json=scene_data
-            )
+        response = client.post(
+            f"/api/v1/scenes/{ref_scene_id}/inject-after", json=scene_data
+        )
 
-            assert response.status_code == 404
-            assert "Reference scene not found" in response.json()["detail"]
+        assert response.status_code == 404
+        assert "Reference scene not found" in response.json()["detail"]
 
     def test_inject_scene_after_database_error(self, client):
         """Test database error during scene injection."""
@@ -417,18 +424,17 @@ class TestSceneEndpoints:
             "scene_number": 5,
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.return_value = mock_ref_scene
-            mock_db.shift_scene_numbers.side_effect = Exception("Database error")
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.return_value = mock_ref_scene
+        mock_db_ops.shift_scene_numbers.side_effect = Exception("Database error")
 
-            response = client.post(
-                f"/api/v1/scenes/{ref_scene_id}/inject-after", json=scene_data
-            )
+        response = client.post(
+            f"/api/v1/scenes/{ref_scene_id}/inject-after", json=scene_data
+        )
 
-            assert response.status_code == 500
-            assert "Failed to inject scene" in response.json()["detail"]
+        assert response.status_code == 500
+        assert "Failed to inject scene" in response.json()["detail"]
 
 
 class TestSceneEndpointValidation:
@@ -473,17 +479,16 @@ class TestSceneEndpointValidation:
             "has_embedding": False,
         }
 
-        with patch("scriptrag.api.v1.endpoints.scenes.get_db_ops") as mock_get_db:
-            mock_db = AsyncMock()
-            mock_db.get_scene.side_effect = [
-                mock_scene,
-                {**mock_scene, "heading": "INT. NEW LOCATION - DAY"},
-            ]
-            mock_db.update_scene.return_value = None
-            mock_get_db.return_value = mock_db
+        # Configure the mock database operations from the client fixture
+        mock_db_ops = client.app.state.db_ops
+        mock_db_ops.get_scene.side_effect = [
+            mock_scene,
+            {**mock_scene, "heading": "INT. NEW LOCATION - DAY"},
+        ]
+        mock_db_ops.update_scene.return_value = None
 
-            response = client.patch(f"/api/v1/scenes/{scene_id}", json=partial_data)
+        response = client.patch(f"/api/v1/scenes/{scene_id}", json=partial_data)
 
-            assert response.status_code == 200
-            data = response.json()
-            assert data["heading"] == "INT. NEW LOCATION - DAY"
+        assert response.status_code == 200
+        data = response.json()
+        assert data["heading"] == "INT. NEW LOCATION - DAY"

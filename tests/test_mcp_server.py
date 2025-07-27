@@ -49,7 +49,7 @@ class TestScriptRAGMCPServer:
         """Test getting available tools when all are enabled."""
         tools = mcp_server.get_available_tools()
 
-        assert len(tools) == 16  # 11 original + 5 mentor tools
+        assert len(tools) == 23  # 11 original + 5 mentor tools + 7 bible tools
         tool_names = [t["name"] for t in tools]
         assert "parse_script" in tool_names
         assert "search_scenes" in tool_names

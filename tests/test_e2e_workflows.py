@@ -397,7 +397,7 @@ class TestE2ESceneManagementWorkflow:
                 created_scene,  # First call for checking existence
                 {**created_scene, "heading": "EXT. GARDEN - SUNSET"},  # After update
             ]
-            mock_db.update_scene.return_value = None
+            mock_db.update_scene_with_graph_propagation.return_value = True
 
             update_data = {
                 "heading": "EXT. GARDEN - SUNSET",
@@ -415,7 +415,7 @@ class TestE2ESceneManagementWorkflow:
             # Test 3: Delete the scene
             mock_db.get_scene.side_effect = None
             mock_db.get_scene.return_value = created_scene
-            mock_db.delete_scene.return_value = None
+            mock_db.delete_scene_with_references.return_value = True
 
             response = api_client.delete(f"/api/v1/scenes/{created_scene['id']}")
 

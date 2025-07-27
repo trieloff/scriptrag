@@ -93,6 +93,8 @@ class SceneUpdateRequest(BaseModel):
     scene_number: int | None = None
     heading: str | None = None
     content: str | None = None
+    location: str | None = None
+    time_of_day: str | None = None
 
 
 class SceneOrderingRequest(BaseModel):

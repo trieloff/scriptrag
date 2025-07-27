@@ -29,14 +29,14 @@ ScriptRAG follows a modern, layered architecture:
 
 ```python
 import requests
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 class ScriptRAGClient:
     def __init__(self, base_url: str = "http://localhost:8000/api/v1"):
         self.base_url = base_url
         self.session = requests.Session()
 
-    def upload_script(self, title: str, content: str, author: Optional[str] = None) -> Dict:
+    def upload_script(self, title: str, content: str, author: str | None = None) -> Dict:
         """Upload a Fountain script."""
         response = self.session.post(
             f"{self.base_url}/scripts/upload",
@@ -54,8 +54,8 @@ class ScriptRAGClient:
         response.raise_for_status()
         return response.json()
 
-    def search_scenes(self, query: str, script_id: Optional[str] = None,
-                     character: Optional[str] = None, limit: int = 10) -> Dict:
+    def search_scenes(self, query: str, script_id: str | None = None,
+                     character: str | None = None, limit: int = 10) -> Dict:
         """Search scenes with text query."""
         response = self.session.post(
             f"{self.base_url}/search/scenes",
@@ -70,7 +70,7 @@ class ScriptRAGClient:
         return response.json()
 
     def semantic_search(self, query: str, threshold: float = 0.7,
-                       script_id: Optional[str] = None) -> Dict:
+                       script_id: str | None = None) -> Dict:
         """Search using semantic similarity."""
         response = self.session.post(
             f"{self.base_url}/search/similar",
@@ -491,7 +491,7 @@ const results = await search.execute(client);
 
 ```python
 from enum import Enum
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 import logging
 
 class ScriptRAGError(Exception):
@@ -500,7 +500,7 @@ class ScriptRAGError(Exception):
 
 class APIError(ScriptRAGError):
     """API request failed."""
-    def __init__(self, status_code: int, message: str, details: Optional[Dict] = None):
+    def __init__(self, status_code: int, message: str, details: Dict | None = None):
         self.status_code = status_code
         self.details = details
         super().__init__(f"API Error {status_code}: {message}")
@@ -541,7 +541,7 @@ class RobustScriptRAGClient(ScriptRAGClient):
         return data
 
     def upload_script_with_retry(self, title: str, content: str,
-                                author: Optional[str] = None) -> Dict:
+                                author: str | None = None) -> Dict:
         """Upload script with automatic retry on failure."""
         last_error = None
 
@@ -790,7 +790,7 @@ describe('ScriptRAG Integration Tests', () => {
 
 ```python
 class SecureScriptRAGClient(ScriptRAGClient):
-    def __init__(self, base_url: str, api_key: Optional[str] = None):
+    def __init__(self, base_url: str, api_key: str | None = None):
         super().__init__(base_url)
         if api_key:
             self.session.headers.update({
@@ -867,7 +867,6 @@ CMD ["python", "your_app.py"]
 
 ```python
 import os
-from typing import Optional
 
 class ConfigurableScriptRAGClient(ScriptRAGClient):
     @classmethod

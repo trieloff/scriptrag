@@ -362,6 +362,107 @@ class ScriptRAGMCPServer:
                     "required": ["script_id", "format"],
                 },
             },
+            {
+                "name": "list_mentors",
+                "description": "List all available screenplay analysis mentors",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                },
+            },
+            {
+                "name": "analyze_script_with_mentor",
+                "description": "Analyze a screenplay using a specific mentor",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID to analyze",
+                        },
+                        "mentor_name": {
+                            "type": "string",
+                            "description": "Name of the mentor to use",
+                        },
+                        "config": {
+                            "type": "object",
+                            "description": "Optional mentor configuration",
+                            "additionalProperties": True,
+                        },
+                        "save_results": {
+                            "type": "boolean",
+                            "description": "Whether to save results to database",
+                            "default": True,
+                        },
+                    },
+                    "required": ["script_id", "mentor_name"],
+                },
+            },
+            {
+                "name": "get_mentor_results",
+                "description": "Get previous mentor analysis results for a script",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {"type": "string", "description": "Script ID"},
+                        "mentor_name": {
+                            "type": "string",
+                            "description": "Optional: filter by mentor name",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of results",
+                            "default": 10,
+                            "minimum": 1,
+                            "maximum": 100,
+                        },
+                    },
+                    "required": ["script_id"],
+                },
+            },
+            {
+                "name": "search_mentor_analyses",
+                "description": "Search mentor analysis findings",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "Search query"},
+                        "mentor_name": {
+                            "type": "string",
+                            "description": "Optional: filter by mentor name",
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Optional: filter by analysis category",
+                        },
+                        "severity": {
+                            "type": "string",
+                            "enum": ["error", "warning", "suggestion", "info"],
+                            "description": "Optional: filter by severity level",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of results",
+                            "default": 20,
+                            "minimum": 1,
+                            "maximum": 100,
+                        },
+                    },
+                    "required": ["query"],
+                },
+            },
+            {
+                "name": "get_mentor_statistics",
+                "description": "Get statistics about mentor analyses for a script",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {"type": "string", "description": "Script ID"},
+                    },
+                    "required": ["script_id"],
+                },
+            },
         ]
 
         # Filter based on configuration
@@ -455,6 +556,11 @@ class ScriptRAGMCPServer:
                 "get_scene_details": self._tool_get_scene_details,
                 "get_character_relationships": self._tool_get_character_relationships,
                 "export_data": self._tool_export_data,
+                "list_mentors": self._tool_list_mentors,
+                "analyze_script_with_mentor": self._tool_analyze_script_with_mentor,
+                "get_mentor_results": self._tool_get_mentor_results,
+                "search_mentor_analyses": self._tool_search_mentor_analyses,
+                "get_mentor_statistics": self._tool_get_mentor_statistics,
             }
 
             if tool_name not in tool_handlers:
@@ -718,6 +824,270 @@ class ScriptRAGMCPServer:
             "file_path": f"exports/{script_id}.{export_format}",
             "include_metadata": include_metadata,
         }
+
+    async def _tool_list_mentors(
+        self,
+        args: dict[str, Any],  # noqa: ARG002
+    ) -> dict[str, Any]:
+        """List all available mentors."""
+        from .mentors import get_mentor_registry
+
+        try:
+            registry = get_mentor_registry()
+            mentors = registry.list_mentors()
+
+            return {
+                "mentors": mentors,
+                "total_count": len(mentors),
+            }
+
+        except Exception as e:
+            self.logger.error("Failed to list mentors", error=str(e))
+            raise ValueError(f"Failed to list mentors: {e}") from e
+
+    async def _tool_analyze_script_with_mentor(
+        self, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Analyze a script with a specific mentor."""
+        from uuid import UUID
+
+        from .database.connection import DatabaseConnection
+        from .database.operations import GraphOperations
+        from .mentors import MentorDatabaseOperations, get_mentor_registry
+
+        script_id = args.get("script_id")
+        mentor_name = args.get("mentor_name")
+        config = args.get("config", {})
+        save_results = args.get("save_results", True)
+
+        if not script_id or not mentor_name:
+            raise ValueError("script_id and mentor_name are required")
+
+        try:
+            # Get mentor
+            registry = get_mentor_registry()
+            if not registry.is_registered(mentor_name):
+                available: list[str] = list(registry)
+                raise ValueError(
+                    f"Mentor '{mentor_name}' not found. Available: {available}"
+                )
+
+            mentor = registry.get_mentor(mentor_name, config)
+
+            # Setup database operations
+            db_path = Path(self.config.database.path)
+            connection = DatabaseConnection(str(db_path))
+            graph_ops = GraphOperations(connection)
+
+            # Run analysis
+            result = await mentor.analyze_script(
+                script_id=UUID(script_id),
+                db_operations=graph_ops,
+                progress_callback=None,  # MCP doesn't support progress callbacks yet
+            )
+
+            # Save results if requested
+            if save_results:
+                mentor_db = MentorDatabaseOperations(connection)
+                mentor_db.store_mentor_result(result)
+
+            # Convert to serializable format
+            return {
+                "result_id": str(result.id),
+                "mentor_name": result.mentor_name,
+                "mentor_version": result.mentor_version,
+                "script_id": str(result.script_id),
+                "summary": result.summary,
+                "score": result.score,
+                "analysis_date": result.analysis_date.isoformat(),
+                "execution_time_ms": result.execution_time_ms,
+                "analyses_count": len(result.analyses),
+                "error_count": result.error_count,
+                "warning_count": result.warning_count,
+                "suggestion_count": result.suggestion_count,
+                "analyses": [
+                    {
+                        "id": str(analysis.id),
+                        "title": analysis.title,
+                        "description": analysis.description,
+                        "severity": analysis.severity.value,
+                        "category": analysis.category,
+                        "confidence": analysis.confidence,
+                        "recommendations": analysis.recommendations,
+                        "scene_id": (
+                            str(analysis.scene_id) if analysis.scene_id else None
+                        ),
+                        "character_id": (
+                            str(analysis.character_id)
+                            if analysis.character_id
+                            else None
+                        ),
+                    }
+                    for analysis in result.analyses
+                ],
+                "saved_to_database": save_results,
+            }
+
+        except Exception as e:
+            self.logger.error(
+                "Mentor analysis failed",
+                mentor=mentor_name,
+                script_id=script_id,
+                error=str(e),
+            )
+            raise ValueError(f"Mentor analysis failed: {e}") from e
+
+    async def _tool_get_mentor_results(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Get previous mentor analysis results."""
+        from uuid import UUID
+
+        from .database.connection import DatabaseConnection
+        from .mentors import MentorDatabaseOperations
+
+        script_id = args.get("script_id")
+        mentor_name = args.get("mentor_name")
+        limit = args.get("limit", 10)
+
+        if not script_id:
+            raise ValueError("script_id is required")
+
+        try:
+            db_path = Path(self.config.database.path)
+            connection = DatabaseConnection(str(db_path))
+            mentor_db = MentorDatabaseOperations(connection)
+
+            results = mentor_db.get_script_mentor_results(UUID(script_id), mentor_name)[
+                :limit
+            ]
+
+            return {
+                "script_id": script_id,
+                "mentor_filter": mentor_name,
+                "results_count": len(results),
+                "results": [
+                    {
+                        "result_id": str(result.id),
+                        "mentor_name": result.mentor_name,
+                        "mentor_version": result.mentor_version,
+                        "summary": result.summary,
+                        "score": result.score,
+                        "analysis_date": result.analysis_date.isoformat(),
+                        "analyses_count": len(result.analyses),
+                        "error_count": result.error_count,
+                        "warning_count": result.warning_count,
+                        "suggestion_count": result.suggestion_count,
+                    }
+                    for result in results
+                ],
+            }
+
+        except Exception as e:
+            self.logger.error(
+                "Failed to get mentor results", script_id=script_id, error=str(e)
+            )
+            raise ValueError(f"Failed to get mentor results: {e}") from e
+
+    async def _tool_search_mentor_analyses(
+        self, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Search mentor analysis findings."""
+        from .database.connection import DatabaseConnection
+        from .mentors import AnalysisSeverity, MentorDatabaseOperations
+
+        query = args.get("query")
+        mentor_name = args.get("mentor_name")
+        category = args.get("category")
+        severity = args.get("severity")
+        limit = args.get("limit", 20)
+
+        if not query:
+            raise ValueError("query is required")
+
+        try:
+            db_path = Path(self.config.database.path)
+            connection = DatabaseConnection(str(db_path))
+            mentor_db = MentorDatabaseOperations(connection)
+
+            # Parse severity
+            severity_enum = None
+            if severity:
+                severity_enum = AnalysisSeverity(severity.lower())
+
+            results = mentor_db.search_analyses(
+                query=query,
+                mentor_name=mentor_name,
+                category=category,
+                severity=severity_enum,
+                limit=limit,
+            )
+
+            return {
+                "query": query,
+                "filters": {
+                    "mentor_name": mentor_name,
+                    "category": category,
+                    "severity": severity,
+                },
+                "results_count": len(results),
+                "results": [
+                    {
+                        "id": str(analysis.id),
+                        "title": analysis.title,
+                        "description": analysis.description,
+                        "severity": analysis.severity.value,
+                        "category": analysis.category,
+                        "mentor_name": analysis.mentor_name,
+                        "confidence": analysis.confidence,
+                        "recommendations": analysis.recommendations,
+                        "examples": analysis.examples,
+                        "scene_id": (
+                            str(analysis.scene_id) if analysis.scene_id else None
+                        ),
+                        "character_id": (
+                            str(analysis.character_id)
+                            if analysis.character_id
+                            else None
+                        ),
+                    }
+                    for analysis in results
+                ],
+            }
+
+        except Exception as e:
+            self.logger.error(
+                "Failed to search mentor analyses", query=query, error=str(e)
+            )
+            raise ValueError(f"Failed to search mentor analyses: {e}") from e
+
+    async def _tool_get_mentor_statistics(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Get mentor analysis statistics for a script."""
+        from uuid import UUID
+
+        from .database.connection import DatabaseConnection
+        from .mentors import MentorDatabaseOperations
+
+        script_id = args.get("script_id")
+
+        if not script_id:
+            raise ValueError("script_id is required")
+
+        try:
+            db_path = Path(self.config.database.path)
+            connection = DatabaseConnection(str(db_path))
+            mentor_db = MentorDatabaseOperations(connection)
+
+            stats = mentor_db.get_mentor_statistics(UUID(script_id))
+
+            return {
+                "script_id": script_id,
+                "statistics": stats,
+            }
+
+        except Exception as e:
+            self.logger.error(
+                "Failed to get mentor statistics", script_id=script_id, error=str(e)
+            )
+            raise ValueError(f"Failed to get mentor statistics: {e}") from e
 
     async def _handle_list_resources(
         self, _request: types.ListResourcesRequest

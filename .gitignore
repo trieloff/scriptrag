@@ -43,11 +43,18 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+junit.xml
 *.cover
 *.py,cover
 .hypothesis/
 .pytest_cache/
 cover/
+
+# Security scan reports
+.bandit-report.json
+*.bandit-report.json
+.safety-report.json
+*.safety-report.json
 
 # Translations
 *.mo

@@ -13,6 +13,7 @@ from scriptrag.models import (
     Episode,
     Location,
     Scene,
+    SceneDependency,
     SceneOrderType,
     Script,
     Season,
@@ -20,6 +21,7 @@ from scriptrag.models import (
 
 from .connection import DatabaseConnection
 from .graph import GraphDatabase, GraphEdge, GraphNode
+from .scene_ordering import SceneOrderingOperations
 from .vectors import VectorOperations
 
 logger = get_logger(__name__)
@@ -37,6 +39,7 @@ class GraphOperations:
         self.connection = connection
         self.graph = GraphDatabase(connection)
         self.vectors = VectorOperations(connection)
+        self.ordering = SceneOrderingOperations(connection)
 
     # Script-level operations
     def create_script_graph(self, script: Script) -> str:
@@ -939,6 +942,7 @@ class GraphOperations:
         )
         return results
 
+    # Direct graph operations (for test compatibility)
     def add_node(
         self,
         node_type: str,
@@ -1005,3 +1009,112 @@ class GraphOperations:
             properties=properties,
             edge_id=edge_id,
         )
+
+    # Scene ordering operations (delegated to SceneOrderingOperations)
+    def ensure_script_order(self, script_id: str) -> bool:
+        """Ensure all scenes have proper script_order values.
+
+        Args:
+            script_id: Script ID to check
+
+        Returns:
+            True if successful
+        """
+        return self.ordering.ensure_script_order(script_id)
+
+    def reorder_scenes(
+        self,
+        script_id: str,
+        scene_order: list[str],
+        order_type: SceneOrderType = SceneOrderType.SCRIPT,
+    ) -> bool:
+        """Reorder scenes according to provided order.
+
+        Args:
+            script_id: Script ID
+            scene_order: List of scene IDs in desired order
+            order_type: Type of ordering to update
+
+        Returns:
+            True if successful
+        """
+        success = self.ordering.reorder_scenes(script_id, scene_order, order_type)
+
+        # Update graph edges if successful
+        if success and order_type != SceneOrderType.SCRIPT:
+            # Get scene nodes
+            scene_nodes = []
+            for scene_id in scene_order:
+                nodes = self.graph.find_nodes(node_type="scene", entity_id=scene_id)
+                if nodes:
+                    scene_nodes.append(nodes[0].id)
+
+            # Update scene sequence in graph
+            if scene_nodes:
+                self.update_scene_order(
+                    script_id,
+                    {node_id: i for i, node_id in enumerate(scene_nodes)},
+                    order_type,
+                )
+
+        return success
+
+    def infer_temporal_order(self, script_id: str) -> dict[str, int]:
+        """Infer temporal (chronological) order of scenes.
+
+        Args:
+            script_id: Script ID to analyze
+
+        Returns:
+            Dictionary mapping scene_id to temporal_order
+        """
+        return self.ordering.infer_temporal_order(script_id)
+
+    def analyze_scene_dependencies(self, script_id: str) -> list[SceneDependency]:
+        """Analyze and create logical dependencies between scenes.
+
+        Args:
+            script_id: Script ID to analyze
+
+        Returns:
+            List of SceneDependency objects created
+        """
+        return self.ordering.analyze_logical_dependencies(script_id)
+
+    def get_scene_dependencies(
+        self,
+        scene_id: str,
+        direction: str = "both",
+    ) -> list[dict[str, Any]]:
+        """Get dependencies for a specific scene.
+
+        Args:
+            scene_id: Scene ID
+            direction: 'from' (outgoing), 'to' (incoming), or 'both'
+
+        Returns:
+            List of dependency dictionaries
+        """
+        return self.ordering.get_scene_dependencies(scene_id, direction)
+
+    def calculate_logical_order(self, script_id: str) -> list[str]:
+        """Calculate logical order based on dependencies.
+
+        Args:
+            script_id: Script ID
+
+        Returns:
+            List of scene IDs in logical order
+        """
+        return self.ordering.get_logical_order(script_id)
+
+    def validate_scene_ordering(self, script_id: str) -> dict[str, Any]:
+        """Validate consistency across different ordering systems.
+
+        Args:
+            script_id: Script ID to validate
+
+        Returns:
+            Dictionary with validation results
+        """
+        return self.ordering.validate_ordering_consistency(script_id)

@@ -12,6 +12,7 @@ from scriptrag.database import (
     GraphOperations,
     initialize_database,
 )
+from scriptrag.models import SceneDependency
 
 logger = get_logger(__name__)
 
@@ -613,3 +614,68 @@ class DatabaseOperations:
             "nodes": nodes,
             "edges": [],
         }
+
+    # Scene ordering operations
+    async def reorder_scenes(
+        self,
+        script_id: str,
+        scene_ids: list[str],
+        order_type: str = "script",
+    ) -> bool:
+        """Reorder scenes according to provided order."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        # Convert order_type string to enum
+        from scriptrag.models import SceneOrderType
+
+        try:
+            order_type_enum = SceneOrderType(order_type)
+        except ValueError:
+            logger.error(f"Invalid order type: {order_type}")
+            return False
+
+        return self._graph_ops.reorder_scenes(script_id, scene_ids, order_type_enum)
+
+    async def infer_temporal_order(self, script_id: str) -> dict[str, int]:
+        """Infer temporal (chronological) order of scenes."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        return self._graph_ops.infer_temporal_order(script_id)
+
+    async def analyze_scene_dependencies(self, script_id: str) -> list[SceneDependency]:
+        """Analyze and create logical dependencies between scenes."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        # The analyze_scene_dependencies method in GraphOperations calls
+        # analyze_logical_dependencies which returns list[SceneDependency]
+        dependencies = self._graph_ops.analyze_scene_dependencies(script_id)
+        # Ensure we return the correct type
+        return dependencies if isinstance(dependencies, list) else []
+
+    async def get_scene_dependencies(
+        self,
+        scene_id: str,
+        direction: str = "both",
+    ) -> list[dict[str, Any]]:
+        """Get dependencies for a specific scene."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        return self._graph_ops.get_scene_dependencies(scene_id, direction)
+
+    async def calculate_logical_order(self, script_id: str) -> list[str]:
+        """Calculate logical order based on dependencies."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        return self._graph_ops.calculate_logical_order(script_id)
+
+    async def validate_scene_ordering(self, script_id: str) -> dict[str, Any]:
+        """Validate consistency across different ordering systems."""
+        if not self._graph_ops:
+            raise RuntimeError("Database not initialized")
+
+        return self._graph_ops.validate_scene_ordering(script_id)

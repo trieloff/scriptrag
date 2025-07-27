@@ -49,7 +49,7 @@ class TestScriptRAGMCPServer:
         """Test getting available tools when all are enabled."""
         tools = mcp_server.get_available_tools()
 
-        assert len(tools) == 11
+        assert len(tools) == 16  # 11 original + 5 mentor tools
         tool_names = [t["name"] for t in tools]
         assert "parse_script" in tool_names
         assert "search_scenes" in tool_names
@@ -88,7 +88,7 @@ class TestScriptRAGMCPServer:
 
         assert isinstance(result, types.ServerResult)
         assert isinstance(result.root, types.ListToolsResult)
-        assert len(result.root.tools) == 11
+        assert len(result.root.tools) == 16  # 11 original + 5 mentor tools
         assert all(isinstance(tool, types.Tool) for tool in result.root.tools)
 
     @pytest.mark.asyncio

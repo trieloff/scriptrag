@@ -147,6 +147,17 @@ class MentorDatabaseOperations:
 
     def _ensure_mentor_schema(self) -> None:
         """Ensure mentor-specific tables exist in the database."""
+        # Check if mentor tables already exist (from schema v5)
+        with self.connection.get_connection() as conn:
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='table' AND name='mentor_results'"
+            )
+            if cursor.fetchone():
+                logger.debug("Mentor tables already exist from schema v5")
+                return
+
+        # Create mentor schema if not exists
         with self.connection.transaction() as conn:
             conn.executescript(MENTOR_SCHEMA_SQL)
             logger.debug("Mentor database schema ensured")
@@ -161,28 +172,70 @@ class MentorDatabaseOperations:
             True if stored successfully, False otherwise
         """
         try:
-            with self.connection.transaction() as conn:
-                # Store the main result
-                conn.execute(
-                    """
-                    INSERT OR REPLACE INTO mentor_results (
-                        id, mentor_name, mentor_version, script_id, summary, score,
-                        analysis_date, execution_time_ms, config_json, metadata_json
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        str(result.id),
-                        result.mentor_name,
-                        result.mentor_version,
-                        str(result.script_id),
-                        result.summary,
-                        result.score,
-                        result.analysis_date.isoformat(),
-                        result.execution_time_ms,
-                        json.dumps(result.config),
-                        json.dumps({}),  # Reserved for future metadata
-                    ),
-                )
+            with self.connection.get_connection() as conn:
+                # Check if result already exists
+                existing = conn.execute(
+                    "SELECT id FROM mentor_results WHERE id = ?", (str(result.id),)
+                ).fetchone()
+
+                if existing:
+                    # Update existing result
+                    conn.execute(
+                        """
+                        UPDATE mentor_results SET
+                            mentor_name = ?, mentor_version = ?, script_id = ?,
+                            summary = ?, score = ?, analysis_date = ?,
+                            execution_time_ms = ?, config_json = ?, metadata_json = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            result.mentor_name,
+                            result.mentor_version,
+                            str(result.script_id),
+                            result.summary,
+                            result.score,
+                            result.analysis_date.isoformat(),
+                            result.execution_time_ms,
+                            json.dumps(result.config),
+                            json.dumps({}),
+                            str(result.id),
+                        ),
+                    )
+
+                    # Delete existing analyses using raw SQL to avoid trigger issues
+                    conn.execute("PRAGMA foreign_keys = OFF")
+                    conn.execute(
+                        "DELETE FROM mentor_analyses_fts WHERE analysis_id IN "
+                        "(SELECT id FROM mentor_analyses WHERE result_id = ?)",
+                        (str(result.id),),
+                    )
+                    conn.execute(
+                        "DELETE FROM mentor_analyses WHERE result_id = ?",
+                        (str(result.id),),
+                    )
+                    conn.execute("PRAGMA foreign_keys = ON")
+                else:
+                    # Insert new result
+                    conn.execute(
+                        """
+                        INSERT INTO mentor_results (
+                            id, mentor_name, mentor_version, script_id, summary, score,
+                            analysis_date, execution_time_ms, config_json, metadata_json
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            str(result.id),
+                            result.mentor_name,
+                            result.mentor_version,
+                            str(result.script_id),
+                            result.summary,
+                            result.score,
+                            result.analysis_date.isoformat(),
+                            result.execution_time_ms,
+                            json.dumps(result.config),
+                            json.dumps({}),
+                        ),
+                    )
 
                 # Store individual analyses
                 for analysis in result.analyses:
@@ -209,7 +262,7 @@ class MentorDatabaseOperations:
         """
         conn.execute(
             """
-            INSERT OR REPLACE INTO mentor_analyses (
+            INSERT INTO mentor_analyses (
                 id, result_id, title, description, severity, scene_id, character_id,
                 element_id, category, mentor_name, confidence, recommendations_json,
                 examples_json, metadata_json
@@ -243,7 +296,7 @@ class MentorDatabaseOperations:
             MentorResult if found, None otherwise
         """
         try:
-            with self.connection.transaction() as conn:
+            with self.connection.get_connection() as conn:
                 # Get the main result
                 result_row = conn.execute(
                     """
@@ -323,7 +376,7 @@ class MentorDatabaseOperations:
             List of mentor results
         """
         try:
-            with self.connection.transaction() as conn:
+            with self.connection.get_connection() as conn:
                 query = """
                     SELECT id FROM mentor_results
                     WHERE script_id = ?
@@ -363,7 +416,7 @@ class MentorDatabaseOperations:
             List of mentor analyses for the scene
         """
         try:
-            with self.connection.transaction() as conn:
+            with self.connection.get_connection() as conn:
                 query = """
                     SELECT id, title, description, severity, scene_id, character_id,
                            element_id, category, mentor_name, confidence,
@@ -454,7 +507,7 @@ class MentorDatabaseOperations:
             List of matching mentor analyses
         """
         try:
-            with self.connection.transaction() as conn:
+            with self.connection.get_connection() as conn:
                 # Build the query
                 sql_query = """
                     SELECT ma.id, ma.title, ma.description, ma.severity, ma.scene_id,
@@ -520,7 +573,7 @@ class MentorDatabaseOperations:
             Dictionary with statistics
         """
         try:
-            with self.connection.transaction() as conn:
+            with self.connection.get_connection() as conn:
                 # Get basic counts
                 stats = {}
 

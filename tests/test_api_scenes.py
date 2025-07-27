@@ -8,6 +8,17 @@ from fastapi.testclient import TestClient
 
 from scriptrag.api.app import create_app
 
+# Test constants
+TEST_SCRIPT_TITLE = "Test Script"
+TEST_SCENE_CONTENT = "Test scene content"
+
+
+def assert_error_response(response, status_code, error_substring):
+    """Standardized error response assertion."""
+    assert response.status_code == status_code
+    error_detail = response.json()["detail"]
+    assert error_substring.lower() in error_detail.lower()
+
 
 @pytest.fixture
 def mock_llm_client():
@@ -83,8 +94,7 @@ class TestSceneEndpoints:
 
             response = client.get(f"/api/v1/scenes/{scene_id}")
 
-            assert response.status_code == 404
-            assert "Scene not found" in response.json()["detail"]
+            assert_error_response(response, 404, "Scene not found")
 
     def test_get_scene_database_error(self, client):
         """Test database error during scene retrieval."""
@@ -268,8 +278,7 @@ class TestSceneEndpoints:
 
             response = client.patch(f"/api/v1/scenes/{scene_id}", json=update_data)
 
-            assert response.status_code == 404
-            assert "Scene not found" in response.json()["detail"]
+            assert_error_response(response, 404, "Scene not found")
 
     def test_delete_scene_success(self, client):
         """Test successful scene deletion."""
@@ -307,8 +316,7 @@ class TestSceneEndpoints:
 
             response = client.delete(f"/api/v1/scenes/{scene_id}")
 
-            assert response.status_code == 404
-            assert "Scene not found" in response.json()["detail"]
+            assert_error_response(response, 404, "Scene not found")
 
     def test_inject_scene_after_success(self, client):
         """Test successful scene injection after another scene."""

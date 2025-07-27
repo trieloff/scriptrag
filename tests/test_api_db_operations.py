@@ -10,6 +10,19 @@ import pytest
 from scriptrag.api.db_operations import DatabaseOperations
 from scriptrag.api.models import SceneModel, ScriptModel
 
+# Test constants
+TEST_SCRIPT_TITLE = "Test Script"
+TEST_AUTHOR = "Test Author"
+SAMPLE_EMBEDDING = [0.1, 0.2, 0.3, 0.4, 0.5]
+TEST_DB_PATH = "sqlite+aiosqlite:///test.db"
+
+
+def assert_error_response(response, status_code, error_substring):
+    """Standardized error response assertion."""
+    assert response.status_code == status_code
+    error_detail = response.json()["detail"]
+    assert error_substring.lower() in error_detail.lower()
+
 
 @pytest.fixture
 def mock_connection():
@@ -34,7 +47,7 @@ def mock_connection():
 @pytest.fixture
 def db_ops():
     """Create DatabaseOperations instance."""
-    return DatabaseOperations("sqlite+aiosqlite:///test.db")
+    return DatabaseOperations(TEST_DB_PATH)
 
 
 class TestDatabaseOperationsInitialization:
@@ -72,8 +85,7 @@ class TestDatabaseOperationsInitialization:
 
         await db_ops.close()
 
-        # Currently close doesn't do anything, but test it exists
-        assert True  # Test passes if no exception
+        # Test that close completes without errors - assertion not needed
 
 
 class TestScriptOperations:
@@ -106,8 +118,8 @@ class TestScriptOperations:
 
         script = ScriptModel(
             id="",
-            title="Test Script",
-            author="Test Author",
+            title=TEST_SCRIPT_TITLE,
+            author=TEST_AUTHOR,
             metadata={"genre": "Drama"},
             scenes=scenes,
             characters={"JOHN", "SARAH"},
@@ -160,8 +172,8 @@ class TestScriptOperations:
         # Mock script data
         script_data = {
             "id": script_id,
-            "title": "Test Script",
-            "author": "Test Author",
+            "title": TEST_SCRIPT_TITLE,
+            "author": TEST_AUTHOR,
             "metadata_json": json.dumps({"genre": "Drama"}),
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
@@ -193,7 +205,7 @@ class TestScriptOperations:
 
         assert result is not None
         assert result.id == script_id
-        assert result.title == "Test Script"
+        assert result.title == TEST_SCRIPT_TITLE
         assert result.author == "Test Author"
         assert result.metadata == {"genre": "Drama"}
         assert len(result.scenes) == 2
@@ -220,8 +232,8 @@ class TestScriptOperations:
         # Mock script data with invalid JSON
         script_data = {
             "id": script_id,
-            "title": "Test Script",
-            "author": "Test Author",
+            "title": TEST_SCRIPT_TITLE,
+            "author": TEST_AUTHOR,
             "metadata_json": "invalid json {",
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
@@ -310,8 +322,8 @@ class TestEmbeddingOperations:
         # Mock script retrieval
         mock_script = ScriptModel(
             id=script_id,
-            title="Test Script",
-            author="Test Author",
+            title=TEST_SCRIPT_TITLE,
+            author=TEST_AUTHOR,
             metadata={},
             scenes=[
                 SceneModel(

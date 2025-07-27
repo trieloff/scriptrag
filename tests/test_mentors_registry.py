@@ -29,7 +29,7 @@ class TestMentor1(BaseMentor):
     async def analyze_script(
         self,
         script_id,
-        db_operations,
+        _db_operations,
         progress_callback=None,  # noqa: ARG002
     ):
         return MentorResult(
@@ -63,7 +63,7 @@ class TestMentor2(BaseMentor):
     async def analyze_script(
         self,
         script_id,
-        db_operations,
+        _db_operations,
         progress_callback=None,  # noqa: ARG002
     ):
         return MentorResult(
@@ -94,7 +94,7 @@ class BrokenMentor(BaseMentor):
     def mentor_type(self) -> MentorType:
         return MentorType.DIALOGUE
 
-    async def analyze_script(self, script_id, db_operations, progress_callback=None):
+    async def analyze_script(self, script_id, _db_operations, progress_callback=None):
         pass
 
 
@@ -162,7 +162,7 @@ class TestMentorRegistry:
                 return MentorType.DIALOGUE
 
             async def analyze_script(
-                self, script_id, db_operations, progress_callback=None
+                self, script_id, _db_operations, progress_callback=None
             ):
                 pass
 

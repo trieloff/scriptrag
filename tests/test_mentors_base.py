@@ -302,7 +302,7 @@ class MockMentor(BaseMentor):
     async def analyze_script(
         self,
         script_id,
-        db_operations,
+        _db_operations,
         progress_callback=None,  # noqa: ARG002
     ):
         """Mock script analysis."""

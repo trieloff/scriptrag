@@ -506,7 +506,7 @@ class SaveTheCatMentor(BaseMentor):
 
     async def _analyze_structure(
         self,
-        scenes: list[dict],
+        _scenes: list[dict],
         total_pages: int,
     ) -> list[MentorAnalysis]:
         """Analyze overall story structure."""

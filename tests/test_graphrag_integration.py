@@ -36,8 +36,13 @@ def test_db_path():
 
     yield db_path
 
-    # Cleanup
-    Path(db_path).unlink(missing_ok=True)
+    # Cleanup - Windows needs special handling for locked files
+    with contextlib.suppress(PermissionError):
+        # On Windows, SQLite may keep the file locked
+
+        # This is acceptable as temp files will be cleaned up by the OS
+
+        Path(db_path).unlink(missing_ok=True)
 
 
 @pytest.fixture

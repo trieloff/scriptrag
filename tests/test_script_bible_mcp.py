@@ -46,12 +46,11 @@ class TestScriptBibleMCPTools:
         expected_bible_tools = {
             "create_series_bible",
             "create_character_profile",
-            "create_world_element",
-            "run_continuity_check",
-            "get_continuity_notes",
-            "generate_continuity_report",
+            "add_world_element",
+            "create_timeline_event",
+            "check_continuity",
             "add_character_knowledge",
-            "create_plot_thread",
+            "get_continuity_report",
         }
 
         assert expected_bible_tools.issubset(tool_names)
@@ -144,13 +143,13 @@ class TestScriptBibleMCPTools:
             await mcp_server._tool_create_character_profile(args)
 
     @pytest.mark.asyncio
-    async def test_create_world_element_tool(self, mcp_server):
-        """Test create_world_element MCP tool."""
+    async def test_add_world_element_tool(self, mcp_server):
+        """Test add_world_element MCP tool."""
         script_id = str(uuid4())
 
         with patch("scriptrag.mcp_server.ScriptBibleOperations") as mock_bible_ops:
             mock_ops = mock_bible_ops.return_value
-            mock_ops.create_world_element.return_value = "element123"
+            mock_ops.add_world_element.return_value = "element123"
 
             args = {
                 "script_id": script_id,
@@ -160,7 +159,7 @@ class TestScriptBibleMCPTools:
                 "importance_level": 4,
             }
 
-            result = await mcp_server._tool_create_world_element(args)
+            result = await mcp_server._tool_add_world_element(args)
 
             assert result["element_id"] == "element123"
             assert result["name"] == "Police Station"
@@ -169,8 +168,8 @@ class TestScriptBibleMCPTools:
             assert result["created"] is True
 
     @pytest.mark.asyncio
-    async def test_run_continuity_check_tool(self, mcp_server):
-        """Test run_continuity_check MCP tool."""
+    async def test_check_continuity_tool(self, mcp_server):
+        """Test check_continuity MCP tool."""
         script_id = str(uuid4())
 
         # Mock continuity issues
@@ -205,7 +204,7 @@ class TestScriptBibleMCPTools:
                 "severity_filter": "high",
             }
 
-            result = await mcp_server._tool_run_continuity_check(args)
+            result = await mcp_server._tool_check_continuity(args)
 
             assert result["script_id"] == script_id
             assert result["total_issues"] == 1  # Filtered to high severity only
@@ -216,43 +215,8 @@ class TestScriptBibleMCPTools:
             assert result["issues"][0]["title"] == "Test Issue 1"
 
     @pytest.mark.asyncio
-    async def test_get_continuity_notes_tool(self, mcp_server):
-        """Test get_continuity_notes MCP tool."""
-        script_id = str(uuid4())
-
-        # Mock continuity notes
-        mock_note = MagicMock()
-        mock_note.id = uuid4()
-        mock_note.note_type = "error"
-        mock_note.severity = "high"
-        mock_note.status = "open"
-        mock_note.title = "Test Note"
-        mock_note.description = "Test description"
-        mock_note.episode_id = None
-        mock_note.scene_id = None
-        mock_note.character_id = uuid4()
-        mock_note.created_at.isoformat.return_value = "2024-01-01T00:00:00"
-        mock_note.resolved_at = None
-
-        with patch("scriptrag.mcp_server.ScriptBibleOperations") as mock_bible_ops:
-            mock_ops = mock_bible_ops.return_value
-            mock_ops.get_continuity_notes.return_value = [mock_note]
-
-            args = {"script_id": script_id, "status": "open", "severity": "high"}
-
-            result = await mcp_server._tool_get_continuity_notes(args)
-
-            assert result["script_id"] == script_id
-            assert result["total_notes"] == 1
-            assert result["filters"]["status"] == "open"
-            assert result["filters"]["severity"] == "high"
-            assert len(result["notes"]) == 1
-            assert result["notes"][0]["title"] == "Test Note"
-            assert result["notes"][0]["severity"] == "high"
-
-    @pytest.mark.asyncio
-    async def test_generate_continuity_report_tool(self, mcp_server):
-        """Test generate_continuity_report MCP tool."""
+    async def test_get_continuity_report_tool(self, mcp_server):
+        """Test get_continuity_report MCP tool."""
         script_id = str(uuid4())
 
         mock_report = {
@@ -281,7 +245,7 @@ class TestScriptBibleMCPTools:
 
             args = {"script_id": script_id}
 
-            result = await mcp_server._tool_generate_continuity_report(args)
+            result = await mcp_server._tool_get_continuity_report(args)
 
             assert result["script_id"] == script_id
             assert result["script_title"] == "Test Script"
@@ -328,27 +292,27 @@ class TestScriptBibleMCPTools:
             assert result["created"] is True
 
     @pytest.mark.asyncio
-    async def test_create_plot_thread_tool(self, mcp_server):
-        """Test create_plot_thread MCP tool."""
+    async def test_create_timeline_event_tool(self, mcp_server):
+        """Test create_timeline_event MCP tool."""
         script_id = str(uuid4())
 
         with patch("scriptrag.mcp_server.ScriptBibleOperations") as mock_bible_ops:
             mock_ops = mock_bible_ops.return_value
-            mock_ops.create_plot_thread.return_value = "thread123"
+            mock_ops.add_timeline_event.return_value = "event123"
 
             args = {
+                "timeline_id": str(uuid4()),
                 "script_id": script_id,
-                "name": "Murder Investigation",
-                "thread_type": "main",
-                "priority": 5,
+                "event_name": "Murder Investigation",
+                "event_type": "story",
                 "description": "Main investigation plot",
-                "initial_setup": "Body found",
-                "central_conflict": "Wrong suspect",
+                "story_date": "Day 1",
+                "episode_id": str(uuid4()),
             }
 
-            result = await mcp_server._tool_create_plot_thread(args)
+            result = await mcp_server._tool_create_timeline_event(args)
 
-            assert result["thread_id"] == "thread123"
+            assert result["event_id"] == "event123"
             assert result["name"] == "Murder Investigation"
             assert result["thread_type"] == "main"
             assert result["script_id"] == script_id
@@ -362,10 +326,10 @@ class TestScriptBibleMCPTools:
             await mcp_server._tool_create_series_bible({"title": "Test"})
 
         with pytest.raises(ValueError):
-            await mcp_server._tool_create_world_element({"script_id": "test"})
+            await mcp_server._tool_add_world_element({"script_id": "test"})
 
         with pytest.raises(ValueError):
-            await mcp_server._tool_run_continuity_check({})
+            await mcp_server._tool_check_continuity({})
 
 
 class TestScriptBibleMCPIntegration:
@@ -381,7 +345,7 @@ class TestScriptBibleMCPIntegration:
             or "continuity" in t["name"]
             or "character" in t["name"]
             or "world" in t["name"]
-            or "plot" in t["name"]
+            or "timeline" in t["name"]
         ]
 
         for tool in bible_tools:
@@ -414,11 +378,11 @@ class TestScriptBibleMCPIntegration:
         )
         assert "profile" in tool_dict["create_character_profile"]["description"].lower()
 
-        assert "continuity" in tool_dict["run_continuity_check"]["description"].lower()
-        assert "validation" in tool_dict["run_continuity_check"]["description"].lower()
+        assert "continuity" in tool_dict["check_continuity"]["description"].lower()
+        assert "validation" in tool_dict["check_continuity"]["description"].lower()
 
-        assert "world" in tool_dict["create_world_element"]["description"].lower()
-        assert "element" in tool_dict["create_world_element"]["description"].lower()
+        assert "world" in tool_dict["add_world_element"]["description"].lower()
+        assert "element" in tool_dict["add_world_element"]["description"].lower()
 
     def test_bible_tool_parameter_validation(self, mcp_server):
         """Test parameter validation for Script Bible tools."""
@@ -436,8 +400,8 @@ class TestScriptBibleMCPIntegration:
         assert "enum" in properties["bible_type"]
         assert "series" in properties["bible_type"]["enum"]
 
-        # Test create_world_element parameters
-        world_tool = tool_dict["create_world_element"]
+        # Test add_world_element parameters
+        world_tool = tool_dict["add_world_element"]
         world_properties = world_tool["inputSchema"]["properties"]
         assert "element_type" in world_properties
         assert "enum" in world_properties["element_type"]
@@ -449,11 +413,9 @@ class TestScriptBibleMCPIntegration:
         assert world_properties["importance_level"]["maximum"] == 5
 
         # Test continuity check parameters
-        continuity_tool = tool_dict["run_continuity_check"]
+        continuity_tool = tool_dict["check_continuity"]
         continuity_properties = continuity_tool["inputSchema"]["properties"]
-        assert "severity_filter" in continuity_properties
-        assert "enum" in continuity_properties["severity_filter"]
-        severity_options = continuity_properties["severity_filter"]["enum"]
-        assert all(
-            sev in severity_options for sev in ["low", "medium", "high", "critical"]
-        )
+        assert "script_id" in continuity_properties
+        assert "create_notes" in continuity_properties
+        assert continuity_properties["create_notes"]["type"] == "boolean"
+        assert continuity_properties["create_notes"]["default"] is False

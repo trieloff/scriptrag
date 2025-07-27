@@ -15,7 +15,8 @@ from scriptrag.database.schema import create_database
 def bible_connection():
     """Create a temporary database connection for testing."""
     db_path = ":memory:"
-    create_database(db_path)
+    schema = create_database(db_path)
+    schema.create_schema()  # Actually create the tables
     with DatabaseConnection(db_path) as connection:
         yield connection
 

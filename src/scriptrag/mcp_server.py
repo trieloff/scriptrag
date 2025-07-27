@@ -7,7 +7,9 @@ to AI assistants and other MCP-compatible clients.
 import asyncio
 import json
 import sys
-from collections.abc import Callable
+import uuid
+from collections import OrderedDict
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Any
 
@@ -41,7 +43,8 @@ class ScriptRAGMCPServer:
         self.logger = get_logger(__name__)
         self.scriptrag = ScriptRAG(config=config)
         self.server: Server = Server("scriptrag")
-        self._scripts_cache: dict[str, Script] = {}
+        self._scripts_cache: OrderedDict[str, Script] = OrderedDict()
+        self._max_cache_size = config.mcp.max_resources or 100
 
         # Register handlers
         self._register_handlers()
@@ -110,6 +113,34 @@ class ScriptRAGMCPServer:
         from . import __version__
 
         return __version__
+
+    def _add_to_cache(self, script_id: str, script: Script) -> None:
+        """Add a script to cache with size limit management.
+
+        Args:
+            script_id: Unique identifier for the script
+            script: Script object to cache
+        """
+        if len(self._scripts_cache) >= self._max_cache_size:
+            # Remove oldest entry
+            self._scripts_cache.popitem(last=False)
+        self._scripts_cache[script_id] = script
+
+    def _validate_script_id(self, script_id: str) -> Script:
+        """Validate and retrieve a script from cache.
+
+        Args:
+            script_id: Script identifier to validate
+
+        Returns:
+            Script object if found
+
+        Raises:
+            ValueError: If script_id not found in cache
+        """
+        if script_id not in self._scripts_cache:
+            raise ValueError(f"Script not found: {script_id}")
+        return self._scripts_cache[script_id]
 
     def get_available_tools(self) -> list[dict[str, Any]]:
         """Get list of available MCP tools.
@@ -383,23 +414,25 @@ class ScriptRAGMCPServer:
 
     async def _handle_list_tools(
         self, _request: types.ListToolsRequest
-    ) -> types.ListToolsResult:
+    ) -> types.ServerResult:
         """Handle list tools request."""
         tools = self.get_available_tools()
-        return types.ListToolsResult(
-            tools=[
-                types.Tool(
-                    name=tool["name"],
-                    description=tool["description"],
-                    inputSchema=tool["inputSchema"],
-                )
-                for tool in tools
-            ]
+        return types.ServerResult(
+            types.ListToolsResult(
+                tools=[
+                    types.Tool(
+                        name=tool["name"],
+                        description=tool["description"],
+                        inputSchema=tool["inputSchema"],
+                    )
+                    for tool in tools
+                ]
+            )
         )
 
     async def _handle_tool_call(
         self, request: types.CallToolRequest
-    ) -> types.CallToolResult:
+    ) -> types.ServerResult:
         """Handle tool call request."""
         tool_name = request.params.name
         arguments = request.params.arguments or {}
@@ -408,7 +441,9 @@ class ScriptRAGMCPServer:
 
         try:
             # Map tool names to handler methods
-            tool_handlers: dict[str, Callable] = {
+            tool_handlers: dict[
+                str, Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
+            ] = {
                 "parse_script": self._tool_parse_script,
                 "search_scenes": self._tool_search_scenes,
                 "get_character_info": self._tool_get_character_info,
@@ -427,36 +462,59 @@ class ScriptRAGMCPServer:
 
             result = await tool_handlers[tool_name](arguments)
 
-            return types.CallToolResult(
-                content=[
-                    types.TextContent(type="text", text=json.dumps(result, indent=2))
-                ],
-                isError=False,
+            return types.ServerResult(
+                types.CallToolResult(
+                    content=[
+                        types.TextContent(
+                            type="text", text=json.dumps(result, indent=2)
+                        )
+                    ],
+                    isError=False,
+                )
             )
 
         except Exception as e:
             self.logger.error("Tool call failed", tool=tool_name, error=str(e))
-            return types.CallToolResult(
-                content=[types.TextContent(type="text", text=str(e))],
-                isError=True,
+            return types.ServerResult(
+                types.CallToolResult(
+                    content=[types.TextContent(type="text", text=str(e))],
+                    isError=True,
+                )
             )
 
     async def _tool_parse_script(self, args: dict[str, Any]) -> dict[str, Any]:
         """Parse a screenplay file."""
-        path = args.get("path")
-        if not path:
+        path_str = args.get("path")
+        if not path_str:
             raise ValueError("path is required")
+
+        # Validate file path for security
+        path = Path(path_str).resolve()
+
+        # Check if file exists
+        if not path.exists():
+            raise ValueError(f"File not found: {path_str}")
+
+        # Check if it's a file (not directory)
+        if not path.is_file():
+            raise ValueError(f"Path is not a file: {path_str}")
+
+        # Check file extension
+        if path.suffix.lower() not in [".fountain", ".spmd", ".txt"]:
+            raise ValueError(
+                f"Invalid file type: {path.suffix}. Expected .fountain, .spmd, or .txt"
+            )
 
         title = args.get("title")
 
         # Parse the script
-        script = self.scriptrag.parse_fountain(path)
+        script = self.scriptrag.parse_fountain(str(path))
         if title:
             script.title = title
 
-        # Cache the script
-        script_id = f"script_{len(self._scripts_cache)}"
-        self._scripts_cache[script_id] = script
+        # Cache the script with UUID to prevent collisions
+        script_id = f"script_{uuid.uuid4().hex[:8]}"
+        self._add_to_cache(script_id, script)
 
         return {
             "script_id": script_id,
@@ -473,6 +531,9 @@ class ScriptRAGMCPServer:
         script_id = args.get("script_id")
         if not script_id:
             raise ValueError("script_id is required")
+
+        # Validate script exists
+        _ = self._validate_script_id(script_id)
 
         # Get search criteria
         query = args.get("query")
@@ -501,6 +562,9 @@ class ScriptRAGMCPServer:
         if not script_id or not character_name:
             raise ValueError("script_id and character_name are required")
 
+        # Validate script exists
+        _ = self._validate_script_id(script_id)
+
         # TODO: Implement when character analysis is ready
         return {
             "script_id": script_id,
@@ -515,6 +579,9 @@ class ScriptRAGMCPServer:
         script_id = args.get("script_id")
         if not script_id:
             raise ValueError("script_id is required")
+
+        # Validate script exists
+        _ = self._validate_script_id(script_id)
 
         include_flashbacks = args.get("include_flashbacks", True)
 
@@ -654,7 +721,7 @@ class ScriptRAGMCPServer:
 
     async def _handle_list_resources(
         self, _request: types.ListResourcesRequest
-    ) -> types.ListResourcesResult:
+    ) -> types.ServerResult:
         """Handle list resources request."""
         resources = []
 
@@ -679,11 +746,11 @@ class ScriptRAGMCPServer:
                 )
             )
 
-        return types.ListResourcesResult(resources=resources)
+        return types.ServerResult(types.ListResourcesResult(resources=resources))
 
     async def _handle_read_resource(
         self, request: types.ReadResourceRequest
-    ) -> types.ReadResourceResult:
+    ) -> types.ServerResult:
         """Handle read resource request."""
         uri = request.params.uri
         uri_str = str(uri)
@@ -722,17 +789,19 @@ class ScriptRAGMCPServer:
         else:
             raise ValueError(f"Unknown resource URI: {uri_str}")
 
-        return types.ReadResourceResult(
-            contents=[
-                types.TextResourceContents(
-                    uri=uri, mimeType="application/json", text=content
-                )
-            ]
+        return types.ServerResult(
+            types.ReadResourceResult(
+                contents=[
+                    types.TextResourceContents(
+                        uri=uri, mimeType="application/json", text=content
+                    )
+                ]
+            )
         )
 
     async def _handle_list_prompts(
         self, _request: types.ListPromptsRequest
-    ) -> types.ListPromptsResult:
+    ) -> types.ServerResult:
         """Handle list prompts request."""
         prompts = [
             types.Prompt(
@@ -780,11 +849,11 @@ class ScriptRAGMCPServer:
             ),
         ]
 
-        return types.ListPromptsResult(prompts=prompts)
+        return types.ServerResult(types.ListPromptsResult(prompts=prompts))
 
     async def _handle_get_prompt(
         self, request: types.GetPromptRequest
-    ) -> types.GetPromptResult:
+    ) -> types.ServerResult:
         """Handle get prompt request."""
         prompt_name = request.params.name
         arguments = request.params.arguments or {}
@@ -843,9 +912,11 @@ class ScriptRAGMCPServer:
         else:
             raise ValueError(f"Unknown prompt: {prompt_name}")
 
-        return types.GetPromptResult(
-            description=f"Prompt for {prompt_name}",
-            messages=messages,
+        return types.ServerResult(
+            types.GetPromptResult(
+                description=f"Prompt for {prompt_name}",
+                messages=messages,
+            )
         )
 
 

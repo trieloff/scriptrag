@@ -83,7 +83,7 @@ type-check: ## Run type checking with mypy
 .PHONY: security
 security: ## Run security checks (bandit, safety, pip-audit)
 	@bash -c 'source .venv/bin/activate && bandit -r src/ -c pyproject.toml -f json -o .bandit-report.json'
-	@bash -c 'source .venv/bin/activate && safety check --json --output .safety-report.json || true'
+	@bash -c 'source .venv/bin/activate && safety check --json > .safety-report.json || true'
 	@bash -c 'source .venv/bin/activate && pip-audit || true'
 	@echo "✅ Security scan complete (see .bandit-report.json and .safety-report.json)"
 

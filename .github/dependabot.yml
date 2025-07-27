@@ -1,0 +1,86 @@
+# Dependabot configuration for automated dependency updates
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+updates:
+  # Python dependencies via pip
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    groups:
+      # Group all development dependencies together
+      dev-dependencies:
+        patterns:
+          - "pytest*"
+          - "black"
+          - "ruff"
+          - "mypy"
+          - "pre-commit"
+          - "mkdocs*"
+          - "coverage*"
+          - "hypothesis"
+          - "bandit"
+          - "safety"
+          - "interrogate"
+          - "vulture"
+          - "tox"
+      # Group typing-related updates
+      typing:
+        patterns:
+          - "types-*"
+          - "typing-extensions"
+      # Group testing tools
+      testing:
+        patterns:
+          - "pytest*"
+          - "hypothesis"
+          - "coverage*"
+          - "tox"
+    # Automatically merge patch updates for dev dependencies
+    allow:
+      - dependency-type: "development"
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    reviewers:
+      - "@terragon-labs"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "build"
+      include: "scope"

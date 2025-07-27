@@ -1,0 +1,91 @@
+# Docker ignore file for ScriptRAG
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+*.cover
+coverage.xml
+*.log
+
+# Development
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation build
+site/
+docs/_build/
+
+# Environment files (copy separately if needed)
+.env
+.env.local
+.env.*.local
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+.bandit-report.json
+.safety-report.json
+
+# Database files (should be mounted as volumes)
+*.db
+*.sqlite
+*.sqlite3
+
+# Jupyter notebooks
+*.ipynb_checkpoints
+notebooks/
+
+# Node modules (for markdown linting)
+node_modules/
+
+# Claude
+.claude/
+CLAUDE.md
+
+# Project specific
+data/
+terragon-*.sh
+TERRAGON_SETUP.md
+SETUP_*.md
+MENTOR_SYSTEM.md
+AI_CONTENT_INDICATORS_DATABASE.md
+WEEKLY_STATUS_REPORT.md

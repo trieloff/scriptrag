@@ -96,6 +96,18 @@ test: ## Run all tests with coverage
 test-fast: ## Run tests without coverage (faster)
 	@bash -c 'source .venv/bin/activate && pytest tests/ -v'
 
+.PHONY: test-property
+test-property: ## Run property-based tests with Hypothesis
+	@bash -c 'source .venv/bin/activate && pytest tests/test_property_based.py -v --hypothesis-show-statistics'
+
+.PHONY: test-hypothesis-ci
+test-hypothesis-ci: ## Run property-based tests in CI mode (deterministic)
+	@bash -c 'source .venv/bin/activate && pytest tests/ -v --hypothesis-profile=ci'
+
+.PHONY: test-hypothesis-debug
+test-hypothesis-debug: ## Run property-based tests in debug mode (more examples)
+	@bash -c 'source .venv/bin/activate && pytest tests/ -v --hypothesis-profile=debug'
+
 .PHONY: test-watch
 test-watch: ## Run tests in watch mode
 	pytest-watch tests/ -- -v
@@ -107,6 +119,64 @@ test-parallel: ## Run tests in parallel
 .PHONY: test-profile
 test-profile: ## Run tests with profiling
 	pytest tests/ -v --profile --profile-svg
+
+.PHONY: profile-cpu
+profile-cpu: ## Profile CPU usage with py-spy
+	@echo "🔍 Profiling CPU usage..."
+	py-spy record -o profile_cpu.svg -- python -m scriptrag parse examples/data/sample_screenplay.fountain
+	@echo "✅ CPU profile saved to profile_cpu.svg"
+
+.PHONY: profile-memory
+profile-memory: ## Profile memory usage
+	@echo "🔍 Profiling memory usage..."
+	@bash -c 'source .venv/bin/activate && python -m memory_profiler -o profile_memory.txt examples/build_knowledge_graph.py'
+	@echo "✅ Memory profile saved to profile_memory.txt"
+
+.PHONY: profile-line
+profile-line: ## Line-by-line profiling of a specific module
+	@echo "🔍 Line profiling..."
+	@echo "Usage: make profile-line MODULE=scriptrag.parser"
+	@if [ -z "$(MODULE)" ]; then \
+		echo "Error: Please specify a module. Example: make profile-line MODULE=scriptrag.parser"; \
+		exit 1; \
+	fi
+	kernprof -l -v -m $(MODULE)
+
+.PHONY: profile-scalene
+profile-scalene: ## Profile with Scalene (CPU, GPU, memory)
+	@echo "🔍 Profiling with Scalene..."
+	scalene --html --outfile=profile_scalene.html -- python -m scriptrag parse examples/data/sample_screenplay.fountain
+	@echo "✅ Scalene profile saved to profile_scalene.html"
+
+.PHONY: benchmark
+benchmark: ## Run performance benchmarks
+	@bash -c 'source .venv/bin/activate && pytest tests/ -v --benchmark-only --benchmark-autosave'
+
+.PHONY: benchmark-compare
+benchmark-compare: ## Compare benchmark results
+	@bash -c 'source .venv/bin/activate && pytest-benchmark compare'
+
+.PHONY: mutate
+mutate: ## Run mutation testing on the codebase
+	@echo "🧬 Running mutation testing..."
+	@bash -c 'source .venv/bin/activate && mutmut run --paths-to-mutate=src/scriptrag/ --runner="pytest -x -q"'
+
+.PHONY: mutate-results
+mutate-results: ## Show mutation testing results
+	@bash -c 'source .venv/bin/activate && mutmut results'
+
+.PHONY: mutate-html
+mutate-html: ## Generate HTML report for mutation testing
+	@bash -c 'source .venv/bin/activate && mutmut html'
+	@echo "✅ Mutation testing report generated in html/"
+
+.PHONY: mutate-apply
+mutate-apply: ## Apply a specific mutation for inspection
+	@if [ -z "$(ID)" ]; then \
+		echo "Error: Please specify a mutation ID. Example: make mutate-apply ID=42"; \
+		exit 1; \
+	fi
+	@bash -c 'source .venv/bin/activate && mutmut apply $(ID)'
 
 .PHONY: coverage
 coverage: ## Generate coverage report
@@ -255,6 +325,54 @@ deps-tree: ## Show dependency tree
 .PHONY: deps-check
 deps-check: ## Check for dependency conflicts
 	pip check
+
+# Docker commands
+.PHONY: docker-build
+docker-build: ## Build all Docker images
+	docker-compose build
+
+.PHONY: docker-build-prod
+docker-build-prod: ## Build production Docker image
+	docker build -t scriptrag:latest --target production .
+
+.PHONY: docker-dev
+docker-dev: ## Start development environment in Docker
+	docker-compose up -d dev
+	docker-compose exec dev bash
+
+.PHONY: docker-test
+docker-test: ## Run tests in Docker
+	docker-compose run --rm test
+
+.PHONY: docker-api
+docker-api: ## Start API server in Docker
+	docker-compose up -d api
+
+.PHONY: docker-mcp
+docker-mcp: ## Start MCP server in Docker
+	docker-compose up -d mcp
+
+.PHONY: docker-docs
+docker-docs: ## Start documentation server in Docker
+	docker-compose up -d docs
+	@echo "📚 Documentation available at http://localhost:8080"
+
+.PHONY: docker-down
+docker-down: ## Stop all Docker containers
+	docker-compose down
+
+.PHONY: docker-clean
+docker-clean: ## Clean Docker volumes and images
+	docker-compose down -v
+	docker rmi scriptrag:latest || true
+
+.PHONY: docker-logs
+docker-logs: ## Show Docker container logs
+	docker-compose logs -f
+
+.PHONY: docker-shell
+docker-shell: ## Open shell in running container
+	docker-compose exec dev bash
 
 # Default target
 .DEFAULT_GOAL := help

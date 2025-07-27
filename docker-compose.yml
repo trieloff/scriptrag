@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # Development environment with hot reload
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    volumes:
+      - .:/app
+      - /app/.venv  # Exclude venv from volume mount
+      - scriptrag-data:/data
+    environment:
+      - SCRIPTRAG_ENV=development
+      - SCRIPTRAG_DATABASE_PATH=/data/scriptrag.db
+      - SCRIPTRAG_LOG_LEVEL=DEBUG
+      - SCRIPTRAG_LOG_FORMAT=console
+    ports:
+      - "8000:8000"  # API server
+      - "8001:8001"  # MCP server
+      - "8888:8888"  # Jupyter notebook
+    command: bash
+    stdin_open: true
+    tty: true
+
+  # API server for local testing
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    volumes:
+      - scriptrag-data:/data
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - SCRIPTRAG_ENV=production
+      - SCRIPTRAG_DATABASE_PATH=/data/scriptrag.db
+      - SCRIPTRAG_API_HOST=0.0.0.0
+      - SCRIPTRAG_API_PORT=8000
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # MCP server
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: mcp-server
+    volumes:
+      - scriptrag-data:/data
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - SCRIPTRAG_ENV=production
+      - SCRIPTRAG_DATABASE_PATH=/data/scriptrag.db
+      - SCRIPTRAG_MCP_PORT=8001
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+  # LMStudio mock for local development (optional)
+  # Uncomment if you want a mock LLM service
+  # llm-mock:
+  #   image: python:3.11-slim
+  #   volumes:
+  #     - ./tests/mocks/llm_server.py:/app/server.py:ro
+  #   command: python /app/server.py
+  #   ports:
+  #     - "1234:1234"
+
+  # Test runner
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    volumes:
+      - ./test-results:/app/test-results
+    environment:
+      - SCRIPTRAG_ENV=test
+      - PYTEST_ADDOPTS=--junitxml=/app/test-results/junit.xml
+    command: ["make", "test"]
+
+  # Documentation server
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    volumes:
+      - .:/app
+      - /app/.venv
+    ports:
+      - "8080:8000"
+    command: ["mkdocs", "serve", "--dev-addr", "0.0.0.0:8000"]
+
+  # Database management UI (optional)
+  # Using Datasette for SQLite exploration
+  datasette:
+    image: datasetteproject/datasette
+    volumes:
+      - scriptrag-data:/data:ro
+    ports:
+      - "8002:8001"
+    command: ["datasette", "/data/scriptrag.db", "-h", "0.0.0.0", "-p", "8001", "--readonly"]
+    profiles:
+      - debug
+
+volumes:
+  scriptrag-data:
+    driver: local
+
+networks:
+  default:
+    name: scriptrag-network

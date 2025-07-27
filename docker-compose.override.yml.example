@@ -1,0 +1,28 @@
+# docker-compose.override.yml.example
+# Copy this to docker-compose.override.yml for local customization
+# This file is git-ignored and won't be committed
+
+version: '3.8'
+
+services:
+  dev:
+    # Mount your local LLM model directory
+    volumes:
+      - ~/.cache/lm-studio/models:/models:ro
+    environment:
+      # Override with your LMStudio URL if different
+      - SCRIPTRAG_LLM_BASE_URL=http://host.docker.internal:1234/v1
+      # Add your OpenAI API key if using OpenAI
+      # - OPENAI_API_KEY=your-key-here
+    # Use host network on Linux to access LMStudio
+    # network_mode: host  # Uncomment on Linux
+
+  api:
+    environment:
+      # Add custom environment variables
+      - SCRIPTRAG_API_WORKERS=4
+      - SCRIPTRAG_API_RELOAD=true
+
+  # Enable datasette by default for debugging
+  datasette:
+    profiles: []  # Remove debug profile to run by default

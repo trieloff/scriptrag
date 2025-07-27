@@ -55,6 +55,21 @@ cover/
 *.bandit-report.json
 .safety-report.json
 *.safety-report.json
+pip-audit-results.json
+licenses.json
+trivy-results.sarif
+docker-trivy-results.sarif
+osv-results.sarif
+
+# Profiling outputs
+profile_*.svg
+profile_*.txt
+profile_*.html
+.benchmarks/
+*.lprof
+*.prof
+*.pstats
+.scalene/
 
 # Translations
 *.mo

@@ -294,8 +294,9 @@ Generation) pattern.
   - [ ] Example notebooks/tutorials
   - [ ] Architecture diagrams
 
-- [ ] **10.2 Deployment**
-  - [ ] Create Docker containerization
+- [x] **10.2 Deployment** *(Modernization Update)*
+  - [x] Create Docker containerization (multi-stage Dockerfile)
+  - [x] Docker Compose for development and production
   - [ ] Write deployment scripts
   - [ ] Create backup/restore procedures
   - [ ] Performance monitoring setup
@@ -454,6 +455,8 @@ Generation) pattern.
 
 ### Installation
 
+#### Traditional Installation
+
 ```bash
 # Clone the repository
 git clone https://github.com/yourusername/scriptrag.git
@@ -467,6 +470,28 @@ uv venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 uv pip install -e .
 ```
+
+#### Docker Installation (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/scriptrag.git
+cd scriptrag
+
+# Build Docker images
+make docker-build
+
+# Start development environment
+make docker-dev
+
+# Or start the API server
+make docker-api
+
+# View logs
+make docker-logs
+```
+
+Docker provides isolated environments with all dependencies pre-installed. The multi-stage Dockerfile creates optimized images under 200MB for production use.
 
 ### Quick Start
 

@@ -1,5 +1,5 @@
 ---
-name: test-fixer
+name: test-holmes
 description: Sherlock Holmes-style test debugging specialist
 tools: Read, Grep, Glob, Edit, MultiEdit, Bash, NotebookRead, NotebookEdit
 ---

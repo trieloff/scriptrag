@@ -190,7 +190,7 @@ class TestDatabaseSchema:
 
         assert temp_db_path.exists()
         assert schema.validate_schema()
-        assert schema.get_current_version() == 5
+        assert schema.get_current_version() == 6
 
     def test_schema_validation(self, temp_db_path):
         """Test schema validation."""

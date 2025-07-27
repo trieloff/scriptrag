@@ -78,6 +78,31 @@ fi
 
 check_timeout
 
+# Install jq if not present (needed for git API operations)
+log_info "Checking for jq..."
+if ! command -v jq &> /dev/null; then
+    log_info "Installing jq..."
+    if command -v apt-get &> /dev/null; then
+        sudo apt-get update && sudo apt-get install -y jq || {
+            log_warning "Failed to install jq via apt-get, continuing..."
+        }
+    elif command -v yum &> /dev/null; then
+        sudo yum install -y jq || {
+            log_warning "Failed to install jq via yum, continuing..."
+        }
+    elif command -v brew &> /dev/null; then
+        brew install jq || {
+            log_warning "Failed to install jq via brew, continuing..."
+        }
+    else
+        log_warning "No supported package manager found for jq installation"
+    fi
+else
+    log_info "jq is already installed"
+fi
+
+check_timeout
+
 # Install uv if not present (it should be pre-installed in Terragon)
 UV_CMD="uv"
 if ! command -v uv &> /dev/null; then

@@ -52,6 +52,8 @@ dependencies = [
     # Fountain parsing - will need to add specific library later
     # "fountain-parser>=0.1.0",  # placeholder
     "jouvence>=0.4.2",
+    # HTTP requests (used in CLI)
+    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]

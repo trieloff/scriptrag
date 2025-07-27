@@ -13,7 +13,7 @@ from scriptrag.config import get_logger
 logger = get_logger(__name__)
 
 # Schema version for migrations
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 # SQL DDL statements for creating tables
 SCHEMA_SQL = """
@@ -244,6 +244,50 @@ CREATE INDEX IF NOT EXISTS idx_edges_type_from ON edges(edge_type, from_node_id)
 CREATE INDEX IF NOT EXISTS idx_embeddings_entity ON embeddings(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_model ON embeddings(embedding_model);
 
+-- Indexes for Script Bible tables
+CREATE INDEX IF NOT EXISTS idx_series_bibles_script_id ON series_bibles(script_id);
+CREATE INDEX IF NOT EXISTS idx_series_bibles_status ON series_bibles(status);
+CREATE INDEX IF NOT EXISTS idx_series_bibles_type ON series_bibles(bible_type);
+
+CREATE INDEX IF NOT EXISTS idx_character_profiles_character_id ON character_profiles(character_id);
+CREATE INDEX IF NOT EXISTS idx_character_profiles_script_id ON character_profiles(script_id);
+CREATE INDEX IF NOT EXISTS idx_character_profiles_bible_id ON character_profiles(series_bible_id);
+
+CREATE INDEX IF NOT EXISTS idx_world_elements_script_id ON world_elements(script_id);
+CREATE INDEX IF NOT EXISTS idx_world_elements_bible_id ON world_elements(series_bible_id);
+CREATE INDEX IF NOT EXISTS idx_world_elements_type ON world_elements(element_type);
+CREATE INDEX IF NOT EXISTS idx_world_elements_category ON world_elements(element_type, category);
+
+CREATE INDEX IF NOT EXISTS idx_story_timelines_script_id ON story_timelines(script_id);
+CREATE INDEX IF NOT EXISTS idx_story_timelines_bible_id ON story_timelines(series_bible_id);
+CREATE INDEX IF NOT EXISTS idx_story_timelines_type ON story_timelines(timeline_type);
+
+CREATE INDEX IF NOT EXISTS idx_timeline_events_timeline_id ON timeline_events(timeline_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_events_script_id ON timeline_events(script_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_events_scene_id ON timeline_events(scene_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_events_episode_id ON timeline_events(episode_id);
+CREATE INDEX IF NOT EXISTS idx_timeline_events_order ON timeline_events(timeline_id, relative_order);
+
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_script_id ON continuity_notes(script_id);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_bible_id ON continuity_notes(series_bible_id);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_type ON continuity_notes(note_type);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_severity ON continuity_notes(severity);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_status ON continuity_notes(status);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_episode_id ON continuity_notes(episode_id);
+CREATE INDEX IF NOT EXISTS idx_continuity_notes_scene_id ON continuity_notes(scene_id);
+
+CREATE INDEX IF NOT EXISTS idx_character_knowledge_character_id ON character_knowledge(character_id);
+CREATE INDEX IF NOT EXISTS idx_character_knowledge_script_id ON character_knowledge(script_id);
+CREATE INDEX IF NOT EXISTS idx_character_knowledge_type ON character_knowledge(knowledge_type);
+CREATE INDEX IF NOT EXISTS idx_character_knowledge_acquired_episode ON character_knowledge(acquired_episode_id);
+CREATE INDEX IF NOT EXISTS idx_character_knowledge_verification ON character_knowledge(verification_status);
+
+CREATE INDEX IF NOT EXISTS idx_plot_threads_script_id ON plot_threads(script_id);
+CREATE INDEX IF NOT EXISTS idx_plot_threads_bible_id ON plot_threads(series_bible_id);
+CREATE INDEX IF NOT EXISTS idx_plot_threads_type ON plot_threads(thread_type);
+CREATE INDEX IF NOT EXISTS idx_plot_threads_status ON plot_threads(status);
+CREATE INDEX IF NOT EXISTS idx_plot_threads_priority ON plot_threads(priority);
+
 -- Scene dependencies table for logical ordering
 CREATE TABLE IF NOT EXISTS scene_dependencies (
     id TEXT PRIMARY KEY,
@@ -266,6 +310,317 @@ CREATE INDEX IF NOT EXISTS idx_scene_dependencies_from
 CREATE INDEX IF NOT EXISTS idx_scene_dependencies_to ON scene_dependencies(to_scene_id);
 CREATE INDEX IF NOT EXISTS idx_scene_dependencies_type
     ON scene_dependencies(dependency_type);
+
+-- Script Bible tables for continuity management and series tracking
+
+-- Series information and bible metadata
+CREATE TABLE IF NOT EXISTS series_bibles (
+    id TEXT PRIMARY KEY,
+    script_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    version INTEGER DEFAULT 1,
+    created_by TEXT,
+    status TEXT DEFAULT 'active', -- active, archived, draft
+    bible_type TEXT DEFAULT 'series', -- series, movie, anthology
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE
+);
+
+-- Character development profiles and arcs
+CREATE TABLE IF NOT EXISTS character_profiles (
+    id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    script_id TEXT NOT NULL,
+    series_bible_id TEXT,
+
+    -- Core character information
+    full_name TEXT,
+    age INTEGER,
+    occupation TEXT,
+    background TEXT,
+    personality_traits TEXT,
+    motivations TEXT,
+    fears TEXT,
+    goals TEXT,
+
+    -- Physical description
+    physical_description TEXT,
+    distinguishing_features TEXT,
+
+    -- Relationships
+    family_background TEXT,
+    relationship_status TEXT,
+
+    -- Character arc tracking
+    initial_state TEXT,
+    character_arc TEXT,
+    growth_trajectory TEXT,
+
+    -- Continuity tracking
+    first_appearance_episode_id TEXT,
+    last_appearance_episode_id TEXT,
+    total_appearances INTEGER DEFAULT 0,
+
+    -- Metadata
+    notes TEXT,
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE,
+    FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+    FOREIGN KEY (series_bible_id) REFERENCES series_bibles(id) ON DELETE CASCADE,
+    FOREIGN KEY (first_appearance_episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+    FOREIGN KEY (last_appearance_episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+    UNIQUE(character_id, script_id)
+);
+
+-- World building and setting elements
+CREATE TABLE IF NOT EXISTS world_elements (
+    id TEXT PRIMARY KEY,
+    script_id TEXT NOT NULL,
+    series_bible_id TEXT,
+
+    -- Element classification
+    element_type TEXT NOT NULL, -- location, prop, concept, rule, technology, culture
+    name TEXT NOT NULL,
+    category TEXT, -- subcategory within type
+
+    -- Description and rules
+    description TEXT,
+    rules_and_constraints TEXT,
+    visual_description TEXT,
+
+    -- Usage tracking
+    first_introduced_episode_id TEXT,
+    first_introduced_scene_id TEXT,
+    usage_frequency INTEGER DEFAULT 0,
+    importance_level INTEGER DEFAULT 1, -- 1-5 scale
+
+    -- Relationships to other elements
+    related_locations_json TEXT, -- JSON array of location IDs
+    related_characters_json TEXT, -- JSON array of character IDs
+
+    -- Continuity tracking
+    continuity_notes TEXT,
+    established_rules_json TEXT, -- JSON object of established rules/constraints
+
+    -- Metadata
+    notes TEXT,
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+    FOREIGN KEY (series_bible_id) REFERENCES series_bibles(id) ON DELETE CASCADE,
+    FOREIGN KEY (first_introduced_episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+    FOREIGN KEY (first_introduced_scene_id) REFERENCES scenes(id) ON DELETE SET NULL
+);
+
+-- Timeline and chronology tracking
+CREATE TABLE IF NOT EXISTS story_timelines (
+    id TEXT PRIMARY KEY,
+    script_id TEXT NOT NULL,
+    series_bible_id TEXT,
+
+    -- Timeline identification
+    name TEXT NOT NULL,
+    timeline_type TEXT DEFAULT 'main', -- main, flashback, alternate, parallel
+    description TEXT,
+
+    -- Temporal boundaries
+    start_date TEXT, -- Story date (can be relative like "Day 1")
+    end_date TEXT,
+    duration_description TEXT,
+
+    -- Reference information
+    reference_episodes_json TEXT, -- JSON array of episode IDs covered
+    reference_scenes_json TEXT, -- JSON array of scene IDs in this timeline
+
+    -- Metadata
+    notes TEXT,
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+    FOREIGN KEY (series_bible_id) REFERENCES series_bibles(id) ON DELETE CASCADE
+);
+
+-- Timeline events for detailed chronology
+CREATE TABLE IF NOT EXISTS timeline_events (
+    id TEXT PRIMARY KEY,
+    timeline_id TEXT NOT NULL,
+    script_id TEXT NOT NULL,
+
+    -- Event identification
+    event_name TEXT NOT NULL,
+    event_type TEXT DEFAULT 'plot', -- plot, character, world, backstory
+    description TEXT,
+
+    -- Temporal positioning
+    story_date TEXT, -- Date within the story world
+    relative_order INTEGER, -- Order within timeline
+    duration_minutes INTEGER, -- Event duration
+
+    -- References
+    scene_id TEXT,
+    episode_id TEXT,
+    related_characters_json TEXT, -- JSON array of character IDs
+
+    -- Continuity tracking
+    establishes_json TEXT, -- JSON array of what this event establishes
+    requires_json TEXT, -- JSON array of what this event requires
+    affects_json TEXT, -- JSON array of what this event affects
+
+    -- Metadata
+    notes TEXT,
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (timeline_id) REFERENCES story_timelines(id) ON DELETE CASCADE,
+    FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+    FOREIGN KEY (scene_id) REFERENCES scenes(id) ON DELETE SET NULL,
+    FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL
+);
+
+-- Continuity notes and tracking
+CREATE TABLE IF NOT EXISTS continuity_notes (
+    id TEXT PRIMARY KEY,
+    script_id TEXT NOT NULL,
+    series_bible_id TEXT,
+
+    -- Note classification
+    note_type TEXT NOT NULL, -- error, inconsistency, rule, reminder, question
+    severity TEXT DEFAULT 'medium', -- low, medium, high, critical
+    status TEXT DEFAULT 'open', -- open, resolved, ignored, deferred
+
+    -- Content
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    suggested_resolution TEXT,
+
+    -- References
+    episode_id TEXT,
+    scene_id TEXT,
+    character_id TEXT,
+    world_element_id TEXT,
+    timeline_event_id TEXT,
+
+    -- Related references (for cross-references)
+    related_episodes_json TEXT, -- JSON array of episode IDs
+    related_scenes_json TEXT, -- JSON array of scene IDs
+    related_characters_json TEXT, -- JSON array of character IDs
+
+    -- Tracking
+    reported_by TEXT,
+    assigned_to TEXT,
+    resolution_notes TEXT,
+    resolved_at TIMESTAMP,
+
+    -- Metadata
+    tags_json TEXT, -- JSON array of tags
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+    FOREIGN KEY (series_bible_id) REFERENCES series_bibles(id) ON DELETE CASCADE,
+    FOREIGN KEY (episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+    FOREIGN KEY (scene_id) REFERENCES scenes(id) ON DELETE SET NULL,
+    FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE SET NULL,
+    FOREIGN KEY (world_element_id) REFERENCES world_elements(id) ON DELETE SET NULL,
+    FOREIGN KEY (timeline_event_id) REFERENCES timeline_events(id) ON DELETE SET NULL
+);
+
+-- Character knowledge tracking for continuity
+CREATE TABLE IF NOT EXISTS character_knowledge (
+    id TEXT PRIMARY KEY,
+    character_id TEXT NOT NULL,
+    script_id TEXT NOT NULL,
+
+    -- Knowledge details
+    knowledge_type TEXT NOT NULL, -- fact, secret, skill, relationship, location, event
+    knowledge_subject TEXT NOT NULL, -- What the knowledge is about
+    knowledge_description TEXT,
+
+    -- Acquisition tracking
+    acquired_episode_id TEXT,
+    acquired_scene_id TEXT,
+    acquisition_method TEXT, -- witnessed, told, discovered, assumed
+
+    -- Usage tracking
+    first_used_episode_id TEXT,
+    first_used_scene_id TEXT,
+    usage_count INTEGER DEFAULT 0,
+
+    -- Continuity validation
+    should_know_before TEXT, -- Episode/scene where character should know this
+    verification_status TEXT DEFAULT 'unverified', -- verified, unverified, violated
+
+    -- Metadata
+    confidence_level REAL DEFAULT 1.0, -- 0.0 to 1.0
+    notes TEXT,
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (character_id) REFERENCES characters(id) ON DELETE CASCADE,
+    FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+    FOREIGN KEY (acquired_episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+    FOREIGN KEY (acquired_scene_id) REFERENCES scenes(id) ON DELETE SET NULL,
+    FOREIGN KEY (first_used_episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+    FOREIGN KEY (first_used_scene_id) REFERENCES scenes(id) ON DELETE SET NULL
+);
+
+-- Plot threads and storyline tracking
+CREATE TABLE IF NOT EXISTS plot_threads (
+    id TEXT PRIMARY KEY,
+    script_id TEXT NOT NULL,
+    series_bible_id TEXT,
+
+    -- Thread identification
+    name TEXT NOT NULL,
+    thread_type TEXT DEFAULT 'main', -- main, subplot, arc, mystery, romance
+    priority INTEGER DEFAULT 1, -- 1-5 scale
+
+    -- Thread details
+    description TEXT,
+    initial_setup TEXT,
+    central_conflict TEXT,
+    resolution TEXT,
+
+    -- Status tracking
+    status TEXT DEFAULT 'active', -- active, resolved, abandoned, suspended
+
+    -- Episode tracking
+    introduced_episode_id TEXT,
+    resolved_episode_id TEXT,
+    total_episodes_involved INTEGER DEFAULT 0,
+
+    -- Character involvement
+    primary_characters_json TEXT, -- JSON array of character IDs
+    supporting_characters_json TEXT, -- JSON array of character IDs
+
+    -- Scene tracking
+    key_scenes_json TEXT, -- JSON array of scene IDs
+    resolution_scenes_json TEXT, -- JSON array of scene IDs
+
+    -- Metadata
+    notes TEXT,
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (script_id) REFERENCES scripts(id) ON DELETE CASCADE,
+    FOREIGN KEY (series_bible_id) REFERENCES series_bibles(id) ON DELETE CASCADE,
+    FOREIGN KEY (introduced_episode_id) REFERENCES episodes(id) ON DELETE SET NULL,
+    FOREIGN KEY (resolved_episode_id) REFERENCES episodes(id) ON DELETE SET NULL
+);
 
 -- Triggers for maintaining updated_at timestamps
 CREATE TRIGGER IF NOT EXISTS update_scripts_timestamp
@@ -326,6 +681,55 @@ CREATE TRIGGER IF NOT EXISTS update_scene_dependencies_timestamp
     AFTER UPDATE ON scene_dependencies
     BEGIN
         UPDATE scene_dependencies SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+-- Triggers for Script Bible tables
+CREATE TRIGGER IF NOT EXISTS update_series_bibles_timestamp
+    AFTER UPDATE ON series_bibles
+    BEGIN
+        UPDATE series_bibles SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+CREATE TRIGGER IF NOT EXISTS update_character_profiles_timestamp
+    AFTER UPDATE ON character_profiles
+    BEGIN
+        UPDATE character_profiles SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+CREATE TRIGGER IF NOT EXISTS update_world_elements_timestamp
+    AFTER UPDATE ON world_elements
+    BEGIN
+        UPDATE world_elements SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+CREATE TRIGGER IF NOT EXISTS update_story_timelines_timestamp
+    AFTER UPDATE ON story_timelines
+    BEGIN
+        UPDATE story_timelines SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+CREATE TRIGGER IF NOT EXISTS update_timeline_events_timestamp
+    AFTER UPDATE ON timeline_events
+    BEGIN
+        UPDATE timeline_events SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+CREATE TRIGGER IF NOT EXISTS update_continuity_notes_timestamp
+    AFTER UPDATE ON continuity_notes
+    BEGIN
+        UPDATE continuity_notes SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+CREATE TRIGGER IF NOT EXISTS update_character_knowledge_timestamp
+    AFTER UPDATE ON character_knowledge
+    BEGIN
+        UPDATE character_knowledge SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+CREATE TRIGGER IF NOT EXISTS update_plot_threads_timestamp
+    AFTER UPDATE ON plot_threads
+    BEGIN
+        UPDATE plot_threads SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
     END;
 
 -- FTS triggers to keep search indexes in sync
@@ -454,6 +858,14 @@ class DatabaseSchema:
             "scene_dependencies",
             "scene_elements_fts",
             "characters_fts",
+            "series_bibles",
+            "character_profiles",
+            "world_elements",
+            "story_timelines",
+            "timeline_events",
+            "continuity_notes",
+            "character_knowledge",
+            "plot_threads",
         ]
 
         try:
@@ -561,6 +973,28 @@ def migrate_database(db_path: str | Path) -> bool:
             conn.execute(
                 "INSERT INTO schema_info (version, description) VALUES (?, ?)",
                 (4, "Added scene dependencies table for logical ordering"),
+            )
+            conn.commit()
+
+        if current_version < 5:
+            # Apply migration to version 5 (Script Bible and Continuity Management)
+            logger.info(
+                "Applying migration to version 5 (Script Bible and Continuity Management)"
+            )
+
+            # Use the same SQL from the main schema - extract the Script Bible tables portion
+            # Get the Script Bible portion from the schema
+            bible_migration_sql = f"""
+            -- Script Bible tables for continuity management and series tracking
+            {SCHEMA_SQL[SCHEMA_SQL.find("-- Script Bible tables") : SCHEMA_SQL.find("-- FTS triggers")]}
+            """
+
+            conn.executescript(bible_migration_sql)
+
+            # Update schema version
+            conn.execute(
+                "INSERT INTO schema_info (version, description) VALUES (?, ?)",
+                (5, "Added Script Bible and Continuity Management tables"),
             )
             conn.commit()
 

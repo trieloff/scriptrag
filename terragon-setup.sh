@@ -83,7 +83,7 @@ log_info "Checking for jq..."
 if ! command -v jq &> /dev/null; then
     log_info "Installing jq..."
     if command -v apt-get &> /dev/null; then
-        sudo apt-get update && sudo apt-get install -y jq || {
+        sudo apt-get install -y jq || {
             log_warning "Failed to install jq via apt-get, continuing..."
         }
     elif command -v yum &> /dev/null; then

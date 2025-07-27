@@ -14,9 +14,9 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from scriptrag.api.v1.endpoints.scenes import (
-    delete_scene,
+    delete_scene_enhanced,
     inject_scene_at_position,
-    update_scene,
+    update_scene_enhanced,
     update_scene_metadata,
     validate_story_continuity,
 )
@@ -82,7 +82,7 @@ class TestEnhancedSceneAPIEndpoints:
         mock_db_ops.get_scene.side_effect = [sample_scene_data, updated_scene_data]
 
         # Test
-        response = await update_scene(scene_id, scene_update, mock_db_ops)
+        response = await update_scene_enhanced(scene_id, scene_update, mock_db_ops)
 
         # Assertions
         assert response.id == scene_id
@@ -107,7 +107,7 @@ class TestEnhancedSceneAPIEndpoints:
 
         # Test
         with pytest.raises(HTTPException) as exc_info:
-            await update_scene(scene_id, scene_update, mock_db_ops)
+            await update_scene_enhanced(scene_id, scene_update, mock_db_ops)
 
         assert exc_info.value.status_code == 404
         assert "Scene not found" in exc_info.value.detail
@@ -123,7 +123,7 @@ class TestEnhancedSceneAPIEndpoints:
 
         # Test
         with pytest.raises(HTTPException) as exc_info:
-            await update_scene(scene_id, scene_update, mock_db_ops)
+            await update_scene_enhanced(scene_id, scene_update, mock_db_ops)
 
         assert exc_info.value.status_code == 500
         assert "Failed to update scene" in exc_info.value.detail
@@ -137,7 +137,7 @@ class TestEnhancedSceneAPIEndpoints:
         mock_db_ops.delete_scene_with_references.return_value = True
 
         # Test
-        response = await delete_scene(scene_id, mock_db_ops)
+        response = await delete_scene_enhanced(scene_id, mock_db_ops)
 
         # Assertions
         assert "deleted successfully with reference integrity" in response["message"]
@@ -152,7 +152,7 @@ class TestEnhancedSceneAPIEndpoints:
 
         # Test
         with pytest.raises(HTTPException) as exc_info:
-            await delete_scene(scene_id, mock_db_ops)
+            await delete_scene_enhanced(scene_id, mock_db_ops)
 
         assert exc_info.value.status_code == 404
         assert "Scene not found" in exc_info.value.detail
@@ -167,7 +167,7 @@ class TestEnhancedSceneAPIEndpoints:
 
         # Test
         with pytest.raises(HTTPException) as exc_info:
-            await delete_scene(scene_id, mock_db_ops)
+            await delete_scene_enhanced(scene_id, mock_db_ops)
 
         assert exc_info.value.status_code == 500
         assert "Failed to delete scene" in exc_info.value.detail
@@ -439,11 +439,11 @@ class TestSceneOperationsAPIIntegration:
 
         # Test each endpoint
         with pytest.raises(HTTPException) as exc_info:
-            await update_scene("scene_001", SceneUpdateRequest(), mock_db_ops)
+            await update_scene_enhanced("scene_001", SceneUpdateRequest(), mock_db_ops)
         assert exc_info.value.status_code == 500
 
         with pytest.raises(HTTPException) as exc_info:
-            await delete_scene("scene_001", mock_db_ops)
+            await delete_scene_enhanced("scene_001", mock_db_ops)
         assert exc_info.value.status_code == 500
 
         with pytest.raises(HTTPException) as exc_info:

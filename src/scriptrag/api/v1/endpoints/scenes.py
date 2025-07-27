@@ -173,6 +173,87 @@ async def delete_scene(
         raise HTTPException(status_code=500, detail="Failed to delete scene") from e
 
 
+# Enhanced Scene Operations (for Phase 5.2 enhanced tests)
+async def update_scene_enhanced(
+    scene_id: str,
+    scene_update: SceneUpdateRequest,
+    db_ops: DatabaseOperations,
+) -> SceneResponse:
+    """Enhanced scene update with graph propagation."""
+    try:
+        # Check if scene exists
+        scene = await db_ops.get_scene(scene_id)
+        if not scene:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        # Update the scene with enhanced graph propagation
+        success = await db_ops.update_scene_with_graph_propagation(
+            scene_id=scene_id,
+            scene_number=scene_update.scene_number,
+            heading=scene_update.heading,
+            content=scene_update.content,
+            location=scene_update.location,
+            time_of_day=scene_update.time_of_day,
+        )
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update scene")
+
+        # Get updated scene
+        updated_scene = await db_ops.get_scene(scene_id)
+        if not updated_scene:
+            raise HTTPException(
+                status_code=500, detail="Failed to retrieve updated scene"
+            )
+
+        return SceneResponse(
+            id=updated_scene["id"],
+            script_id=updated_scene["script_id"],
+            scene_number=updated_scene["scene_number"],
+            heading=updated_scene["heading"],
+            content=updated_scene["content"],
+            character_count=updated_scene["character_count"],
+            word_count=updated_scene["word_count"],
+            page_start=updated_scene["page_start"],
+            page_end=updated_scene["page_end"],
+            has_embedding=updated_scene["has_embedding"],
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to update scene", scene_id=scene_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to update scene") from e
+
+
+async def delete_scene_enhanced(
+    scene_id: str,
+    db_ops: DatabaseOperations,
+) -> dict[str, str]:
+    """Enhanced scene deletion with reference maintenance."""
+    try:
+        # Check if scene exists
+        scene = await db_ops.get_scene(scene_id)
+        if not scene:
+            raise HTTPException(status_code=404, detail="Scene not found")
+
+        # Delete the scene with reference maintenance
+        success = await db_ops.delete_scene_with_references(scene_id)
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete scene")
+
+        return {
+            "message": f"Scene {scene_id} deleted successfully with reference integrity"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to delete scene", scene_id=scene_id, error=str(e))
+        raise HTTPException(status_code=500, detail="Failed to delete scene") from e
+
+
 @router.post("/{scene_id}/inject-after", response_model=SceneResponse)
 async def inject_scene_after(
     scene_id: str,

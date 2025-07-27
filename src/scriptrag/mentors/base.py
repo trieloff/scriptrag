@@ -221,7 +221,7 @@ class BaseMentor(ABC):
         scene_id: UUID,  # noqa: ARG002
         script_id: UUID,  # noqa: ARG002
         db_operations: Any,  # noqa: ARG002
-        context: dict[str, Any] | None = None,  # noqa: ARG002
+        _context: dict[str, Any] | None = None,
     ) -> list[MentorAnalysis]:
         """Analyze a single scene and return findings.
 
@@ -232,7 +232,7 @@ class BaseMentor(ABC):
             scene_id: UUID of the scene to analyze
             script_id: UUID of the parent script
             db_operations: Database operations interface
-            context: Optional context data for the analysis
+            _context: Optional context data for the analysis
 
         Returns:
             List of analysis findings for the scene
@@ -244,7 +244,7 @@ class BaseMentor(ABC):
         character_id: UUID,  # noqa: ARG002
         script_id: UUID,  # noqa: ARG002
         db_operations: Any,  # noqa: ARG002
-        context: dict[str, Any] | None = None,  # noqa: ARG002
+        _context: dict[str, Any] | None = None,
     ) -> list[MentorAnalysis]:
         """Analyze a character and return findings.
 
@@ -255,7 +255,7 @@ class BaseMentor(ABC):
             character_id: UUID of the character to analyze
             script_id: UUID of the parent script
             db_operations: Database operations interface
-            context: Optional context data for the analysis
+            _context: Optional context data for the analysis
 
         Returns:
             List of analysis findings for the character

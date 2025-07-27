@@ -86,30 +86,37 @@ class TestScriptRAGMCPServer:
         request = types.ListToolsRequest(method="tools/list")
         result = await mcp_server._handle_list_tools(request)
 
-        assert isinstance(result, types.ListToolsResult)
-        assert len(result.tools) == 11
-        assert all(isinstance(tool, types.Tool) for tool in result.tools)
+        assert isinstance(result, types.ServerResult)
+        assert isinstance(result.root, types.ListToolsResult)
+        assert len(result.root.tools) == 11
+        assert all(isinstance(tool, types.Tool) for tool in result.root.tools)
 
     @pytest.mark.asyncio
-    async def test_tool_parse_script(self, mcp_server):
+    async def test_tool_parse_script(self, mcp_server, tmp_path):
         """Test parse script tool."""
-        # Mock the scriptrag.parse_fountain method
-        mock_script = Script(
-            title="Test Script", source_file="/path/to/script.fountain"
+        # Create a temporary fountain file
+        test_file = tmp_path / "test.fountain"
+        test_file.write_text(
+            "Title: Test Script\n\nFADE IN:\n\n"
+            "INT. ROOM - DAY\n\nTest scene.\n\nFADE OUT."
         )
+
+        # Mock the scriptrag.parse_fountain method
+        mock_script = Script(title="Test Script", source_file=str(test_file))
         mcp_server.scriptrag.parse_fountain = MagicMock(return_value=mock_script)
 
-        args = {"path": "/path/to/script.fountain", "title": "Override Title"}
+        args = {"path": str(test_file), "title": "Override Title"}
         result = await mcp_server._tool_parse_script(args)
 
-        assert result["script_id"] == "script_0"
         assert result["title"] == "Override Title"
-        assert result["source_file"] == "/path/to/script.fountain"
-        assert "script_0" in mcp_server._scripts_cache
+        assert result["source_file"] == str(test_file)
+        assert len(mcp_server._scripts_cache) == 1
+        # Check that a script was added to cache
+        script_id = next(iter(mcp_server._scripts_cache.keys()))
+        assert script_id.startswith("script_")
+        assert result["script_id"] == script_id
 
-        mcp_server.scriptrag.parse_fountain.assert_called_once_with(
-            "/path/to/script.fountain"
-        )
+        mcp_server.scriptrag.parse_fountain.assert_called_once_with(str(test_file))
 
     @pytest.mark.asyncio
     async def test_tool_parse_script_no_path(self, mcp_server):
@@ -120,6 +127,10 @@ class TestScriptRAGMCPServer:
     @pytest.mark.asyncio
     async def test_tool_search_scenes(self, mcp_server):
         """Test search scenes tool."""
+        # Add a script to cache first
+        script = Script(title="Test Script", source_file="test.fountain")
+        mcp_server._scripts_cache["script_0"] = script
+
         args = {
             "script_id": "script_0",
             "query": "coffee",
@@ -146,6 +157,10 @@ class TestScriptRAGMCPServer:
     @pytest.mark.asyncio
     async def test_tool_get_character_info(self, mcp_server):
         """Test get character info tool."""
+        # Add a script to cache first
+        script = Script(title="Test Script", source_file="test.fountain")
+        mcp_server._scripts_cache["script_0"] = script
+
         args = {"script_id": "script_0", "character_name": "JOHN"}
 
         result = await mcp_server._tool_get_character_info(args)
@@ -159,6 +174,10 @@ class TestScriptRAGMCPServer:
     @pytest.mark.asyncio
     async def test_tool_analyze_timeline(self, mcp_server):
         """Test analyze timeline tool."""
+        # Add a script to cache first
+        script = Script(title="Test Script", source_file="test.fountain")
+        mcp_server._scripts_cache["script_0"] = script
+
         args = {"script_id": "script_0", "include_flashbacks": False}
 
         result = await mcp_server._tool_analyze_timeline(args)
@@ -200,11 +219,12 @@ class TestScriptRAGMCPServer:
 
         result = await mcp_server._handle_tool_call(request)
 
-        assert isinstance(result, types.CallToolResult)
-        assert not result.isError
-        assert len(result.content) == 1
-        assert isinstance(result.content[0], types.TextContent)
-        assert "script_id" in result.content[0].text
+        assert isinstance(result, types.ServerResult)
+        assert isinstance(result.root, types.CallToolResult)
+        assert not result.root.isError
+        assert len(result.root.content) == 1
+        assert isinstance(result.root.content[0], types.TextContent)
+        assert "script_id" in result.root.content[0].text
 
     @pytest.mark.asyncio
     async def test_handle_tool_call_unknown_tool(self, mcp_server):
@@ -216,9 +236,10 @@ class TestScriptRAGMCPServer:
 
         result = await mcp_server._handle_tool_call(request)
 
-        assert isinstance(result, types.CallToolResult)
-        assert result.isError
-        assert "Unknown tool" in result.content[0].text
+        assert isinstance(result, types.ServerResult)
+        assert isinstance(result.root, types.CallToolResult)
+        assert result.root.isError
+        assert "Unknown tool" in result.root.content[0].text
 
     @pytest.mark.asyncio
     async def test_handle_list_resources(self, mcp_server):
@@ -230,11 +251,12 @@ class TestScriptRAGMCPServer:
         request = types.ListResourcesRequest(method="resources/list")
         result = await mcp_server._handle_list_resources(request)
 
-        assert isinstance(result, types.ListResourcesResult)
-        assert len(result.resources) == 2
-        assert str(result.resources[0].uri) == "screenplay://list"
-        assert str(result.resources[1].uri) == "screenplay://script_0"
-        assert "Test Script" in result.resources[1].name
+        assert isinstance(result, types.ServerResult)
+        assert isinstance(result.root, types.ListResourcesResult)
+        assert len(result.root.resources) == 2
+        assert str(result.root.resources[0].uri) == "screenplay://list"
+        assert str(result.root.resources[1].uri) == "screenplay://script_0"
+        assert "Test Script" in result.root.resources[1].name
 
     @pytest.mark.asyncio
     async def test_handle_read_resource_list(self, mcp_server):
@@ -252,9 +274,10 @@ class TestScriptRAGMCPServer:
 
         result = await mcp_server._handle_read_resource(request)
 
-        assert isinstance(result, types.ReadResourceResult)
-        assert len(result.contents) == 1
-        content = json.loads(result.contents[0].text)
+        assert isinstance(result, types.ServerResult)
+        assert isinstance(result.root, types.ReadResourceResult)
+        assert len(result.root.contents) == 1
+        content = json.loads(result.root.contents[0].text)
         assert len(content["scripts"]) == 1
         assert content["scripts"][0]["script_id"] == "script_0"
 
@@ -273,8 +296,9 @@ class TestScriptRAGMCPServer:
 
         result = await mcp_server._handle_read_resource(request)
 
-        assert isinstance(result, types.ReadResourceResult)
-        content = json.loads(result.contents[0].text)
+        assert isinstance(result, types.ServerResult)
+        assert isinstance(result.root, types.ReadResourceResult)
+        content = json.loads(result.root.contents[0].text)
         assert content["script_id"] == "script_0"
         assert content["title"] == "Test Script"
 
@@ -297,9 +321,10 @@ class TestScriptRAGMCPServer:
         request = types.ListPromptsRequest(method="prompts/list")
         result = await mcp_server._handle_list_prompts(request)
 
-        assert isinstance(result, types.ListPromptsResult)
-        assert len(result.prompts) == 3
-        prompt_names = [p.name for p in result.prompts]
+        assert isinstance(result, types.ServerResult)
+        assert isinstance(result.root, types.ListPromptsResult)
+        assert len(result.root.prompts) == 3
+        prompt_names = [p.name for p in result.root.prompts]
         assert "analyze_script_structure" in prompt_names
         assert "character_arc_analysis" in prompt_names
         assert "scene_improvement_suggestions" in prompt_names
@@ -316,10 +341,11 @@ class TestScriptRAGMCPServer:
 
         result = await mcp_server._handle_get_prompt(request)
 
-        assert isinstance(result, types.GetPromptResult)
-        assert len(result.messages) == 1
-        assert "three-act structure" in result.messages[0].content.text
-        assert "script_0" in result.messages[0].content.text
+        assert isinstance(result, types.ServerResult)
+        assert isinstance(result.root, types.GetPromptResult)
+        assert len(result.root.messages) == 1
+        assert "three-act structure" in result.root.messages[0].content.text
+        assert "script_0" in result.root.messages[0].content.text
 
     @pytest.mark.asyncio
     async def test_handle_get_prompt_unknown(self, mcp_server):

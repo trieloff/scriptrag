@@ -13,7 +13,7 @@ from scriptrag.config import get_logger
 logger = get_logger(__name__)
 
 # Schema version for migrations
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 4
 
 # SQL DDL statements for creating tables
 SCHEMA_SQL = """
@@ -244,6 +244,29 @@ CREATE INDEX IF NOT EXISTS idx_edges_type_from ON edges(edge_type, from_node_id)
 CREATE INDEX IF NOT EXISTS idx_embeddings_entity ON embeddings(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_embeddings_model ON embeddings(embedding_model);
 
+-- Scene dependencies table for logical ordering
+CREATE TABLE IF NOT EXISTS scene_dependencies (
+    id TEXT PRIMARY KEY,
+    from_scene_id TEXT NOT NULL,
+    to_scene_id TEXT NOT NULL,
+    dependency_type TEXT NOT NULL, -- requires, references, continues, flashback_to
+    description TEXT,
+    strength REAL DEFAULT 1.0, -- Strength of dependency (0.0 to 1.0)
+    metadata_json TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (from_scene_id) REFERENCES scenes(id) ON DELETE CASCADE,
+    FOREIGN KEY (to_scene_id) REFERENCES scenes(id) ON DELETE CASCADE,
+    UNIQUE(from_scene_id, to_scene_id, dependency_type)
+);
+
+-- Indexes for scene dependencies
+CREATE INDEX IF NOT EXISTS idx_scene_dependencies_from
+    ON scene_dependencies(from_scene_id);
+CREATE INDEX IF NOT EXISTS idx_scene_dependencies_to ON scene_dependencies(to_scene_id);
+CREATE INDEX IF NOT EXISTS idx_scene_dependencies_type
+    ON scene_dependencies(dependency_type);
+
 -- Triggers for maintaining updated_at timestamps
 CREATE TRIGGER IF NOT EXISTS update_scripts_timestamp
     AFTER UPDATE ON scripts
@@ -297,6 +320,12 @@ CREATE TRIGGER IF NOT EXISTS update_edges_timestamp
     AFTER UPDATE ON edges
     BEGIN
         UPDATE edges SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+    END;
+
+CREATE TRIGGER IF NOT EXISTS update_scene_dependencies_timestamp
+    AFTER UPDATE ON scene_dependencies
+    BEGIN
+        UPDATE scene_dependencies SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
     END;
 
 -- FTS triggers to keep search indexes in sync
@@ -422,6 +451,7 @@ class DatabaseSchema:
             "nodes",
             "edges",
             "embeddings",
+            "scene_dependencies",
             "scene_elements_fts",
             "characters_fts",
         ]
@@ -479,13 +509,59 @@ def migrate_database(db_path: str | Path) -> bool:
         f"Migrating database from version {current_version} to {SCHEMA_VERSION}"
     )
 
-    # For now, we only have version 1, so just create the schema
-    # In the future, this would contain migration logic for each version
+    # Handle migration paths
     if current_version == 0:
         schema.create_schema()
         return True
 
-    logger.error(
-        f"No migration path from version {current_version} to {SCHEMA_VERSION}"
-    )
-    return False
+    # Apply migrations incrementally
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("PRAGMA foreign_keys = ON")
+
+        if current_version < 4:
+            # Apply migration to version 4 (scene dependencies)
+            logger.info("Applying migration to version 4 (scene dependencies)")
+
+            # Read and execute migration SQL
+            migration_sql = """
+            -- Scene dependencies table for logical ordering
+            CREATE TABLE IF NOT EXISTS scene_dependencies (
+                id TEXT PRIMARY KEY,
+                from_scene_id TEXT NOT NULL,
+                to_scene_id TEXT NOT NULL,
+                dependency_type TEXT NOT NULL,
+                description TEXT,
+                strength REAL DEFAULT 1.0,
+                metadata_json TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (from_scene_id) REFERENCES scenes(id) ON DELETE CASCADE,
+                FOREIGN KEY (to_scene_id) REFERENCES scenes(id) ON DELETE CASCADE,
+                UNIQUE(from_scene_id, to_scene_id, dependency_type)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_scene_dependencies_from
+                ON scene_dependencies(from_scene_id);
+            CREATE INDEX IF NOT EXISTS idx_scene_dependencies_to
+                ON scene_dependencies(to_scene_id);
+            CREATE INDEX IF NOT EXISTS idx_scene_dependencies_type
+                ON scene_dependencies(dependency_type);
+
+            CREATE TRIGGER IF NOT EXISTS update_scene_dependencies_timestamp
+                AFTER UPDATE ON scene_dependencies
+                BEGIN
+                    UPDATE scene_dependencies
+                    SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
+                END;
+            """
+
+            conn.executescript(migration_sql)
+
+            # Update schema version
+            conn.execute(
+                "INSERT INTO schema_info (version, description) VALUES (?, ?)",
+                (4, "Added scene dependencies table for logical ordering"),
+            )
+            conn.commit()
+
+    return True

@@ -1,6 +1,6 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-[![61% Vibe_Coded](https://img.shields.io/badge/61%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=zedindustries&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
+[![60% Vibe_Coded](https://img.shields.io/badge/60%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=zedindustries&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
 
 ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
@@ -18,6 +18,7 @@ Generation) pattern.
 - **📊 New: AI Content Indicators Database** - Comprehensive patterns for detecting AI-generated content
 - **🔍 Knowledge Graph Builder** - Automated screenplay parsing with configurable LLM enrichment limits
 - **⚡ Performance Optimizations** - Enhanced search resource management and error handling
+- **📁 Bulk Import & TV Series Detection** - Import entire TV series with automatic season/episode organization
 
 ## Features
 
@@ -32,6 +33,8 @@ Generation) pattern.
 - **Scene Editing**: Update, delete, or inject new scenes while maintaining screenplay integrity
 - **Script Bible Support**: Comprehensive continuity management with character development tracking,
   world-building documentation, timeline management, and cross-episode consistency validation
+- **Bulk Import**: Import multiple Fountain files at once with automatic TV series detection
+- **TV Series Detection**: Automatically extract season/episode information from filenames
 
 ## Tech Stack
 
@@ -431,6 +434,11 @@ Generation) pattern.
 - **[Setup Summary](SETUP_SUMMARY.md)** - Overview of setup process and scripts
 - **[Setup Complete Guide](SETUP_COMPLETE.md)** - Phase 1.2 completion details
 
+### Feature Documentation
+
+- **[Bulk Import Guide](docs/bulk_import_guide.md)** - Comprehensive guide for importing multiple screenplays
+- **[Bulk Import API](docs/api/bulk_import.md)** - API documentation for bulk import modules
+
 ### Installation
 
 ```bash
@@ -501,6 +509,41 @@ scriptrag graph characters
 # Analyze temporal structure of the screenplay
 scriptrag analyze timeline
 ```
+
+### Bulk Import Examples
+
+```bash
+# Import entire TV series from a directory structure
+scriptrag script import "Breaking Bad/**/*.fountain"
+
+# Import with custom season/episode pattern
+scriptrag script import "*.fountain" \
+    --pattern "S(?P<season>\d+)E(?P<episode>\d+)"
+
+# Preview import without actually importing (dry run)
+scriptrag script import "Season*/*.fountain" --dry-run
+
+# Import from directory with automatic series detection
+scriptrag script import ./scripts/
+
+# Import with series name override
+scriptrag script import "episodes/*.fountain" \
+    --series-name "My TV Show"
+
+# Control import behavior
+scriptrag script import "*.fountain" \
+    --skip-existing \      # Skip files already in database
+    --batch-size 20        # Process 20 files per batch
+```
+
+The bulk import feature automatically:
+
+- Detects TV series patterns in filenames (e.g., S01E01, 1x01, Episode 101)
+- Extracts season and episode numbers
+- Groups episodes by series and seasons
+- Creates proper database relationships
+- Handles special episodes and multi-part episodes
+- Supports custom regex patterns for non-standard naming
 
 ### Using the MCP Server
 

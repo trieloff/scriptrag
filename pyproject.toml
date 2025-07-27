@@ -172,7 +172,7 @@ select = [
     "I",    # isort
     "N",    # pep8-naming
     "D",    # pydocstyle
-    "UP",   # pyupgrade
+    "UP",   # pyupgrade (includes UP045 to prevent Optional[T], use T | None)
     "B",    # flake8-bugbear
     "C4",   # flake8-comprehensions
     "SIM",  # flake8-simplify

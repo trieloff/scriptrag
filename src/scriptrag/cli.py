@@ -7,14 +7,12 @@ script parsing, searching, configuration management, and development utilities.
 # Standard library imports
 import asyncio
 import contextlib
-import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
 
-import requests
-
 # Third-party imports
+import requests
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -24,6 +22,7 @@ from rich.table import Table
 from . import ScriptRAG
 from .config import (
     create_default_config,
+    get_logger,
     get_settings,
     load_settings,
     setup_logging_for_environment,
@@ -182,17 +181,22 @@ def config_init(
     ] = False,
 ) -> None:
     """Initialize a new configuration file with default settings."""
+    logger = get_logger(__name__)
+
     if output.exists() and not force:
-        print(f"Configuration file already exists: {output}", file=sys.stderr)
-        print("Use --force to overwrite", file=sys.stderr)
+        logger.error("Configuration file already exists", path=str(output))
+        console.print(f"[red]Configuration file already exists: {output}[/red]")
+        console.print("[yellow]Use --force to overwrite[/yellow]")
         raise typer.Exit(1)
 
     try:
         create_default_config(output)
+        logger.info("Configuration file created", path=str(output))
         console.print(f"[green]✓[/green] Configuration created: {output}")
         console.print("[dim]Edit the file to customize your settings[/dim]")
     except Exception as e:
-        print(f"Error creating configuration: {e}", file=sys.stderr)
+        logger.error("Error creating configuration", error=str(e))
+        console.print(f"[red]Error creating configuration: {e}[/red]")
         raise typer.Exit(1) from e
 
 
@@ -254,7 +258,9 @@ def config_show(
                         console.print(f"  {section_data}")
 
     except Exception as e:
-        print(f"Error loading configuration: {e}", file=sys.stderr)
+        logger = get_logger(__name__)
+        logger.error("Error loading configuration", error=str(e))
+        console.print(f"[red]Error loading configuration: {e}[/red]")
         raise typer.Exit(1) from e
 
 
@@ -297,7 +303,9 @@ def config_validate(
             console.print("[green]✓[/green] All configuration checks passed")
 
     except Exception as e:
-        print(f"✗ Configuration validation failed: {e}", file=sys.stderr)
+        logger = get_logger(__name__)
+        logger.error("Configuration validation failed", error=str(e))
+        console.print(f"[red]✗ Configuration validation failed: {e}[/red]")
         raise typer.Exit(1) from e
 
 
@@ -403,7 +411,9 @@ def script_parse(
         console.print(table)
 
     except Exception as e:
-        print(f"Error parsing screenplay: {e}", file=sys.stderr)
+        logger = get_logger(__name__)
+        logger.error("Error parsing screenplay", error=str(e))
+        console.print(f"[red]Error parsing screenplay: {e}[/red]")
         raise typer.Exit(1) from e
 
 
@@ -597,6 +607,8 @@ def script_import(
                 console.print(f"  • {series_name}")
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error during import", error=str(e))
         console.print(f"[red]Error during import: {e}[/red]")
         raise typer.Exit(1) from e
 
@@ -609,10 +621,13 @@ def script_info(
     ] = None,
 ) -> None:
     """Display information about a screenplay or database."""
+    logger = get_logger(__name__)
+
     if script_path:
         # Show info about a specific script file
         if not script_path.exists():
-            print(f"Script file not found: {script_path}", file=sys.stderr)
+            logger.error("Script file not found", path=str(script_path))
+            console.print(f"[red]Script file not found: {script_path}[/red]")
             raise typer.Exit(1)
 
         # Basic file info for now
@@ -836,6 +851,8 @@ def scene_list(
         console.print(f"\n[dim]Total scenes: {len(scenes)}[/dim]")
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error listing scenes", error=str(e))
         console.print(f"[red]Error listing scenes: {e}[/red]")
         raise typer.Exit(1) from e
 
@@ -920,6 +937,8 @@ def scene_update(
                 raise typer.Exit(1)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error updating scene", error=str(e))
         console.print(f"[red]Error updating scene: {e}[/red]")
         raise typer.Exit(1) from e
 
@@ -1032,6 +1051,8 @@ def scene_reorder(
             raise typer.Exit(1)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error reordering scene", error=str(e))
         console.print(f"[red]Error reordering scene: {e}[/red]")
         raise typer.Exit(1) from e
 
@@ -1154,6 +1175,8 @@ def scene_analyze(
                 console.print("  [dim]No temporal markers found[/dim]")
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error analyzing scenes", error=str(e))
         console.print(f"[red]Error analyzing scenes: {e}[/red]")
         raise typer.Exit(1) from e
 
@@ -1197,6 +1220,8 @@ def search_all(
         _display_search_results(results)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1233,6 +1258,8 @@ def search_dialogue(
         _display_search_results(results)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Dialogue search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1281,6 +1308,8 @@ def search_scenes(
         _display_search_results(results)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Scene search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1317,6 +1346,8 @@ def search_similar(
         _display_search_results(results, show_similarity=True)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Similar search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1353,6 +1384,8 @@ def search_theme(
         _display_search_results(results, show_similarity=True)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Theme search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1402,6 +1435,8 @@ def search_temporal(
         _display_search_results(results)
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Temporal search error", error=str(e))
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
@@ -1502,6 +1537,8 @@ def dev_init(
             create_default_config(config_path)
             console.print(f"[green]Created:[/green] {config_path}")
         except Exception as e:
+            logger = get_logger(__name__)
+            logger.error("Error creating config", error=str(e))
             console.print(f"[red]Error creating config:[/red] {e}")
 
     console.print("[green]✓[/green] Development environment initialized")
@@ -1580,6 +1617,8 @@ def dev_test_llm() -> None:
             )
 
     except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("LLM test failed", error=str(e))
         console.print(f"[red]✗[/red] LLM test failed: {e}")
         raise typer.Exit(1) from e
 

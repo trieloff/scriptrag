@@ -1344,6 +1344,8 @@ def main(
         host: Override server host
         port: Override server port
     """
+    logger = get_logger(__name__)
+
     try:
         # Load settings
         settings = load_settings(Path(config_file)) if config_file else get_settings()
@@ -1358,10 +1360,10 @@ def main(
         asyncio.run(run_server(config=settings))
 
     except KeyboardInterrupt:
-        print("\nServer shutdown requested", file=sys.stderr)
+        logger.info("Server shutdown requested")
         sys.exit(0)
     except Exception as e:
-        print(f"Error starting MCP server: {e}", file=sys.stderr)
+        logger.error("Error starting MCP server", error=str(e))
         sys.exit(1)
 
 

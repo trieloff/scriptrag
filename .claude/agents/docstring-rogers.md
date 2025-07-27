@@ -1,5 +1,5 @@
 ---
-name: docstring-writer
+name: docstring-rogers
 description: Mister Rogers-style gentle documentation specialist - use PROACTIVELY when writing new functions or when existing code lacks proper documentation
 tools: Read, Grep, Glob, Edit, MultiEdit
 ---

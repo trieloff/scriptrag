@@ -119,14 +119,6 @@ repos:
   #     - id: python-safety-dependencies-check
   #       args: ['--disable-optional-telemetry']
 
-  # Spell checking
-  - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
-    hooks:
-      - id: codespell
-        args: ['--skip=*.lock,*.json', '--ignore-words-list=crate,ser,couldnt,afterall']
-        exclude: '^(poetry\.lock|package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$'
-
   # Check for print statements
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0

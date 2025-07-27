@@ -11,9 +11,9 @@ This script shows how to:
 
 import argparse
 import asyncio
-import json
 from pathlib import Path
 
+from scriptrag.config import get_logger
 from scriptrag.database import (
     DatabaseConnection,
     KnowledgeGraphBuilder,
@@ -38,36 +38,37 @@ async def main(
         max_characters_to_enrich: Max characters to enrich with LLM (default: 5)
         force_delete: If True, delete existing database without confirmation
     """
+    logger = get_logger(__name__)
     # Configuration
     db_path = Path("example_knowledge_graph.db")
     fountain_file = Path("examples/data/sample_screenplay.fountain")
 
     # Ensure we have a sample screenplay
     if not fountain_file.exists():
-        print(f"Creating sample screenplay at {fountain_file}")
+        logger.info("Creating sample screenplay", path=str(fountain_file))
         fountain_file.parent.mkdir(parents=True, exist_ok=True)
         fountain_file.write_text(SAMPLE_SCREENPLAY)
 
     # Initialize database
-    print(f"Initializing database at {db_path}")
+    logger.info("Initializing database", path=str(db_path))
 
     # Option to start fresh (controlled by parameter)
     if not keep_existing and db_path.exists():
         if force_delete:
-            print("Removing existing database to start fresh")
+            logger.info("Removing existing database to start fresh")
             db_path.unlink()
         else:
             response = input(
                 f"Database {db_path} exists. Delete it and start fresh? (y/N): "
             )
             if response.lower() in ["y", "yes"]:
-                print("Removing existing database to start fresh")
+                logger.info("Removing existing database to start fresh")
                 db_path.unlink()
             else:
-                print("Keeping existing database")
+                logger.info("Keeping existing database")
                 keep_existing = True
     elif keep_existing and db_path.exists():
-        print("Keeping existing database")
+        logger.info("Keeping existing database")
 
     conn = DatabaseConnection(str(db_path))
     initialize_database(str(db_path))
@@ -76,19 +77,19 @@ async def main(
     llm_client = None
     try:
         llm_client = LLMClient()
-        print("LLM client initialized for metadata enrichment")
+        logger.info("LLM client initialized for metadata enrichment")
     except Exception as e:
-        print(f"LLM client not available: {e}")
-        print("Proceeding without LLM enrichment")
+        logger.warning("LLM client not available", error=str(e))
+        logger.info("Proceeding without LLM enrichment")
 
     # Initialize embedding pipeline (optional)
     embedding_pipeline = None
     if llm_client:
         try:
             embedding_pipeline = EmbeddingPipeline(conn, llm_client)
-            print("Embedding pipeline initialized")
+            logger.info("Embedding pipeline initialized")
         except Exception as e:
-            print(f"Embedding pipeline not available: {e}")
+            logger.warning("Embedding pipeline not available", error=str(e))
 
     # Build knowledge graph
     # Set limits for enrichment (configurable)
@@ -100,7 +101,7 @@ async def main(
         max_characters_to_enrich=max_characters_to_enrich,
     )
 
-    print(f"\nParsing screenplay: {fountain_file}")
+    logger.info("Parsing screenplay", file=str(fountain_file))
     parser = FountainParser()
     script = parser.parse_file(fountain_file)
 
@@ -108,28 +109,27 @@ async def main(
     characters = parser.get_characters()
     scenes = parser.get_scenes()
 
-    print(f"\nBuilding knowledge graph for: {script.title}")
+    logger.info("Building knowledge graph", title=script.title)
     stats = await builder.build_from_script(
         script, enrich_with_llm=bool(llm_client), characters=characters, scenes=scenes
     )
 
-    print("\nGraph Construction Statistics:")
-    print(json.dumps(stats, indent=2))
+    logger.info("Graph construction completed", stats=stats)
 
     # Build additional graph layers
     if stats["script_node_id"]:
-        print("\nBuilding temporal relationships...")
+        logger.info("Building temporal relationships")
         temporal_edges = await builder.build_temporal_graph(stats["script_node_id"])
-        print(f"Created {temporal_edges} temporal edges")
+        logger.info("Created temporal edges", count=temporal_edges)
 
-        print("\nBuilding logical dependencies...")
+        logger.info("Building logical dependencies")
         logical_edges = await builder.build_logical_dependencies(
             stats["script_node_id"]
         )
-        print(f"Created {logical_edges} logical dependency edges")
+        logger.info("Created logical dependency edges", count=logical_edges)
 
     # Analyze the graph
-    print("\n\nGraph Analysis:")
+    logger.info("Starting graph analysis")
     analyze_graph(conn, stats["script_node_id"])
 
     # Clean up
@@ -137,44 +137,53 @@ async def main(
         await llm_client.close()
 
     conn.close()
-    print(f"\nKnowledge graph saved to: {db_path}")
+    logger.info("Knowledge graph saved", path=str(db_path))
 
 
 def analyze_graph(conn: DatabaseConnection, script_node_id: str) -> None:
     """Analyze and display graph statistics."""
     from scriptrag.database.operations import GraphOperations
 
+    logger = get_logger(__name__)
     ops = GraphOperations(conn)
 
     # Get all characters
     characters = ops.graph.find_nodes(node_type="character")
-    print(f"\nCharacters ({len(characters)}):")
+    logger.info("Character analysis", count=len(characters))
     for char in characters:
         degree = ops.graph.get_node_degree(char.id)
         scenes = ops.get_character_scenes(char.id)
-        print(
-            f"  - {char.label}: appears in {len(scenes)} scenes, {degree} connections"
+        logger.debug(
+            "Character details",
+            name=char.label,
+            scenes=len(scenes),
+            connections=degree,
         )
 
     # Get all locations
     locations = ops.graph.find_nodes(node_type="location")
-    print(f"\nLocations ({len(locations)}):")
+    logger.info("Location analysis", count=len(locations))
     for loc in locations:
         scenes = ops.get_location_scenes(loc.id)
-        print(f"  - {loc.label}: {len(scenes)} scenes")
+        logger.debug("Location details", name=loc.label, scenes=len(scenes))
 
     # Get scene statistics
     scenes = ops.get_script_scenes(script_node_id)
-    print(f"\nScenes ({len(scenes)}):")
+    logger.info("Scene analysis", count=len(scenes))
     for i, scene in enumerate(scenes[:5]):  # Show first 5
         chars_in_scene = ops.graph.get_neighbors(
             scene.id, edge_type="APPEARS_IN", direction="in"
         )
-        print(f"  - Scene {i + 1}: {scene.label} ({len(chars_in_scene)} characters)")
+        logger.debug(
+            "Scene details",
+            number=i + 1,
+            label=scene.label,
+            characters=len(chars_in_scene),
+        )
 
     # Character centrality analysis
     if characters:
-        print("\nCharacter Centrality Analysis:")
+        logger.info("Starting character centrality analysis")
         centrality = ops.analyze_character_centrality(script_node_id)
 
         # Sort by degree centrality
@@ -183,10 +192,13 @@ def analyze_graph(conn: DatabaseConnection, script_node_id: str) -> None:
         )
 
         for _char_id, metrics in sorted_chars[:5]:  # Top 5
-            print(f"  - {metrics['character_name']}:")
-            print(f"    Degree: {metrics['degree_centrality']:.2f}")
-            print(f"    Scenes: {metrics['scene_frequency']}")
-            print(f"    Interactions: {metrics['interaction_diversity']}")
+            logger.info(
+                "Character centrality",
+                name=metrics["character_name"],
+                degree=metrics["degree_centrality"],
+                scenes=metrics["scene_frequency"],
+                interactions=metrics["interaction_diversity"],
+            )
 
 
 # Sample screenplay for demonstration

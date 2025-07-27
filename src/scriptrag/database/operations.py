@@ -24,6 +24,19 @@ from .graph import GraphDatabase, GraphEdge, GraphNode
 from .scene_ordering import SceneOrderingOperations
 from .vectors import VectorOperations
 
+# Constants
+MAX_LOCATION_LENGTH = 200  # Maximum length for location strings to prevent ReDoS
+MAX_CHARACTER_NAME_WORDS = 3  # Maximum words in character names
+TIME_ORDER = [
+    "dawn",
+    "morning",
+    "day",
+    "afternoon",
+    "dusk",
+    "evening",
+    "night",
+]  # Temporal progression order
+
 logger = get_logger(__name__)
 
 
@@ -404,6 +417,7 @@ class GraphOperations:
         try:
             with self.connection.transaction() as conn:
                 # Remove existing FOLLOWS edges of this order type
+                # Using parameterized queries to prevent SQL injection
                 conn.execute(
                     """
                     DELETE FROM edges
@@ -1133,9 +1147,12 @@ class GraphOperations:
             # Parse location and find/create location node
             import re
 
+            # Simplified regex to prevent ReDoS attacks
+            # Limit input length and use more specific patterns
+            location_str = new_location.strip()[:MAX_LOCATION_LENGTH]
             location_match = re.match(
-                r"^(INT\.|EXT\.|I/E\.|INT\s|EXT\s|I/E\s)?\s*(.+?)(?:\s+-\s+(.+))?$",
-                new_location.strip(),
+                r"^(INT\.|EXT\.|I/E\.)?[\s]*([^-]+?)(?:[\s]*-[\s]*(.+))?$",
+                location_str,
                 re.IGNORECASE,
             )
 
@@ -1225,37 +1242,101 @@ class GraphOperations:
             )
 
     def _extract_characters_from_content(self, content: str) -> list[str]:
-        """Extract character names from scene content."""
-        characters = []
+        """Extract character names from scene content.
+
+        Uses Fountain format rules to identify character names:
+        - Must be in uppercase
+        - Appears on its own line
+        - May have extensions in parentheses (V.O., O.S., etc.)
+        - Not a scene heading or transition
+        """
+        import re
+
+        characters = set()
         lines = content.split("\n")
 
-        for line in lines:
-            line = line.strip()
-            # Character names are typically in uppercase
-            if (
-                line
-                and line.isupper()
-                and not line.startswith("(")
-                and not line.endswith(":")
-                and not any(
-                    keyword in line
-                    for keyword in [
-                        "INT.",
-                        "EXT.",
-                        "FADE",
-                        "CUT",
-                        "DISSOLVE",
-                        "THE END",
-                        "MONTAGE",
-                        "FLASHBACK",
-                        "CONTINUOUS",
-                    ]
-                )
-                and len(line.split()) <= 3  # Character names are usually 1-3 words
-            ):
-                characters.append(line)
+        # Common screenplay transitions and technical terms to exclude
+        exclusions = {
+            "INT.",
+            "EXT.",
+            "I/E.",
+            "FADE IN",
+            "FADE OUT",
+            "FADE TO",
+            "CUT TO",
+            "DISSOLVE TO",
+            "THE END",
+            "MONTAGE",
+            "FLASHBACK",
+            "CONTINUOUS",
+            "LATER",
+            "MOMENTS LATER",
+            "SAME",
+            "BACK TO",
+            "INTERCUT",
+            "TITLE",
+            "SUPER",
+            "CLOSE ON",
+            "ANGLE ON",
+            "INSERT",
+            "POV",
+            "REVERSE ANGLE",
+            "WIDE",
+            "TIGHT ON",
+        }
 
-        return list(set(characters))
+        for i, line in enumerate(lines):
+            line = line.strip()
+
+            # Skip empty lines
+            if not line:
+                continue
+
+            # Character names must be uppercase
+            if not line.isupper():
+                continue
+
+            # Remove parenthetical extensions (V.O.), (O.S.), (CONT'D), etc.
+            character_base = re.sub(r"\s*\([^)]+\)\s*$", "", line).strip()
+
+            # Skip if it's a known exclusion
+            if any(excl in character_base for excl in exclusions):
+                continue
+
+            # Character names shouldn't start with parentheses or end with colons
+            if character_base.startswith("(") or character_base.endswith(":"):
+                continue
+
+            # Check word count
+            if len(character_base.split()) > MAX_CHARACTER_NAME_WORDS:
+                continue
+
+            # Look ahead to see if next non-empty line is dialogue or parenthetical
+            # This helps confirm it's actually a character name
+            is_character = False
+            for j in range(i + 1, min(i + 5, len(lines))):
+                next_line = lines[j].strip()
+                if next_line:
+                    # If next line is parenthetical or doesn't look like a scene heading
+                    if next_line.startswith("(") or (
+                        not next_line.isupper()
+                        and not any(
+                            next_line.startswith(prefix)
+                            for prefix in ["INT.", "EXT.", "I/E."]
+                        )
+                    ):
+                        is_character = True
+                    break
+
+            if is_character or (
+                # Fallback: accept if it looks like a character name
+                character_base
+                and len(character_base) > 1
+                and not character_base[0].isdigit()
+            ):
+                characters.add(character_base)
+
+        return list(characters)
 
     def delete_scene_with_references(self, scene_node_id: str) -> bool:
         """Delete a scene while maintaining reference integrity.
@@ -1266,46 +1347,48 @@ class GraphOperations:
         Returns:
             True if successful
         """
-        try:
-            # Get scene node
-            scene_node = self.graph.get_node(scene_node_id)
-            if not scene_node:
-                logger.error(f"Scene {scene_node_id} not found")
+        # Use transaction to ensure atomicity
+        with self.connection.transaction():
+            try:
+                # Get scene node
+                scene_node = self.graph.get_node(scene_node_id)
+                if not scene_node:
+                    logger.error(f"Scene {scene_node_id} not found")
+                    return False
+
+                # Get script for re-indexing
+                script_edges = self.graph.find_edges(
+                    to_node_id=scene_node_id, edge_type="HAS_SCENE"
+                )
+                if not script_edges:
+                    logger.error(f"No script found for scene {scene_node_id}")
+                    return False
+
+                script_node_id = script_edges[0].from_node_id
+                scene_order = scene_node.properties.get("script_order", 0)
+
+                # Remove all dependencies involving this scene
+                self._remove_scene_dependencies(scene_node_id)
+
+                # Remove all edges connected to this scene
+                all_edges = self.graph.find_edges(from_node_id=scene_node_id)
+                all_edges.extend(self.graph.find_edges(to_node_id=scene_node_id))
+
+                for edge in all_edges:
+                    self.graph.delete_edge(edge.id)
+
+                # Delete the scene node
+                self.graph.delete_node(scene_node_id)
+
+                # Re-index remaining scenes
+                self._reindex_scenes_after_deletion(script_node_id, scene_order)
+
+                logger.info(f"Deleted scene {scene_node_id} with reference integrity")
+                return True
+
+            except Exception as e:
+                logger.error(f"Failed to delete scene {scene_node_id}: {e}")
                 return False
-
-            # Get script for re-indexing
-            script_edges = self.graph.find_edges(
-                to_node_id=scene_node_id, edge_type="HAS_SCENE"
-            )
-            if not script_edges:
-                logger.error(f"No script found for scene {scene_node_id}")
-                return False
-
-            script_node_id = script_edges[0].from_node_id
-            scene_order = scene_node.properties.get("script_order", 0)
-
-            # Remove all dependencies involving this scene
-            self._remove_scene_dependencies(scene_node_id)
-
-            # Remove all edges connected to this scene
-            all_edges = self.graph.find_edges(from_node_id=scene_node_id)
-            all_edges.extend(self.graph.find_edges(to_node_id=scene_node_id))
-
-            for edge in all_edges:
-                self.graph.delete_edge(edge.id)
-
-            # Delete the scene node
-            self.graph.delete_node(scene_node_id)
-
-            # Re-index remaining scenes
-            self._reindex_scenes_after_deletion(script_node_id, scene_order)
-
-            logger.info(f"Deleted scene {scene_node_id} with reference integrity")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to delete scene {scene_node_id}: {e}")
-            return False
 
     def _remove_scene_dependencies(self, scene_node_id: str) -> None:
         """Remove all dependencies involving a scene."""
@@ -1370,60 +1453,68 @@ class GraphOperations:
         Returns:
             Scene node ID if successful, None otherwise
         """
-        try:
-            # Get current scenes to validate position
-            current_scenes = self.get_script_scenes(
-                script_node_id, SceneOrderType.SCRIPT
-            )
-            max_position = len(current_scenes) + 1
+        # Use transaction to ensure atomicity
+        with self.connection.transaction():
+            try:
+                # Get current scenes to validate position
+                current_scenes = self.get_script_scenes(
+                    script_node_id, SceneOrderType.SCRIPT
+                )
+                max_position = len(current_scenes) + 1
 
-            if position < 1 or position > max_position:
-                logger.error(f"Invalid position {position}. Must be 1-{max_position}")
-                return None
-
-            # Shift existing scenes to make room
-            self._shift_scenes_for_injection(script_node_id, position)
-
-            # Create the new scene with specified position
-            scene_data = scene.model_dump()
-            scene_data["script_order"] = position
-            scene_node_id = self.create_scene_node(scene, script_node_id)
-
-            # Update the node with correct position
-            self.graph.update_node(scene_node_id, properties={"script_order": position})
-
-            # Connect characters if provided
-            if characters:
-                for char_name in characters:
-                    # Find or create character
-                    existing_chars = self.graph.find_nodes(
-                        node_type="character",
-                        label_pattern=char_name.upper(),
+                if position < 1 or position > max_position:
+                    logger.error(
+                        f"Invalid position {position}. Must be 1-{max_position}"
                     )
+                    return None
 
-                    if existing_chars:
-                        char_node_id = existing_chars[0].id
-                    else:
-                        character = Character(name=char_name)
-                        char_node_id = self.create_character_node(
-                            character, script_node_id
+                # Shift existing scenes to make room
+                self._shift_scenes_for_injection(script_node_id, position)
+
+                # Create the new scene with specified position
+                scene_data = scene.model_dump()
+                scene_data["script_order"] = position
+                scene_node_id = self.create_scene_node(scene, script_node_id)
+
+                # Update the node with correct position
+                self.graph.update_node(
+                    scene_node_id, properties={"script_order": position}
+                )
+
+                # Connect characters if provided
+                if characters:
+                    for char_name in characters:
+                        # Find or create character
+                        existing_chars = self.graph.find_nodes(
+                            node_type="character",
+                            label_pattern=char_name.upper(),
                         )
 
-                    self.connect_character_to_scene(char_node_id, scene_node_id)
+                        if existing_chars:
+                            char_node_id = existing_chars[0].id
+                        else:
+                            character = Character(name=char_name)
+                            char_node_id = self.create_character_node(
+                                character, script_node_id
+                            )
 
-            # Connect location if provided
-            if location:
-                self._update_scene_location_with_propagation(scene_node_id, location)
+                        self.connect_character_to_scene(char_node_id, scene_node_id)
 
-            # Re-analyze dependencies for affected scenes
-            self._reanalyze_dependencies_after_injection(script_node_id, position)
+                # Connect location if provided
+                if location:
+                    self._update_scene_location_with_propagation(
+                        scene_node_id, location
+                    )
 
-            logger.info(f"Injected scene at position {position}")
-            return scene_node_id
+                # Re-analyze dependencies for affected scenes
+                self._reanalyze_dependencies_after_injection(script_node_id, position)
 
-        except Exception as e:
-            logger.error(f"Failed to inject scene at position {position}: {e}")
-            return None
+                logger.info(f"Injected scene at position {position}")
+                return scene_node_id
+
+            except Exception as e:
+                logger.error(f"Failed to inject scene at position {position}: {e}")
+                return None
 
     def _shift_scenes_for_injection(self, script_node_id: str, position: int) -> None:
         """Shift scene orders to make room for injection."""
@@ -1483,18 +1574,40 @@ class GraphOperations:
         try:
             scenes = self.get_script_scenes(script_node_id, SceneOrderType.SCRIPT)
 
+            # Bulk fetch all character and location relationships
+            scene_ids = [scene.id for scene in scenes]
+
+            # Get all character edges in one query
+            all_char_edges = []
+            with self.connection.transaction() as conn:
+                cursor = conn.execute(
+                    f"""
+                    SELECT from_node_id, to_node_id
+                    FROM edges
+                    WHERE edge_type = 'APPEARS_IN'
+                    AND to_node_id IN ({",".join(["?" for _ in scene_ids])})
+                    """,
+                    scene_ids,
+                )
+                all_char_edges = cursor.fetchall()
+
+            # Build scene-to-characters mapping
+            scene_characters: dict[str, list[str]] = {}
+            for from_id, to_id in all_char_edges:
+                if to_id not in scene_characters:
+                    scene_characters[to_id] = []
+                scene_characters[to_id].append(from_id)
+
             # Check character continuity
             character_first_appearance = {}
             for scene in scenes:
                 scene_order = scene.properties.get("script_order", 0)
 
-                # Get characters in this scene
-                char_edges = self.graph.find_edges(
-                    to_node_id=scene.id, edge_type="APPEARS_IN"
-                )
+                # Get characters in this scene from pre-fetched data
+                char_node_ids = scene_characters.get(scene.id, [])
 
-                for edge in char_edges:
-                    char_node = self.graph.get_node(edge.from_node_id)
+                for char_node_id in char_node_ids:
+                    char_node = self.graph.get_node(char_node_id)
                     if char_node:
                         char_name = char_node.properties.get("name", "")
                         if char_name not in character_first_appearance:
@@ -1516,15 +1629,31 @@ class GraphOperations:
 
             results["character_continuity"] = character_first_appearance
 
+            # Bulk fetch all location relationships
+            all_loc_edges = []
+            with self.connection.transaction() as conn:
+                cursor = conn.execute(
+                    f"""
+                    SELECT from_node_id, to_node_id
+                    FROM edges
+                    WHERE edge_type = 'AT_LOCATION'
+                    AND from_node_id IN ({",".join(["?" for _ in scene_ids])})
+                    """,
+                    scene_ids,
+                )
+                all_loc_edges = cursor.fetchall()
+
+            # Build scene-to-location mapping
+            scene_locations = {}
+            for from_id, to_id in all_loc_edges:
+                scene_locations[from_id] = to_id
+
             # Check location consistency
             location_usage: dict[str, list[int]] = {}
             for scene in scenes:
-                loc_edges = self.graph.find_edges(
-                    from_node_id=scene.id, edge_type="AT_LOCATION"
-                )
-
-                if loc_edges:
-                    loc_node = self.graph.get_node(loc_edges[0].to_node_id)
+                loc_node_id = scene_locations.get(scene.id)
+                if loc_node_id:
+                    loc_node = self.graph.get_node(loc_node_id)
                     if loc_node:
                         loc_name = loc_node.properties.get("name", "")
                         if loc_name not in location_usage:
@@ -1581,7 +1710,7 @@ class GraphOperations:
 
     def _is_temporal_regression(self, current_time: str, next_time: str) -> bool:
         """Check if there's a temporal regression between times."""
-        time_order = ["dawn", "morning", "day", "afternoon", "dusk", "evening", "night"]
+        time_order = TIME_ORDER
 
         current_time_lower = current_time.lower()
         next_time_lower = next_time.lower()

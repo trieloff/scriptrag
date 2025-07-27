@@ -732,8 +732,17 @@ class DatabaseOperations:
 
         from scriptrag.models import Scene
 
+        # Use the scene ID from scene_data if provided, otherwise generate new
+        scene_id = getattr(scene_data, "id", None)
+        if scene_id and isinstance(scene_id, str):
+            # Convert string UUID to UUID object
+            scene_uuid = UUID(scene_id)
+        else:
+            # Generate new UUID if not provided
+            scene_uuid = uuid4()
+
         scene = Scene(
-            id=uuid4(),
+            id=scene_uuid,
             heading=scene_data.heading,
             description=scene_data.content,
             script_order=scene_data.scene_number,

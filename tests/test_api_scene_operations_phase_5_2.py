@@ -367,8 +367,9 @@ class TestSceneOperationsAPIIntegration:
     @pytest.fixture
     def client(self):
         """Create test client."""
-        from scriptrag.api.main import app
+        from scriptrag.api.app import create_app
 
+        app = create_app()
         return TestClient(app)
 
     def test_api_endpoint_registration(self, _client):
@@ -418,11 +419,12 @@ class TestSceneOperationsAPIIntegration:
         assert update_request.time_of_day is None
 
     @pytest.mark.asyncio
-    async def test_error_handling_consistency(self, mock_db_ops):
+    async def test_error_handling_consistency(self):
         """Test that error handling is consistent across endpoints."""
         # Test that all endpoints handle database errors consistently
 
         # Setup database to raise exception
+        mock_db_ops = Mock()
         mock_db_ops.get_scene.side_effect = Exception("Database error")
 
         # Test each endpoint

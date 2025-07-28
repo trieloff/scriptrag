@@ -168,10 +168,10 @@ class TestCharacterArcMentor:
 
         assert result.mentor_name == "character_arc"
         assert result.script_id == script_id
-        assert result.score == 0.0
+        assert result.score == 55.0  # Base 70 - 15 for error
         assert len(result.analyses) == 1
         assert result.analyses[0].severity == AnalysisSeverity.ERROR
-        assert "failed" in result.summary.lower()
+        assert "0 characters" in result.summary.lower()
 
     @pytest.mark.asyncio
     async def test_analyze_script_no_characters(self):

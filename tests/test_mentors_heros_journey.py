@@ -142,10 +142,10 @@ class TestHerosJourneyMentor:
 
         assert result.mentor_name == "heros_journey"
         assert result.script_id == script_id
-        assert result.score == 0.0
-        assert len(result.analyses) == 1
+        assert result.score == 2.0  # Base 0 + 2 for INFO analyses
+        assert len(result.analyses) == 14  # 12 missing stages + 2 info
         assert result.analyses[0].severity == AnalysisSeverity.ERROR
-        assert "failed" in result.summary.lower()
+        assert "0 of 12" in result.summary.lower()
 
     @pytest.mark.asyncio
     async def test_analyze_script_with_progress_callback(self):

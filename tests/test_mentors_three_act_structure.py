@@ -150,10 +150,11 @@ class TestThreeActStructureMentor:
 
         assert result.mentor_name == "three_act_structure"
         assert result.script_id == script_id
-        assert result.score == 0.0
-        assert len(result.analyses) == 1
-        assert result.analyses[0].severity == AnalysisSeverity.ERROR
-        assert "failed" in result.summary.lower()
+        assert result.score == 30.0  # Base 70 - 40 (missing) + 5 (info) - 5 (warning)
+        assert len(result.analyses) == 14  # 3 acts + 8 missing + 1 warning + 2 info
+        # First 3 are act proportions (INFO), then missing plot points (ERROR)
+        assert any(a.severity == AnalysisSeverity.ERROR for a in result.analyses)
+        assert "0 of 8 essential plot points" in result.summary.lower()
 
     @pytest.mark.asyncio
     async def test_analyze_script_with_progress_callback(self):

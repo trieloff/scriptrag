@@ -231,11 +231,7 @@ class SeriesPatternDetector:
             parent_name = parent.name
 
             # Security: reject any path traversal attempts
-            if (
-                ".." in str(parent_name)
-                or parent_name in {".", ".."}
-                or not parent_name
-            ):
+            if ".." in parent_name or parent_name in {".", ".."} or not parent_name:
                 continue
 
             # Skip common directory names and temp directories
@@ -250,14 +246,10 @@ class SeriesPatternDetector:
             if re.match(r"Season\s*\d+", parent_name, re.IGNORECASE):
                 # Go up one more level for series name
                 grandparent = parent.parent
-                if grandparent and grandparent != grandparent.parent:
+                if grandparent and grandparent.name:
                     gp_name = grandparent.name
                     # Security check for grandparent
-                    if (
-                        ".." not in str(gp_name)
-                        and gp_name not in {".", ".."}
-                        and gp_name
-                    ):
+                    if ".." not in gp_name and gp_name not in {".", ".."} and gp_name:
                         return gp_name
             else:
                 # This might be the series name

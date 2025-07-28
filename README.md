@@ -12,6 +12,8 @@ Generation) pattern.
 
 - **✅ Phase 11: Script Bible & Continuity Management - COMPLETE!** - Comprehensive continuity tracking
   with character profiles, world-building elements, timeline management, and automated validation
+- **✅ Phase 5.2: Scene Operations - COMPLETE!** - Full CRUD operations for scenes with graph
+  integration, reference maintenance, and scene injection capabilities (34 story points)
 - **✅ Phase 8: Pluggable Mentors System - COMPLETE!** - Comprehensive screenplay analysis framework
   with Save the Cat mentor, database integration, and MCP server tools (147 story points, 3,172 lines)
 - **✅ Phase 4: GraphRAG Implementation - COMPLETE!** - Full knowledge graph construction with
@@ -39,7 +41,8 @@ Generation) pattern.
 - **Advanced Search**: Find shows, seasons, episodes, scenes, characters, locations, concepts, objects,
   and temporal points with both keyword and semantic search capabilities
 - **Scene Management**: Order scenes by script order, temporal order, or logical dependencies
-- **Scene Editing**: Update, delete, or inject new scenes while maintaining screenplay integrity
+- **Scene Editing**: Full CRUD operations - update scene content/metadata, delete with reference
+  maintenance, inject new scenes at specific positions, all with graph integration
 - **Script Bible Support**: Comprehensive continuity management with character development tracking,
   world-building documentation, timeline management, and cross-episode consistency validation
 - **Bulk Import**: Import multiple Fountain files at once with automatic TV series detection
@@ -189,21 +192,21 @@ Generation) pattern.
   - [x] Design UI/API for reordering scenes (Full CLI commands: scene list --order, scene reorder, scene analyze)
   - [x] Maintain consistency across orderings (validate_ordering_consistency ensures all three systems work together)
 
-- [ ] **5.2 Scene Operations**
-  - [ ] **Update Scene**
-    - [ ] Modify time/location metadata
-    - [ ] Edit dialogue and action
-    - [ ] Update character appearances
-    - [ ] Propagate changes through graph
-  - [ ] **Delete Scene**
-    - [ ] Remove scene and update references
-    - [ ] Handle dependency resolution
-    - [ ] Maintain story continuity
-  - [ ] **Inject Scene**
-    - [ ] Insert new scenes at specified positions
-    - [ ] Update all ordering systems
-    - [ ] Validate logical consistency
-    - [ ] Re-embed and index new content
+- [x] **5.2 Scene Operations** *(34 points - Complete)*
+  - [x] **Update Scene**
+    - [x] Modify time/location metadata
+    - [x] Edit dialogue and action
+    - [x] Update character appearances
+    - [x] Propagate changes through graph
+  - [x] **Delete Scene**
+    - [x] Remove scene and update references
+    - [x] Handle dependency resolution
+    - [x] Maintain story continuity
+  - [x] **Inject Scene**
+    - [x] Insert new scenes at specified positions
+    - [x] Update all ordering systems
+    - [x] Validate logical consistency
+    - [x] Re-embed and index new content
 
 ### Phase 6: Search and Query Interface
 

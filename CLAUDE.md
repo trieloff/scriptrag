@@ -80,7 +80,7 @@ This project includes Claude Code hooks that automatically format code when
 files are modified. The hooks are configured in `.claude/config.json` and run
 after Write/Edit/MultiEdit operations:
 
-- **Python files**: Automatically formatted with Black and Ruff
+- **Python files**: Automatically formatted with Ruff
 - **Markdown files**: Fixed with markdownlint
 - **JSON/YAML files**: Formatted and validated
 - **All files**: Trailing whitespace removed, proper line endings ensured
@@ -94,7 +94,7 @@ after Write/Edit/MultiEdit operations:
 
 ### **Python Code Style (Immediate Rules)**
 
-- **Line Length**: 88 characters (Black standard)
+- **Line Length**: 88 characters (Ruff standard)
 - **Quotes**: Double quotes for strings (`"hello"` not `'hello'`)
 - **Indentation**: 4 spaces, no tabs
 - **Line Endings**: LF only (Unix style)
@@ -197,7 +197,7 @@ make setup-dev          # Complete dev environment setup
 make update             # Update all dependencies
 
 # Code quality (run before commits)
-make format             # Format code with black/ruff
+make format             # Format code with ruff
 make lint              # Run all linters
 make type-check        # Type checking with mypy
 make check             # Run all quality checks

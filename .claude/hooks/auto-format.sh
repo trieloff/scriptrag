@@ -59,12 +59,6 @@ if [ -n "$PYTHON_FILES" ]; then
     done
 
     if [ -n "$EXISTING_PYTHON_FILES" ]; then
-        # Run Black formatter
-        if command -v black >/dev/null 2>&1; then
-            echo "  Running Black..."
-            black $EXISTING_PYTHON_FILES || echo "  ⚠️  Black formatting failed"
-        fi
-
         # Run Ruff formatter and fixer
         if command -v ruff >/dev/null 2>&1; then
             echo "  Running Ruff..."

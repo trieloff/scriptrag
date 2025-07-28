@@ -13,126 +13,124 @@ description: Complete CI cycle - merge, wait, investigate, fix, commit, push
 
 ## Your task
 
-Execute the complete CI development cycle, starting with GitHub Actions status check:
+Execute the complete CI development cycle with proper PR context and CI status checking.
 
-### Phase 1: Establish context with GitHub Actions status
+### Phase 1: Establish PR and CI context
+
+First, check the current PR status and CI state:
 
 ```bash
-REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
+# Extract repository name (without .git suffix)
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|' | sed 's/\.git$//')"
 BRANCH="$(git branch --show-current)"
 
-# Validate GitHub CLI authentication
-if ! gh auth status &>/dev/null; then
-    echo "❌ GitHub CLI not authenticated. Run: gh auth login"
-    exit 1
+echo "📊 Repository: $REPO"
+echo "🌿 Branch: $BRANCH"
+echo ""
+
+# Check if we're in a PR
+echo "🔍 Checking PR status..."
+gh pr status --json currentBranch,title,number,url,isDraft,state || echo "No PR found for current branch"
+
+# If PR exists, get detailed info
+PR_NUMBER=$(gh pr status --json currentBranch,number --jq '.currentBranch.number // empty' 2>/dev/null || echo "")
+if [ -n "$PR_NUMBER" ]; then
+    echo ""
+    echo "📋 PR #$PR_NUMBER details:"
+    gh pr view "$PR_NUMBER" --json title,state,mergeable,checks --jq '. | "Title: \(.title)\nState: \(.state)\nMergeable: \(.mergeable)\nChecks: \(.checks | length) total"'
+
+    echo ""
+    echo "🔍 PR checks status:"
+    gh pr checks "$PR_NUMBER" || echo "Unable to retrieve checks"
 fi
 
-echo "🔍 Checking GitHub Actions for $REPO on branch $BRANCH"
-
-# Check current status with error handling
-LATEST_RUN=$(gh run list --repo="$REPO" --branch="$BRANCH" --limit=1 --json=databaseId,status,conclusion,displayTitle --jq '.[0] // empty')
-if [[ -n "$LATEST_RUN" && "$LATEST_RUN" != "null" ]]; then
-    RUN_ID=$(echo "$LATEST_RUN" | jq -r '.databaseId // "unknown"')
-    STATUS=$(echo "$LATEST_RUN" | jq -r '.status // "unknown"')
-    CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion // "unknown"')
-    TITLE=$(echo "$LATEST_RUN" | jq -r '.displayTitle // "unknown"')
-
-    echo "📊 Current status: #$RUN_ID - $TITLE"
-    echo "Status: $STATUS, Conclusion: $CONCLUSION"
-else
-    echo "ℹ️  No recent runs found for branch $BRANCH"
-fi
+# Check latest CI run
+echo ""
+echo "🔍 Latest CI run on branch $BRANCH:"
+gh run list --repo="$REPO" --branch="$BRANCH" --limit=1 || echo "No CI runs found"
+```
 
 ### Phase 2: Merge from main
+
 ```bash
+echo ""
+echo "📥 Fetching and merging from main..."
 git fetch origin
-git merge origin/main --no-edit
-```
-
-### Phase 3: Wait for GitHub Actions
-
-```bash
-echo "⏳ Waiting for CI to complete... (timeout: 30 minutes)"
-timeout 1800 gh run watch --repo="$REPO" --interval=30 || {
-    echo "⚠️  CI watch timeout reached - checking current status"
-}
-```
-
-### Phase 3: Investigate failures
-
-If CI fails, use both investigation methods:
-
-- /ci-failures (slash command)
-- Agent: ci-mulder for conspiracy-level analysis
-
-### Phase 4: Fix failures
-
-Based on investigation:
-
-- Apply fixes using appropriate patterns
-- Run local tests to verify fixes
-- Use type-checking and linting as needed
-
-### Phase 5: Commit and push
-
-```bash
-git add .
-git commit -m "fix(ci): resolve build failures
-
-<detailed commit message based on fixes>"
-
-<appropriate movie quote>
-git push origin "$(git branch --show-current)"
-```
-
-### Phase 6: Repeat cycle
-
-Return to Phase 2 and continue until CI passes.
-
-## Automation script
-
-Save this as a temporary script for the cycle:
-
-```bash
-#!/bin/bash
-set -e
-
-# Validate GitHub CLI authentication
-if ! gh auth status &>/dev/null; then
-    echo "❌ GitHub CLI not authenticated. Run: gh auth login"
+git merge origin/main --no-edit || {
+    echo "⚠️ Merge conflicts detected. Please resolve manually."
     exit 1
-fi
-
-REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
-BRANCH="$(git branch --show-current)"
-
-echo "🔄 Starting CI cycle for $REPO on branch $BRANCH"
-
-# Phase 1: Merge from main
-echo "📥 Merging from main..."
-git fetch origin
-git merge origin/main --no-edit
-
-# Phase 2: Wait for CI with timeout
-echo "⏳ Waiting for CI to complete... (timeout: 30 minutes)"
-timeout 1800 gh run watch --repo="$REPO" --interval=30 || {
-    echo "⚠️  CI watch timeout reached - checking current status"
 }
+```
 
-# Check if CI passed
-LATEST_RUN=$(gh run list --repo="$REPO" --branch="$BRANCH" --limit=1 --json=conclusion --jq '.[0].conclusion // "unknown"')
-if [[ "$LATEST_RUN" == "success" ]]; then
-    echo "✅ CI passed - cycle complete"
+### Phase 3: Push and monitor CI
+
+```bash
+echo ""
+echo "📤 Pushing to remote..."
+git push origin "$BRANCH"
+
+echo ""
+echo "⏳ Waiting for CI to start and complete..."
+# Wait a moment for CI to trigger
+sleep 5
+
+# Get the new run ID
+RUN_ID=$(gh run list --repo="$REPO" --branch="$BRANCH" --limit=1 --json databaseId --jq '.[0].databaseId // empty')
+if [ -n "$RUN_ID" ]; then
+    echo "👀 Monitoring run #$RUN_ID..."
+    # Use gh run watch without timeout command (not portable)
+    gh run watch "$RUN_ID" --repo="$REPO" --interval=30 || true
+fi
+```
+
+### Phase 4: Check CI results and investigate failures
+
+```bash
+# Check the final status
+echo ""
+echo "📊 Checking CI results..."
+LATEST_RUN=$(gh run list --repo="$REPO" --branch="$BRANCH" --limit=1 --json databaseId,status,conclusion,displayTitle)
+CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.[0].conclusion // "unknown"')
+
+if [ "$CONCLUSION" = "success" ]; then
+    echo "✅ CI passed successfully!"
     exit 0
 fi
 
-echo "❌ CI failed - investigating..."
+echo "❌ CI failed or is still running. Current status:"
+echo "$LATEST_RUN" | jq -r '.[0] | "Run #\(.databaseId): \(.displayTitle)\nStatus: \(.status)\nConclusion: \(.conclusion)"'
 ```
 
-Now use the slash command for CI failure analysis:
+### Phase 5: Investigate and fix failures
 
-```text
-/ci-failures
+If CI has failed, use the ci-mulder agent to investigate (with explicit instruction not to recursively call /ci-cycle):
+
+```bash
+echo ""
+echo "🔍 Delegating to ci-mulder for failure analysis..."
 ```
 
-Execute this cycle until CI passes successfully.
+Use the Task tool to invoke ci-mulder:
+
+- Agent type: ci-mulder
+- Instructions: "Analyze the CI failures for the current branch and provide fixes. DO NOT call /ci-cycle command as we are already in that flow."
+
+### Phase 6: Apply fixes and commit
+
+After ci-mulder provides fixes:
+
+1. Apply the recommended changes
+2. Run local tests to verify
+3. Commit with appropriate message
+4. Push to remote
+
+### Phase 7: Monitor new CI run
+
+Return to Phase 3 to monitor the new CI run. Continue this cycle until CI passes.
+
+**Important Notes:**
+
+- This command should NOT call itself recursively
+- Delegate CI failure investigation to ci-mulder agent
+- Always check PR context before proceeding
+- Exit gracefully when CI passes

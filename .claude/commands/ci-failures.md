@@ -13,80 +13,112 @@ description: Get CI test failures from GitHub Actions
 
 ## Your task
 
-First establish context by checking GitHub Actions status, then retrieve and analyze the latest CI test failures.
+Retrieve and analyze the latest CI test failures from GitHub Actions.
 
-### Step 1: Check current GitHub Actions status
+### Step 1: Get CI failure information
 
 ```bash
-# Validate GitHub CLI authentication
-if ! gh auth status &>/dev/null; then
-    echo "❌ GitHub CLI not authenticated. Run: gh auth login"
-    exit 1
-fi
-
-REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
+# Extract repository name (without .git suffix)
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|' | sed 's/\.git$//')"
 BRANCH="$(git branch --show-current)"
 
 echo "🔍 Checking GitHub Actions for $REPO on branch $BRANCH"
+echo ""
 
-# Quick status summary
-LATEST_RUN=$(gh run list --repo="$REPO" --branch="$BRANCH" --limit=1 --json=databaseId,status,conclusion,displayTitle --jq '.[0] // empty')
-if [[ -n "$LATEST_RUN" && "$LATEST_RUN" != "null" ]]; then
-    RUN_ID=$(echo "$LATEST_RUN" | jq -r '.databaseId // "unknown"')
-    STATUS=$(echo "$LATEST_RUN" | jq -r '.status // "unknown"')
-    CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion // "unknown"')
-    TITLE=$(echo "$LATEST_RUN" | jq -r '.displayTitle // "unknown"')
+# Get the latest workflow runs on current branch
+LATEST_RUNS=$(gh run list --repo="$REPO" --branch="$BRANCH" --limit=5 --json databaseId,status,conclusion,displayTitle,workflowName)
 
-    echo "📊 Latest run: #$RUN_ID - $TITLE"
-    echo "Status: $STATUS, Conclusion: $CONCLUSION"
-
-    if [[ "$CONCLUSION" == "success" ]]; then
-        echo "✅ All checks passing - no failures to investigate"
-        exit 0
-    fi
-else
-    echo "ℹ️  No recent runs found"
-fi
-```
-
-### Step 2: Retrieve and analyze failures
-
-```bash
-#!/bin/bash
-set -e
-
-# Validate GitHub CLI authentication
-if ! gh auth status &>/dev/null; then
-    echo "❌ GitHub CLI not authenticated. Run: gh auth login"
-    exit 1
-fi
-
-# Get the repository name from git remote
-REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
-echo "🔍 Fetching CI failures for repository: $REPO"
-
-# Get the latest failed workflow runs
-LATEST_FAILED_RUN=$(gh run list --repo="$REPO" --status=failure --limit=1 --json=databaseId,displayTitle,headBranch,createdAt,conclusion --jq '.[0] // empty')
-
-if [[ -z "$LATEST_FAILED_RUN" || "$LATEST_FAILED_RUN" == "null" ]]; then
-    echo "✅ No recent failures found in CI"
+# Check if any runs exist
+if [ -z "$LATEST_RUNS" ] || [ "$LATEST_RUNS" = "[]" ]; then
+    echo "ℹ️ No CI runs found for branch $BRANCH"
     exit 0
 fi
 
-RUN_ID=$(echo "$LATEST_FAILED_RUN" | jq -r '.databaseId // "unknown"')
-echo "📊 Latest failed run: #$RUN_ID - $(echo "$LATEST_FAILED_RUN" | jq -r '.displayTitle // "unknown"')"
-echo "Branch: $(echo "$LATEST_FAILED_RUN" | jq -r '.headBranch // "unknown"')"
-echo "Created: $(echo "$LATEST_FAILED_RUN" | jq -r '.createdAt // "unknown"')"
-echo "Conclusion: $(echo "$LATEST_FAILED_RUN" | jq -r '.conclusion // "unknown"')"
+# Display recent runs
+echo "📊 Recent CI runs:"
+echo "$LATEST_RUNS" | jq -r '.[] | "Run #\(.databaseId): \(.workflowName) - \(.displayTitle)\n  Status: \(.status), Conclusion: \(.conclusion // "pending")"'
 echo ""
 
-# Get the failed jobs
-echo "🔍 Failed jobs:"
-gh run view --repo="$REPO" "$RUN_ID" --json=jobs --jq '.jobs[] | select(.conclusion=="failure") | {name: .name, conclusion: .conclusion, steps: [.steps[] | select(.conclusion=="failure") | {name: .name, conclusion: .conclusion, number: .number}]}' | jq -r '.name + ": " + (.steps | map(.name + " (step " + (.number | tostring) + ")") | join(", "))' || echo "Unable to retrieve detailed job information"
+# Find the most recent failure
+FAILED_RUN=$(echo "$LATEST_RUNS" | jq -r '.[] | select(.conclusion == "failure") | .databaseId' | head -1)
 
+if [ -z "$FAILED_RUN" ]; then
+    # Check if there's a run in progress
+    IN_PROGRESS=$(echo "$LATEST_RUNS" | jq -r '.[] | select(.status == "in_progress") | .databaseId' | head -1)
+    if [ -n "$IN_PROGRESS" ]; then
+        echo "⏳ CI is currently running (Run #$IN_PROGRESS). No failures to analyze yet."
+    else
+        echo "✅ No recent CI failures found!"
+    fi
+    exit 0
+fi
+
+echo "❌ Analyzing failed run #$FAILED_RUN"
 echo ""
-echo "📋 Detailed logs:"
-gh run view --repo="$REPO" "$RUN_ID" --log | grep -A 5 -B 5 "FAILED\|ERROR\|AssertionError\|failed" | head -50 || echo "No specific error patterns found in logs"
 ```
 
-Save this script to a temporary file and execute it to get the CI failure data, then analyze the failures and provide a summary of what's broken, along with suggestions for fixing the issues.
+### Step 2: Get detailed failure information
+
+```bash
+# Get detailed information about the failed run
+echo "📋 Failed jobs and steps:"
+gh run view "$FAILED_RUN" --repo="$REPO" --json jobs --jq '.jobs[] | select(.conclusion == "failure") | "Job: \(.name)\n  Failed steps: \([.steps[] | select(.conclusion == "failure") | "- \(.name) (step \(.number))"] | join("\n  "))"' || echo "Unable to retrieve job details"
+
+echo ""
+echo "🔍 Fetching error logs..."
+echo ""
+
+# Create a temporary file for logs
+TMPFILE=$(mktemp)
+
+# Download the full log
+gh run view "$FAILED_RUN" --repo="$REPO" --log > "$TMPFILE" 2>/dev/null || {
+    echo "Unable to download full logs. Trying alternative method..."
+    gh run view "$FAILED_RUN" --repo="$REPO" --log-failed > "$TMPFILE" 2>/dev/null || {
+        echo "Unable to retrieve logs"
+        rm -f "$TMPFILE"
+        exit 1
+    }
+}
+
+# Extract error patterns
+echo "📋 Error summary:"
+echo ""
+
+# Look for Python test failures
+if grep -q "FAILED.*test_" "$TMPFILE" 2>/dev/null; then
+    echo "🐍 Python test failures:"
+    grep -E "FAILED.*test_|AssertionError|pytest.*failed" "$TMPFILE" | head -20
+    echo ""
+fi
+
+# Look for type checking errors
+if grep -q "error: " "$TMPFILE" 2>/dev/null; then
+    echo "📝 Type checking errors:"
+    grep -A 2 -B 2 "error: " "$TMPFILE" | head -20
+    echo ""
+fi
+
+# Look for linting errors
+if grep -q -E "ruff|flake8|pylint" "$TMPFILE" 2>/dev/null; then
+    echo "🔍 Linting errors:"
+    grep -A 2 -B 2 -E "ruff|flake8|pylint.*:" "$TMPFILE" | head -20
+    echo ""
+fi
+
+# Look for general errors
+echo "❌ General errors:"
+grep -i -E "error:|failed:|failure:" "$TMPFILE" | grep -v "::error" | head -20 || echo "No specific error patterns found"
+
+# Clean up
+rm -f "$TMPFILE"
+```
+
+### Step 3: Provide actionable summary
+
+Based on the error patterns found, provide:
+
+1. A clear summary of what's failing
+2. The root cause of the failures
+3. Specific steps to fix the issues
+4. Commands to run locally to verify fixes

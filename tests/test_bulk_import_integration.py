@@ -258,17 +258,32 @@ More action.
         # Try to import - file should be filtered during validation
         result = importer.import_files([file_path])
 
+        # Debug output for CI
+        print(f"Import result attributes: {result.__dict__}")
+        print(f"File path: {file_path}")
+        print(f"Validation results exist: {bool(result.validation_results)}")
+        if result.validation_results:
+            print(f"Validation results keys: {list(result.validation_results.keys())}")
+            print(f"Looking for key: {file_path!s}")
+
         # With enhanced validation, invalid files are skipped before import
         assert result.failed_imports == 0  # No failures, file was filtered
         assert result.successful_imports == 0  # No success either
         assert result.skipped_files == 0  # Not counted as skipped
 
-        # Check validation results if available
-        if hasattr(result, "validation_results") and result.validation_results:
-            # File should be marked as invalid in validation
-            validation = result.validation_results.get(str(file_path))
-            if validation:
-                assert not validation.is_valid
+        # Check validation results - should be populated when validate_first=True
+        assert result.validation_results is not None, (
+            "validation_results should be populated"
+        )
+        assert len(result.validation_results) > 0, (
+            "validation_results should not be empty"
+        )
+
+        # File should be marked as invalid in validation
+        validation = result.validation_results.get(str(file_path))
+        assert validation is not None, f"Validation result missing for {file_path}"
+        assert not validation.is_valid, "Non-existent file should be marked invalid"
+        assert not validation.file_exists, "File should be marked as non-existent"
 
         # Verify no partial data was saved
         final_count = conn.fetch_one("SELECT COUNT(*) as count FROM scripts")["count"]

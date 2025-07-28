@@ -5,8 +5,10 @@ It includes schema management, graph operations, and query interfaces for
 screenplay data storage and retrieval.
 """
 
+from .bible import ScriptBibleOperations
 from .connection import DatabaseConnection
 from .content_extractor import ContentExtractor
+from .continuity import ContinuityIssue, ContinuityValidator
 from .embedding_pipeline import (
     EmbeddingPipeline,
     create_script_embeddings,
@@ -35,6 +37,8 @@ from .utils import (
 
 __all__ = [
     "ContentExtractor",
+    "ContinuityIssue",
+    "ContinuityValidator",
     "DatabaseBackup",
     "DatabaseConnection",
     "DatabaseMaintenance",
@@ -50,6 +54,7 @@ __all__ = [
     "KnowledgeGraphBuilder",
     "MigrationRunner",
     "SceneOrderingOperations",
+    "ScriptBibleOperations",
     "create_database",
     "create_script_embeddings",
     "export_data_to_json",

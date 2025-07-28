@@ -113,7 +113,7 @@ echo "🔍 Delegating to ci-mulder for failure analysis..."
 Use the Task tool to invoke ci-mulder:
 
 - Agent type: ci-mulder
-- Instructions: "Analyze the CI failures for the current branch and provide fixes. DO NOT call /ci-cycle command as we are already in that flow."
+- Instructions: "Analyze the CI failures for the current branch and provide fixes. DO NOT call /ci-cycle command as we are already in that flow. Note: Default log extraction shows first/last 50 lines - increase these limits if critical errors are missing."
 
 ### Phase 6: Apply fixes and commit
 

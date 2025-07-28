@@ -98,8 +98,11 @@ REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.g
 # Watch for CI completion with timeout
 timeout 1800 gh run watch --repo="$REPO" --exit-status || echo "⚠️ Watch timeout reached"
 
-# Deep dive into specific incidents
-gh run view --repo="$REPO" --log --job=JOB_ID | grep -E "(ERROR|FAILED|AssertionError)"
+# Deep dive into specific incidents - capture both early and late failures
+gh run view --repo="$REPO" --log --job=JOB_ID | \
+  { grep -E "(ERROR|FAILED|AssertionError)" | head -50; echo "...";
+    grep -E "(ERROR|FAILED|AssertionError)" | tail -50; } | sort | uniq
+# IMPORTANT: Increase head/tail limits if the full conspiracy isn't revealed
 ```
 
 ### Pattern Recognition Algorithms
@@ -126,11 +129,13 @@ def analyze_build_pattern(workflow_runs):
 ### The Smoking Gun - Critical Evidence
 
 ```bash
-# Extract the exact failure signature
+# Extract the exact failure signature with comprehensive coverage
 gh run view --repo=trieloff/scriptrag --job=JOB_ID --log | \
-  grep -A 10 -B 5 "FAILED" | \
+  { grep -A 10 -B 5 "FAILED" | head -50; echo "..."; grep -A 10 -B 5 "FAILED" | tail -50; } | \
+  sort | uniq | \
   sed 's/.*\[ERROR\].*/\x1b[31m&\x1b[0m/' | \
   tee /tmp/build_conspiracy_evidence.log
+# Note: Adjust head/tail limits if critical evidence is missing - the conspiracy may be deeper
 ```
 
 ## The X-File Reports - Build Analysis Documentation

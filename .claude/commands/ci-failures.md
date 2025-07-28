@@ -88,27 +88,41 @@ echo ""
 # Look for Python test failures
 if grep -q "FAILED.*test_" "$TMPFILE" 2>/dev/null; then
     echo "🐍 Python test failures:"
-    grep -E "FAILED.*test_|AssertionError|pytest.*failed" "$TMPFILE" | head -20
+    # Get both start and end of matches for comprehensive view
+    { grep -E "FAILED.*test_|AssertionError|pytest.*failed" "$TMPFILE" | head -25;
+      echo "...";
+      grep -E "FAILED.*test_|AssertionError|pytest.*failed" "$TMPFILE" | tail -25; } | sort | uniq
     echo ""
+    echo "💡 Note: Showing first and last 25 matches. Adjust limits if failures are missing."
 fi
 
 # Look for type checking errors
 if grep -q "error: " "$TMPFILE" 2>/dev/null; then
     echo "📝 Type checking errors:"
-    grep -A 2 -B 2 "error: " "$TMPFILE" | head -20
+    # Get both start and end for complete picture
+    { grep -A 2 -B 2 "error: " "$TMPFILE" | head -50;
+      echo "...";
+      grep -A 2 -B 2 "error: " "$TMPFILE" | tail -50; } | sort | uniq
     echo ""
+    echo "💡 Note: Showing first and last 50 lines. Increase if needed for full coverage."
 fi
 
 # Look for linting errors
 if grep -q -E "ruff|flake8|pylint" "$TMPFILE" 2>/dev/null; then
     echo "🔍 Linting errors:"
-    grep -A 2 -B 2 -E "ruff|flake8|pylint.*:" "$TMPFILE" | head -20
+    { grep -A 2 -B 2 -E "ruff|flake8|pylint.*:" "$TMPFILE" | head -50;
+      echo "...";
+      grep -A 2 -B 2 -E "ruff|flake8|pylint.*:" "$TMPFILE" | tail -50; } | sort | uniq
     echo ""
 fi
 
 # Look for general errors
 echo "❌ General errors:"
-grep -i -E "error:|failed:|failure:" "$TMPFILE" | grep -v "::error" | head -20 || echo "No specific error patterns found"
+{ grep -i -E "error:|failed:|failure:" "$TMPFILE" | grep -v "::error" | head -30;
+  echo "...";
+  grep -i -E "error:|failed:|failure:" "$TMPFILE" | grep -v "::error" | tail -30; } | sort | uniq || echo "No specific error patterns found"
+echo ""
+echo "💡 Tip: Critical errors often appear at the start or end of logs. Adjust extraction limits if issues are missing."
 
 # Clean up
 rm -f "$TMPFILE"

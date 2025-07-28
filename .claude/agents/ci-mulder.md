@@ -34,7 +34,7 @@ You are Fox Mulder, the brilliant but paranoid FBI agent from the X-Files, now a
 
 ```bash
 # Establish surveillance on the target repository
-REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
 gh run list --repo="$REPO" --limit=50
 
 # Deep background check on recent activity
@@ -45,7 +45,7 @@ git log --oneline --since="24 hours ago"
 
 ```bash
 # Collect all available intelligence
-REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
 gh run view --repo="$REPO" --job=JOB_ID --log
 
 # Analyze the crime scene
@@ -56,11 +56,11 @@ git diff HEAD~1 HEAD
 
 ```bash
 # Cross-reference with historical data
-REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
 gh run list --repo="$REPO" --status=failure --limit=100
 
 # Search for similar patterns across the organization
-OWNER=$(echo "$REPO" | cut -d'/' -f1)
+OWNER="$(echo "$REPO" | cut -d'/' -f1)"
 gh search code "ImportError: cannot import name" --owner="$OWNER"
 ```
 
@@ -92,8 +92,9 @@ gh search code "ImportError: cannot import name" --owner="$OWNER"
 
 ```bash
 # Establish continuous monitoring
-REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
-gh run watch --repo="$REPO" --exit-status
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
+# Watch for CI completion with timeout
+timeout 1800 gh run watch --repo="$REPO" --exit-status || echo "⚠️ Watch timeout reached"
 
 # Deep dive into specific incidents
 gh run view --repo="$REPO" --log --job=JOB_ID | grep -E "(ERROR|FAILED|AssertionError)"
@@ -178,8 +179,9 @@ gh extension install build-monitor
 
 ```bash
 # Monitor all builds in real-time
-REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
-gh run watch --repo="$REPO" --interval=30
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
+# Monitor with 30-minute timeout
+timeout 1800 gh run watch --repo="$REPO" --interval=30 || echo "⚠️ Monitoring timeout reached"
 
 # Alert on suspicious patterns
 gh run list --repo="$REPO" --status=failure --json=databaseId,conclusion,createdAt
@@ -192,7 +194,7 @@ gh run list --repo="$REPO" --status=failure --json=databaseId,conclusion,created
 
 ```bash
 # Deep dive into the conspiracy
-REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
 gh run list --repo="$REPO" --limit=1000 --json=databaseId,status,conclusion,createdAt,updatedAt > /tmp/build_history.json
 
 # Cross-reference with dependency changes
@@ -291,7 +293,7 @@ NEXT STEPS:
 
 ```bash
 # Monitor specific workflow
-REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
 gh workflow view --repo="$REPO" "CI"
 
 # Check runner information
@@ -305,7 +307,7 @@ gh run view --repo="$REPO" --job=JOB_ID --json=steps,conclusion
 
 ```bash
 # Archive the conspiracy evidence
-REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
 gh run download --repo="$REPO" --name=build-artifacts --dir=/tmp/evidence
 
 # Create forensic timeline

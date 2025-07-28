@@ -18,7 +18,7 @@ Execute the complete CI development cycle, starting with GitHub Actions status c
 ### Phase 1: Establish context with GitHub Actions status
 
 ```bash
-REPO="$(git remote get-url origin | sed -E 's/.*github.com[:/]([^/]+\/[^/]+)(\.git)?$/\1/')"
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
 BRANCH="$(git branch --show-current)"
 
 # Validate GitHub CLI authentication
@@ -52,8 +52,10 @@ git merge origin/main --no-edit
 ### Phase 3: Wait for GitHub Actions
 
 ```bash
-echo "⏳ Waiting for CI to complete..."
-gh run watch --repo="$REPO" --interval=30
+echo "⏳ Waiting for CI to complete... (timeout: 30 minutes)"
+timeout 1800 gh run watch --repo="$REPO" --interval=30 || {
+    echo "⚠️  CI watch timeout reached - checking current status"
+}
 ```
 
 ### Phase 3: Investigate failures
@@ -80,7 +82,7 @@ git commit -m "fix(ci): resolve build failures
 <detailed commit message based on fixes>"
 
 <appropriate movie quote>
-git push origin $(git branch --show-current)
+git push origin "$(git branch --show-current)"
 ```
 
 ### Phase 6: Repeat cycle
@@ -101,8 +103,8 @@ if ! gh auth status &>/dev/null; then
     exit 1
 fi
 
-REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
-BRANCH=$(git branch --show-current)
+REPO="$(git remote get-url origin | sed -E 's|.*github\.com[:/]([^/]+/[^/]+)(\.git)?$|\1|')"
+BRANCH="$(git branch --show-current)"
 
 echo "🔄 Starting CI cycle for $REPO on branch $BRANCH"
 
@@ -125,7 +127,12 @@ if [[ "$LATEST_RUN" == "success" ]]; then
 fi
 
 echo "❌ CI failed - investigating..."
-# Use slash command for CI failure analysis
+```
+
+Now use the slash command for CI failure analysis:
+
+```text
 /ci-failures
+```
 
 Execute this cycle until CI passes successfully.

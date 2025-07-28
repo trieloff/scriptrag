@@ -1,7 +1,7 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 default_language_version:
-  python: python3.12
+  python: python3
 
 repos:
   # General file checks
@@ -39,7 +39,6 @@ repos:
     rev: 25.1.0
     hooks:
       - id: black
-        language_version: python3.12
         args: ['--line-length=88']
 
   # Python linting and import sorting with Ruff
@@ -112,12 +111,12 @@ repos:
       - id: yamllint
         args: ['-c', '.yamllint.yaml']
 
-  # Python dependency safety check - disabled as it only supports Poetry projects
-  # - repo: https://github.com/Lucas-C/pre-commit-hooks-safety
-  #   rev: v1.4.2
-  #   hooks:
-  #     - id: python-safety-dependencies-check
-  #       args: ['--disable-optional-telemetry']
+  # Python dependency safety check using pip-audit instead of safety
+  - repo: https://github.com/pypa/pip-audit
+    rev: v2.9.0
+    hooks:
+      - id: pip-audit
+        args: ['--desc', 'on', '--fix']
 
   # Check for print statements
   - repo: https://github.com/pre-commit/pygrep-hooks

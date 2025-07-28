@@ -152,7 +152,7 @@ class TestBulkImporter:
             ),
             patch.object(importer.graph_ops, "create_script_graph"),
         ):
-            result = importer.import_files([file_path])
+            result = importer.import_files([file_path], validate_first=False)
 
         assert result.successful_imports == 1
         assert result.failed_imports == 0
@@ -197,7 +197,7 @@ class TestBulkImporter:
             patch.object(importer, "_get_script_node_id", return_value="node-1"),
             patch.object(importer, "_get_season_node_id", return_value="node-2"),
         ):
-            result = importer.import_files(files)
+            result = importer.import_files(files, validate_first=False)
 
         assert result.successful_imports == 2
         assert result.failed_imports == 0
@@ -215,7 +215,7 @@ class TestBulkImporter:
 
         # Mock file exists check
         with patch.object(importer, "_file_exists", return_value=True):
-            result = importer.import_files([file_path])
+            result = importer.import_files([file_path], validate_first=False)
 
         assert result.skipped_files == 1
         assert result.successful_imports == 0
@@ -236,7 +236,7 @@ class TestBulkImporter:
             patch.object(importer.parser, "parse_file", side_effect=mock_parse),
             patch.object(importer, "_save_standalone_script"),
         ):
-            result = importer.import_files(files)
+            result = importer.import_files(files, validate_first=False)
 
         assert result.successful_imports == 1
         assert result.failed_imports == 1
@@ -332,7 +332,9 @@ class TestBulkImporter:
                 return_value={"scripts": [(f, MagicMock()) for f in files]},
             ),
         ):
-            importer.import_files(files, progress_callback=progress_callback)
+            importer.import_files(
+                files, progress_callback=progress_callback, validate_first=False
+            )
 
         # Should have received progress updates
         assert len(progress_calls) > 0
@@ -362,3 +364,51 @@ class TestBulkImporter:
 
         # Should not have queried database
         mock_fetch.assert_not_called()
+
+    def test_import_with_validation(self, importer: BulkImporter) -> None:
+        """Test import with validation enabled."""
+        files = [
+            Path("valid.fountain"),
+            Path("invalid.doc"),  # Invalid extension
+        ]
+
+        # Mock validation results
+        mock_validations = {
+            str(files[0]): MagicMock(is_valid=True, estimated_import_time_seconds=1.0),
+            str(files[1]): MagicMock(is_valid=False, estimated_import_time_seconds=0.0),
+        }
+        mock_series_validation = MagicMock()
+
+        with (
+            patch.object(
+                importer,
+                "validate_files",
+                return_value=(mock_validations, mock_series_validation),
+            ),
+            patch.object(importer, "_process_batch"),
+            patch.object(importer.series_detector, "detect_bulk", return_value={}),
+            patch.object(importer.series_detector, "group_by_series", return_value={}),
+        ):
+            result = importer.import_files(files, validate_first=True)
+
+        # Should have validation results
+        assert result.validation_results == mock_validations
+        assert result.series_validation == mock_series_validation
+        assert result.total_estimated_time_seconds == 1.0
+
+    def test_import_without_validation(self, importer: BulkImporter) -> None:
+        """Test import with validation disabled."""
+        files = [Path("script.fountain")]
+
+        with (
+            patch.object(importer, "validate_files") as mock_validate,
+            patch.object(importer, "_process_batch"),
+            patch.object(importer.series_detector, "detect_bulk", return_value={}),
+            patch.object(importer.series_detector, "group_by_series", return_value={}),
+        ):
+            result = importer.import_files(files, validate_first=False)
+
+        # Should not have called validation
+        mock_validate.assert_not_called()
+        assert result.validation_results == {}
+        assert result.series_validation is None

@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from re import Pattern
-from typing import ClassVar
+from typing import Any, ClassVar
 
 # Constants
 MAX_DIRECTORY_NAME_LENGTH = 20  # Skip very long directory names (likely temp dirs)
@@ -107,10 +107,11 @@ class SeriesPatternDetector:
         Args:
             custom_pattern: Custom regex pattern for series detection
         """
-        self.custom_pattern = None
+        self.custom_pattern = custom_pattern
+        self.compiled_custom_pattern = None
         if custom_pattern:
             try:
-                self.custom_pattern = re.compile(custom_pattern, re.IGNORECASE)
+                self.compiled_custom_pattern = re.compile(custom_pattern, re.IGNORECASE)
             except re.error as e:
                 raise ValueError(f"Invalid custom pattern: {e}") from e
 
@@ -127,8 +128,8 @@ class SeriesPatternDetector:
         filename = file_path.name
 
         # Try custom pattern first
-        if self.custom_pattern:
-            match = self.custom_pattern.match(filename)
+        if self.compiled_custom_pattern:
+            match = self.compiled_custom_pattern.match(filename)
             if match:
                 return self._extract_from_match(match, filename, file_path)
 
@@ -296,3 +297,54 @@ class SeriesPatternDetector:
             )
 
         return grouped
+
+    def validate_pattern(self, pattern: str) -> dict[str, Any]:
+        """Validate a regex pattern for series detection.
+
+        Args:
+            pattern: Regex pattern to validate
+
+        Returns:
+            Dictionary with validation results
+        """
+        result: dict[str, Any] = {
+            "is_valid": True,
+            "error": None,
+            "has_series_group": False,
+            "has_season_group": False,
+            "has_episode_group": False,
+            "has_title_group": False,
+            "warnings": [],
+        }
+
+        # Try to compile the pattern
+        try:
+            compiled = re.compile(pattern, re.IGNORECASE)
+        except re.error as e:
+            result["is_valid"] = False
+            result["error"] = f"Invalid regex pattern: {e}"
+            return result
+
+        # Check for named groups
+        group_names = list(compiled.groupindex.keys())
+        result["has_series_group"] = "series" in group_names
+        result["has_season_group"] = "season" in group_names
+        result["has_episode_group"] = "episode" in group_names
+        result["has_title_group"] = "title" in group_names
+
+        # Warnings for missing groups
+        if not result["has_series_group"]:
+            result["warnings"].append(
+                "Pattern missing 'series' named group - series name detection may fail"
+            )
+        if not result["has_season_group"] and not result["has_episode_group"]:
+            result["warnings"].append(
+                "Pattern missing both 'season' and 'episode' groups - "
+                "files may be treated as standalone scripts"
+            )
+
+        # Check for overly broad patterns
+        if pattern == ".*" or pattern == ".+":
+            result["warnings"].append("Pattern is too broad and will match all files")
+
+        return result

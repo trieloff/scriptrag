@@ -34,6 +34,17 @@ setup-dev: ## Complete developer environment setup (venv, deps, hooks, tools)
 	else \
 		echo "⚠️  npm not found. Install Node.js for markdown linting support."; \
 	fi
+	@echo "6️⃣ Installing GitHub CLI extensions..."
+	@if command -v gh >/dev/null 2>&1; then \
+		if ! gh extension list | grep -q "trieloff/gh-workflow-peek"; then \
+			echo "Installing gh-workflow-peek for CI/CD analysis..."; \
+			gh extension install trieloff/gh-workflow-peek || echo "⚠️  Failed to install gh-workflow-peek"; \
+		else \
+			echo "gh-workflow-peek is already installed"; \
+		fi; \
+	else \
+		echo "⚠️  GitHub CLI (gh) not found. Install it for CI/CD analysis support."; \
+	fi
 	@echo "✅ Developer environment setup complete!"
 	@echo ""
 	@echo "📝 Next steps:"

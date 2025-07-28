@@ -37,7 +37,6 @@ jobs:
               - 'setup.py'
               - 'setup.cfg'
               - 'requirements*.txt'
-              - '.github/workflows/ci.yml'
 
   lint:
     name: Lint & Code Quality

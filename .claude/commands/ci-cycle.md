@@ -3,6 +3,8 @@ allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(*),
 description: Complete CI cycle - merge, wait, investigate, fix, commit, push
 ---
 
+# CI Cycle Command
+
 ## Context
 
 - Current git status: !`git status`
@@ -14,6 +16,7 @@ description: Complete CI cycle - merge, wait, investigate, fix, commit, push
 Execute the complete CI development cycle, starting with GitHub Actions status check:
 
 ### Phase 1: Establish context with GitHub Actions status
+
 ```bash
 REPO="$(git remote get-url origin | sed -E 's/.*github.com[:/]([^/]+\/[^/]+)(\.git)?$/\1/')"
 BRANCH="$(git branch --show-current)"
@@ -33,7 +36,7 @@ if [[ -n "$LATEST_RUN" && "$LATEST_RUN" != "null" ]]; then
     STATUS=$(echo "$LATEST_RUN" | jq -r '.status // "unknown"')
     CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion // "unknown"')
     TITLE=$(echo "$LATEST_RUN" | jq -r '.displayTitle // "unknown"')
-    
+
     echo "📊 Current status: #$RUN_ID - $TITLE"
     echo "Status: $STATUS, Conclusion: $CONCLUSION"
 else
@@ -47,23 +50,29 @@ git merge origin/main --no-edit
 ```
 
 ### Phase 3: Wait for GitHub Actions
+
 ```bash
 echo "⏳ Waiting for CI to complete..."
 gh run watch --repo="$REPO" --interval=30
 ```
 
 ### Phase 3: Investigate failures
+
 If CI fails, use both investigation methods:
+
 - /ci-failures (slash command)
 - Agent: ci-mulder for conspiracy-level analysis
 
 ### Phase 4: Fix failures
+
 Based on investigation:
+
 - Apply fixes using appropriate patterns
 - Run local tests to verify fixes
 - Use type-checking and linting as needed
 
 ### Phase 5: Commit and push
+
 ```bash
 git add .
 git commit -m "fix(ci): resolve build failures
@@ -75,9 +84,11 @@ git push origin $(git branch --show-current)
 ```
 
 ### Phase 6: Repeat cycle
+
 Return to Phase 2 and continue until CI passes.
 
 ## Automation script
+
 Save this as a temporary script for the cycle:
 
 ```bash

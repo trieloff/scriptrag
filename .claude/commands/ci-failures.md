@@ -3,6 +3,8 @@ allowed-tools: Bash(git add:*), Bash(git status:*), Bash(git commit:*), Bash(*)
 description: Get CI test failures from GitHub Actions
 ---
 
+# CI Failures Command
+
 ## Context
 
 - Current git status: !`git status`
@@ -14,6 +16,7 @@ description: Get CI test failures from GitHub Actions
 First establish context by checking GitHub Actions status, then retrieve and analyze the latest CI test failures.
 
 ### Step 1: Check current GitHub Actions status
+
 ```bash
 # Validate GitHub CLI authentication
 if ! gh auth status &>/dev/null; then
@@ -33,10 +36,10 @@ if [[ -n "$LATEST_RUN" && "$LATEST_RUN" != "null" ]]; then
     STATUS=$(echo "$LATEST_RUN" | jq -r '.status')
     CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion')
     TITLE=$(echo "$LATEST_RUN" | jq -r '.displayTitle')
-    
+
     echo "📊 Latest run: #$RUN_ID - $TITLE"
     echo "Status: $STATUS, Conclusion: $CONCLUSION"
-    
+
     if [[ "$CONCLUSION" == "success" ]]; then
         echo "✅ All checks passing - no failures to investigate"
         exit 0

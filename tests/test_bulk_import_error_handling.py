@@ -206,9 +206,13 @@ class TestBulkImportErrorHandling:
             mock_graph_ops,
             state_file=temp_state_file,
         )
+        # Manually load state for this test since auto-loading is disabled in tests
+        with temp_state_file.open() as f:
+            importer._import_state = json.load(f)
 
         # Get import status
         status = importer.get_import_status()
+        assert status is not None
         assert status["total_files"] == 5
         assert status["status_counts"][FileImportStatus.SUCCESS] == 1
         assert status["status_counts"][FileImportStatus.PENDING] == 2

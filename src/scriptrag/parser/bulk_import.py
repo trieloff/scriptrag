@@ -462,6 +462,9 @@ class BulkImporter:
         result: BulkImportResult,
     ) -> None:
         """Process a batch of files for a series with transaction support."""
+        # Initialize pending graph operations
+        self._pending_graph_ops: list[dict[str, Any]] = []
+
         # Use a transaction for the entire batch
         try:
             with self.graph_ops.connection.transaction() as conn:
@@ -495,6 +498,10 @@ class BulkImporter:
             # Transaction will be rolled back automatically
             logger.error("Batch transaction failed, rolling back all changes")
             raise
+
+        # Execute pending graph operations after transaction commits
+        for op in self._pending_graph_ops:
+            self._execute_graph_operations(op)
 
     def _parse_and_validate_file(
         self, file_path: Path, result: BulkImportResult
@@ -600,8 +607,29 @@ class BulkImporter:
             # Track for graph creation
             created_scripts.append((script_id, script))
 
-        # Create graph operations after database operations
-        # Note: These are done within the same transaction context
+        # Graph operations must be done AFTER the transaction commits
+        # Store them to execute later
+        self._pending_graph_ops = getattr(self, "_pending_graph_ops", [])
+        self._pending_graph_ops.append(
+            {
+                "file_path": file_path,
+                "created_scripts": created_scripts,
+                "created_seasons": created_seasons,
+                "result": result,
+                "script_id": str(script.id),
+            }
+        )
+
+        result.add_success(str(file_path), str(script.id))
+
+    def _execute_graph_operations(self, op: dict[str, Any]) -> None:
+        """Execute pending graph operations after transaction commits."""
+        file_path = op["file_path"]
+        created_scripts = op["created_scripts"]
+        created_seasons = op["created_seasons"]
+        result = op["result"]
+
+        # Create graph operations for scripts
         for script_id, script_obj in created_scripts:
             try:
                 self.graph_ops.create_script_graph(script_obj)
@@ -610,13 +638,15 @@ class BulkImporter:
                 logger.error(
                     f"Failed to create graph for script {script_id}: {graph_error}"
                 )
-                result.add_failure(
-                    str(file_path),
-                    graph_error,
-                    ErrorCategory.GRAPH,
-                    ["Graph creation failed, but database import succeeded"],
-                )
+                # Don't mark as failure since DB import succeeded
+                # Just log the graph error
+                if str(file_path) not in result.errors:
+                    logger.warning(
+                        f"Graph creation failed for {file_path}, "
+                        f"but database import was successful"
+                    )
 
+        # Create graph operations for seasons
         for script_id, season_obj in created_seasons:
             try:
                 script_node_id = self._get_script_node_id(script_id)
@@ -624,8 +654,6 @@ class BulkImporter:
             except Exception as graph_error:
                 msg = f"Failed to add season to graph for script {script_id}:"
                 logger.error(f"{msg} {graph_error}")
-
-        result.add_success(str(file_path), str(script.id))
 
     def _file_exists(self, file_path: Path) -> bool:
         """Check if a file has already been imported."""

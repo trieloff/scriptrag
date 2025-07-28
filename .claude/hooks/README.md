@@ -17,7 +17,7 @@ The hooks are configured in `.claude/config.json` and trigger after:
 
 Comprehensive auto-formatting script that handles:
 
-- **Python files**: Ruff linting/formatting
+- **Python files**: Ruff linting and formatting (replaces Black)
 - **Markdown files**: markdownlint auto-fix
 - **JSON files**: Python JSON.tool formatting
 - **YAML files**: yamllint validation

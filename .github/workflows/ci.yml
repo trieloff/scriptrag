@@ -415,6 +415,12 @@ jobs:
               .filter(([_, status]) => status === 'failure')
               .map(([job, _]) => job);
 
+            // Only notify if there are actual CI failures (not external job failures)
+            if (failedJobs.length === 0) {
+              console.log('No CI jobs failed that are under Terragon Labs control');
+              return;
+            }
+
             const runUrl = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
 
             const comment = [
@@ -426,7 +432,9 @@ jobs:
               `- [View full CI run](${runUrl})`,
               `- [Terry Task](${taskUrl})`,
               '',
-              `You can use \`terry pull ${{ steps.extract-task.outputs.task_id }}\` to continue working on this task.`
+              `You can use \`terry pull ${{ steps.extract-task.outputs.task_id }}\` to continue working on this task.`,
+              '',
+              '_Note: This notification only includes CI checks that are part of the core build process. External checks like Claude Code Review are excluded._'
             ].join('\n');
 
             await github.rest.issues.createComment({

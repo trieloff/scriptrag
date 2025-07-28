@@ -109,18 +109,27 @@ if [[ -z "$RUN_ID" ]]; then
     echo -e "${BOLD}No run ID specified. Looking for candidates...${NC}\n"
 
     # First try PR checks
-    PR_CHECKS=$(gh pr checks 2>/dev/null | grep -E "^fail" | head -5)
+    PR_CHECKS_JSON=$(gh pr checks --json name,state,link 2>/dev/null)
 
-    if [[ -n "$PR_CHECKS" ]]; then
-        echo -e "${BOLD}Failed PR checks:${NC}"
-        echo "$PR_CHECKS"
-        echo ""
+    if [[ -n "$PR_CHECKS_JSON" ]]; then
+        # Filter for failed or pending checks
+        FILTERED_CHECKS=$(echo "$PR_CHECKS_JSON" | jq -r '.[] | select(.state == "PENDING" or .state == "FAILURE") | "\(.name)\t\(.state)\t\(.link)"' | head -5)
 
-        # Extract the first failed run ID
-        FIRST_RUN_ID=$(echo "$PR_CHECKS" | head -1 | awk -F'/' '{print $NF}')
-        if [[ -n "$FIRST_RUN_ID" ]]; then
-            echo -e "${YELLOW}Auto-peeking run $FIRST_RUN_ID with --max 20...${NC}\n"
-            exec "$0" "$FIRST_RUN_ID" --max 20 "${@}"
+        if [[ -n "$FILTERED_CHECKS" ]]; then
+            echo -e "${BOLD}PR checks (failed/pending):${NC}"
+            echo "$FILTERED_CHECKS" | column -t -s $'\t'
+            echo ""
+
+            # Extract the first failed/pending run ID from the link
+            FIRST_LINK=$(echo "$FILTERED_CHECKS" | head -1 | awk -F'\t' '{print $3}')
+            if [[ -n "$FIRST_LINK" ]]; then
+                # Extract run ID from URL like https://github.com/owner/repo/actions/runs/123456/job/789
+                FIRST_RUN_ID=$(echo "$FIRST_LINK" | grep -oE '/runs/[0-9]+' | cut -d'/' -f3)
+                if [[ -n "$FIRST_RUN_ID" ]]; then
+                    echo -e "${YELLOW}Auto-peeking run $FIRST_RUN_ID with --max 20...${NC}\n"
+                    exec "$0" "$FIRST_RUN_ID" --max 20 "${@}"
+                fi
+            fi
         fi
     else
         # Fallback to recent failed runs

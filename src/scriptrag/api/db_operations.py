@@ -86,9 +86,11 @@ class DatabaseOperations:
             raise RuntimeError("Database not initialized")
 
         # Store script using connection
+        script_uuid = str(uuid4())
+        scene_uuids = []
+
         with self._connection.transaction() as conn:
             # Insert script using raw SQL
-            script_uuid = str(uuid4())
             conn.execute(
                 """
                 INSERT INTO scripts (id, title, author, metadata_json)
@@ -103,23 +105,10 @@ class DatabaseOperations:
             )
             script_id = script_uuid
 
-            # Also create script node in graph if graph operations are available
-            if self._graph_ops:
-                from uuid import UUID
-
-                from scriptrag.models import Script as ScriptModel
-
-                script_model = ScriptModel(
-                    id=UUID(script_uuid),
-                    title=script.title,
-                    author=script.author,
-                )
-                # Note: create_script_graph is the correct method name
-                self._graph_ops.create_script_graph(script_model)
-
             # Insert scenes
             for scene in script.scenes:
                 scene_uuid = str(uuid4())
+                scene_uuids.append((scene_uuid, scene))
                 conn.execute(
                     """
                     INSERT INTO scenes (
@@ -135,23 +124,35 @@ class DatabaseOperations:
                     ),
                 )
 
-                # Also create scene in graph if graph operations are available
-                if self._graph_ops:
-                    from uuid import UUID
+        # Create graph nodes after the transaction is complete
+        if self._graph_ops:
+            from uuid import UUID
 
-                    from scriptrag.models import Scene as SceneModel
+            from scriptrag.models import Scene as SceneModel
+            from scriptrag.models import Script as ScriptModel
 
-                    scene_model = SceneModel(
-                        id=UUID(scene_uuid),
-                        script_id=UUID(script_uuid),
-                        script_order=scene.scene_number,
-                        heading=scene.heading,
-                        description=scene.content,
-                    )
-                    self._graph_ops.create_scene_node(
-                        scene=scene_model,
-                        script_node_id=script_uuid,
-                    )
+            # Create script node in graph
+            script_model = ScriptModel(
+                id=UUID(script_uuid),
+                title=script.title,
+                author=script.author,
+            )
+            # Note: create_script_graph is the correct method name
+            self._graph_ops.create_script_graph(script_model)
+
+            # Create scene nodes in graph
+            for scene_uuid, scene in scene_uuids:
+                scene_model = SceneModel(
+                    id=UUID(scene_uuid),
+                    script_id=UUID(script_uuid),
+                    script_order=scene.scene_number,
+                    heading=scene.heading,
+                    description=scene.content,
+                )
+                self._graph_ops.create_scene_node(
+                    scene=scene_model,
+                    script_node_id=script_uuid,
+                )
 
         logger.info("Stored script", script_id=script_id, title=script.title)
         return script_uuid

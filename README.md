@@ -182,12 +182,12 @@ Generation) pattern.
 
 ### Phase 5: Scene Management Features
 
-- [ ] **5.1 Scene Ordering**
-  - [ ] Implement script order tracking
-  - [ ] Build temporal order inference engine
-  - [ ] Create logical dependency analyzer
-  - [ ] Design UI/API for reordering scenes
-  - [ ] Maintain consistency across orderings
+- [x] **5.1 Scene Ordering** *(34 points - Complete)*
+  - [x] Implement script order tracking (ensure_script_order maintains proper scene numbering)
+  - [x] Build temporal order inference engine (infer_temporal_order analyzes time markers, flashbacks/forwards)
+  - [x] Create logical dependency analyzer (analyze_logical_dependencies tracks character intros, plot dependencies)
+  - [x] Design UI/API for reordering scenes (Full CLI commands: scene list --order, scene reorder, scene analyze)
+  - [x] Maintain consistency across orderings (validate_ordering_consistency ensures all three systems work together)
 
 - [ ] **5.2 Scene Operations**
   - [ ] **Update Scene**

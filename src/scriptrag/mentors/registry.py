@@ -264,9 +264,15 @@ def _initialize_builtin_mentors(registry: MentorRegistry) -> None:
     """
     try:
         # Import and register built-in mentors
+        from scriptrag.mentors.character_arc import CharacterArcMentor
+        from scriptrag.mentors.heros_journey import HerosJourneyMentor
         from scriptrag.mentors.save_the_cat import SaveTheCatMentor
+        from scriptrag.mentors.three_act_structure import ThreeActStructureMentor
 
         registry.register(SaveTheCatMentor)
+        registry.register(HerosJourneyMentor)
+        registry.register(ThreeActStructureMentor)
+        registry.register(CharacterArcMentor)
 
         logger.info("Initialized built-in mentors")
 

@@ -67,8 +67,7 @@ update: ## Update all dependencies to latest versions
 
 # Code quality
 .PHONY: format
-format: ## Format code with black and ruff
-	@bash -c 'source .venv/bin/activate && black src/ tests/'
+format: ## Format code with ruff
 	@bash -c 'source .venv/bin/activate && ruff check --fix src/ tests/'
 	@bash -c 'source .venv/bin/activate && ruff format src/ tests/'
 	@echo "✅ Code formatted"
@@ -227,7 +226,7 @@ check: lint type-check security test ## Run all quality checks
 check-fast: ## Run fast quality checks (no tests)
 	@bash -c 'source .venv/bin/activate && ruff check src/ tests/'
 	@bash -c 'source .venv/bin/activate && mypy src/ --no-error-summary'
-	@bash -c 'source .venv/bin/activate && black --check src/ tests/'
+	@bash -c 'source .venv/bin/activate && ruff format --check src/ tests/'
 
 .PHONY: pre-commit
 pre-commit: ## Run pre-commit on all files

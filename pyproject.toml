@@ -68,7 +68,6 @@ dev = [
 
     # Code quality
     "ruff>=0.1.0",
-    "black>=23.12.0",
     "isort>=5.13.0",
     "mypy>=1.8.0",
     "types-PyYAML>=6.0.0",
@@ -249,7 +248,7 @@ reportGeneralTypeIssues = false
 stubPath = "./typings"
 
 [tool.isort]
-profile = "black"
+profile = "ruff"
 multi_line_output = 3
 include_trailing_comma = true
 force_grid_wrap = 0
@@ -311,11 +310,9 @@ commands = pytest {posargs}
 [testenv:lint]
 deps =
     ruff
-    black
     interrogate
 commands =
     ruff check src tests
-    black --check src tests
     interrogate -c pyproject.toml
 
 [testenv:type]

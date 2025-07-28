@@ -124,7 +124,14 @@ class SeriesPatternDetector:
         Returns:
             SeriesInfo with extracted metadata
         """
-        file_path = Path(file_path)
+        # Input validation
+        if file_path is None:
+            raise ValueError("file_path cannot be None")
+
+        try:
+            file_path = Path(file_path)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Invalid file path: {e}") from e
         filename = file_path.name
 
         # Try custom pattern first
@@ -220,16 +227,32 @@ class SeriesPatternDetector:
             return None
 
         # Look for common patterns in parent directories
+        # Get a base directory to ensure we don't traverse outside the project
+        base_dir = resolved_path.parent
+        while base_dir.parent != base_dir:
+            if base_dir.name in {"scripts", "screenplays", "fountain"}:
+                break
+            base_dir = base_dir.parent
+
         for parent in resolved_path.parents:
+            # Security check: ensure we stay within the expected directory tree
+            try:
+                parent.relative_to(
+                    base_dir.parent if base_dir.parent != base_dir else base_dir
+                )
+            except ValueError:
+                # Path is outside our expected directory tree
+                continue
+
             parent_name = parent.name
 
-            # Validate parent name doesn't contain path separators or null bytes
-            if "/" in parent_name or "\\" in parent_name or "\x00" in parent_name:
+            # Additional security: reject any path traversal attempts
+            if ".." in parent_name or parent_name in {".", ".."} or not parent_name:
                 continue
 
             # Skip common directory names and temp directories
             if (
-                parent_name.lower() in {"scripts", "screenplays", "fountain", ".", ".."}
+                parent_name.lower() in {"scripts", "screenplays", "fountain"}
                 or parent_name.startswith(("tmp", "temp"))
                 or len(parent_name) > MAX_DIRECTORY_NAME_LENGTH
             ):  # Skip very long directory names (likely temp dirs)
@@ -239,15 +262,21 @@ class SeriesPatternDetector:
             if re.match(r"Season\s*\d+", parent_name, re.IGNORECASE):
                 # Go up one more level for series name
                 grandparent = parent.parent
-                if grandparent and grandparent.name not in {".", ".."}:
-                    # Validate grandparent name
-                    gp_name = grandparent.name
-                    if (
-                        "/" not in gp_name
-                        and "\\" not in gp_name
-                        and "\x00" not in gp_name
-                    ):
-                        return gp_name
+                if grandparent and grandparent != grandparent.parent:
+                    # Validate grandparent is within our directory tree
+                    try:
+                        grandparent.relative_to(
+                            base_dir.parent if base_dir.parent != base_dir else base_dir
+                        )
+                        gp_name = grandparent.name
+                        if (
+                            ".." not in gp_name
+                            and gp_name not in {".", ".."}
+                            and gp_name
+                        ):
+                            return gp_name
+                    except ValueError:
+                        continue
             else:
                 # This might be the series name
                 return parent_name
@@ -263,6 +292,12 @@ class SeriesPatternDetector:
         Returns:
             Dictionary mapping file paths to their SeriesInfo
         """
+        # Input validation
+        if not isinstance(file_paths, list):
+            raise TypeError(
+                f"file_paths must be a list, got {type(file_paths).__name__}"
+            )
+
         results = {}
         for file_path in file_paths:
             results[file_path] = self.detect(file_path)
@@ -316,6 +351,17 @@ class SeriesPatternDetector:
             "has_title_group": False,
             "warnings": [],
         }
+
+        # Validate input type
+        if not isinstance(pattern, str):
+            result["is_valid"] = False
+            result["error"] = f"Pattern must be a string, got {type(pattern).__name__}"
+            return result
+
+        if not pattern:
+            result["is_valid"] = False
+            result["error"] = "Pattern cannot be empty"
+            return result
 
         # Try to compile the pattern
         try:

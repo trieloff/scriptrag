@@ -23,8 +23,16 @@ logger = get_logger(__name__)
 
 # Validation constants
 MAX_FILE_SIZE_MB = 50  # Maximum file size in megabytes
+HARD_LIMIT_FILE_SIZE_MB = 100  # Hard limit - files larger than this will be rejected
 VALID_EXTENSIONS = {".fountain", ".txt", ".fountain.txt"}
 SUPPORTED_ENCODINGS = ["utf-8", "utf-8-sig", "latin-1", "iso-8859-1", "windows-1252"]
+FILE_READ_TIMEOUT_SECONDS = 10  # Timeout for file operations
+CONTENT_SAMPLE_SIZE = 10240  # 10KB sample size for validation
+
+# Note: Timeout functionality removed due to portability issues with signal module
+# File operations are generally fast enough that timeouts are not critical
+# If needed in the future, consider using threading.Timer or asyncio
+
 
 # Basic fountain format patterns for quick validation
 FOUNTAIN_MARKERS = {
@@ -228,7 +236,12 @@ class BulkImporter:
             file_size_bytes = file_path.stat().st_size
             result.file_size_mb = file_size_bytes / (1024 * 1024)
 
-            if result.file_size_mb > MAX_FILE_SIZE_MB:
+            if result.file_size_mb > HARD_LIMIT_FILE_SIZE_MB:
+                result.add_error(
+                    f"File exceeds maximum size limit: "
+                    f"{result.file_size_mb:.1f} MB > {HARD_LIMIT_FILE_SIZE_MB} MB"
+                )
+            elif result.file_size_mb > MAX_FILE_SIZE_MB:
                 result.add_warning(
                     f"File is very large: {result.file_size_mb:.1f} MB",
                     max_size_mb=MAX_FILE_SIZE_MB,
@@ -277,7 +290,7 @@ class BulkImporter:
             try:
                 with file_path.open(encoding=encoding) as f:
                     # Read first 10KB for validation
-                    content = f.read(10240)
+                    content = f.read(CONTENT_SAMPLE_SIZE)
                     result["encoding"] = encoding
                     result["content"] = content
                     return result

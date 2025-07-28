@@ -73,18 +73,20 @@ repos:
         additional_dependencies: ['bandit[toml]']
         exclude: '^tests/'
 
-  # Docstring coverage - temporarily disabled due to pkg_resources issue in newer Python versions
-  # - repo: https://github.com/econchick/interrogate
-  #   rev: 1.7.0
-  #   hooks:
-  #     - id: interrogate
-  #       args: [
-  #         --quiet, --fail-under=60, --ignore-init-method, --ignore-init-module,
-  #         --ignore-magic, --ignore-semiprivate, --ignore-private,
-  #         --ignore-property-decorators, --ignore-module, --ignore-nested-functions,
-  #         --ignore-nested-classes, --exclude, 'tests', --exclude, 'docs',
-  #         --exclude, 'scripts', --verbose
-  #       ]
+  # Docstring coverage - using docstr-coverage (Python 3.12+ compatible)
+  - repo: https://github.com/HunterMcGushion/docstr_coverage
+    rev: v2.3.2
+    hooks:
+      - id: docstr-coverage
+        args: [
+          'src/',
+          '--fail-under', '60',
+          '--skip-magic', '--skip-init', '--skip-class-def',
+          '--skip-private', '--skip-property',
+          '--exclude', 'tests/*', '--exclude', 'docs/*',
+          '--exclude', 'scripts/*', '--exclude', '.venv/*',
+          '--verbose', '2'
+        ]
 
   # Check for common security issues - now enabled
   - repo: https://github.com/Yelp/detect-secrets

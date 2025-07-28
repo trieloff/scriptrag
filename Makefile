@@ -34,6 +34,17 @@ setup-dev: ## Complete developer environment setup (venv, deps, hooks, tools)
 	else \
 		echo "⚠️  npm not found. Install Node.js for markdown linting support."; \
 	fi
+	@echo "6️⃣ Installing GitHub CLI extensions..."
+	@if command -v gh >/dev/null 2>&1; then \
+		if ! gh extension list | grep -q "trieloff/gh-workflow-peek"; then \
+			echo "Installing gh-workflow-peek for CI/CD analysis..."; \
+			gh extension install trieloff/gh-workflow-peek || echo "⚠️  Failed to install gh-workflow-peek"; \
+		else \
+			echo "gh-workflow-peek is already installed"; \
+		fi; \
+	else \
+		echo "⚠️  GitHub CLI (gh) not found. Install it for CI/CD analysis support."; \
+	fi
 	@echo "✅ Developer environment setup complete!"
 	@echo ""
 	@echo "📝 Next steps:"
@@ -56,8 +67,7 @@ update: ## Update all dependencies to latest versions
 
 # Code quality
 .PHONY: format
-format: ## Format code with black and ruff
-	@bash -c 'source .venv/bin/activate && black src/ tests/'
+format: ## Format code with ruff
 	@bash -c 'source .venv/bin/activate && ruff check --fix src/ tests/'
 	@bash -c 'source .venv/bin/activate && ruff format src/ tests/'
 	@echo "✅ Code formatted"
@@ -216,7 +226,7 @@ check: lint type-check security test ## Run all quality checks
 check-fast: ## Run fast quality checks (no tests)
 	@bash -c 'source .venv/bin/activate && ruff check src/ tests/'
 	@bash -c 'source .venv/bin/activate && mypy src/ --no-error-summary'
-	@bash -c 'source .venv/bin/activate && black --check src/ tests/'
+	@bash -c 'source .venv/bin/activate && ruff format --check src/ tests/'
 
 .PHONY: pre-commit
 pre-commit: ## Run pre-commit on all files

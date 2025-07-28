@@ -36,6 +36,7 @@ SCRIPT_START=$(date +%s)
 declare -A COMPLETED_STEPS=(
     ["python_check"]=0
     ["jq_install"]=0
+    ["gh_workflow_peek"]=0
     ["uv_install"]=0
     ["directories"]=0
     ["venv_create"]=0
@@ -51,6 +52,7 @@ declare -A COMPLETED_STEPS=(
 declare -A STEP_DESCRIPTIONS=(
     ["python_check"]="Check Python version (3.11+)"
     ["jq_install"]="Install jq for git operations"
+    ["gh_workflow_peek"]="Install gh-workflow-peek for CI analysis"
     ["uv_install"]="Install uv package manager"
     ["directories"]="Create required directories"
     ["venv_create"]="Create Python virtual environment"
@@ -81,7 +83,7 @@ show_remaining_steps() {
     log_info ""
     log_warning "⏳ Remaining steps to complete manually:"
     local has_remaining=0
-    for step in python_check jq_install uv_install directories venv_create venv_activate pip_upgrade dependencies env_file pre_commit db_init; do
+    for step in python_check jq_install gh_workflow_peek uv_install directories venv_create venv_activate pip_upgrade dependencies env_file pre_commit db_init; do
         if [ "${COMPLETED_STEPS[$step]}" -eq 0 ]; then
             echo "   - ${STEP_DESCRIPTIONS[$step]}"
             has_remaining=1
@@ -191,6 +193,25 @@ else
 fi
 
 mark_completed "jq_install"
+check_timeout
+
+# Install gh-workflow-peek GitHub CLI extension
+log_info "Checking for gh-workflow-peek extension..."
+if command -v gh &> /dev/null; then
+    # Check if gh-workflow-peek is already installed
+    if ! gh extension list | grep -q "trieloff/gh-workflow-peek"; then
+        log_info "Installing gh-workflow-peek for CI/CD analysis..."
+        gh extension install trieloff/gh-workflow-peek || {
+            log_warning "Failed to install gh-workflow-peek, continuing..."
+        }
+    else
+        log_info "gh-workflow-peek is already installed"
+    fi
+else
+    log_warning "GitHub CLI (gh) not found, skipping gh-workflow-peek installation"
+fi
+
+mark_completed "gh_workflow_peek"
 check_timeout
 
 # Install uv if not present (it should be pre-installed in Terragon)
@@ -364,7 +385,7 @@ log_info "Total setup time: ${TOTAL_TIME} seconds"
 # Show completion summary
 log_info ""
 log_info "📋 Setup Summary:"
-for step in python_check jq_install uv_install directories venv_create venv_activate pip_upgrade dependencies env_file pre_commit db_init; do
+for step in python_check jq_install gh_workflow_peek uv_install directories venv_create venv_activate pip_upgrade dependencies env_file pre_commit db_init; do
     if [ "${COMPLETED_STEPS[$step]}" -eq 1 ]; then
         echo "   ✅ ${STEP_DESCRIPTIONS[$step]}"
     else

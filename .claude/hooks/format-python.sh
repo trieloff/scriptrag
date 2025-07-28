@@ -29,11 +29,6 @@ fi
 if [[ "$TARGET_FILE" =~ \.py$ ]]; then
     echo "🐍 Formatting Python file: $TARGET_FILE"
 
-    # Run Black formatter
-    if command -v black >/dev/null 2>&1; then
-        black "$TARGET_FILE" 2>/dev/null || true
-    fi
-
     # Run Ruff formatter and fixer
     if command -v ruff >/dev/null 2>&1; then
         ruff format "$TARGET_FILE" 2>/dev/null || true

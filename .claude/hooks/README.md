@@ -17,7 +17,7 @@ The hooks are configured in `.claude/config.json` and trigger after:
 
 Comprehensive auto-formatting script that handles:
 
-- **Python files**: Black formatting + Ruff linting/formatting
+- **Python files**: Ruff linting and formatting (replaces Black)
 - **Markdown files**: markdownlint auto-fix
 - **JSON files**: Python JSON.tool formatting
 - **YAML files**: yamllint validation
@@ -27,15 +27,14 @@ Comprehensive auto-formatting script that handles:
 
 Lightweight Python-only formatting script that:
 
-- Runs Black formatter on Python files
-- Applies Ruff formatting and auto-fixes
+- Applies Ruff formatting and auto-fixes on Python files
 - Faster execution for Python-only changes
 
 ## How It Works
 
 1. **File Detection**: Scripts detect modified files from git status
 2. **Virtual Environment**: Automatically activates `.venv` if available
-3. **Tool Selection**: Uses project's existing tools (Black, Ruff, etc.)
+3. **Tool Selection**: Uses project's existing tools (Ruff, markdownlint, etc.)
 4. **Safe Execution**: Continues on errors, provides helpful feedback
 5. **Git Integration**: Can optionally re-stage formatted files
 
@@ -43,7 +42,6 @@ Lightweight Python-only formatting script that:
 
 The hooks expect these tools to be available (installed via `make setup-dev`):
 
-- `black` - Python code formatter
 - `ruff` - Python linter and formatter
 - `markdownlint` - Markdown linter (optional)
 - `yamllint` - YAML linter (optional)
@@ -133,4 +131,4 @@ These hooks complement the existing pre-commit hooks in `.pre-commit-config.yaml
 - **Claude hooks**: Run automatically during development
 - **Pre-commit hooks**: Run before commits for validation
 
-Both use the same tools (Black, Ruff, etc.) to ensure consistency.
+Both use the same tools (Ruff, markdownlint, etc.) to ensure consistency.

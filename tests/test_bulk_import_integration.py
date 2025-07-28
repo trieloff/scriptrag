@@ -264,12 +264,12 @@ More action.
         assert result.skipped_files == 0  # Not counted as skipped
 
         # Check validation results - should be populated when validate_first=True
-        assert (
-            result.validation_results is not None
-        ), "validation_results should be populated"
-        assert (
-            len(result.validation_results) > 0
-        ), "validation_results should not be empty"
+        assert result.validation_results is not None, (
+            "validation_results should be populated"
+        )
+        assert len(result.validation_results) > 0, (
+            "validation_results should not be empty"
+        )
 
         # File should be marked as invalid in validation
         validation = result.validation_results.get(str(file_path))

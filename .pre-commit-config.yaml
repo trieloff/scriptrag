@@ -34,14 +34,7 @@ repos:
       - id: check-builtin-literals
       - id: check-docstring-first
 
-  # Python code formatting with Black
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
-    hooks:
-      - id: black
-        args: ['--line-length=88']
-
-  # Python linting and import sorting with Ruff
+  # Python linting and import sorting with Ruff (run before Black to match CI order)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.5
     hooks:
@@ -50,6 +43,13 @@ repos:
         args: [ --fix ]
       # Run the formatter
       - id: ruff-format
+
+  # Python code formatting with Black (run after Ruff to match CI order)
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
+    hooks:
+      - id: black
+        args: ['--line-length=88']
 
   # Type checking with mypy
   - repo: https://github.com/pre-commit/mirrors-mypy

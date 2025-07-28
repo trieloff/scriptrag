@@ -11,18 +11,45 @@ description: Complete CI cycle - merge, wait, investigate, fix, commit, push
 
 ## Your task
 
-Execute the complete CI development cycle:
+Execute the complete CI development cycle, starting with GitHub Actions status check:
 
-### Phase 1: Merge from main
+### Phase 1: Establish context with GitHub Actions status
+```bash
+REPO="$(git remote get-url origin | sed -E 's/.*github.com[:/]([^/]+\/[^/]+)(\.git)?$/\1/')"
+BRANCH="$(git branch --show-current)"
+
+# Validate GitHub CLI authentication
+if ! gh auth status &>/dev/null; then
+    echo "❌ GitHub CLI not authenticated. Run: gh auth login"
+    exit 1
+fi
+
+echo "🔍 Checking GitHub Actions for $REPO on branch $BRANCH"
+
+# Check current status with error handling
+LATEST_RUN=$(gh run list --repo="$REPO" --branch="$BRANCH" --limit=1 --json=databaseId,status,conclusion,displayTitle --jq '.[0] // empty')
+if [[ -n "$LATEST_RUN" && "$LATEST_RUN" != "null" ]]; then
+    RUN_ID=$(echo "$LATEST_RUN" | jq -r '.databaseId // "unknown"')
+    STATUS=$(echo "$LATEST_RUN" | jq -r '.status // "unknown"')
+    CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.conclusion // "unknown"')
+    TITLE=$(echo "$LATEST_RUN" | jq -r '.displayTitle // "unknown"')
+    
+    echo "📊 Current status: #$RUN_ID - $TITLE"
+    echo "Status: $STATUS, Conclusion: $CONCLUSION"
+else
+    echo "ℹ️  No recent runs found for branch $BRANCH"
+fi
+
+### Phase 2: Merge from main
 ```bash
 git fetch origin
 git merge origin/main --no-edit
 ```
 
-### Phase 2: Wait for GitHub Actions
+### Phase 3: Wait for GitHub Actions
 ```bash
-echo "Waiting for CI to complete..."
-gh run watch --repo=$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/') --interval=30
+echo "⏳ Waiting for CI to complete..."
+gh run watch --repo="$REPO" --interval=30
 ```
 
 ### Phase 3: Investigate failures
@@ -57,6 +84,12 @@ Save this as a temporary script for the cycle:
 #!/bin/bash
 set -e
 
+# Validate GitHub CLI authentication
+if ! gh auth status &>/dev/null; then
+    echo "❌ GitHub CLI not authenticated. Run: gh auth login"
+    exit 1
+fi
+
 REPO=$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')
 BRANCH=$(git branch --show-current)
 
@@ -67,19 +100,21 @@ echo "📥 Merging from main..."
 git fetch origin
 git merge origin/main --no-edit
 
-# Phase 2: Wait for CI
-echo "⏳ Waiting for CI to complete..."
-gh run watch --repo="$REPO" --interval=30
+# Phase 2: Wait for CI with timeout
+echo "⏳ Waiting for CI to complete... (timeout: 30 minutes)"
+timeout 1800 gh run watch --repo="$REPO" --interval=30 || {
+    echo "⚠️  CI watch timeout reached - checking current status"
+}
 
 # Check if CI passed
-LATEST_RUN=$(gh run list --repo="$REPO" --branch="$BRANCH" --limit=1 --json=conclusion --jq '.[0].conclusion')
+LATEST_RUN=$(gh run list --repo="$REPO" --branch="$BRANCH" --limit=1 --json=conclusion --jq '.[0].conclusion // "unknown"')
 if [[ "$LATEST_RUN" == "success" ]]; then
     echo "✅ CI passed - cycle complete"
     exit 0
 fi
 
 echo "❌ CI failed - investigating..."
-/ci-failures
-```
+# Use the actual script instead of slash command
+./get-ci-failures.sh || echo "Failed to retrieve CI failures - check script permissions"
 
 Execute this cycle until CI passes successfully.

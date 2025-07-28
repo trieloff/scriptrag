@@ -46,8 +46,8 @@ class TestBulkImportResult:
         result.add_failure("file2.fountain", "Database error")
 
         assert result.failed_imports == 2
-        assert result.errors["file1.fountain"] == "Parse error"
-        assert result.errors["file2.fountain"] == "Database error"
+        assert result.errors["file1.fountain"]["message"] == "Parse error"
+        assert result.errors["file2.fountain"]["message"] == "Database error"
 
     def test_add_skipped(self) -> None:
         """Test recording skipped files."""
@@ -72,6 +72,9 @@ class TestBulkImportResult:
         assert data["skipped_files"] == 1
         assert "file1.fountain" in data["imported_scripts"]
         assert "file2.fountain" in data["errors"]
+        # Check that error is stored as ImportErrorInfo
+        assert isinstance(data["errors"]["file2.fountain"], dict)
+        assert data["errors"]["file2.fountain"]["message"] == "error"
 
 
 class TestBulkImporter:
@@ -241,6 +244,9 @@ class TestBulkImporter:
         assert result.successful_imports == 1
         assert result.failed_imports == 1
         assert "bad.fountain" in result.errors
+        # Check that error is stored as ImportErrorInfo
+        assert isinstance(result.errors["bad.fountain"], dict)
+        assert "Parse error" in result.errors["bad.fountain"]["message"]
 
     def test_batch_processing(self, importer: BulkImporter) -> None:
         """Test batch processing of files."""

@@ -35,7 +35,7 @@ from .database.continuity import ContinuityValidator
 from .database.operations import GraphOperations
 from .mentors.base import MentorAnalysis, MentorResult
 from .models import SceneOrderType
-from .parser.bulk_import import BulkImporter
+from .parser.bulk_import import BulkImporter, FileImportStatus
 from .scene_manager import SceneManager
 from .search import SearchInterface, SearchType
 
@@ -421,6 +421,100 @@ def script_parse(
         raise typer.Exit(1) from e
 
 
+@script_app.command("resume")
+def script_resume(
+    state_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--state-file",
+            help="Path to import state file (default: ~/.scriptrag/import_state.json)",
+        ),
+    ] = None,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            "-v",
+            help="Enable verbose logging",
+        ),
+    ] = False,
+) -> None:
+    """Resume a previously interrupted bulk import."""
+    try:
+        # Get database path
+        settings = get_settings()
+        db_path = Path(settings.database.path)
+
+        # Initialize database connection and operations
+        conn = DatabaseConnection(db_path)
+        graph_ops = GraphOperations(conn)
+
+        # Create bulk importer
+        importer = BulkImporter(
+            graph_ops=graph_ops,
+            state_file=state_file,
+            verbose=verbose,
+        )
+
+        # Check import status
+        status = importer.get_import_status()
+        if not status:
+            console.print("[yellow]No import state found to resume[/yellow]")
+            raise typer.Exit(0)
+
+        # Show current status
+        console.print("[bold]Current Import Status:[/bold]")
+        console.print(f"Started: {status['started_at']}")
+        console.print(f"Last updated: {status['updated_at']}")
+        console.print(f"Total files: {status['total_files']}")
+
+        console.print("\nFile status:")
+        for status_type, count in status["status_counts"].items():
+            console.print(f"  {status_type}: {count}")
+
+        # Resume import with progress tracking
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            pending = status["status_counts"].get(FileImportStatus.PENDING, 0)
+            retry = status["status_counts"].get(FileImportStatus.RETRY_PENDING, 0)
+            pending_count = pending + retry
+
+            task = progress.add_task("Resuming import...", total=pending_count)
+
+            def update_progress(pct: float, msg: str) -> None:
+                progress.update(
+                    task, completed=int(pct * pending_count), description=msg
+                )
+
+            result = importer.resume_import(progress_callback=update_progress)
+
+        if result:
+            # Display results
+            console.print("\n[bold]Resume Results:[/bold]")
+
+            table = Table(show_header=True, header_style="bold blue")
+            table.add_column("Metric", style="cyan")
+            table.add_column("Count", justify="right")
+
+            table.add_row("Processed files", str(result.total_files))
+            table.add_row(
+                "Successful imports", f"[green]{result.successful_imports}[/green]"
+            )
+            table.add_row("Failed imports", f"[red]{result.failed_imports}[/red]")
+            table.add_row("Skipped files", f"[yellow]{result.skipped_files}[/yellow]")
+
+            console.print(table)
+
+    except Exception as e:
+        logger = get_logger(__name__)
+        logger.error("Error resuming import", error=str(e))
+        console.print(f"[red]Error resuming import: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
 @script_app.command("import")
 def script_import(
     path_or_pattern: Annotated[
@@ -481,6 +575,28 @@ def script_import(
             help="Recursively search directories for fountain files",
         ),
     ] = True,
+    retry_failed: Annotated[
+        bool,
+        typer.Option(
+            "--retry-failed",
+            help="Retry previously failed imports",
+        ),
+    ] = False,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            "-v",
+            help="Enable verbose logging for debugging",
+        ),
+    ] = False,
+    state_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--state-file",
+            help="Path to import state file for recovery",
+        ),
+    ] = None,
 ) -> None:
     r"""Import multiple fountain files with TV series support.
 
@@ -552,6 +668,8 @@ def script_import(
             skip_existing=skip_existing,
             update_existing=update_existing,
             batch_size=batch_size,
+            state_file=state_file,
+            verbose=verbose,
         )
 
         # Import with progress tracking
@@ -575,6 +693,7 @@ def script_import(
                 series_name_override=series_name,
                 dry_run=dry_run,
                 progress_callback=update_progress if not dry_run else None,
+                retry_failed=retry_failed,
             )
 
         # Display results
@@ -599,16 +718,42 @@ def script_import(
         # Show errors if any
         if result.errors:
             console.print("\n[red]Import Errors:[/red]")
-            for file_path, error in list(result.errors.items())[:5]:
-                console.print(f"  • {file_path}: {error}")
-            if len(result.errors) > 5:
-                console.print(f"  ... and {len(result.errors) - 5} more errors")
+
+            # Group errors by category
+            error_summary = result.get_error_summary()
+            for category, files in error_summary.items():
+                msg = f"\n  [bold]{category.value.title()} Errors:[/bold]"
+                console.print(f"{msg} {len(files)} files")
+                for file_path in files[:3]:
+                    error_info = result.errors[file_path]
+                    console.print(f"    • {file_path}")
+                    console.print(f"      Error: {error_info['message']}")
+                    if error_info["suggestions"]:
+                        console.print("      Suggestions:")
+                        for suggestion in error_info["suggestions"][:2]:
+                            console.print(f"        - {suggestion}")
+                if len(files) > 3:
+                    console.print(f"    ... and {len(files) - 3} more")
+
+            # Show retry candidates
+            if result.retry_candidates:
+                msg = "\n[yellow]Files can be retried:[/yellow]"
+                console.print(f"{msg} {len(result.retry_candidates)}")
+                console.print("Use --retry-failed to retry these files")
 
         # Show created series
         if result.series_created:
             console.print("\n[green]Created TV Series:[/green]")
             for series_name in result.series_created:
                 console.print(f"  • {series_name}")
+
+        # Show performance stats
+        result_dict = result.to_dict()
+        if "duration_seconds" in result_dict:
+            duration = result_dict["duration_seconds"]
+            fps = result_dict.get("files_per_second", 0)
+            msg = f"\n[dim]Import completed in {duration:.1f}s"
+            console.print(f"{msg} ({fps:.1f} files/s)[/dim]")
 
     except Exception as e:
         logger = get_logger(__name__)

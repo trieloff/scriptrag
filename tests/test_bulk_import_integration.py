@@ -258,14 +258,6 @@ More action.
         # Try to import - file should be filtered during validation
         result = importer.import_files([file_path])
 
-        # Debug output for CI
-        print(f"Import result attributes: {result.__dict__}")
-        print(f"File path: {file_path}")
-        print(f"Validation results exist: {bool(result.validation_results)}")
-        if result.validation_results:
-            print(f"Validation results keys: {list(result.validation_results.keys())}")
-            print(f"Looking for key: {file_path!s}")
-
         # With enhanced validation, invalid files are skipped before import
         assert result.failed_imports == 0  # No failures, file was filtered
         assert result.successful_imports == 0  # No success either

@@ -584,12 +584,12 @@ class ScriptBibleOperations:
             conn.execute(
                 """
                 INSERT INTO continuity_notes
-                (id, script_id, series_bible_id, note_type, severity, title,
+                (id, script_id, series_bible_id, note_type, severity, status, title,
                  description, suggested_resolution, episode_id, scene_id,
                  character_id, world_element_id,
                  timeline_event_id, related_episodes_json, related_scenes_json,
                  related_characters_json, reported_by, assigned_to, tags_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     note_id,
@@ -597,6 +597,7 @@ class ScriptBibleOperations:
                     note_data.get("series_bible_id"),
                     note_type,
                     note_data.get("severity", "medium"),
+                    note_data.get("status", "open"),
                     title,
                     description,
                     note_data.get("suggested_resolution"),
@@ -718,8 +719,8 @@ class ScriptBibleOperations:
                 INSERT INTO character_knowledge
                 (id, character_id, script_id, knowledge_type, knowledge_subject,
                  knowledge_description, acquired_episode_id, acquired_scene_id,
-                 acquisition_method, confidence_level, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 acquisition_method, confidence_level, notes, first_used_episode_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     knowledge_id,
@@ -733,6 +734,7 @@ class ScriptBibleOperations:
                     knowledge_data.get("acquisition_method"),
                     knowledge_data.get("confidence_level", 1.0),
                     knowledge_data.get("notes"),
+                    knowledge_data.get("first_used_episode_id"),
                 ),
             )
 
@@ -795,8 +797,9 @@ class ScriptBibleOperations:
                  description, initial_setup, central_conflict, resolution, status,
                  introduced_episode_id, resolved_episode_id,
                  primary_characters_json, supporting_characters_json,
-                 key_scenes_json, resolution_scenes_json, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 key_scenes_json, resolution_scenes_json, notes,
+                total_episodes_involved)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     thread_id,
@@ -817,6 +820,7 @@ class ScriptBibleOperations:
                     key_scenes,
                     resolution_scenes,
                     thread_data.get("notes"),
+                    thread_data.get("total_episodes_involved", 0),
                 ),
             )
 

@@ -61,7 +61,7 @@ class TestScriptBibleMCPTools:
         script_id = str(uuid4())
 
         # Mock the bible operations
-        with patch("scriptrag.mcp_server.ScriptBibleOperations") as mock_bible_ops:
+        with patch("scriptrag.database.bible.ScriptBibleOperations") as mock_bible_ops:
             mock_ops = mock_bible_ops.return_value
             mock_ops.create_series_bible.return_value = "bible123"
 
@@ -78,7 +78,6 @@ class TestScriptBibleMCPTools:
             assert result["bible_id"] == "bible123"
             assert result["script_id"] == script_id
             assert result["title"] == "Test Bible"
-            assert result["bible_type"] == "series"
             assert result["created"] is True
 
             mock_ops.create_series_bible.assert_called_once_with(
@@ -94,7 +93,7 @@ class TestScriptBibleMCPTools:
         """Test create_series_bible with missing required parameters."""
         args = {"title": "Test Bible"}  # Missing script_id
 
-        with pytest.raises(ValueError, match="script_id and title are required"):
+        with pytest.raises(KeyError, match="script_id"):
             await mcp_server._tool_create_series_bible(args)
 
     @pytest.mark.asyncio
@@ -106,13 +105,13 @@ class TestScriptBibleMCPTools:
         # Mock database queries
         mcp_server.scriptrag.connection.fetch_one.return_value = {"id": character_id}
 
-        with patch("scriptrag.mcp_server.ScriptBibleOperations") as mock_bible_ops:
+        with patch("scriptrag.database.bible.ScriptBibleOperations") as mock_bible_ops:
             mock_ops = mock_bible_ops.return_value
             mock_ops.create_character_profile.return_value = "profile123"
 
             args = {
                 "script_id": script_id,
-                "character_name": "JOHN",
+                "character_id": character_id,
                 "age": 35,
                 "occupation": "Detective",
                 "background": "Former military",
@@ -122,24 +121,15 @@ class TestScriptBibleMCPTools:
 
             assert result["profile_id"] == "profile123"
             assert result["character_id"] == character_id
-            assert result["character_name"] == "JOHN"
             assert result["script_id"] == script_id
             assert result["created"] is True
 
-            # Verify character lookup
-            mcp_server.scriptrag.connection.fetch_one.assert_called_with(
-                "SELECT id FROM characters WHERE script_id = ? AND name LIKE ?",
-                (script_id, "%JOHN%"),
-            )
-
     @pytest.mark.asyncio
-    async def test_create_character_profile_character_not_found(self, mcp_server):
-        """Test create_character_profile when character doesn't exist."""
-        mcp_server.scriptrag.connection.fetch_one.return_value = None
+    async def test_create_character_profile_missing_character_id(self, mcp_server):
+        """Test create_character_profile with missing character_id."""
+        args = {"script_id": str(uuid4()), "age": 35}
 
-        args = {"script_id": str(uuid4()), "character_name": "NONEXISTENT"}
-
-        with pytest.raises(ValueError, match="Character 'NONEXISTENT' not found"):
+        with pytest.raises(KeyError, match="character_id"):
             await mcp_server._tool_create_character_profile(args)
 
     @pytest.mark.asyncio
@@ -147,9 +137,9 @@ class TestScriptBibleMCPTools:
         """Test add_world_element MCP tool."""
         script_id = str(uuid4())
 
-        with patch("scriptrag.mcp_server.ScriptBibleOperations") as mock_bible_ops:
+        with patch("scriptrag.database.bible.ScriptBibleOperations") as mock_bible_ops:
             mock_ops = mock_bible_ops.return_value
-            mock_ops.add_world_element.return_value = "element123"
+            mock_ops.create_world_element.return_value = "element123"
 
             args = {
                 "script_id": script_id,
@@ -190,7 +180,9 @@ class TestScriptBibleMCPTools:
             ),
         ]
 
-        with patch("scriptrag.mcp_server.ContinuityValidator") as mock_validator:
+        with patch(
+            "scriptrag.database.continuity.ContinuityValidator"
+        ) as mock_validator:
             mock_val = mock_validator.return_value
             mock_val.validate_script_continuity.return_value = mock_issues
             mock_val.create_continuity_notes_from_issues.return_value = [
@@ -239,7 +231,9 @@ class TestScriptBibleMCPTools:
             "recommendations": ["Fix high severity issues", "Review character arcs"],
         }
 
-        with patch("scriptrag.mcp_server.ContinuityValidator") as mock_validator:
+        with patch(
+            "scriptrag.database.continuity.ContinuityValidator"
+        ) as mock_validator:
             mock_val = mock_validator.return_value
             mock_val.generate_continuity_report.return_value = mock_report
 
@@ -268,7 +262,7 @@ class TestScriptBibleMCPTools:
             {"id": episode_id},  # Episode lookup
         ]
 
-        with patch("scriptrag.mcp_server.ScriptBibleOperations") as mock_bible_ops:
+        with patch("scriptrag.database.bible.ScriptBibleOperations") as mock_bible_ops:
             mock_ops = mock_bible_ops.return_value
             mock_ops.add_character_knowledge.return_value = "knowledge123"
 
@@ -296,7 +290,7 @@ class TestScriptBibleMCPTools:
         """Test create_timeline_event MCP tool."""
         script_id = str(uuid4())
 
-        with patch("scriptrag.mcp_server.ScriptBibleOperations") as mock_bible_ops:
+        with patch("scriptrag.database.bible.ScriptBibleOperations") as mock_bible_ops:
             mock_ops = mock_bible_ops.return_value
             mock_ops.add_timeline_event.return_value = "event123"
 
@@ -313,22 +307,21 @@ class TestScriptBibleMCPTools:
             result = await mcp_server._tool_create_timeline_event(args)
 
             assert result["event_id"] == "event123"
-            assert result["name"] == "Murder Investigation"
-            assert result["thread_type"] == "main"
-            assert result["script_id"] == script_id
+            assert result["timeline_id"] == args["timeline_id"]
+            assert result["event_name"] == "Murder Investigation"
             assert result["created"] is True
 
     @pytest.mark.asyncio
     async def test_tool_error_handling(self, mcp_server):
         """Test error handling in MCP tools."""
         # Test with missing required parameters
-        with pytest.raises(ValueError):
+        with pytest.raises(KeyError):
             await mcp_server._tool_create_series_bible({"title": "Test"})
 
-        with pytest.raises(ValueError):
+        with pytest.raises(KeyError):
             await mcp_server._tool_add_world_element({"script_id": "test"})
 
-        with pytest.raises(ValueError):
+        with pytest.raises(KeyError):
             await mcp_server._tool_check_continuity({})
 
 

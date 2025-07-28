@@ -666,7 +666,7 @@ class TestScriptBibleIntegration:
         profile = bible_ops.get_character_profile(
             sample_script_data["character_id"], sample_script_data["script_id"]
         )
-        assert profile.character_id == sample_script_data["character_id"]
+        assert str(profile.character_id) == sample_script_data["character_id"]
 
         elements = bible_ops.get_world_elements_by_type(sample_script_data["script_id"])
         assert len(elements) == 1

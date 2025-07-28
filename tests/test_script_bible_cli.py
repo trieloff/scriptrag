@@ -131,7 +131,10 @@ class TestScriptBibleCLI:
         mock_bible.bible_type = "series"
         mock_bible.status = "active"
         mock_bible.version = 1
-        mock_bible.created_at.strftime.return_value = "2024-01-01"
+        # Create a mock datetime object for created_at
+        from datetime import datetime
+
+        mock_bible.created_at = datetime(2024, 1, 1)
 
         mock_ops = mock_bible_ops.return_value
         mock_ops.get_series_bibles_for_script.return_value = [mock_bible]
@@ -445,7 +448,10 @@ class TestScriptBibleCLI:
         mock_note.severity = "high"
         mock_note.status = "open"
         mock_note.title = "Test Issue"
-        mock_note.created_at.strftime.return_value = "2024-01-01"
+        # Create a mock datetime object for created_at
+        from datetime import datetime
+
+        mock_note.created_at = datetime(2024, 1, 1)
 
         mock_ops = mock_bible_ops.return_value
         mock_ops.get_continuity_notes.return_value = [mock_note]
@@ -563,7 +569,10 @@ class TestScriptBibleCLI:
         )
 
         assert result.exit_code == 0
-        assert f"Report saved to: {output_file}" in result.stdout
+        assert "Report saved to:" in result.stdout
+        # Check that the filename appears in the output
+        # (might be wrapped in console formatting)
+        assert "report.json" in result.stdout
         assert output_file.exists()
 
     def test_bible_command_help(self, cli_runner):

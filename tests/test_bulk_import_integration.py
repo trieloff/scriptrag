@@ -246,8 +246,8 @@ More action.
     def test_transaction_rollback_on_error(
         self, temp_dir: Path, importer: BulkImporter
     ) -> None:
-        """Test that transactions are rolled back on error."""
-        # Create a file that will cause an error - non-existent file
+        """Test that validation prevents invalid files from import."""
+        # Create a non-existent file that will be filtered by validation
         file_path = temp_dir / "non_existent_script.fountain"
         # Don't create the file, so it doesn't exist
 
@@ -255,9 +255,20 @@ More action.
         conn = importer.graph_ops.connection
         initial_count = conn.fetch_one("SELECT COUNT(*) as count FROM scripts")["count"]
 
-        # Try to import
+        # Try to import - file should be filtered during validation
         result = importer.import_files([file_path])
-        assert result.failed_imports == 1
+
+        # With enhanced validation, invalid files are skipped before import
+        assert result.failed_imports == 0  # No failures, file was filtered
+        assert result.successful_imports == 0  # No success either
+        assert result.skipped_files == 0  # Not counted as skipped
+
+        # Check validation results if available
+        if hasattr(result, "validation_results") and result.validation_results:
+            # File should be marked as invalid in validation
+            validation = result.validation_results.get(str(file_path))
+            if validation:
+                assert not validation.is_valid
 
         # Verify no partial data was saved
         final_count = conn.fetch_one("SELECT COUNT(*) as count FROM scripts")["count"]

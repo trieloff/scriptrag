@@ -29,7 +29,9 @@ from .config import (
     setup_logging_for_environment,
 )
 from .database import get_connection
+from .database.bible import ScriptBibleOperations
 from .database.connection import DatabaseConnection
+from .database.continuity import ContinuityValidator
 from .database.operations import GraphOperations
 from .mentors.base import MentorAnalysis, MentorResult
 from .models import SceneOrderType
@@ -1767,6 +1769,616 @@ def dev_test_llm() -> None:
         logger = get_logger(__name__)
         logger.error("LLM test failed", error=str(e))
         console.print(f"[red]✗[/red] LLM test failed: {e}")
+        raise typer.Exit(1) from e
+
+
+# Script Bible commands
+bible_app = typer.Typer(
+    name="bible",
+    help="Script Bible and continuity management commands",
+    rich_markup_mode="rich",
+)
+app.add_typer(bible_app)
+
+
+@bible_app.command("create")
+def bible_create(
+    script_id: Annotated[
+        str | None, typer.Option("--script-id", "-s", help="Script ID")
+    ] = None,
+    title: Annotated[str, typer.Option("--title", "-t", help="Bible title")] = "",
+    description: Annotated[
+        str | None, typer.Option("--description", "-d", help="Bible description")
+    ] = None,
+    bible_type: Annotated[str, typer.Option("--type", help="Bible type")] = "series",
+    created_by: Annotated[
+        str | None, typer.Option("--created-by", help="Creator name")
+    ] = None,
+) -> None:
+    """Create a new script bible."""
+    try:
+        settings = get_settings()
+        with DatabaseConnection(str(settings.get_database_path())) as connection:
+            bible_ops = ScriptBibleOperations(connection)
+
+            # Get script ID if not provided
+            if not script_id:
+                latest = get_latest_script_id(connection)
+                if not latest:
+                    console.print(
+                        "[red]✗[/red] No scripts found. Please import a script first."
+                    )
+                    raise typer.Exit(1)
+                script_id, script_title = latest
+                console.print(f"[blue]Using latest script:[/blue] {script_title}")
+
+            # Use script title as bible title if not provided
+            if not title:
+                script_row = connection.fetch_one(
+                    "SELECT title FROM scripts WHERE id = ?", (script_id,)
+                )
+                if script_row:
+                    title = f"{script_row['title']} - Script Bible"
+                else:
+                    title = "Script Bible"
+
+            bible_id = bible_ops.create_series_bible(
+                script_id=script_id,
+                title=title,
+                description=description,
+                created_by=created_by,
+                bible_type=bible_type,
+            )
+
+            console.print(f"[green]✓[/green] Created script bible: {bible_id}")
+            console.print(f"[dim]Title: {title}[/dim]")
+            if description:
+                console.print(f"[dim]Description: {description}[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to create bible: {e}")
+        raise typer.Exit(1) from e
+
+
+@bible_app.command("list")
+def bible_list(
+    script_id: Annotated[
+        str | None, typer.Option("--script-id", "-s", help="Script ID")
+    ] = None,
+) -> None:
+    """List script bibles."""
+    try:
+        settings = get_settings()
+        with DatabaseConnection(str(settings.get_database_path())) as connection:
+            bible_ops = ScriptBibleOperations(connection)
+
+            # Get script ID if not provided
+            if not script_id:
+                latest = get_latest_script_id(connection)
+                if not latest:
+                    console.print(
+                        "[red]✗[/red] No scripts found. Please import a script first."
+                    )
+                    raise typer.Exit(1)
+                script_id, script_title = latest
+                console.print(f"[blue]Listing bibles for:[/blue] {script_title}")
+
+            bibles = bible_ops.get_series_bibles_for_script(script_id)
+
+            if not bibles:
+                console.print("[yellow]No script bibles found.[/yellow]")
+                return
+
+            table = Table(title="Script Bibles")
+            table.add_column("ID")
+            table.add_column("Title")
+            table.add_column("Type")
+            table.add_column("Status")
+            table.add_column("Version")
+            table.add_column("Created")
+
+            for bible in bibles:
+                table.add_row(
+                    str(bible.id)[:8] + "...",
+                    bible.title,
+                    bible.bible_type,
+                    bible.status,
+                    str(bible.version),
+                    bible.created_at.strftime("%Y-%m-%d"),
+                )
+
+            console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to list bibles: {e}")
+        raise typer.Exit(1) from e
+
+
+@bible_app.command("character-profile")
+def bible_character_profile(
+    character_name: Annotated[str, typer.Argument(help="Character name")],
+    script_id: Annotated[
+        str | None, typer.Option("--script-id", "-s", help="Script ID")
+    ] = None,
+    age: Annotated[int | None, typer.Option("--age", help="Character age")] = None,
+    occupation: Annotated[
+        str | None, typer.Option("--occupation", help="Character occupation")
+    ] = None,
+    background: Annotated[
+        str | None, typer.Option("--background", help="Character background")
+    ] = None,
+    arc: Annotated[
+        str | None, typer.Option("--arc", help="Character development arc")
+    ] = None,
+    goals: Annotated[
+        str | None, typer.Option("--goals", help="Character goals")
+    ] = None,
+    fears: Annotated[
+        str | None, typer.Option("--fears", help="Character fears")
+    ] = None,
+) -> None:
+    """Create or update a character profile."""
+    try:
+        settings = get_settings()
+        with DatabaseConnection(str(settings.get_database_path())) as connection:
+            bible_ops = ScriptBibleOperations(connection)
+
+            # Get script ID if not provided
+            if not script_id:
+                latest = get_latest_script_id(connection)
+                if not latest:
+                    console.print(
+                        "[red]✗[/red] No scripts found. Please import a script first."
+                    )
+                    raise typer.Exit(1)
+                script_id, script_title = latest
+                console.print(f"[blue]Using script:[/blue] {script_title}")
+
+            # Find character by name
+            char_row = connection.fetch_one(
+                "SELECT id FROM characters WHERE script_id = ? AND name LIKE ?",
+                (script_id, f"%{character_name}%"),
+            )
+
+            if not char_row:
+                console.print(f"[red]✗[/red] Character '{character_name}' not found.")
+                raise typer.Exit(1)
+
+            character_id = char_row["id"]
+
+            # Create profile data
+            profile_data: dict[str, Any] = {}
+            if age is not None:
+                profile_data["age"] = age
+            if occupation:
+                profile_data["occupation"] = occupation
+            if background:
+                profile_data["background"] = background
+            if arc:
+                profile_data["character_arc"] = arc
+            if goals:
+                profile_data["goals"] = goals
+            if fears:
+                profile_data["fears"] = fears
+
+            # Check if profile exists
+            existing_profile = bible_ops.get_character_profile(character_id, script_id)
+
+            if existing_profile:
+                # Update existing profile (simplified - would need update method)
+                console.print(
+                    f"[yellow]⚠[/yellow] Profile for '{character_name}' already exists."
+                )
+                console.print("[dim]Use update command when available.[/dim]")
+            else:
+                profile_id = bible_ops.create_character_profile(
+                    character_id=character_id, script_id=script_id, **profile_data
+                )
+                console.print(
+                    f"[green]✓[/green] Created character profile: {profile_id}"
+                )
+                console.print(f"[dim]Character: {character_name}[/dim]")
+                if profile_data:
+                    for key, value in profile_data.items():
+                        console.print(f"[dim]{key}: {value}[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to create character profile: {e}")
+        raise typer.Exit(1) from e
+
+
+@bible_app.command("world-element")
+def bible_world_element(
+    name: Annotated[str, typer.Argument(help="Element name")],
+    element_type: Annotated[
+        str, typer.Option("--type", "-t", help="Element type")
+    ] = "location",
+    script_id: Annotated[
+        str | None, typer.Option("--script-id", "-s", help="Script ID")
+    ] = None,
+    description: Annotated[
+        str | None, typer.Option("--description", "-d", help="Element description")
+    ] = None,
+    category: Annotated[
+        str | None, typer.Option("--category", help="Element category")
+    ] = None,
+    importance: Annotated[
+        int, typer.Option("--importance", help="Importance level (1-5)")
+    ] = 1,
+    rules: Annotated[
+        str | None, typer.Option("--rules", help="Rules and constraints")
+    ] = None,
+) -> None:
+    """Create a world building element."""
+    try:
+        settings = get_settings()
+        with DatabaseConnection(str(settings.get_database_path())) as connection:
+            bible_ops = ScriptBibleOperations(connection)
+
+            # Get script ID if not provided
+            if not script_id:
+                latest = get_latest_script_id(connection)
+                if not latest:
+                    console.print(
+                        "[red]✗[/red] No scripts found. Please import a script first."
+                    )
+                    raise typer.Exit(1)
+                script_id, script_title = latest
+                console.print(f"[blue]Using script:[/blue] {script_title}")
+
+            element_data = {
+                "description": description,
+                "category": category,
+                "importance_level": importance,
+                "rules_and_constraints": rules,
+            }
+
+            element_id = bible_ops.create_world_element(
+                script_id=script_id,
+                element_type=element_type,
+                name=name,
+                **element_data,
+            )
+
+            console.print(f"[green]✓[/green] Created world element: {element_id}")
+            console.print(f"[dim]Name: {name}[/dim]")
+            console.print(f"[dim]Type: {element_type}[/dim]")
+            if category:
+                console.print(f"[dim]Category: {category}[/dim]")
+            console.print(f"[dim]Importance: {importance}/5[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to create world element: {e}")
+        raise typer.Exit(1) from e
+
+
+@bible_app.command("timeline")
+def bible_timeline(
+    name: Annotated[str, typer.Argument(help="Timeline name")],
+    script_id: Annotated[
+        str | None, typer.Option("--script-id", "-s", help="Script ID")
+    ] = None,
+    timeline_type: Annotated[
+        str, typer.Option("--type", "-t", help="Timeline type")
+    ] = "main",
+    description: Annotated[
+        str | None, typer.Option("--description", "-d", help="Timeline description")
+    ] = None,
+    start_date: Annotated[
+        str | None, typer.Option("--start", help="Start date")
+    ] = None,
+    end_date: Annotated[str | None, typer.Option("--end", help="End date")] = None,
+) -> None:
+    """Create a story timeline."""
+    try:
+        settings = get_settings()
+        with DatabaseConnection(str(settings.get_database_path())) as connection:
+            bible_ops = ScriptBibleOperations(connection)
+
+            # Get script ID if not provided
+            if not script_id:
+                latest = get_latest_script_id(connection)
+                if not latest:
+                    console.print(
+                        "[red]✗[/red] No scripts found. Please import a script first."
+                    )
+                    raise typer.Exit(1)
+                script_id, script_title = latest
+                console.print(f"[blue]Using script:[/blue] {script_title}")
+
+            timeline_data = {
+                "description": description,
+                "start_date": start_date,
+                "end_date": end_date,
+            }
+
+            timeline_id = bible_ops.create_story_timeline(
+                script_id=script_id,
+                name=name,
+                timeline_type=timeline_type,
+                **timeline_data,
+            )
+
+            console.print(f"[green]✓[/green] Created timeline: {timeline_id}")
+            console.print(f"[dim]Name: {name}[/dim]")
+            console.print(f"[dim]Type: {timeline_type}[/dim]")
+            if start_date or end_date:
+                console.print(
+                    f"[dim]Period: {start_date or '?'} to {end_date or '?'}[/dim]"
+                )
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to create timeline: {e}")
+        raise typer.Exit(1) from e
+
+
+@bible_app.command("continuity-check")
+def bible_continuity_check(
+    script_id: Annotated[
+        str | None, typer.Option("--script-id", "-s", help="Script ID")
+    ] = None,
+    create_notes: Annotated[
+        bool, typer.Option("--create-notes", help="Create continuity notes")
+    ] = False,
+    severity_filter: Annotated[
+        str | None, typer.Option("--severity", help="Filter by severity")
+    ] = None,
+) -> None:
+    """Run continuity validation and show results."""
+    try:
+        settings = get_settings()
+        with DatabaseConnection(str(settings.get_database_path())) as connection:
+            validator = ContinuityValidator(connection)
+
+            # Get script ID if not provided
+            if not script_id:
+                latest = get_latest_script_id(connection)
+                if not latest:
+                    console.print(
+                        "[red]✗[/red] No scripts found. Please import a script first."
+                    )
+                    raise typer.Exit(1)
+                script_id, _ = latest
+
+            console.print("[blue]Running continuity validation...[/blue]")
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                progress.add_task("Validating continuity...", total=None)
+                issues = validator.validate_script_continuity(script_id)
+                progress.stop()
+
+            # Filter by severity if requested
+            if severity_filter:
+                issues = [i for i in issues if i.severity == severity_filter]
+
+            if not issues:
+                console.print("[green]✓[/green] No continuity issues found!")
+                return
+
+            # Group issues by severity
+            by_severity: dict[str, list[Any]] = {
+                "critical": [],
+                "high": [],
+                "medium": [],
+                "low": [],
+            }
+            for issue in issues:
+                by_severity[issue.severity].append(issue)
+
+            # Display results
+            console.print(f"[yellow]Found {len(issues)} continuity issues:[/yellow]")
+
+            for severity in ["critical", "high", "medium", "low"]:
+                if by_severity[severity]:
+                    color = {
+                        "critical": "red",
+                        "high": "orange",
+                        "medium": "yellow",
+                        "low": "blue",
+                    }[severity]
+                    console.print(
+                        f"\n[{color}]{severity.upper()} "
+                        f"({len(by_severity[severity])} issues):[/{color}]"
+                    )
+
+                    # Show first 5 of each severity
+                    for issue in by_severity[severity][:5]:
+                        console.print(f"  • {issue.title}")
+                        console.print(f"    {issue.description}")
+
+                    if len(by_severity[severity]) > 5:
+                        console.print(
+                            f"    ... and {len(by_severity[severity]) - 5} more"
+                        )
+
+            # Create notes if requested
+            if create_notes:
+                console.print("\n[blue]Creating continuity notes...[/blue]")
+                note_ids = validator.create_continuity_notes_from_issues(
+                    script_id=script_id,
+                    issues=issues,
+                    reported_by="CLI Continuity Check",
+                )
+                console.print(
+                    f"[green]✓[/green] Created {len(note_ids)} continuity notes"
+                )
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Continuity check failed: {e}")
+        raise typer.Exit(1) from e
+
+
+@bible_app.command("notes")
+def bible_notes(
+    script_id: Annotated[
+        str | None, typer.Option("--script-id", "-s", help="Script ID")
+    ] = None,
+    status: Annotated[
+        str | None, typer.Option("--status", help="Filter by status")
+    ] = None,
+    note_type: Annotated[
+        str | None, typer.Option("--type", help="Filter by type")
+    ] = None,
+    severity: Annotated[
+        str | None, typer.Option("--severity", help="Filter by severity")
+    ] = None,
+) -> None:
+    """List continuity notes."""
+    try:
+        settings = get_settings()
+        with DatabaseConnection(str(settings.get_database_path())) as connection:
+            bible_ops = ScriptBibleOperations(connection)
+
+            # Get script ID if not provided
+            if not script_id:
+                latest = get_latest_script_id(connection)
+                if not latest:
+                    console.print(
+                        "[red]✗[/red] No scripts found. Please import a script first."
+                    )
+                    raise typer.Exit(1)
+                script_id, script_title = latest
+                console.print(f"[blue]Continuity notes for:[/blue] {script_title}")
+
+            notes = bible_ops.get_continuity_notes(
+                script_id=script_id,
+                status=status,
+                note_type=note_type,
+                severity=severity,
+            )
+
+            if not notes:
+                console.print("[yellow]No continuity notes found.[/yellow]")
+                return
+
+            table = Table(title="Continuity Notes")
+            table.add_column("ID")
+            table.add_column("Type")
+            table.add_column("Severity")
+            table.add_column("Status")
+            table.add_column("Title")
+            table.add_column("Created")
+
+            for note in notes:
+                color = {
+                    "critical": "red",
+                    "high": "orange",
+                    "medium": "yellow",
+                    "low": "blue",
+                }[note.severity]
+                table.add_row(
+                    str(note.id)[:8] + "...",
+                    note.note_type,
+                    f"[{color}]{note.severity}[/{color}]",
+                    note.status,
+                    note.title[:50] + ("..." if len(note.title) > 50 else ""),
+                    note.created_at.strftime("%Y-%m-%d"),
+                )
+
+            console.print(table)
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to list notes: {e}")
+        raise typer.Exit(1) from e
+
+
+@bible_app.command("report")
+def bible_report(
+    script_id: Annotated[
+        str | None, typer.Option("--script-id", "-s", help="Script ID")
+    ] = None,
+    output_file: Annotated[
+        str | None, typer.Option("--output", "-o", help="Output file path")
+    ] = None,
+) -> None:
+    """Generate a comprehensive continuity report."""
+    try:
+        settings = get_settings()
+        with DatabaseConnection(str(settings.get_database_path())) as connection:
+            validator = ContinuityValidator(connection)
+
+            # Get script ID if not provided
+            if not script_id:
+                latest = get_latest_script_id(connection)
+                if not latest:
+                    console.print(
+                        "[red]✗[/red] No scripts found. Please import a script first."
+                    )
+                    raise typer.Exit(1)
+                script_id, script_title = latest
+
+            console.print(
+                f"[blue]Generating continuity report for:[/blue] {script_title}"
+            )
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+            ) as progress:
+                progress.add_task("Generating report...", total=None)
+                report = validator.generate_continuity_report(script_id)
+                progress.stop()
+
+            # Display summary
+            stats = report["validation_results"]["issue_statistics"]
+            note_stats = report["existing_notes"]["note_statistics"]
+
+            console.print(
+                f"\n[green]Continuity Report for {report['script_title']}[/green]"
+            )
+            console.print(f"Generated: {report['generated_at']}")
+            console.print(
+                f"Script Type: {'Series' if report['is_series'] else 'Screenplay'}"
+            )
+
+            console.print(f"\n[yellow]Issues Found: {stats['total_issues']}[/yellow]")
+            for severity, count in stats["by_severity"].items():
+                if count > 0:
+                    color = {
+                        "critical": "red",
+                        "high": "orange",
+                        "medium": "yellow",
+                        "low": "blue",
+                    }[severity]
+                    console.print(
+                        f"  {severity.capitalize()}: [{color}]{count}[/{color}]"
+                    )
+
+            console.print(
+                f"\n[yellow]Existing Notes: {note_stats['total_notes']}[/yellow]"
+            )
+            for status, count in note_stats["by_status"].items():
+                if count > 0:
+                    console.print(f"  {status.capitalize()}: {count}")
+
+            console.print("\n[blue]Recommendations:[/blue]")
+            for rec in report["recommendations"]:
+                console.print(f"  • {rec}")
+
+            # Save to file if requested
+            if output_file:
+                import json
+
+                with Path(output_file).open("w") as f:
+                    # Convert objects to serializable format
+                    serializable_report = {}
+                    for key, value in report.items():
+                        if key in ["validation_results", "existing_notes"]:
+                            # Skip complex objects for now
+                            serializable_report[key] = {"summary": "See console output"}
+                        else:
+                            serializable_report[key] = value
+
+                    json.dump(serializable_report, f, indent=2, default=str)
+                console.print(f"[green]✓[/green] Report saved to: {output_file}")
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to generate report: {e}")
         raise typer.Exit(1) from e
 
 

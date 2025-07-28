@@ -308,18 +308,473 @@ class SceneDependency(BaseEntity):
         return v
 
 
+# Script Bible and Continuity Management Models
+
+
+class BibleType(str, Enum):
+    """Types of script bibles."""
+
+    SERIES = "series"
+    MOVIE = "movie"
+    ANTHOLOGY = "anthology"
+
+
+class BibleStatus(str, Enum):
+    """Status of a script bible."""
+
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+    DRAFT = "draft"
+
+
+class SeriesBible(BaseEntity):
+    """Represents a script bible for a series or film."""
+
+    script_id: UUID
+    title: str
+    description: str | None = None
+    version: int = 1
+    created_by: str | None = None
+    status: BibleStatus = BibleStatus.ACTIVE
+    bible_type: BibleType = BibleType.SERIES
+
+    @field_validator("title")
+    @classmethod
+    def title_must_not_be_empty(cls, v: str) -> str:
+        """Validate that bible title is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Bible title cannot be empty")
+        return v.strip()
+
+
+class CharacterProfile(BaseEntity):
+    """Extended character profile for continuity tracking."""
+
+    character_id: UUID
+    script_id: UUID
+    series_bible_id: UUID | None = None
+
+    # Core character information
+    full_name: str | None = None
+    age: int | None = None
+    occupation: str | None = None
+    background: str | None = None
+    personality_traits: str | None = None
+    motivations: str | None = None
+    fears: str | None = None
+    goals: str | None = None
+
+    # Physical description
+    physical_description: str | None = None
+    distinguishing_features: str | None = None
+
+    # Relationships
+    family_background: str | None = None
+    relationship_status: str | None = None
+
+    # Character arc tracking
+    initial_state: str | None = None
+    character_arc: str | None = None
+    growth_trajectory: str | None = None
+
+    # Continuity tracking
+    first_appearance_episode_id: UUID | None = None
+    last_appearance_episode_id: UUID | None = None
+    total_appearances: int = 0
+
+    # Notes
+    notes: str | None = None
+
+    @field_validator("age")
+    @classmethod
+    def validate_age(cls, v: int | None) -> int | None:
+        """Validate that age is reasonable."""
+        if v is not None and (v < 0 or v > 200):
+            raise ValueError("Age must be between 0 and 200")
+        return v
+
+
+class WorldElementType(str, Enum):
+    """Types of world elements."""
+
+    LOCATION = "location"
+    PROP = "prop"
+    CONCEPT = "concept"
+    RULE = "rule"
+    TECHNOLOGY = "technology"
+    CULTURE = "culture"
+
+
+class WorldElement(BaseEntity):
+    """Represents a world building element."""
+
+    script_id: UUID
+    series_bible_id: UUID | None = None
+
+    # Element classification
+    element_type: WorldElementType
+    name: str
+    category: str | None = None  # subcategory within type
+
+    # Description and rules
+    description: str | None = None
+    rules_and_constraints: str | None = None
+    visual_description: str | None = None
+
+    # Usage tracking
+    first_introduced_episode_id: UUID | None = None
+    first_introduced_scene_id: UUID | None = None
+    usage_frequency: int = 0
+    importance_level: int = Field(default=1, ge=1, le=5)  # 1-5 scale
+
+    # Relationships to other elements
+    related_locations: list[UUID] = Field(default_factory=list)
+    related_characters: list[UUID] = Field(default_factory=list)
+
+    # Continuity tracking
+    continuity_notes: str | None = None
+    established_rules: dict[str, Any] = Field(default_factory=dict)
+
+    # Notes
+    notes: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_empty(cls, v: str) -> str:
+        """Validate that element name is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Element name cannot be empty")
+        return v.strip()
+
+
+class TimelineType(str, Enum):
+    """Types of story timelines."""
+
+    MAIN = "main"
+    FLASHBACK = "flashback"
+    ALTERNATE = "alternate"
+    PARALLEL = "parallel"
+
+
+class StoryTimeline(BaseEntity):
+    """Represents a story timeline."""
+
+    script_id: UUID
+    series_bible_id: UUID | None = None
+
+    # Timeline identification
+    name: str
+    timeline_type: TimelineType = TimelineType.MAIN
+    description: str | None = None
+
+    # Temporal boundaries
+    start_date: str | None = None  # Story date (can be relative like "Day 1")
+    end_date: str | None = None
+    duration_description: str | None = None
+
+    # Reference information
+    reference_episodes: list[UUID] = Field(default_factory=list)
+    reference_scenes: list[UUID] = Field(default_factory=list)
+
+    # Notes
+    notes: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_empty(cls, v: str) -> str:
+        """Validate that timeline name is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Timeline name cannot be empty")
+        return v.strip()
+
+
+class EventType(str, Enum):
+    """Types of timeline events."""
+
+    PLOT = "plot"
+    CHARACTER = "character"
+    WORLD = "world"
+    BACKSTORY = "backstory"
+
+
+class TimelineEvent(BaseEntity):
+    """Represents an event in a story timeline."""
+
+    timeline_id: UUID
+    script_id: UUID
+
+    # Event identification
+    event_name: str
+    event_type: EventType = EventType.PLOT
+    description: str | None = None
+
+    # Temporal positioning
+    story_date: str | None = None  # Date within the story world
+    relative_order: int | None = None  # Order within timeline
+    duration_minutes: int | None = None  # Event duration
+
+    # References
+    scene_id: UUID | None = None
+    episode_id: UUID | None = None
+    related_characters: list[UUID] = Field(default_factory=list)
+
+    # Continuity tracking
+    establishes: list[str] = Field(default_factory=list)  # What this event establishes
+    requires: list[str] = Field(default_factory=list)  # What this event requires
+    affects: list[str] = Field(default_factory=list)  # What this event affects
+
+    # Notes
+    notes: str | None = None
+
+    @field_validator("event_name")
+    @classmethod
+    def name_must_not_be_empty(cls, v: str) -> str:
+        """Validate that event name is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Event name cannot be empty")
+        return v.strip()
+
+
+class NoteType(str, Enum):
+    """Types of continuity notes."""
+
+    ERROR = "error"
+    INCONSISTENCY = "inconsistency"
+    RULE = "rule"
+    REMINDER = "reminder"
+    QUESTION = "question"
+
+
+class NoteSeverity(str, Enum):
+    """Severity levels for continuity notes."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+class NoteStatus(str, Enum):
+    """Status of continuity notes."""
+
+    OPEN = "open"
+    RESOLVED = "resolved"
+    IGNORED = "ignored"
+    DEFERRED = "deferred"
+
+
+class ContinuityNote(BaseEntity):
+    """Represents a continuity note or issue."""
+
+    script_id: UUID
+    series_bible_id: UUID | None = None
+
+    # Note classification
+    note_type: NoteType
+    severity: NoteSeverity = NoteSeverity.MEDIUM
+    status: NoteStatus = NoteStatus.OPEN
+
+    # Content
+    title: str
+    description: str
+    suggested_resolution: str | None = None
+
+    # References
+    episode_id: UUID | None = None
+    scene_id: UUID | None = None
+    character_id: UUID | None = None
+    world_element_id: UUID | None = None
+    timeline_event_id: UUID | None = None
+
+    # Related references (for cross-references)
+    related_episodes: list[UUID] = Field(default_factory=list)
+    related_scenes: list[UUID] = Field(default_factory=list)
+    related_characters: list[UUID] = Field(default_factory=list)
+
+    # Tracking
+    reported_by: str | None = None
+    assigned_to: str | None = None
+    resolution_notes: str | None = None
+    resolved_at: datetime | None = None
+
+    # Tags
+    tags: list[str] = Field(default_factory=list)
+
+    @field_validator("title")
+    @classmethod
+    def title_must_not_be_empty(cls, v: str) -> str:
+        """Validate that note title is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Note title cannot be empty")
+        return v.strip()
+
+    @field_validator("description")
+    @classmethod
+    def description_must_not_be_empty(cls, v: str) -> str:
+        """Validate that note description is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Note description cannot be empty")
+        return v.strip()
+
+
+class KnowledgeType(str, Enum):
+    """Types of character knowledge."""
+
+    FACT = "fact"
+    SECRET = "secret"  # noqa: S105  # pragma: allowlist secret - Not a password, it's a knowledge type
+    SKILL = "skill"
+    RELATIONSHIP = "relationship"
+    LOCATION = "location"
+    EVENT = "event"
+
+
+class AcquisitionMethod(str, Enum):
+    """Methods of knowledge acquisition."""
+
+    WITNESSED = "witnessed"
+    TOLD = "told"
+    DISCOVERED = "discovered"
+    ASSUMED = "assumed"
+
+
+class VerificationStatus(str, Enum):
+    """Knowledge verification status."""
+
+    VERIFIED = "verified"
+    UNVERIFIED = "unverified"
+    VIOLATED = "violated"
+
+
+class CharacterKnowledge(BaseEntity):
+    """Represents character knowledge for continuity tracking."""
+
+    character_id: UUID
+    script_id: UUID
+
+    # Knowledge details
+    knowledge_type: KnowledgeType
+    knowledge_subject: str  # What the knowledge is about
+    knowledge_description: str | None = None
+
+    # Acquisition tracking
+    acquired_episode_id: UUID | None = None
+    acquired_scene_id: UUID | None = None
+    acquisition_method: AcquisitionMethod | None = None
+
+    # Usage tracking
+    first_used_episode_id: UUID | None = None
+    first_used_scene_id: UUID | None = None
+    usage_count: int = 0
+
+    # Continuity validation
+    should_know_before: str | None = (
+        None  # Episode/scene where character should know this
+    )
+    verification_status: VerificationStatus = VerificationStatus.UNVERIFIED
+
+    # Metadata
+    confidence_level: float = Field(default=1.0, ge=0.0, le=1.0)  # 0.0 to 1.0
+    notes: str | None = None
+
+    @field_validator("knowledge_subject")
+    @classmethod
+    def subject_must_not_be_empty(cls, v: str) -> str:
+        """Validate that knowledge subject is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Knowledge subject cannot be empty")
+        return v.strip()
+
+
+class PlotThreadType(str, Enum):
+    """Types of plot threads."""
+
+    MAIN = "main"
+    SUBPLOT = "subplot"
+    ARC = "arc"
+    MYSTERY = "mystery"
+    ROMANCE = "romance"
+
+
+class PlotThreadStatus(str, Enum):
+    """Status of plot threads."""
+
+    ACTIVE = "active"
+    RESOLVED = "resolved"
+    ABANDONED = "abandoned"
+    SUSPENDED = "suspended"
+
+
+class PlotThread(BaseEntity):
+    """Represents a plot thread or storyline."""
+
+    script_id: UUID
+    series_bible_id: UUID | None = None
+
+    # Thread identification
+    name: str
+    thread_type: PlotThreadType = PlotThreadType.MAIN
+    priority: int = Field(default=1, ge=1, le=5)  # 1-5 scale
+
+    # Thread details
+    description: str | None = None
+    initial_setup: str | None = None
+    central_conflict: str | None = None
+    resolution: str | None = None
+
+    # Status tracking
+    status: PlotThreadStatus = PlotThreadStatus.ACTIVE
+
+    # Episode tracking
+    introduced_episode_id: UUID | None = None
+    resolved_episode_id: UUID | None = None
+    total_episodes_involved: int = 0
+
+    # Character involvement
+    primary_characters: list[UUID] = Field(default_factory=list)
+    supporting_characters: list[UUID] = Field(default_factory=list)
+
+    # Scene tracking
+    key_scenes: list[UUID] = Field(default_factory=list)
+    resolution_scenes: list[UUID] = Field(default_factory=list)
+
+    # Notes
+    notes: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def name_must_not_be_empty(cls, v: str) -> str:
+        """Validate that thread name is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Thread name cannot be empty")
+        return v.strip()
+
+
 # Export all models
 __all__ = [
+    "AcquisitionMethod",
     "Action",
     "BaseEntity",
+    "BibleStatus",
+    "BibleType",
     "Character",
     "CharacterAppears",
+    "CharacterKnowledge",
+    "CharacterProfile",
     "CharacterSpeaksTo",
+    "ContinuityNote",
     "Dialogue",
     "ElementType",
     "Episode",
+    "EventType",
+    "KnowledgeType",
     "Location",
+    "NoteSeverity",
+    "NoteStatus",
+    "NoteType",
     "Parenthetical",
+    "PlotThread",
+    "PlotThreadStatus",
+    "PlotThreadType",
     "Relationship",
     "Scene",
     "SceneAtLocation",
@@ -330,5 +785,12 @@ __all__ = [
     "SceneOrderType",
     "Script",
     "Season",
+    "SeriesBible",
+    "StoryTimeline",
+    "TimelineEvent",
+    "TimelineType",
     "Transition",
+    "VerificationStatus",
+    "WorldElement",
+    "WorldElementType",
 ]

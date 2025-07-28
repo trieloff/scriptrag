@@ -190,7 +190,7 @@ class TestDatabaseSchema:
 
         assert temp_db_path.exists()
         assert schema.validate_schema()
-        assert schema.get_current_version() == 5
+        assert schema.get_current_version() == 6
 
     def test_schema_validation(self, temp_db_path):
         """Test schema validation."""
@@ -724,7 +724,7 @@ class TestMigrationRunner:
         runner = MigrationRunner(temp_db_path)
 
         assert runner.get_current_version() == 0
-        assert runner.get_target_version() == 4
+        assert runner.get_target_version() == 5
         assert runner.needs_migration()
 
     def test_apply_initial_migration(self, temp_db_path):
@@ -752,11 +752,12 @@ class TestMigrationRunner:
         runner.migrate_to_latest()
 
         history = runner.get_migration_history()
-        assert len(history) == 4
+        assert len(history) == 5
         assert history[0]["version"] == 1
         assert history[1]["version"] == 2
         assert history[2]["version"] == 3
         assert history[3]["version"] == 4
+        assert history[4]["version"] == 5
         assert "description" in history[0]
 
     def test_initialize_database_function(self, temp_db_path):

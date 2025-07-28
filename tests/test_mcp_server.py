@@ -88,7 +88,9 @@ class TestScriptRAGMCPServer:
 
         assert isinstance(result, types.ServerResult)
         assert isinstance(result.root, types.ListToolsResult)
-        assert len(result.root.tools) == 16  # 11 original + 5 mentor tools
+        assert (
+            len(result.root.tools) == 23
+        )  # 11 original + 5 mentor tools + 7 bible tools
         assert all(isinstance(tool, types.Tool) for tool in result.root.tools)
 
     @pytest.mark.asyncio

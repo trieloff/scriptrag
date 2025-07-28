@@ -257,9 +257,7 @@ class TestSceneEndpoints:
         # Configure the mock database operations from the client fixture
         mock_db_ops = client.app.state.db_ops
         mock_db_ops.get_scene.side_effect = [mock_original_scene, mock_updated_scene]
-        mock_db_ops.update_scene_with_graph_propagation.return_value = (
-            True  # Return success boolean
-        )
+        mock_db_ops.update_scene.return_value = True  # Return success
 
         response = client.patch(f"/api/v1/scenes/{scene_id}", json=update_data)
 
@@ -270,13 +268,11 @@ class TestSceneEndpoints:
         assert data["heading"] == "INT. OFFICE - NIGHT"
         assert data["content"] == "The office is dimly lit."
 
-        mock_db_ops.update_scene_with_graph_propagation.assert_called_once_with(
+        mock_db_ops.update_scene.assert_called_once_with(
             scene_id=scene_id,
             scene_number=3,
             heading="INT. OFFICE - NIGHT",
             content="The office is dimly lit.",
-            location=None,
-            time_of_day=None,
         )
 
     def test_update_scene_not_found(self, client):
@@ -311,15 +307,13 @@ class TestSceneEndpoints:
         # Configure the mock database operations from the client fixture
         mock_db_ops = client.app.state.db_ops
         mock_db_ops.get_scene.return_value = mock_scene
-        mock_db_ops.delete_scene_with_references.return_value = (
-            True  # Return success boolean
-        )
+        mock_db_ops.delete_scene.return_value = True  # Return success
 
         response = client.delete(f"/api/v1/scenes/{scene_id}")
 
         assert response.status_code == 200
         assert f"Scene {scene_id} deleted successfully" in response.json()["message"]
-        mock_db_ops.delete_scene_with_references.assert_called_once_with(scene_id)
+        mock_db_ops.delete_scene.assert_called_once_with(scene_id)
 
     def test_delete_scene_not_found(self, client):
         """Test deleting non-existent scene."""
@@ -491,9 +485,7 @@ class TestSceneEndpointValidation:
             mock_scene,
             {**mock_scene, "heading": "INT. NEW LOCATION - DAY"},
         ]
-        mock_db_ops.update_scene_with_graph_propagation.return_value = (
-            True  # Return success boolean
-        )
+        mock_db_ops.update_scene.return_value = True  # Return success
 
         response = client.patch(f"/api/v1/scenes/{scene_id}", json=partial_data)
 

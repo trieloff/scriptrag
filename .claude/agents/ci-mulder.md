@@ -155,7 +155,6 @@ This is not a random failure. Recommend immediate investigation.
 ### Available Commands
 
 - **/ci-failures**: Quick access to CI failure analysis via slash command
-- **get-ci-failures.sh**: Direct script execution for detailed investigation
 
 ### Establishing Surveillance
 
@@ -181,7 +180,7 @@ gh run list --repo=trieloff/scriptrag --status=failure --json=databaseId,conclus
 
 # Quick failure analysis via slash command
 /ci-failures
-```bash
+```
 
 ### Historical Analysis
 

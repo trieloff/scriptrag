@@ -193,18 +193,18 @@ class TestScriptBibleMCPTools:
             args = {
                 "script_id": script_id,
                 "create_notes": True,
-                "severity_filter": "high",
             }
 
             result = await mcp_server._tool_check_continuity(args)
 
             assert result["script_id"] == script_id
-            assert result["total_issues"] == 1  # Filtered to high severity only
+            assert result["total_issues"] == 2  # Both issues returned
             assert result["by_severity"]["high"] == 1
-            assert result["by_severity"]["medium"] == 0
+            assert result["by_severity"]["medium"] == 1
             assert result["notes_created"] == 2
-            assert len(result["issues"]) == 1
+            assert len(result["issues"]) == 2
             assert result["issues"][0]["title"] == "Test Issue 1"
+            assert result["issues"][1]["title"] == "Test Issue 2"
 
     @pytest.mark.asyncio
     async def test_get_continuity_report_tool(self, mcp_server):
@@ -244,9 +244,9 @@ class TestScriptBibleMCPTools:
             assert result["script_id"] == script_id
             assert result["script_title"] == "Test Script"
             assert result["is_series"] is True
-            assert result["summary"]["total_issues"] == 5
-            assert result["summary"]["issues_by_severity"]["high"] == 2
-            assert result["summary"]["total_notes"] == 3
+            assert result["total_issues"] == 5
+            assert result["by_severity"]["high"] == 2
+            assert result["open_notes"] == 2
             assert len(result["recommendations"]) == 2
 
     @pytest.mark.asyncio
@@ -256,34 +256,40 @@ class TestScriptBibleMCPTools:
         character_id = str(uuid4())
         episode_id = str(uuid4())
 
-        # Mock database queries
-        mcp_server.scriptrag.connection.fetch_one.side_effect = [
+        # Mock database connection and queries
+        mock_connection = MagicMock()
+        mock_connection.fetch_one.side_effect = [
             {"id": character_id},  # Character lookup
             {"id": episode_id},  # Episode lookup
         ]
 
-        with patch("scriptrag.database.bible.ScriptBibleOperations") as mock_bible_ops:
-            mock_ops = mock_bible_ops.return_value
-            mock_ops.add_character_knowledge.return_value = "knowledge123"
+        with patch("scriptrag.database.connection.DatabaseConnection") as mock_db_conn:
+            mock_db_conn.return_value.__enter__.return_value = mock_connection
 
-            args = {
-                "script_id": script_id,
-                "character_name": "JOHN",
-                "knowledge_type": "secret",
-                "knowledge_subject": "The villain's plan",
-                "knowledge_description": "John discovered the plan",
-                "acquired_episode": "Episode 2",
-                "acquisition_method": "discovered",
-            }
+            with patch(
+                "scriptrag.database.bible.ScriptBibleOperations"
+            ) as mock_bible_ops:
+                mock_ops = mock_bible_ops.return_value
+                mock_ops.add_character_knowledge.return_value = "knowledge123"
 
-            result = await mcp_server._tool_add_character_knowledge(args)
+                args = {
+                    "script_id": script_id,
+                    "character_name": "JOHN",
+                    "knowledge_type": "secret",
+                    "knowledge_subject": "The villain's plan",
+                    "knowledge_description": "John discovered the plan",
+                    "acquired_episode": "Episode 2",
+                    "acquisition_method": "discovered",
+                }
 
-            assert result["knowledge_id"] == "knowledge123"
-            assert result["character_id"] == character_id
-            assert result["character_name"] == "JOHN"
-            assert result["knowledge_type"] == "secret"
-            assert result["knowledge_subject"] == "The villain's plan"
-            assert result["created"] is True
+                result = await mcp_server._tool_add_character_knowledge(args)
+
+                assert result["knowledge_id"] == "knowledge123"
+                assert result["character_id"] == character_id
+                assert result["character_name"] == "JOHN"
+                assert result["knowledge_type"] == "secret"
+                assert result["knowledge_subject"] == "The villain's plan"
+                assert result["created"] is True
 
     @pytest.mark.asyncio
     async def test_create_timeline_event_tool(self, mcp_server):

@@ -227,27 +227,15 @@ class SeriesPatternDetector:
             return None
 
         # Look for common patterns in parent directories
-        # Get a base directory to ensure we don't traverse outside the project
-        base_dir = resolved_path.parent
-        while base_dir.parent != base_dir:
-            if base_dir.name in {"scripts", "screenplays", "fountain"}:
-                break
-            base_dir = base_dir.parent
-
         for parent in resolved_path.parents:
-            # Security check: ensure we stay within the expected directory tree
-            try:
-                parent.relative_to(
-                    base_dir.parent if base_dir.parent != base_dir else base_dir
-                )
-            except ValueError:
-                # Path is outside our expected directory tree
-                continue
-
             parent_name = parent.name
 
-            # Additional security: reject any path traversal attempts
-            if ".." in parent_name or parent_name in {".", ".."} or not parent_name:
+            # Security: reject any path traversal attempts
+            if (
+                ".." in str(parent_name)
+                or parent_name in {".", ".."}
+                or not parent_name
+            ):
                 continue
 
             # Skip common directory names and temp directories
@@ -263,20 +251,14 @@ class SeriesPatternDetector:
                 # Go up one more level for series name
                 grandparent = parent.parent
                 if grandparent and grandparent != grandparent.parent:
-                    # Validate grandparent is within our directory tree
-                    try:
-                        grandparent.relative_to(
-                            base_dir.parent if base_dir.parent != base_dir else base_dir
-                        )
-                        gp_name = grandparent.name
-                        if (
-                            ".." not in gp_name
-                            and gp_name not in {".", ".."}
-                            and gp_name
-                        ):
-                            return gp_name
-                    except ValueError:
-                        continue
+                    gp_name = grandparent.name
+                    # Security check for grandparent
+                    if (
+                        ".." not in str(gp_name)
+                        and gp_name not in {".", ".."}
+                        and gp_name
+                    ):
+                        return gp_name
             else:
                 # This might be the series name
                 return parent_name

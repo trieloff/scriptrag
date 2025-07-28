@@ -103,8 +103,23 @@ class DatabaseOperations:
             )
             script_id = script_uuid
 
+            # Also create script node in graph if graph operations are available
+            if self._graph_ops:
+                from uuid import UUID
+
+                from scriptrag.models import Script as ScriptModel
+
+                script_model = ScriptModel(
+                    id=UUID(script_uuid),
+                    title=script.title,
+                    author=script.author,
+                )
+                # Note: create_script_graph is the correct method name
+                self._graph_ops.create_script_graph(script_model)
+
             # Insert scenes
             for scene in script.scenes:
+                scene_uuid = str(uuid4())
                 conn.execute(
                     """
                     INSERT INTO scenes (
@@ -112,13 +127,31 @@ class DatabaseOperations:
                     ) VALUES (?, ?, ?, ?, ?)
                     """,
                     (
-                        str(uuid4()),
+                        scene_uuid,
                         script_uuid,
                         scene.scene_number,
                         scene.heading,
                         scene.content,
                     ),
                 )
+
+                # Also create scene in graph if graph operations are available
+                if self._graph_ops:
+                    from uuid import UUID
+
+                    from scriptrag.models import Scene as SceneModel
+
+                    scene_model = SceneModel(
+                        id=UUID(scene_uuid),
+                        script_id=UUID(script_uuid),
+                        script_order=scene.scene_number,
+                        heading=scene.heading,
+                        description=scene.content,
+                    )
+                    self._graph_ops.create_scene_node(
+                        scene=scene_model,
+                        script_node_id=script_uuid,
+                    )
 
         logger.info("Stored script", script_id=script_id, title=script.title)
         return script_uuid
@@ -494,12 +527,20 @@ class DatabaseOperations:
         scene_number: int | None = None,
         heading: str | None = None,
         content: str | None = None,
-    ) -> None:
+    ) -> bool:
         """Update a scene."""
         if not self._connection:
             raise RuntimeError("Database not initialized")
 
         with self._connection.transaction() as conn:
+            # First check if scene exists
+            result = conn.execute(
+                "SELECT id FROM scenes WHERE id = ?", (scene_id,)
+            ).fetchone()
+
+            if not result:
+                return False
+
             # Use predefined queries to prevent SQL injection
             if scene_number is not None:
                 conn.execute(
@@ -515,6 +556,8 @@ class DatabaseOperations:
                     "UPDATE scenes SET description = ? WHERE id = ?",
                     (content, scene_id),
                 )
+
+            return True
 
     async def delete_scene(self, scene_id: str) -> None:
         """Delete a scene."""
@@ -701,7 +744,9 @@ class DatabaseOperations:
 
         # First update basic fields using existing method
         if scene_number is not None or heading is not None or content is not None:
-            await self.update_scene(scene_id, scene_number, heading, content)
+            success = await self.update_scene(scene_id, scene_number, heading, content)
+            if not success:
+                return False
 
         # Then use enhanced operations for graph propagation
         return self._graph_ops.update_scene_metadata(

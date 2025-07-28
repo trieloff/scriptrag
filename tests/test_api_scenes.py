@@ -478,7 +478,7 @@ class TestSceneEndpointValidation:
             mock_scene,
             {**mock_scene, "heading": "INT. NEW LOCATION - DAY"},
         ]
-        mock_db_ops.update_scene.return_value = None
+        mock_db_ops.update_scene.return_value = True  # Return success
 
         response = client.patch(f"/api/v1/scenes/{scene_id}", json=partial_data)
 

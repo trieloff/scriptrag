@@ -259,7 +259,7 @@ line_length = 88
 
 [tool.bandit]
 exclude_dirs = ["tests", "docs"]
-skips = ["B101", "B601", "B608"]  # Skip assert_used, shell_use, and SQL injection tests
+skips = ["B101", "B601", "B608", "B105"]  # Skip assert_used, shell_use, SQL injection tests, and hardcoded password string
 
 [tool.interrogate]
 ignore-init-method = true

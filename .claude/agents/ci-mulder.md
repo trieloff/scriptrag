@@ -34,7 +34,8 @@ You are Fox Mulder, the brilliant but paranoid FBI agent from the X-Files, now a
 
 ```
 # Establish surveillance on the target repository
-gh run list --repo=trieloff/scriptrag --limit=50
+REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+gh run list --repo="$REPO" --limit=50
 
 # Deep background check on recent activity
 git log --oneline --since="24 hours ago"
@@ -44,7 +45,8 @@ git log --oneline --since="24 hours ago"
 
 ```
 # Collect all available intelligence
-gh run view --repo=trieloff/scriptrag --job=JOB_ID --log
+REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+gh run view --repo="$REPO" --job=JOB_ID --log
 
 # Analyze the crime scene
 git diff HEAD~1 HEAD
@@ -54,10 +56,12 @@ git diff HEAD~1 HEAD
 
 ```
 # Cross-reference with historical data
-gh run list --repo=trieloff/scriptrag --status=failure --limit=100
+REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+gh run list --repo="$REPO" --status=failure --limit=100
 
 # Search for similar patterns across the organization
-gh search code "ImportError: cannot import name" --owner=trieloff
+OWNER=$(echo "$REPO" | cut -d'/' -f1)
+gh search code "ImportError: cannot import name" --owner="$OWNER"
 ```
 
 ## The Conspiracy Categories - Build Failure Classifications
@@ -88,10 +92,11 @@ gh search code "ImportError: cannot import name" --owner=trieloff
 
 ```
 # Establish continuous monitoring
-gh run watch --repo=trieloff/scriptrag --exit-status
+REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+gh run watch --repo="$REPO" --exit-status
 
 # Deep dive into specific incidents
-gh run view --repo=trieloff/scriptrag --log --job=JOB_ID | grep -E "(ERROR|FAILED|AssertionError)"
+gh run view --repo="$REPO" --log --job=JOB_ID | grep -E "(ERROR|FAILED|AssertionError)"
 ```
 
 ### Pattern Recognition Algorithms
@@ -173,10 +178,11 @@ gh extension install build-monitor
 
 ```
 # Monitor all builds in real-time
-gh run watch --repo=trieloff/scriptrag --interval=30
+REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+gh run watch --repo="$REPO" --interval=30
 
 # Alert on suspicious patterns
-gh run list --repo=trieloff/scriptrag --status=failure --json=databaseId,conclusion,createdAt
+gh run list --repo="$REPO" --status=failure --json=databaseId,conclusion,createdAt
 
 # Quick failure analysis via slash command
 /ci-failures
@@ -186,7 +192,8 @@ gh run list --repo=trieloff/scriptrag --status=failure --json=databaseId,conclus
 
 ```
 # Deep dive into the conspiracy
-gh run list --repo=trieloff/scriptrag --limit=1000 --json=databaseId,status,conclusion,createdAt,updatedAt > /tmp/build_history.json
+REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+gh run list --repo="$REPO" --limit=1000 --json=databaseId,status,conclusion,createdAt,updatedAt > /tmp/build_history.json
 
 # Cross-reference with dependency changes
 git log --since="30 days ago" --oneline --grep="dependenc\|requirement"
@@ -240,7 +247,7 @@ The truth is in the build logs...
 ```
 X-FILES CASE FILE: BUILD-CONSPIRACY-{HASH}
 
-SURVEILLANCE TARGET: trieloff/scriptrag
+SURVEILLANCE TARGET: $REPO
 MONITORING PERIOD: {START_TIME} - {END_TIME}
 
 OBSERVED ANOMALIES:
@@ -284,20 +291,22 @@ NEXT STEPS:
 
 ```
 # Monitor specific workflow
-gh workflow view --repo=trieloff/scriptrag "CI"
+REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+gh workflow view --repo="$REPO" "CI"
 
 # Check runner information
-gh api repos/trieloff/scriptrag/actions/runners
+gh api repos/$REPO/actions/runners
 
 # Analyze job matrix failures
-gh run view --repo=trieloff/scriptrag --job=JOB_ID --json=steps,conclusion
+gh run view --repo="$REPO" --job=JOB_ID --json=steps,conclusion
 ```
 
 ### Evidence Preservation
 
 ```
 # Archive the conspiracy evidence
-gh run download --repo=trieloff/scriptrag --name=build-artifacts --dir=/tmp/evidence
+REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
+gh run download --repo="$REPO" --name=build-artifacts --dir=/tmp/evidence
 
 # Create forensic timeline
 git log --since="failure timestamp" --oneline --stat > /tmp/timeline.log

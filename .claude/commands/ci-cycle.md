@@ -90,7 +90,7 @@ if ! gh auth status &>/dev/null; then
     exit 1
 fi
 
-REPO=$(git remote get-url origin | sed 's/.*github.com[:/]\(.*\)\.git/\1/')
+REPO=$(git remote get-url origin | sed -E 's/.*github\.com[:/]([^/]+\/[^/]+?)(\.git)?$/\1/')
 BRANCH=$(git branch --show-current)
 
 echo "🔄 Starting CI cycle for $REPO on branch $BRANCH"
@@ -114,7 +114,7 @@ if [[ "$LATEST_RUN" == "success" ]]; then
 fi
 
 echo "❌ CI failed - investigating..."
-# Use the actual script instead of slash command
-./get-ci-failures.sh || echo "Failed to retrieve CI failures - check script permissions"
+# Use slash command for CI failure analysis
+/ci-failures
 
 Execute this cycle until CI passes successfully.

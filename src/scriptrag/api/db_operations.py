@@ -137,8 +137,8 @@ class DatabaseOperations:
                 title=script.title,
                 author=script.author,
             )
-            # Note: create_script_graph is the correct method name
-            self._graph_ops.create_script_graph(script_model)
+            # Note: create_script_graph returns the graph node ID, not the database UUID
+            script_graph_node_id = self._graph_ops.create_script_graph(script_model)
 
             # Create scene nodes in graph
             for scene_uuid, scene in scene_uuids:
@@ -151,7 +151,7 @@ class DatabaseOperations:
                 )
                 self._graph_ops.create_scene_node(
                     scene=scene_model,
-                    script_node_id=script_uuid,
+                    script_node_id=script_graph_node_id,  # Use the graph node ID here!
                 )
 
         logger.info("Stored script", script_id=script_id, title=script.title)

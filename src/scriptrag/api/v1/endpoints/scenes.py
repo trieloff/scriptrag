@@ -114,13 +114,18 @@ async def update_scene(
         if not scene:
             raise HTTPException(status_code=404, detail="Scene not found")
 
-        # Update the scene
-        await db_ops.update_scene(
+        # Update the scene with enhanced graph propagation
+        success = await db_ops.update_scene_with_graph_propagation(
             scene_id=scene_id,
             scene_number=scene_update.scene_number,
             heading=scene_update.heading,
             content=scene_update.content,
+            location=scene_update.location,
+            time_of_day=scene_update.time_of_day,
         )
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update scene")
 
         # Get updated scene
         updated_scene = await db_ops.get_scene(scene_id)
@@ -161,10 +166,15 @@ async def delete_scene(
         if not scene:
             raise HTTPException(status_code=404, detail="Scene not found")
 
-        # Delete the scene
-        await db_ops.delete_scene(scene_id)
+        # Delete the scene with reference maintenance
+        success = await db_ops.delete_scene_with_references(scene_id)
 
-        return {"message": f"Scene {scene_id} deleted successfully"}
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete scene")
+
+        return {
+            "message": f"Scene {scene_id} deleted successfully with reference integrity"
+        }
 
     except HTTPException:
         raise
@@ -267,26 +277,25 @@ async def inject_scene_after(
         if not ref_scene:
             raise HTTPException(status_code=404, detail="Reference scene not found")
 
-        # Create scene with adjusted scene number
-        new_scene_number = ref_scene["scene_number"] + 1
+        # Calculate position (inject after means position = current + 1)
+        new_position = ref_scene["scene_number"] + 1
 
-        # Shift subsequent scene numbers
-        await db_ops.shift_scene_numbers(
-            script_id=ref_scene["script_id"], from_scene_number=new_scene_number
-        )
-
-        # Create the new scene
-        new_scene_id = await db_ops.create_scene(
+        # Use enhanced inject method with full re-indexing
+        new_scene_id = await db_ops.inject_scene_at_position(
             script_id=ref_scene["script_id"],
-            scene_number=new_scene_number,
-            heading=scene_data.heading,
-            content=scene_data.content,
+            scene_data=scene_data,
+            position=new_position,
         )
+
+        if not new_scene_id:
+            raise HTTPException(status_code=500, detail="Failed to inject scene")
 
         # Get created scene
         scene = await db_ops.get_scene(new_scene_id)
         if not scene:
-            raise HTTPException(status_code=500, detail="Failed to inject scene")
+            raise HTTPException(
+                status_code=500, detail="Failed to retrieve injected scene"
+            )
 
         return SceneResponse(
             id=scene["id"],

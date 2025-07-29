@@ -129,6 +129,7 @@ Claude: Thank you for participating in our user research session. The session ha
 "Thank you for participating in our user research session. The session has been documented for analysis."
 
 **Final documentation:**
+
 ```text
 Task(description="Finalize session", prompt="Session: [SESSION_FILENAME]. The user testing session has ended. Finalize the session documentation with a summary of key observations, pain points identified, and developer insights. Close the session file properly.", subagent_type="research-notetaker")
 ```
@@ -213,6 +214,7 @@ The research-notetaker agent simultaneously documents:
 ### Multi-line Commands
 
 If user enters multi-line commands, execute them as entered:
+
 ```text
 User: $ echo "line 1
 line 2

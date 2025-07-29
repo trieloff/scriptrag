@@ -52,12 +52,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
 
       - name: Create virtual environment
         run: uv venv
@@ -99,12 +100,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
 
       - name: Create virtual environment
         run: uv venv
@@ -131,12 +133,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
 
       - name: Create virtual environment
         run: uv venv
@@ -199,12 +202,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
+
+      - name: Cache virtual environment
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            venv-${{ runner.os }}-py${{ matrix.python-version }}-
 
       - name: Create virtual environment
         run: uv venv
@@ -226,7 +238,7 @@ jobs:
           else
             source .venv/bin/activate
           fi
-          pytest tests -v --cov=scriptrag --cov-report=xml --cov-report=term-missing --junit-xml=junit.xml
+          pytest tests -n auto --dist loadscope -q --no-header --tb=short --cov=scriptrag --cov-report=xml --junit-xml=junit.xml
         shell: bash
 
       - name: Upload test results
@@ -256,12 +268,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
 
       - name: Create virtual environment
         run: uv venv
@@ -294,12 +307,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
 
       - name: Install build dependencies
         run: |
@@ -328,6 +342,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -353,12 +368,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
 
       - name: Create virtual environment
         run: uv venv
@@ -371,7 +387,7 @@ jobs:
       - name: Run integration tests
         run: |
           source .venv/bin/activate
-          pytest tests -v -m integration
+          pytest tests -n auto -q --no-header --tb=short -m integration
         env:
           SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
           SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}

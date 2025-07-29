@@ -138,8 +138,7 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--cov=scriptrag",
-    "--cov-report=term-missing",
-    "--cov-report=html",
+    "--cov-report=xml",  # Only XML for codecov.io
 ]
 testpaths = ["tests"]
 pythonpath = ["src"]

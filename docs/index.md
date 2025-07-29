@@ -19,17 +19,22 @@ and querying capabilities for screenwriters, script analysts, and production tea
 ## Quick Start
 
 ```bash
-# Install ScriptRAG
-pip install scriptrag
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and install ScriptRAG
+git clone https://github.com/trieloff/scriptrag.git
+cd scriptrag
+uv sync
 
 # Initialize a new project
-scriptrag init my-project
+uv run scriptrag init my-project
 
 # Parse a screenplay
-scriptrag parse screenplay.fountain
+uv run scriptrag parse screenplay.fountain
 
 # Query the graph
-scriptrag query "What are the main character relationships?"
+uv run scriptrag query "What are the main character relationships?"
 ```
 
 ## Documentation

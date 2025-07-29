@@ -407,7 +407,7 @@ class CharacterArcMentor(BaseMentor):
     async def _get_script_data(
         self,
         script_id: UUID,
-        db_operations: Any,  # noqa: ARG002
+        _db_operations: Any,
     ) -> dict | None:
         """Get script data including characters and their appearances."""
         try:
@@ -428,9 +428,7 @@ class CharacterArcMentor(BaseMentor):
             return None
 
     async def _analyze_protagonist_arc(
-        self,
-        characters: list[dict],  # noqa: ARG002
-        scenes: list[dict],  # noqa: ARG002
+        self, _characters: list[dict], _scenes: list[dict]
     ) -> list[MentorAnalysis]:
         """Analyze the protagonist's character arc."""
         analyses = []
@@ -464,9 +462,7 @@ class CharacterArcMentor(BaseMentor):
         return analyses
 
     async def _analyze_want_vs_need(
-        self,
-        characters: list[dict],  # noqa: ARG002
-        scenes: list[dict],  # noqa: ARG002
+        self, _characters: list[dict], _scenes: list[dict]
     ) -> list[MentorAnalysis]:
         """Analyze character want vs need dynamics."""
         analyses = []
@@ -497,9 +493,7 @@ class CharacterArcMentor(BaseMentor):
         return analyses
 
     async def _analyze_development_stages(
-        self,
-        characters: list[dict],  # noqa: ARG002
-        scenes: list[dict],  # noqa: ARG002
+        self, _characters: list[dict], _scenes: list[dict]
     ) -> list[MentorAnalysis]:
         """Analyze character development stages."""
         analyses = []
@@ -583,9 +577,7 @@ class CharacterArcMentor(BaseMentor):
         return analyses
 
     async def _analyze_relationships(
-        self,
-        characters: list[dict],  # noqa: ARG002
-        scenes: list[dict],  # noqa: ARG002
+        self, _characters: list[dict], _scenes: list[dict]
     ) -> list[MentorAnalysis]:
         """Analyze character relationship dynamics."""
         analyses = []

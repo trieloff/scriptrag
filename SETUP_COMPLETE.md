@@ -23,11 +23,11 @@
 ### 🖥️ Command Line Interface
 
 - **Typer-Based CLI**: Rich, interactive command-line interface
-- **Configuration Commands**: `scriptrag config init|show|validate`
-- **Development Tools**: `scriptrag dev init|status|test-llm`
-- **Script Management**: `scriptrag script parse|info` (stubs for Phase 2)
-- **Search Commands**: `scriptrag search scenes` (stubs for Phase 4)
-- **Server Commands**: `scriptrag server start` (stubs for Phase 7)
+- **Configuration Commands**: `uv run scriptrag config init|show|validate`
+- **Development Tools**: `uv run scriptrag dev init|status|test-llm`
+- **Script Management**: `uv run scriptrag script parse|info` (stubs for Phase 2)
+- **Search Commands**: `uv run scriptrag search scenes` (stubs for Phase 4)
+- **Server Commands**: `uv run scriptrag server start` (stubs for Phase 7)
 
 ### 🌐 MCP Server Foundation
 
@@ -48,32 +48,32 @@
 
 ```bash
 # Initialize development environment
-scriptrag dev init
+uv run scriptrag dev init
 
 # Check status
-scriptrag dev status
+uv run scriptrag dev status
 
 # Test LLM connection (if LMStudio is running)
-scriptrag dev test-llm
+uv run scriptrag dev test-llm
 
 # View configuration
-scriptrag config show
+uv run scriptrag config show
 
 # View specific section
-scriptrag config show --section database
+uv run scriptrag config show --section database
 ```
 
 ### Configuration Management
 
 ```bash
 # Create custom config
-scriptrag config init --output my-config.yaml
+uv run scriptrag config init --output my-config.yaml
 
 # Validate configuration
-scriptrag config validate
+uv run scriptrag config validate
 
 # Use custom config
-scriptrag --config my-config.yaml config show
+uv run scriptrag --config my-config.yaml config show
 ```
 
 ### Environment Variables
@@ -110,28 +110,28 @@ SCRIPTRAG_LOG_JSON_LOGS=true
 
 ## 🔧 Available CLI Commands
 
-### Configuration (`scriptrag config`)
+### Configuration (`uv run scriptrag config`)
 
 - `init` - Create default configuration file
 - `show` - Display current configuration
 - `validate` - Validate configuration file
 
-### Development (`scriptrag dev`)
+### Development (`uv run scriptrag dev`)
 
 - `init` - Initialize development environment
 - `status` - Show environment status
 - `test-llm` - Test LLM connection
 
-### Scripts (`scriptrag script`) - *Ready for Phase 2*
+### Scripts (`uv run scriptrag script`) - *Ready for Phase 2*
 
 - `parse` - Parse Fountain screenplay (placeholder)
 - `info` - Show script/database information
 
-### Search (`scriptrag search`) - *Ready for Phase 4*
+### Search (`uv run scriptrag search`) - *Ready for Phase 4*
 
 - `scenes` - Search for scenes (placeholder)
 
-### Server (`scriptrag server`) - *Ready for Phase 7*
+### Server (`uv run scriptrag server`) - *Ready for Phase 7*
 
 - `start` - Start MCP server (placeholder)
 
@@ -186,28 +186,28 @@ echo "" >> scripts/test.fountain
 echo "PROTAGONIST sits alone." >> scripts/test.fountain
 
 # When parser is ready, you'll be able to:
-# scriptrag script parse scripts/test.fountain
+# uv run scriptrag script parse scripts/test.fountain
 ```
 
 ## 🧪 Testing Your Setup
 
 ```bash
 # Comprehensive status check
-scriptrag dev status
+uv run scriptrag dev status
 
 # Test configuration loading
-scriptrag config validate
+uv run scriptrag config validate
 
 # Test CLI help system
-scriptrag --help
-scriptrag config --help
-scriptrag dev --help
+uv run scriptrag --help
+uv run scriptrag config --help
+uv run scriptrag dev --help
 
 # Test verbose logging
-scriptrag --verbose dev status
+uv run scriptrag --verbose dev status
 
 # Test custom environment
-scriptrag --env production config show --section logging
+uv run scriptrag --env production config show --section logging
 ```
 
 ## 🎬 Movie Quote Commits

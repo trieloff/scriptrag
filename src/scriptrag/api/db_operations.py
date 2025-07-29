@@ -240,6 +240,14 @@ class DatabaseOperations:
                 """
             ).fetchall()
 
+            # Log unimplemented feature usage
+            if result:
+                logger.warning(
+                    "list_scripts returning placeholder values",
+                    placeholder_fields=["character_count", "has_embeddings"],
+                    script_count=len(result),
+                )
+
             return [
                 {
                     "id": row["id"],
@@ -248,8 +256,10 @@ class DatabaseOperations:
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
                     "scene_count": row["scene_count"],
-                    "character_count": 0,  # TODO: implement character counting
-                    "has_embeddings": False,  # TODO: check embeddings
+                    # Not yet implemented - tracking in issue #TODO-010
+                    "character_count": 0,  # Character counting not yet implemented
+                    # Not yet implemented - tracking in issue #TODO-011
+                    "has_embeddings": False,  # Embeddings check not yet implemented
                 }
                 for row in result
             ]

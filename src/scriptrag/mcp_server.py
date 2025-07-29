@@ -857,18 +857,21 @@ class ScriptRAGMCPServer:
         characters = args.get("characters", [])
         _ = args.get("limit", 10)  # Will be used when search is implemented
 
-        # For now, return mock data
-        # TODO: Implement actual search when database is ready
-        return {
-            "script_id": script_id,
-            "results": [],
-            "total_matches": 0,
-            "search_criteria": {
-                "query": query,
-                "location": location,
-                "characters": characters,
-            },
-        }
+        # Log placeholder usage
+        self.logger.warning(
+            "search_script placeholder called",
+            script_id=script_id,
+            query=query,
+            location=location,
+            characters=characters,
+        )
+
+        # Not yet implemented - tracking in issue #TODO-001
+        raise NotImplementedError(
+            "Script search functionality not yet implemented. "
+            "This feature is planned for a future release. "
+            "Track progress at issue #TODO-001"
+        )
 
     async def _tool_get_character_info(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get character information."""
@@ -881,14 +884,19 @@ class ScriptRAGMCPServer:
         # Validate script exists
         _ = self._validate_script_id(script_id)
 
-        # TODO: Implement when character analysis is ready
-        return {
-            "script_id": script_id,
-            "character_name": character_name,
-            "scenes_count": 0,
-            "dialogue_lines": 0,
-            "relationships": [],
-        }
+        # Log placeholder usage
+        self.logger.warning(
+            "get_character_info placeholder called",
+            script_id=script_id,
+            character_name=character_name,
+        )
+
+        # Not yet implemented - tracking in issue #TODO-002
+        raise NotImplementedError(
+            "Character analysis functionality not yet implemented. "
+            "This feature is planned for a future release. "
+            "Track progress at issue #TODO-002"
+        )
 
     async def _tool_analyze_timeline(self, args: dict[str, Any]) -> dict[str, Any]:
         """Analyze script timeline."""
@@ -901,13 +909,19 @@ class ScriptRAGMCPServer:
 
         include_flashbacks = args.get("include_flashbacks", True)
 
-        # TODO: Implement timeline analysis
-        return {
-            "script_id": script_id,
-            "timeline_type": "linear",
-            "flashbacks_detected": 0 if include_flashbacks else None,
-            "time_periods": [],
-        }
+        # Log placeholder usage
+        self.logger.warning(
+            "analyze_timeline placeholder called",
+            script_id=script_id,
+            include_flashbacks=include_flashbacks,
+        )
+
+        # Not yet implemented - tracking in issue #TODO-003
+        raise NotImplementedError(
+            "Timeline analysis functionality not yet implemented. "
+            "This feature is planned for a future release. "
+            "Track progress at issue #TODO-003"
+        )
 
     async def _tool_list_scripts(self, _args: dict[str, Any]) -> dict[str, Any]:
         """List all scripts."""
@@ -934,17 +948,24 @@ class ScriptRAGMCPServer:
         if not script_id or scene_id is None:
             raise ValueError("script_id and scene_id are required")
 
-        # TODO: Implement actual scene update when database is ready
-        return {
-            "script_id": script_id,
-            "scene_id": scene_id,
-            "updated": True,
-            "changes": {
+        # Log placeholder usage
+        self.logger.warning(
+            "update_scene placeholder called",
+            script_id=script_id,
+            scene_id=scene_id,
+            changes={
                 "heading": args.get("heading"),
                 "action": args.get("action"),
                 "dialogue": args.get("dialogue"),
             },
-        }
+        )
+
+        # Not yet implemented - tracking in issue #TODO-004
+        raise NotImplementedError(
+            "Scene update functionality not yet implemented. "
+            "This feature is planned for a future release. "
+            "Track progress at issue #TODO-004"
+        )
 
     async def _tool_delete_scene(self, args: dict[str, Any]) -> dict[str, Any]:
         """Delete a scene."""
@@ -954,12 +975,19 @@ class ScriptRAGMCPServer:
         if not script_id or scene_id is None:
             raise ValueError("script_id and scene_id are required")
 
-        # TODO: Implement actual scene deletion when database is ready
-        return {
-            "script_id": script_id,
-            "scene_id": scene_id,
-            "deleted": True,
-        }
+        # Log placeholder usage
+        self.logger.warning(
+            "delete_scene placeholder called",
+            script_id=script_id,
+            scene_id=scene_id,
+        )
+
+        # Not yet implemented - tracking in issue #TODO-005
+        raise NotImplementedError(
+            "Scene deletion functionality not yet implemented. "
+            "This feature is planned for a future release. "
+            "Track progress at issue #TODO-005"
+        )
 
     async def _tool_inject_scene(self, args: dict[str, Any]) -> dict[str, Any]:
         """Inject a new scene."""
@@ -970,14 +998,20 @@ class ScriptRAGMCPServer:
         if not script_id or position is None or not heading:
             raise ValueError("script_id, position, and heading are required")
 
-        # TODO: Implement actual scene injection when database is ready
-        return {
-            "script_id": script_id,
-            "scene_id": f"scene_{position}",
-            "position": position,
-            "heading": heading,
-            "injected": True,
-        }
+        # Log placeholder usage
+        self.logger.warning(
+            "inject_scene placeholder called",
+            script_id=script_id,
+            position=position,
+            heading=heading,
+        )
+
+        # Not yet implemented - tracking in issue #TODO-006
+        raise NotImplementedError(
+            "Scene injection functionality not yet implemented. "
+            "This feature is planned for a future release. "
+            "Track progress at issue #TODO-006"
+        )
 
     async def _tool_get_scene_details(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get scene details."""
@@ -987,16 +1021,19 @@ class ScriptRAGMCPServer:
         if not script_id or scene_id is None:
             raise ValueError("script_id and scene_id are required")
 
-        # TODO: Implement when scene data is available
-        return {
-            "script_id": script_id,
-            "scene_id": scene_id,
-            "heading": "INT. LOCATION - DAY",
-            "action": "Scene action goes here.",
-            "dialogue": [],
-            "characters": [],
-            "page_number": 1,
-        }
+        # Log placeholder usage
+        self.logger.warning(
+            "get_scene_details placeholder called",
+            script_id=script_id,
+            scene_id=scene_id,
+        )
+
+        # Not yet implemented - tracking in issue #TODO-007
+        raise NotImplementedError(
+            "Scene details retrieval functionality not yet implemented. "
+            "This feature is planned for a future release. "
+            "Track progress at issue #TODO-007"
+        )
 
     async def _tool_get_character_relationships(
         self, args: dict[str, Any]
@@ -1008,13 +1045,19 @@ class ScriptRAGMCPServer:
 
         character_name = args.get("character_name")
 
-        # TODO: Implement relationship analysis
-        return {
-            "script_id": script_id,
-            "character_name": character_name,
-            "relationships": [],
-            "total_characters": 0,
-        }
+        # Log placeholder usage
+        self.logger.warning(
+            "get_character_relationships placeholder called",
+            script_id=script_id,
+            character_name=character_name,
+        )
+
+        # Not yet implemented - tracking in issue #TODO-008
+        raise NotImplementedError(
+            "Character relationship analysis functionality not yet implemented. "
+            "This feature is planned for a future release. "
+            "Track progress at issue #TODO-008"
+        )
 
     async def _tool_export_data(self, args: dict[str, Any]) -> dict[str, Any]:
         """Export script data."""
@@ -1026,14 +1069,20 @@ class ScriptRAGMCPServer:
 
         include_metadata = args.get("include_metadata", True)
 
-        # TODO: Implement actual export functionality
-        return {
-            "script_id": script_id,
-            "format": export_format,
-            "exported": True,
-            "file_path": f"exports/{script_id}.{export_format}",
-            "include_metadata": include_metadata,
-        }
+        # Log placeholder usage
+        self.logger.warning(
+            "export_data placeholder called",
+            script_id=script_id,
+            format=export_format,
+            include_metadata=include_metadata,
+        )
+
+        # Not yet implemented - tracking in issue #TODO-009
+        raise NotImplementedError(
+            "Data export functionality not yet implemented. "
+            "This feature is planned for a future release. "
+            "Track progress at issue #TODO-009"
+        )
 
     # Script Bible Tool Implementations
 

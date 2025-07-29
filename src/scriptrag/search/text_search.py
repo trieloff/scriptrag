@@ -234,7 +234,7 @@ class TextSearchEngine:
         self,
         query: str,
         entity_type: str,
-        filters: dict[str, Any] | None = None,  # noqa: ARG002
+        _filters: dict[str, Any] | None = None,
         limit: int = 10,
     ) -> SearchResults:
         """Search for entities (characters, locations, objects).

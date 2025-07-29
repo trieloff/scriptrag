@@ -1,7 +1,5 @@
 """Tests for Script Bible CLI commands."""
 
-# ruff: noqa: ARG002
-
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -98,6 +96,10 @@ class TestScriptBibleCLI:
         self, mock_get_latest, mock_bible_ops, mock_db_conn, cli_runner
     ):
         """Test bible create when no scripts exist."""
+        # Silence unused fixture warnings
+        _ = mock_bible_ops
+        _ = mock_db_conn
+
         mock_get_latest.return_value = None
 
         result = cli_runner.invoke(app, ["bible", "create", "--title", "Test Bible"])

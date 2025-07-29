@@ -138,4 +138,4 @@ If setup fails:
 **Created**: 2024
 **Timeout Target**: < 3 minutes (main), < 2 minutes (minimal)
 **Python Requirement**: 3.11+
-**Pre-installed in Terragon**: Python 3, Node.js 22, uv, Docker, GitHub CLI
+**Pre-installed in Terragon**: Python 3, Node.js 22, uv, GitHub CLI

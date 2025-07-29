@@ -403,30 +403,26 @@ flowchart LR
 
 ```mermaid
 graph TB
-    subgraph "Load Balancer"
-        LB[Nginx/ALB]
-    end
+    %% Native Process Architecture - No Containers
 
-    subgraph "API Servers"
-        API1[API Instance 1]
-        API2[API Instance 2]
-        API3[API Instance 3]
-    end
+    LB[Nginx Load Balancer<br/>Native Process]
 
-    subgraph "Database Cluster"
-        PRIMARY[(Primary DB)]
-        REPLICA1[(Read Replica 1)]
-        REPLICA2[(Read Replica 2)]
-    end
+    %% ScriptRAG Processes (managed by systemd/supervisor)
+    API1[uvx scriptrag serve<br/>Process 1 - Port 8001]
+    API2[uvx scriptrag serve<br/>Process 2 - Port 8002]
+    API3[uvx scriptrag serve<br/>Process 3 - Port 8003]
 
-    subgraph "Cache Layer"
-        REDIS[(Redis Cluster)]
-    end
+    %% Database (native PostgreSQL installation)
+    PRIMARY[(PostgreSQL Primary<br/>Native Process)]
+    REPLICA1[(PostgreSQL Replica 1<br/>Native Process)]
+    REPLICA2[(PostgreSQL Replica 2<br/>Native Process)]
 
-    subgraph "ML Services"
-        LLM1[LLM Service 1]
-        LLM2[LLM Service 2]
-    end
+    %% Cache (native Redis installation)
+    REDIS[(Redis<br/>Native Process)]
+
+    %% LLM Services (external APIs or local processes)
+    LLM1[LLM API Endpoint 1]
+    LLM2[LLM API Endpoint 2]
 
     LB --> API1
     LB --> API2
@@ -443,6 +439,15 @@ graph TB
     API1 --> LLM1
     API2 --> LLM2
     API3 --> LLM1
+
+    %% Annotations
+    LB -.- NOTE1[All services run as<br/>native OS processes]
+    API3 -.- NOTE2[Managed by systemd<br/>or supervisor]
+    REDIS -.- NOTE3[No containerization<br/>overhead]
+
+    style NOTE1 fill:#f9f9f9,stroke:#333,stroke-dasharray: 5 5
+    style NOTE2 fill:#f9f9f9,stroke:#333,stroke-dasharray: 5 5
+    style NOTE3 fill:#f9f9f9,stroke:#333,stroke-dasharray: 5 5
 ```
 
 ### Modern Deployment Architecture

@@ -444,3 +444,190 @@ class TestHerosJourneyMentor:
         assert coverage["Call to Adventure"] is True
         assert coverage["Crossing the Threshold"] is False  # Not found
         assert len(coverage) == 8  # 8 practical beats
+
+    def test_genre_specific_recommendations(self):
+        """Test genre-specific recommendations in _get_stage_recommendations."""
+        # Test action genre recommendations
+        mentor = HerosJourneyMentor({"genre": "action"})
+        ordinary_world = HEROS_JOURNEY_STAGES[0]
+        recommendations = mentor._get_stage_recommendations(ordinary_world)
+
+        # Should have genre-specific advice for Ordinary World in action genre
+        assert any("action" in r.lower() and "7%" in r for r in recommendations)
+
+        # Test Tests, Allies, and Enemies stage
+        tests_stage = HEROS_JOURNEY_STAGES[6]  # Tests, Allies, and Enemies
+        recommendations = mentor._get_stage_recommendations(tests_stage)
+        assert any("action" in r.lower() and "35%" in r for r in recommendations)
+
+        # Test drama genre
+        mentor = HerosJourneyMentor({"genre": "drama"})
+        recommendations = mentor._get_stage_recommendations(ordinary_world)
+        assert any("drama" in r.lower() and "15%" in r for r in recommendations)
+
+    def test_edge_case_empty_scenes(self):
+        """Test edge cases with malformed or empty scene data."""
+        mentor = HerosJourneyMentor()
+
+        # Test with empty scene
+        empty_scene = {}
+        text = mentor._get_scene_text(empty_scene)
+        assert text == ""
+
+        # Test score calculation with empty scene
+        stage = HEROS_JOURNEY_STAGES[0]
+        score = mentor._calculate_stage_match_score(stage, empty_scene)
+        assert score >= 0  # Should not crash
+
+        # Test with scene missing common fields
+        partial_scene = {
+            "scene_heading": "INT. LOCATION - DAY",
+            # Missing action, dialogue, elements
+        }
+        text = mentor._get_scene_text(partial_scene)
+        assert text == "INT. LOCATION - DAY"
+
+    def test_scene_text_caching(self):
+        """Test that scene text caching works correctly."""
+        mentor = HerosJourneyMentor()
+
+        scene_with_id = {
+            "id": "scene123",
+            "scene_heading": "INT. CACHED SCENE - DAY",
+            "action": "This scene should be cached.",
+        }
+
+        # First call should extract and cache
+        text1 = mentor._get_scene_text(scene_with_id)
+        assert "CACHED SCENE" in text1
+        assert "scene123" in mentor._scene_text_cache
+
+        # Second call should use cache
+        text2 = mentor._get_scene_text(scene_with_id)
+        assert text1 == text2
+
+        # Scene without ID should not be cached
+        scene_no_id = {
+            "scene_heading": "INT. UNCACHED SCENE - DAY",
+        }
+        mentor._get_scene_text(scene_no_id)
+        assert len(mentor._scene_text_cache) == 1  # Only first scene cached
+
+    def test_configuration_edge_cases(self):
+        """Test edge cases in configuration validation."""
+        mentor = HerosJourneyMentor()
+
+        # Test with minimum_stages exceeding total stages
+        mentor.config["minimum_stages"] = 20
+        assert mentor.validate_config() is False
+
+        # Test with negative minimum_stages
+        mentor.config["minimum_stages"] = -1
+        assert mentor.validate_config() is False
+
+        # Test with non-boolean values
+        mentor.config = {
+            "check_archetypes": "yes",  # Should be boolean
+            "minimum_stages": 12,
+        }
+        assert mentor.validate_config() is False
+
+        # Test with missing required fields (should use defaults)
+        mentor.config = {}
+        assert mentor.validate_config() is True
+
+    def test_stage_match_score_edge_cases(self):
+        """Test edge cases in stage match scoring with malformed scenes."""
+        mentor = HerosJourneyMentor()
+        stage = HEROS_JOURNEY_STAGES[0]
+
+        # Scene with None values
+        scene_with_none = {
+            "scene_heading": None,
+            "action": None,
+            "dialogue": None,
+            "order": None,
+        }
+        score = mentor._calculate_stage_match_score(stage, scene_with_none)
+        assert score >= 0  # Should handle gracefully
+
+        # Scene with malformed dialogue
+        scene_bad_dialogue = {
+            "dialogue": [
+                {"text": None, "character": "HERO"},
+                {"character": "VILLAIN"},  # Missing text
+                "not a dict",  # Invalid format
+            ]
+        }
+        score = mentor._calculate_stage_match_score(stage, scene_bad_dialogue)
+        assert score >= 0  # Should handle gracefully
+
+    def test_practical_beat_coverage_mixed_stages(self):
+        """Test practical beat coverage with mixed found/missing stages."""
+        mentor = HerosJourneyMentor()
+        from scriptrag.mentors.base import MentorAnalysis
+
+        # Create analyses with some stages found and some missing
+        analyses = [
+            # Found stages
+            MentorAnalysis(
+                title="Ordinary World Implementation",
+                description="Found",
+                severity=AnalysisSeverity.INFO,
+                scene_id=None,
+                character_id=None,
+                element_id=None,
+                category="journey_stages",
+                mentor_name="heros_journey",
+                metadata={"stage_name": "Ordinary World"},
+            ),
+            MentorAnalysis(
+                title="The Ordeal Implementation",
+                description="Found",
+                severity=AnalysisSeverity.INFO,
+                scene_id=None,
+                character_id=None,
+                element_id=None,
+                category="journey_stages",
+                mentor_name="heros_journey",
+                metadata={"stage_name": "The Ordeal"},
+            ),
+            # Missing stages
+            MentorAnalysis(
+                title="Missing Stage: Call to Adventure",
+                description="Not found",
+                severity=AnalysisSeverity.ERROR,
+                scene_id=None,
+                character_id=None,
+                element_id=None,
+                category="journey_stages",
+                mentor_name="heros_journey",
+            ),
+        ]
+
+        coverage = mentor._calculate_practical_coverage(analyses)
+
+        # Ordinary World beat should be covered
+        assert coverage["Ordinary World"] is True
+        # Call to Adventure beat should not be covered
+        assert coverage["Call to Adventure"] is False
+        # Ordeal beat should be covered
+        assert coverage["Ordeal"] is True
+
+    def test_genre_specific_stage_implementation(self):
+        """Test genre-specific analysis in stage implementation."""
+        mentor = HerosJourneyMentor({"genre": "comedy"})
+
+        stage = HEROS_JOURNEY_STAGES[8]  # The Ordeal
+        stage_match = {
+            "scene_index": 50,
+            "scene": {},  # Empty scene dict, no id
+            "score": 3.5,
+            "position": 0.52,
+        }
+
+        analysis = mentor._analyze_stage_implementation(stage, stage_match, 48, 55)
+
+        assert analysis is not None
+        assert analysis.severity == AnalysisSeverity.SUGGESTION
+        assert "The Ordeal" in analysis.title

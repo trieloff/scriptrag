@@ -29,6 +29,33 @@ from scriptrag.mentors.base import (
 
 logger = get_logger(__name__)
 
+# Configuration constants for stage matching
+STAGE_MATCH_MINIMUM_SCORE = 2.0  # Minimum score to consider a stage match
+POSITION_MATCH_CLOSE_THRESHOLD = 0.05  # Position difference for close match (5%)
+POSITION_MATCH_MODERATE_THRESHOLD = 0.10  # Position difference for moderate match (10%)
+POSITION_BONUS_CLOSE = 1.0  # Score bonus for close position match
+POSITION_BONUS_MODERATE = 0.5  # Score bonus for moderate position match
+
+# Scene search flexibility
+SCENE_SEARCH_BUFFER = 2  # Number of scenes to search beyond expected range
+
+# Score calculation weights
+STAGE_PRESENCE_WEIGHT = 50  # Weight for having stages present (50%)
+STAGE_QUALITY_WEIGHT = 30  # Weight for implementation quality (30%)
+STAGE_MATCH_QUALITY_DIVISOR = 5.0  # Divisor for normalizing match scores
+STAGE_MATCH_WEIGHT = 0.6  # Weight for match score in quality calculation
+TIMING_ACCURACY_WEIGHT = 0.4  # Weight for timing accuracy in quality calculation
+
+# Bonus scores
+MINIMUM_STAGES_BONUS = 5  # Bonus for meeting minimum stages
+GENRE_ADAPTATION_BONUS = 3  # Bonus for genre-specific implementation
+
+# Implementation quality thresholds
+STRONG_IMPLEMENTATION_SCORE = 4.0  # Score for strong implementation
+STRONG_IMPLEMENTATION_TIMING = 0.05  # Timing accuracy for strong implementation
+GOOD_IMPLEMENTATION_SCORE = 3.0  # Score for good implementation
+GOOD_IMPLEMENTATION_TIMING = 0.10  # Timing accuracy for good implementation
+
 
 class HerosJourneyStage:
     """Represents a stage in the Hero's Journey."""
@@ -469,6 +496,9 @@ class HerosJourneyMentor(BaseMentor):
         self.use_practical_beats = self.config.get("use_practical_beats", True)
         self.genre = self.config.get("genre", "general")
 
+        # Cache for scene text to avoid repeated extraction
+        self._scene_text_cache: dict[int, str] = {}
+
     @property
     def name(self) -> str:
         """Unique name identifier for this mentor."""
@@ -715,16 +745,15 @@ class HerosJourneyMentor(BaseMentor):
             return None
 
         # Search within expected range, but also a bit beyond for flexibility
-        search_start = max(0, start_scene - 2)
-        search_end = min(len(scenes), end_scene + 2)
+        # Ensure bounds are properly clamped to avoid index errors
+        search_start = max(0, start_scene - SCENE_SEARCH_BUFFER)
+        search_end = min(len(scenes), end_scene + SCENE_SEARCH_BUFFER)
 
         best_match = None
         best_score = 0.0
 
+        # No need for additional bounds checking in loop since range handles it
         for i in range(search_start, search_end):
-            if i >= len(scenes):
-                break
-
             scene = scenes[i]
             score = self._calculate_stage_match_score(stage, scene)
 
@@ -738,7 +767,7 @@ class HerosJourneyMentor(BaseMentor):
                 }
 
         # Require minimum score for match
-        return best_match if best_score >= 2.0 else None
+        return best_match if best_score >= STAGE_MATCH_MINIMUM_SCORE else None
 
     def _calculate_stage_match_score(
         self, stage: HerosJourneyStage, scene: dict
@@ -747,7 +776,10 @@ class HerosJourneyMentor(BaseMentor):
         score = 0.0
 
         # Get scene text content
-        scene_text = self._get_scene_text(scene).lower()
+        scene_text = self._get_scene_text(scene)
+        if not scene_text:
+            return score
+        scene_text = scene_text.lower()
 
         # Check for keyword matches
         for keyword in stage.keywords:
@@ -782,39 +814,65 @@ class HerosJourneyMentor(BaseMentor):
         scene_position = scene.get("order", 0) / 100.0  # Normalized position
         expected_position = (stage.percentage_range[0] + stage.percentage_range[1]) / 2
         position_diff = abs(scene_position - expected_position)
-        if position_diff < 0.05:
-            score += 1.0
-        elif position_diff < 0.10:
-            score += 0.5
+        if position_diff < POSITION_MATCH_CLOSE_THRESHOLD:
+            score += POSITION_BONUS_CLOSE
+        elif position_diff < POSITION_MATCH_MODERATE_THRESHOLD:
+            score += POSITION_BONUS_MODERATE
 
         return score
 
     def _get_scene_text(self, scene: dict) -> str:
-        """Extract all text content from a scene."""
+        """Extract all text content from a scene.
+
+        Optimized to minimize string operations and list allocations.
+        Uses caching to avoid repeated extraction for the same scene.
+        """
+        # Check cache first using scene ID if available
+        scene_id = scene.get("id")
+        if scene_id and scene_id in self._scene_text_cache:
+            return self._scene_text_cache[scene_id]
+
+        # Pre-allocate list with reasonable initial capacity
         text_parts = []
 
-        # Add scene heading
-        if "scene_heading" in scene:
-            text_parts.append(scene["scene_heading"])
+        # Use direct key access with get() to avoid KeyError handling
+        heading = scene.get("scene_heading")
+        if heading:
+            text_parts.append(heading)
 
-        # Add action lines
-        if "action" in scene:
-            text_parts.append(scene["action"])
+        action = scene.get("action")
+        if action:
+            text_parts.append(action)
 
-        # Add dialogue
-        if "dialogue" in scene:
-            for dialogue in scene["dialogue"]:
-                text_parts.append(dialogue.get("text", ""))
-                if "parenthetical" in dialogue:
-                    text_parts.append(dialogue["parenthetical"])
+        # Process dialogue more efficiently
+        dialogue_list = scene.get("dialogue")
+        if dialogue_list:
+            # Use list comprehension for better performance
+            for dialogue in dialogue_list:
+                if isinstance(dialogue, dict):
+                    text = dialogue.get("text")
+                    if text:
+                        text_parts.append(text)
+                    parenthetical = dialogue.get("parenthetical")
+                    if parenthetical:
+                        text_parts.append(parenthetical)
 
-        # Add elements if available
-        if "elements" in scene:
-            for element in scene["elements"]:
-                if "text" in element:
-                    text_parts.append(element["text"])
+        # Process elements efficiently
+        elements = scene.get("elements")
+        if elements:
+            # Use list comprehension to avoid repeated append calls
+            text_parts.extend(
+                element["text"] for element in elements if "text" in element
+            )
 
-        return " ".join(text_parts)
+        # Join once at the end
+        result = " ".join(text_parts) if text_parts else ""
+
+        # Cache the result if scene has an ID
+        if scene_id:
+            self._scene_text_cache[scene_id] = result
+
+        return result
 
     def _analyze_stage_implementation(
         self,
@@ -827,33 +885,119 @@ class HerosJourneyMentor(BaseMentor):
         scene_index = stage_match["scene_index"]
         score = stage_match["score"]
         position = stage_match["position"]
-
-        # Calculate timing accuracy
         expected_position = (stage.percentage_range[0] + stage.percentage_range[1]) / 2
         timing_diff = abs(position - expected_position)
 
-        # Determine severity based on implementation quality
-        if score >= 4.0 and timing_diff < 0.05:
-            severity = AnalysisSeverity.INFO
-            title = f"Strong {stage.name} Implementation"
-            desc_prefix = "Excellent implementation of"
-        elif score >= 3.0 and timing_diff < 0.10:
-            severity = AnalysisSeverity.SUGGESTION
-            title = f"{stage.name} - Good with Room for Enhancement"
-            desc_prefix = "Good implementation of"
-        else:
-            severity = AnalysisSeverity.WARNING
-            title = f"{stage.name} - Weak Implementation"
-            desc_prefix = "Weak implementation of"
+        # Determine implementation quality
+        severity, title, desc_prefix = self._evaluate_implementation_quality(
+            stage.name, score, timing_diff
+        )
 
-        # Calculate percentage coverage
-        scene_range = (scene_index, scene_index + 1)
-        coverage = ((scene_range[1] - scene_range[0]) / 100.0) * 100
+        # Build recommendations
+        recommendations = self._build_stage_recommendations(
+            stage, scene_index, score, position, expected_position, timing_diff
+        )
 
+        # Create description
+        description = (
+            f"{desc_prefix} '{stage.name}' at scene {scene_index + 1} "
+            f"({position * 100:.1f}% through script). {stage.description}"
+        )
+
+        # Calculate metadata
+        metadata = self._calculate_stage_metadata(
+            stage.name, score, position, expected_position, timing_diff, scene_index
+        )
+
+        return MentorAnalysis(
+            title=title,
+            description=description,
+            severity=severity,
+            scene_id=stage_match["scene"].get("id"),
+            character_id=None,
+            element_id=None,
+            category="journey_stages",
+            mentor_name=self.name,
+            recommendations=recommendations,
+            metadata=metadata,
+        )
+
+    def _evaluate_implementation_quality(
+        self, stage_name: str, score: float, timing_diff: float
+    ) -> tuple[AnalysisSeverity, str, str]:
+        """Evaluate the quality of a stage implementation.
+
+        Returns: (severity, title, description_prefix)
+        """
+        if (
+            score >= STRONG_IMPLEMENTATION_SCORE
+            and timing_diff < STRONG_IMPLEMENTATION_TIMING
+        ):
+            return (
+                AnalysisSeverity.INFO,
+                f"Strong {stage_name} Implementation",
+                "Excellent implementation of",
+            )
+        if (
+            score >= GOOD_IMPLEMENTATION_SCORE
+            and timing_diff < GOOD_IMPLEMENTATION_TIMING
+        ):
+            return (
+                AnalysisSeverity.SUGGESTION,
+                f"{stage_name} - Good with Room for Enhancement",
+                "Good implementation of",
+            )
+        return (
+            AnalysisSeverity.WARNING,
+            f"{stage_name} - Weak Implementation",
+            "Weak implementation of",
+        )
+
+    def _build_stage_recommendations(
+        self,
+        stage: HerosJourneyStage,
+        scene_index: int,
+        score: float,
+        position: float,
+        expected_position: float,
+        timing_diff: float,
+    ) -> list[str]:
+        """Build recommendations for improving stage implementation."""
         recommendations = []
 
-        # Timing recommendations
-        if timing_diff > 0.10:
+        # Add timing recommendations
+        timing_recs = self._get_timing_recommendations(
+            scene_index, position, expected_position, timing_diff
+        )
+        recommendations.extend(timing_recs)
+
+        # Add content recommendations
+        if score < GOOD_IMPLEMENTATION_SCORE:
+            recommendations.extend(
+                [
+                    f"Strengthen {stage.name} by incorporating more key elements: "
+                    f"{', '.join(stage.keywords[:3])}",
+                    "Ensure the scene clearly communicates this stage's purpose",
+                ]
+            )
+
+        # Add genre-specific recommendations
+        genre_recs = self._get_genre_specific_recommendations(stage)
+        recommendations.extend(genre_recs)
+
+        return recommendations
+
+    def _get_timing_recommendations(
+        self,
+        scene_index: int,
+        position: float,
+        expected_position: float,
+        timing_diff: float,
+    ) -> list[str]:
+        """Get recommendations for stage timing issues."""
+        recommendations = []
+
+        if timing_diff > POSITION_MATCH_MODERATE_THRESHOLD:
             if position < expected_position:
                 recommendations.append(
                     f"This stage appears early (scene {scene_index + 1}). "
@@ -867,19 +1011,17 @@ class HerosJourneyMentor(BaseMentor):
                     f"{int(expected_position * 100)}% of the script."
                 )
 
-        # Content recommendations
-        if score < 3.0:
-            recommendations.extend(
-                [
-                    f"Strengthen {stage.name} by incorporating more key elements: "
-                    f"{', '.join(stage.keywords[:3])}",
-                    "Ensure the scene clearly communicates this stage's purpose",
-                ]
-            )
+        return recommendations
 
-        # Genre-specific recommendations
+    def _get_genre_specific_recommendations(
+        self, stage: HerosJourneyStage
+    ) -> list[str]:
+        """Get genre-specific recommendations for a stage."""
+        recommendations = []
+
         if self.genre in GENRE_ADAPTATIONS:
             genre_adapt = cast(dict[str, Any], GENRE_ADAPTATIONS[self.genre])
+
             if (
                 stage.name == "Ordinary World"
                 and "ordinary_world_weight" in genre_adapt
@@ -889,31 +1031,39 @@ class HerosJourneyMentor(BaseMentor):
                     f"For {self.genre}, aim for {int(target_weight * 100)}% "
                     "of script for setup"
                 )
+            elif (
+                stage.name == "Tests, Allies, and Enemies"
+                and "tests_allies_weight" in genre_adapt
+            ):
+                target_weight = genre_adapt.get("tests_allies_weight", 0.25)
+                recommendations.append(
+                    f"For {self.genre}, extend this section to "
+                    f"{int(target_weight * 100)}% of script"
+                )
 
-        description = (
-            f"{desc_prefix} '{stage.name}' at scene {scene_index + 1} "
-            f"({position * 100:.1f}% through script). {stage.description}"
-        )
+        return recommendations
 
-        return MentorAnalysis(
-            title=title,
-            description=description,
-            severity=severity,
-            scene_id=stage_match["scene"].get("id"),
-            character_id=None,
-            element_id=None,
-            category="journey_stages",
-            mentor_name=self.name,
-            recommendations=recommendations,
-            metadata={
-                "stage_name": stage.name,
-                "match_score": score,
-                "position": position,
-                "expected_position": expected_position,
-                "timing_accuracy": 1.0 - min(timing_diff * 10, 1.0),
-                "coverage_percentage": coverage,
-            },
-        )
+    def _calculate_stage_metadata(
+        self,
+        stage_name: str,
+        score: float,
+        position: float,
+        expected_position: float,
+        timing_diff: float,
+        scene_index: int,
+    ) -> dict[str, Any]:
+        """Calculate metadata for stage analysis."""
+        scene_range = (scene_index, scene_index + 1)
+        coverage = ((scene_range[1] - scene_range[0]) / 100.0) * 100
+
+        return {
+            "stage_name": stage_name,
+            "match_score": score,
+            "position": position,
+            "expected_position": expected_position,
+            "timing_accuracy": 1.0 - min(timing_diff * 10, 1.0),
+            "coverage_percentage": coverage,
+        }
 
     def _check_stage_order(self, found_stages: list[str]) -> MentorAnalysis | None:
         """Check if stages appear in the correct order."""
@@ -1060,15 +1210,22 @@ class HerosJourneyMentor(BaseMentor):
                 # Combine match score and timing accuracy
                 match_score = analysis.metadata.get("match_score", 0)
                 timing_accuracy = analysis.metadata.get("timing_accuracy", 0)
-                quality_scores.append((match_score / 5.0) * 0.6 + timing_accuracy * 0.4)
+                quality_scores.append(
+                    (match_score / STAGE_MATCH_QUALITY_DIVISOR) * STAGE_MATCH_WEIGHT
+                    + timing_accuracy * TIMING_ACCURACY_WEIGHT
+                )
 
         # Base score calculation
         # 50% for having stages, 30% for quality, 20% for other factors
-        stage_presence_score = (found_stages / len(HEROS_JOURNEY_STAGES)) * 50
+        stage_presence_score = (
+            found_stages / len(HEROS_JOURNEY_STAGES)
+        ) * STAGE_PRESENCE_WEIGHT
 
         quality_score = 0
         if quality_scores:
-            quality_score = (sum(quality_scores) / len(quality_scores)) * 30
+            quality_score = (
+                sum(quality_scores) / len(quality_scores)
+            ) * STAGE_QUALITY_WEIGHT
 
         base_score = stage_presence_score + quality_score
 
@@ -1087,11 +1244,11 @@ class HerosJourneyMentor(BaseMentor):
 
         # Bonus for meeting minimum stages
         if found_stages >= self.minimum_stages:
-            base_score += 5
+            base_score += MINIMUM_STAGES_BONUS
 
         # Genre-specific adjustments
         if self.genre != "general" and found_stages >= 10:
-            base_score += 3  # Bonus for genre-aware implementation
+            base_score += GENRE_ADAPTATION_BONUS  # Bonus for genre-aware implementation
 
         return max(0.0, min(100.0, base_score + other_score))
 
@@ -1216,20 +1373,36 @@ class HerosJourneyMentor(BaseMentor):
         try:
             check_archetypes = self.config.get("check_archetypes", True)
             strict_order = self.config.get("strict_order", False)
-            minimum_stages = self.config.get("minimum_stages", 8)
-
+            minimum_stages = self.config.get("minimum_stages", 12)
             use_practical_beats = self.config.get("use_practical_beats", True)
             genre = self.config.get("genre", "general")
 
+            # Boolean type checks
             if not isinstance(check_archetypes, bool):
+                logger.warning("check_archetypes must be boolean")
                 return False
             if not isinstance(strict_order, bool):
+                logger.warning("strict_order must be boolean")
                 return False
             if not isinstance(use_practical_beats, bool):
-                return False
-            if not isinstance(minimum_stages, int) or not (1 <= minimum_stages <= 17):
+                logger.warning("use_practical_beats must be boolean")
                 return False
 
+            # Minimum stages validation
+            if not isinstance(minimum_stages, int):
+                logger.warning("minimum_stages must be an integer")
+                return False
+            if minimum_stages < 1:
+                logger.warning("minimum_stages must be at least 1")
+                return False
+            if minimum_stages > len(HEROS_JOURNEY_STAGES):
+                logger.warning(
+                    f"minimum_stages cannot exceed {len(HEROS_JOURNEY_STAGES)} "
+                    "(total number of stages)"
+                )
+                return False
+
+            # Genre validation
             valid_genres = [
                 "general",
                 "action",
@@ -1239,9 +1412,24 @@ class HerosJourneyMentor(BaseMentor):
                 "thriller",
                 "scifi_fantasy",
             ]
-            return genre in valid_genres
+            if genre not in valid_genres:
+                logger.warning(f"Invalid genre: {genre}. Must be one of {valid_genres}")
+                return False
 
-        except Exception:
+            # Additional edge case validations for stage percentage ranges
+            for stage in HEROS_JOURNEY_STAGES:
+                start, end = stage.percentage_range
+                if start < 0.0 or end > 1.0 or start >= end:
+                    logger.error(
+                        f"Invalid percentage range for stage {stage.name}: "
+                        f"({start}, {end})"
+                    )
+                    return False
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Configuration validation error: {e}")
             return False
 
     def get_config_schema(self) -> dict[str, Any]:

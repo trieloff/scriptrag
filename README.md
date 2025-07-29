@@ -1,6 +1,6 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-[![38% Vibe_Coded](https://img.shields.io/badge/38%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=zedindustries&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
+[![39% Vibe_Coded](https://img.shields.io/badge/39%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
 
 ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
@@ -479,10 +479,8 @@ cd scriptrag
 # Install uv if not already installed
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Create virtual environment and install dependencies
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv pip install -e .
+# Install dependencies (uv will automatically create virtual environment)
+uv sync
 ```
 
 ### Quick Start
@@ -522,46 +520,46 @@ srag.update_scene(
 
 ```bash
 # Parse and build knowledge graph from a screenplay
-scriptrag parse examples/data/sample_screenplay.fountain
+uv run scriptrag parse examples/data/sample_screenplay.fountain
 
 # Search for dialogue containing specific text
-scriptrag search dialogue "I love you"
+uv run scriptrag search dialogue "I love you"
 
 # Find scenes with specific characters
-scriptrag search character "PROTAGONIST" "ANTAGONIST"
+uv run scriptrag search character "PROTAGONIST" "ANTAGONIST"
 
 # Semantic search for thematically similar content
-scriptrag search semantic "betrayal and revenge"
+uv run scriptrag search semantic "betrayal and revenge"
 
 # List all characters and their relationships
-scriptrag graph characters
+uv run scriptrag graph characters
 
 # Analyze temporal structure of the screenplay
-scriptrag analyze timeline
+uv run scriptrag analyze timeline
 ```
 
 ### Bulk Import Examples
 
 ```bash
 # Import entire TV series from a directory structure
-scriptrag script import "Breaking Bad/**/*.fountain"
+uv run scriptrag script import "Breaking Bad/**/*.fountain"
 
 # Import with custom season/episode pattern
-scriptrag script import "*.fountain" \
+uv run scriptrag script import "*.fountain" \
     --pattern "S(?P<season>\d+)E(?P<episode>\d+)"
 
 # Preview import without actually importing (dry run)
-scriptrag script import "Season*/*.fountain" --dry-run
+uv run scriptrag script import "Season*/*.fountain" --dry-run
 
 # Import from directory with automatic series detection
-scriptrag script import ./scripts/
+uv run scriptrag script import ./scripts/
 
 # Import with series name override
-scriptrag script import "episodes/*.fountain" \
+uv run scriptrag script import "episodes/*.fountain" \
     --series-name "My TV Show"
 
 # Control import behavior
-scriptrag script import "*.fountain" \
+uv run scriptrag script import "*.fountain" \
     --skip-existing \      # Skip files already in database
     --batch-size 20        # Process 20 files per batch
 ```
@@ -581,10 +579,10 @@ The bulk import feature automatically:
 
 ```bash
 # Start the MCP server
-python -m scriptrag.mcp_server
+uv run scriptrag-mcp
 
 # With custom configuration
-python -m scriptrag.mcp_server --config-file config.yaml
+uv run scriptrag-mcp --config-file config.yaml
 
 # The MCP server provides 18 tools for AI assistants:
 # • parse_script - Parse Fountain screenplays

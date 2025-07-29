@@ -1306,7 +1306,7 @@ class ScriptRAGMCPServer:
 
     async def _tool_list_mentors(
         self,
-        args: dict[str, Any],  # noqa: ARG002
+        _args: dict[str, Any],
     ) -> dict[str, Any]:
         """List all available mentors."""
         from .mentors import get_mentor_registry

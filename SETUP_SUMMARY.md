@@ -103,10 +103,10 @@ After setup completes:
 
 ```bash
 # Run the CLI
-python -m scriptrag
+uv run scriptrag
 
 # Start MCP server
-python -m scriptrag.mcp_server
+uv run scriptrag-mcp
 
 # Run tests
 make test

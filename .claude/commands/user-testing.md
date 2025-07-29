@@ -165,14 +165,14 @@ Task(description="Finalize session", prompt="Session: [SESSION_FILENAME]. The us
 
 If a command fails:
 
-```text
+```bash
 User: $ invalid-command
 Claude: bash: invalid-command: command not found
 ```
 
 If a command produces no output:
 
-```text
+```bash
 User: $ touch newfile.txt
 Claude: <no output, no errors>
 ```
@@ -203,7 +203,7 @@ The research-notetaker agent simultaneously documents:
 # User input: $ ls -la /tmp
 # You execute: ls -la /tmp
 # Show exactly what bash returns
-```text
+```bash
 
 ### Session State Management
 

@@ -15,7 +15,7 @@ Generation) pattern.
 - **✅ Phase 5.2: Scene Operations - COMPLETE!** - Full CRUD operations for scenes with graph
   integration, reference maintenance, and scene injection capabilities (34 story points)
 - **✅ Phase 8: Pluggable Mentors System - COMPLETE!** - Comprehensive screenplay analysis framework
-  with Save the Cat mentor, database integration, and MCP server tools (147 story points, 3,172 lines)
+  with Save the Cat and Character Arc mentors, database integration, and MCP server tools (202 story points, 5,710 lines)
 - **✅ Phase 4: GraphRAG Implementation - COMPLETE!** - Full knowledge graph construction with
   entity extraction, relationship building, and LLM enrichment
 - **✅ Phase 6: Search and Query Interface - COMPLETE!** - Comprehensive text-based,
@@ -62,8 +62,8 @@ Generation) pattern.
 **Yeah, so I've been tracking our velocity and story points, mmm'kay?**
 
 - **Total Project Estimate**: 1,509 story points
-- **Points Completed**: 851 points (56.4%)
-- **Current Sprint Velocity**: 89 points (Phase 11 completion)
+- **Points Completed**: 906 points (60.0%)
+- **Current Sprint Velocity**: 55 points (Character Arc mentor completion)
 - **Projected Completion**: Q3 2025 (at current velocity)
 
 **Phase Completion Status:**
@@ -72,7 +72,7 @@ Generation) pattern.
 - Phase 4: ✅ Complete (89 points)
 - Phase 6: ✅ Complete (134 points)
 - Phase 7.3: ✅ Complete (98 points)
-- Phase 8: ✅ Complete (236 points) - *Hero's Journey just landed, mmm'kay?*
+- Phase 8: ✅ Complete (291 points) - *Character Arc and Hero's Journey complete, mmm'kay?*
 - Phase 11: ✅ Complete (268 points) - *That's terrific work, team!*
 - Remaining Phases: 511 points
 
@@ -270,7 +270,7 @@ Generation) pattern.
     - [x] `search_mentor_analyses` - Search analysis findings
     - [x] `get_mentor_statistics` - Get mentor stats
 
-### Phase 8: Pluggable Mentors System 🎭 ✅ COMPLETE! (236 story points)
+### Phase 8: Pluggable Mentors System 🎭 ✅ COMPLETE! (291 story points)
 
 📋 **[Detailed Mentor System Documentation](MENTOR_SYSTEM.md)**
 
@@ -280,11 +280,11 @@ Generation) pattern.
   - [x] Database schema extensions for mentor results (v5 migration)
   - [x] Configuration and settings integration
 
-- [x] **8.2 Built-in Mentors** *(136 points - Save the Cat & Hero's Journey Complete)*
+- [x] **8.2 Built-in Mentors** *(191 points - Save the Cat, Hero's Journey & Character Arc Complete)*
   - [x] Save the Cat mentor implementation (658 lines) - 47 points
-  - [x] Hero's Journey mentor implementation (1,207 lines) - 89 points ✅ NEW!
+  - [x] Hero's Journey mentor implementation (1,207 lines) - 89 points
   - [ ] Three-Act structure mentor (enhanced but not fully integrated)
-  - [ ] Character Arc analysis mentor (deferred)
+  - [x] Character Arc analysis mentor (2,538 lines) - 55 points ✅ **COMPLETE!**
 
 - [x] **8.3 Mentor Execution System** *(50 points - Complete)*
   - [x] CLI commands for mentor management (analyze, list, results, search)

@@ -93,9 +93,13 @@ class TestScriptBibleCLI:
     @patch("scriptrag.cli.ScriptBibleOperations")
     @patch("scriptrag.cli.get_latest_script_id")
     def test_bible_create_no_scripts(
-        self, mock_get_latest, _mock_bible_ops, _mock_db_conn, cli_runner
+        self, mock_get_latest, mock_bible_ops, mock_db_conn, cli_runner
     ):
         """Test bible create when no scripts exist."""
+        # Silence unused fixture warnings
+        _ = mock_bible_ops
+        _ = mock_db_conn
+
         mock_get_latest.return_value = None
 
         result = cli_runner.invoke(app, ["bible", "create", "--title", "Test Bible"])

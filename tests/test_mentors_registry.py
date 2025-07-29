@@ -29,9 +29,13 @@ class TestMentor1(BaseMentor):
     async def analyze_script(
         self,
         script_id,
-        _db_operations,
-        _progress_callback=None,
+        db_operations,
+        progress_callback=None,
     ):
+        # Silence unused parameter warnings in mock
+        _ = db_operations
+        _ = progress_callback
+
         return MentorResult(
             mentor_name=self.name,
             mentor_version=self.version,
@@ -63,9 +67,13 @@ class TestMentor2(BaseMentor):
     async def analyze_script(
         self,
         script_id,
-        _db_operations,
-        _progress_callback=None,
+        db_operations,
+        progress_callback=None,
     ):
+        # Silence unused parameter warnings in mock
+        _ = db_operations
+        _ = progress_callback
+
         return MentorResult(
             mentor_name=self.name,
             mentor_version=self.version,
@@ -94,7 +102,11 @@ class BrokenMentor(BaseMentor):
     def mentor_type(self) -> MentorType:
         return MentorType.DIALOGUE
 
-    async def analyze_script(self, script_id, _db_operations, progress_callback=None):
+    async def analyze_script(self, script_id, db_operations, progress_callback=None):
+        # Silence unused parameter warnings in mock
+        _ = script_id
+        _ = db_operations
+        _ = progress_callback
         pass
 
 

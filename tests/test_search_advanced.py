@@ -71,8 +71,10 @@ class TestAdvancedSearchFeatures:
         assert all_results[1]["type"] == "action"
 
     @pytest.mark.asyncio
-    async def test_semantic_vs_text_search(self, _mock_search_interface):
+    async def test_semantic_vs_text_search(self, mock_search_interface):
         """Test differences between semantic and text-based search."""
+        # Silence unused fixture warning
+        _ = mock_search_interface
         # Text search - exact matches
         text_results = [  # noqa: F841
             SearchResult(

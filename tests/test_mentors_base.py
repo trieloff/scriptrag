@@ -302,8 +302,8 @@ class MockMentor(BaseMentor):
     async def analyze_script(
         self,
         script_id,
-        _db_operations,
-        _progress_callback=None,
+        db_operations,
+        progress_callback=None,
     ):
         """Mock script analysis."""
         analyses = [
@@ -315,6 +315,10 @@ class MockMentor(BaseMentor):
                 mentor_name=self.name,
             )
         ]
+
+        # Silence unused parameter warnings in mock
+        _ = db_operations
+        _ = progress_callback
 
         return MentorResult(
             mentor_name=self.name,

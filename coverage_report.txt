@@ -1,0 +1,18 @@
+[1m============================= test session starts ==============================[0m
+platform linux -- Python 3.11.13, pytest-8.4.1, pluggy-1.6.0 -- /root/repo/.venv/bin/python3
+cachedir: .pytest_cache
+hypothesis profile 'default'
+benchmark: 5.1.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+rootdir: /root/repo
+configfile: pytest.ini
+plugins: cov-6.2.1, hypothesis-6.136.6, timeout-2.4.0, asyncio-1.1.0, anyio-4.9.0, xdist-3.8.0, mock-3.14.1, sugar-1.0.0, benchmark-5.1.0
+asyncio: mode=Mode.STRICT, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+[1mcollecting ... [0mcollected 0 items
+
+[33m=============================== warnings summary ===============================[0m
+.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py:312: 130 warnings
+  /root/repo/.venv/lib/python3.11/site-packages/pydantic/_internal/_generate_schema.py:312: PydanticDeprecatedSince20: `json_encoders` is deprecated. See https://docs.pydantic.dev/2.9/concepts/serialization/#custom-serializers for alternatives. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+[33m============================ [33m[1m130 warnings[0m[33m in 0.25s[0m[33m =============================[0m

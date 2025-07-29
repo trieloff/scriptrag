@@ -30,7 +30,7 @@ class TestMentor1(BaseMentor):
         self,
         script_id,
         _db_operations,
-        progress_callback=None,  # noqa: ARG002
+        _progress_callback=None,
     ):
         return MentorResult(
             mentor_name=self.name,
@@ -64,7 +64,7 @@ class TestMentor2(BaseMentor):
         self,
         script_id,
         _db_operations,
-        progress_callback=None,  # noqa: ARG002
+        _progress_callback=None,
     ):
         return MentorResult(
             mentor_name=self.name,

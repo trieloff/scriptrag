@@ -372,7 +372,7 @@ class ThreeActStructureMentor(BaseMentor):
     async def _get_script_data(
         self,
         script_id: UUID,
-        db_operations: Any,  # noqa: ARG002
+        _db_operations: Any,
     ) -> dict | None:
         """Get script data including scenes."""
         try:
@@ -389,7 +389,7 @@ class ThreeActStructureMentor(BaseMentor):
             logger.error(f"Failed to get script data for {script_id}: {e}")
             return None
 
-    def _estimate_total_pages(self, scenes: list[dict]) -> int:  # noqa: ARG002
+    def _estimate_total_pages(self, _scenes: list[dict]) -> int:
         """Estimate total page count from scenes."""
         # In real implementation, would calculate from scene lengths
         return 120  # Placeholder
@@ -466,7 +466,7 @@ class ThreeActStructureMentor(BaseMentor):
     def _find_act_breaks(
         self,
         _scenes: list[dict],
-        total_pages: int,  # noqa: ARG002
+        _total_pages: int,
     ) -> dict[int, dict[str, float]]:
         """Find where acts break in the script."""
         # Placeholder - would analyze scenes for act breaks
@@ -575,10 +575,10 @@ class ThreeActStructureMentor(BaseMentor):
 
     def _find_element_in_scenes(
         self,
-        element: StructuralElement,  # noqa: ARG002
-        scenes: list[dict],  # noqa: ARG002
-        min_page: int,  # noqa: ARG002
-        max_page: int,  # noqa: ARG002
+        _element: StructuralElement,
+        _scenes: list[dict],
+        _min_page: int,
+        _max_page: int,
     ) -> dict | None:
         """Find scenes that contain the specified structural element."""
         # Placeholder implementation
@@ -596,10 +596,7 @@ class ThreeActStructureMentor(BaseMentor):
         # Placeholder implementation
         return None
 
-    async def _analyze_pacing(
-        self,
-        scenes: list[dict],  # noqa: ARG002
-    ) -> list[MentorAnalysis]:
+    async def _analyze_pacing(self, _scenes: list[dict]) -> list[MentorAnalysis]:
         """Analyze pacing and dramatic progression."""
         analyses = []
 
@@ -627,10 +624,7 @@ class ThreeActStructureMentor(BaseMentor):
 
         return analyses
 
-    async def _analyze_causality(
-        self,
-        scenes: list[dict],  # noqa: ARG002
-    ) -> list[MentorAnalysis]:
+    async def _analyze_causality(self, _scenes: list[dict]) -> list[MentorAnalysis]:
         """Analyze scene-to-scene causality and progression."""
         analyses = []
 

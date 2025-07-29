@@ -303,7 +303,7 @@ class MockMentor(BaseMentor):
         self,
         script_id,
         _db_operations,
-        progress_callback=None,  # noqa: ARG002
+        _progress_callback=None,
     ):
         """Mock script analysis."""
         analyses = [

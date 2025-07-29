@@ -218,9 +218,9 @@ class BaseMentor(ABC):
 
     async def analyze_scene(
         self,
-        scene_id: UUID,  # noqa: ARG002
-        script_id: UUID,  # noqa: ARG002
-        db_operations: Any,  # noqa: ARG002
+        _scene_id: UUID,
+        _script_id: UUID,
+        _db_operations: Any,
         _context: dict[str, Any] | None = None,
     ) -> list[MentorAnalysis]:
         """Analyze a single scene and return findings.
@@ -229,9 +229,9 @@ class BaseMentor(ABC):
         Default implementation returns empty list.
 
         Args:
-            scene_id: UUID of the scene to analyze
-            script_id: UUID of the parent script
-            db_operations: Database operations interface
+            _scene_id: UUID of the scene to analyze
+            _script_id: UUID of the parent script
+            _db_operations: Database operations interface
             _context: Optional context data for the analysis
 
         Returns:
@@ -241,9 +241,9 @@ class BaseMentor(ABC):
 
     async def analyze_character(
         self,
-        character_id: UUID,  # noqa: ARG002
-        script_id: UUID,  # noqa: ARG002
-        db_operations: Any,  # noqa: ARG002
+        _character_id: UUID,
+        _script_id: UUID,
+        _db_operations: Any,
         _context: dict[str, Any] | None = None,
     ) -> list[MentorAnalysis]:
         """Analyze a character and return findings.
@@ -252,9 +252,9 @@ class BaseMentor(ABC):
         Default implementation returns empty list.
 
         Args:
-            character_id: UUID of the character to analyze
-            script_id: UUID of the parent script
-            db_operations: Database operations interface
+            _character_id: UUID of the character to analyze
+            _script_id: UUID of the parent script
+            _db_operations: Database operations interface
             _context: Optional context data for the analysis
 
         Returns:

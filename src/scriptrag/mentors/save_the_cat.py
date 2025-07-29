@@ -389,7 +389,7 @@ class SaveTheCatMentor(BaseMentor):
     async def _get_script_data(
         self,
         script_id: UUID,
-        db_operations: Any,  # noqa: ARG002
+        _db_operations: Any,
     ) -> dict | None:
         """Get script data including scenes and characters."""
         try:
@@ -483,10 +483,10 @@ class SaveTheCatMentor(BaseMentor):
 
     def _find_beat_in_scenes(
         self,
-        beat: SaveTheCatBeat,  # noqa: ARG002
-        scenes: list[dict],  # noqa: ARG002
-        expected_start: int,  # noqa: ARG002
-        expected_end: int,  # noqa: ARG002
+        _beat: SaveTheCatBeat,
+        _scenes: list[dict],
+        _expected_start: int,
+        _expected_end: int,
     ) -> list[dict]:
         """Find scenes that likely contain the specified beat."""
         # This would analyze scene content for beat keywords and positioning
@@ -495,10 +495,10 @@ class SaveTheCatMentor(BaseMentor):
 
     def _analyze_beat_timing(
         self,
-        beat: SaveTheCatBeat,  # noqa: ARG002
-        scenes: list[dict],  # noqa: ARG002
-        expected_start: int,  # noqa: ARG002
-        expected_end: int,  # noqa: ARG002
+        _beat: SaveTheCatBeat,
+        _scenes: list[dict],
+        _expected_start: int,
+        _expected_end: int,
     ) -> MentorAnalysis | None:
         """Analyze the timing of a found beat."""
         # Placeholder for beat timing analysis
@@ -540,7 +540,7 @@ class SaveTheCatMentor(BaseMentor):
 
     async def _analyze_character_arc(
         self,
-        script_data: dict,  # noqa: ARG002
+        _script_data: dict,
     ) -> list[MentorAnalysis]:
         """Analyze character development and arcs."""
         analyses = []

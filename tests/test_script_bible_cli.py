@@ -1,7 +1,5 @@
 """Tests for Script Bible CLI commands."""
 
-# ruff: noqa: ARG002
-
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -95,7 +93,7 @@ class TestScriptBibleCLI:
     @patch("scriptrag.cli.ScriptBibleOperations")
     @patch("scriptrag.cli.get_latest_script_id")
     def test_bible_create_no_scripts(
-        self, mock_get_latest, mock_bible_ops, mock_db_conn, cli_runner
+        self, mock_get_latest, _mock_bible_ops, _mock_db_conn, cli_runner
     ):
         """Test bible create when no scripts exist."""
         mock_get_latest.return_value = None

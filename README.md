@@ -37,14 +37,14 @@ Generation) pattern.
 
 - Python 3.11+
 - uv package manager
-- SQLite 3.35+
+- SQLite 3.38+ (for vector support)
 - LMStudio running at <http://localhost:1234>
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/scriptrag.git
+git clone https://github.com/trieloff/scriptrag.git
 cd scriptrag
 
 # Install uv if not already installed
@@ -79,6 +79,8 @@ similar_scenes = await srag.search_similar_scenes(
 ```
 
 ### Command Line Examples
+
+**Note:** Run these commands from the project root directory after installation.
 
 ```bash
 # Parse a screenplay

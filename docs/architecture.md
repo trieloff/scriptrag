@@ -445,42 +445,32 @@ graph TB
     API3 --> LLM1
 ```
 
-### Container Architecture
+### Modern Deployment Architecture
 
-```yaml
-version: '3.8'
+ScriptRAG leverages modern Python tooling for simple, efficient deployment:
 
-services:
-  api:
-    image: scriptrag/api:latest
-    environment:
-      - DATABASE_URL=postgresql://...
-      - REDIS_URL=redis://redis:6379
-      - LLM_ENDPOINT=http://llm-service:8080
-    depends_on:
-      - postgres
-      - redis
-    deploy:
-      replicas: 3
+```bash
+# Production deployment with uv
+uv pip install scriptrag
 
-  postgres:
-    image: pgvector/pgvector:pg16
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+# Run with environment configuration
+SCRIPTRAG_DATABASE_URL=postgresql://... \
+SCRIPTRAG_REDIS_URL=redis://localhost:6379 \
+SCRIPTRAG_LLM_ENDPOINT=http://llm-service:8080 \
+uvx scriptrag serve
 
-  redis:
-    image: redis:alpine
-    volumes:
-      - redis_data:/data
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
+# Scale horizontally with process managers
+# Using systemd, supervisor, or similar tools
+# No containers needed - just Python processes
 ```
+
+#### Service Dependencies
+
+- **PostgreSQL**: Install via system package manager or use managed service
+- **Redis**: Optional caching layer, install via package manager
+- **Nginx**: Reverse proxy for load balancing (if needed)
+
+All services run as native processes, no containerization overhead.
 
 ## Security Architecture
 
@@ -646,7 +636,7 @@ graph TB
 | Language | Python 3.12 | Primary development language |
 | Parser | Custom Fountain Parser | Script parsing |
 | Embeddings | OpenAI/Local Models | Semantic search |
-| Deployment | Docker | Containerization |
+| Deployment | uv/uvx | Modern Python packaging |
 | Documentation | OpenAPI/Swagger | API documentation |
 
 ### Infrastructure Requirements

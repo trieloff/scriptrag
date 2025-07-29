@@ -324,11 +324,11 @@ Generation) pattern.
   - [ ] Architecture diagrams
 
 - [ ] **10.2 Deployment**
-  - [ ] Create Docker containerization
-  - [ ] Write deployment scripts
+  - [ ] Create uv/uvx deployment setup
+  - [ ] Write deployment scripts using uv
   - [ ] Create backup/restore procedures
   - [ ] Performance monitoring setup
-  - [ ] Create installation guide
+  - [ ] Create installation guide with uvx
 
 ### Phase 11: Script Bible and Continuity Management ✅
 

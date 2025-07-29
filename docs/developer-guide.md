@@ -843,24 +843,24 @@ class SafeScriptRAGClient extends ScriptRAGClient {
 
 ## Deployment Considerations
 
-### Docker Integration
+### Modern Python Deployment with uv/uvx
 
-```dockerfile
-FROM python:3.12-slim
+ScriptRAG uses modern Python packaging tools for deployment:
 
-# Install your app
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
+```bash
+# Install ScriptRAG globally with uvx
+uvx install scriptrag
 
-# Environment variables for API
-ENV SCRIPTRAG_API_URL=http://scriptrag-api:8000/api/v1
-ENV SCRIPTRAG_TIMEOUT=30
-ENV SCRIPTRAG_RETRY_COUNT=3
+# Or run directly without installation
+uvx scriptrag analyze my-script.fountain
 
-# Your application
-CMD ["python", "your_app.py"]
+# For development deployment
+uv pip install -e .
+
+# Environment variables work the same way
+export SCRIPTRAG_API_URL=http://localhost:8000/api/v1
+export SCRIPTRAG_TIMEOUT=30
+export SCRIPTRAG_RETRY_COUNT=3
 ```
 
 ### Environment Configuration

@@ -39,9 +39,58 @@ def _force_close_db_connections(db_path: Path) -> None:
         conn.execute("PRAGMA journal_mode=DELETE")  # Switch from WAL mode
         conn.close()
 
-    # Give Windows time to release file handles
+    # Reduced sleep time for better CI performance
     if hasattr(time, "sleep"):
-        time.sleep(0.05)
+        time.sleep(0.01)  # Reduced from 0.05s to 0.01s
+
+
+# Session-scoped database path for shared test database
+@pytest.fixture(scope="session")
+def session_db_path():
+    """Create a session-wide temporary database file for testing."""
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
+        db_path = Path(f.name)
+
+    # Initialize the database schema once for the session
+    initialize_database(db_path)
+
+    yield db_path
+
+    # Cleanup with Windows compatibility
+    if db_path.exists():
+        # Force close any lingering connections
+        _force_close_db_connections(db_path)
+
+        # On Windows, SQLite connections might not be fully closed
+        # Try multiple times with a small delay
+        for attempt in range(5):
+            try:
+                db_path.unlink()
+                break
+            except PermissionError:
+                if attempt < 4:
+                    time.sleep(0.02)  # Reduced from 100ms to 20ms
+                    _force_close_db_connections(db_path)
+                else:
+                    # Last attempt failed, try to at least close WAL files
+                    with contextlib.suppress(Exception):
+                        wal_path = db_path.with_suffix(".db-wal")
+                        shm_path = db_path.with_suffix(".db-shm")
+                        if wal_path.exists():
+                            wal_path.unlink()
+                        if shm_path.exists():
+                            shm_path.unlink()
+                    import platform
+
+                    if platform.system() == "Windows":
+                        import logging
+
+                        logging.warning(
+                            f"Could not delete session test database {db_path} on "
+                            "Windows - this is expected"
+                        )
+                    else:
+                        raise
 
 
 @pytest.fixture
@@ -65,7 +114,7 @@ def temp_db_path():
                 break
             except PermissionError:
                 if attempt < 4:
-                    time.sleep(0.1)  # Wait 100ms before retrying
+                    time.sleep(0.02)  # Reduced from 100ms to 20ms
                     _force_close_db_connections(db_path)
                 else:
                     # Last attempt failed, try to at least close WAL files

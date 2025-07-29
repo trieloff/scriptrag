@@ -112,7 +112,7 @@ test-watch: ## Run tests in watch mode
 
 .PHONY: test-parallel
 test-parallel: ## Run tests in parallel
-	pytest tests/ -v -n auto
+	@bash -c 'source .venv/bin/activate && pytest tests/ -v -n auto --cov=scriptrag --cov-report=xml'
 
 .PHONY: test-profile
 test-profile: ## Run tests with profiling

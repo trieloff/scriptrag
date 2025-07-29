@@ -855,20 +855,128 @@ class ScriptRAGMCPServer:
         query = args.get("query")
         location = args.get("location")
         characters = args.get("characters", [])
-        _ = args.get("limit", 10)  # Will be used when search is implemented
+        limit = args.get("limit", 10)
 
-        # For now, return mock data
-        # TODO: Implement actual search when database is ready
-        return {
-            "script_id": script_id,
-            "results": [],
-            "total_matches": 0,
-            "search_criteria": {
-                "query": query,
-                "location": location,
-                "characters": characters,
-            },
-        }
+        # Search scenes in database
+        from .database.connection import DatabaseConnection
+
+        with DatabaseConnection(str(self.config.get_database_path())) as connection:
+            # Build search conditions
+            conditions = []
+            params = []
+
+            # Base query to find scenes for this script
+            base_query = """
+                SELECT DISTINCT s.*, n.properties
+                FROM scenes s
+                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN graph_nodes script_n ON script_n.id = e.from_node_id
+                    AND script_n.entity_id = ? AND script_n.node_type = 'script'
+                WHERE 1=1
+            """
+            params.append(script_id)
+
+            # Add text search if query provided
+            if query:
+                conditions.append("(s.heading LIKE ? OR s.description LIKE ?)")
+                params.extend([f"%{query}%", f"%{query}%"])
+
+            # Add location filter
+            if location:
+                conditions.append("""
+                    EXISTS (
+                        SELECT 1 FROM graph_edges loc_e
+                        JOIN graph_nodes loc_n ON loc_n.id = loc_e.to_node_id
+                        WHERE loc_e.from_node_id = n.id
+                        AND loc_e.edge_type = 'AT_LOCATION'
+                        AND UPPER(loc_n.label) LIKE UPPER(?)
+                    )
+                """)
+                params.append(f"%{location}%")
+
+            # Add character filter
+            if characters:
+                char_conditions = []
+                for char_name in characters:
+                    char_conditions.append("""
+                        EXISTS (
+                            SELECT 1 FROM graph_edges char_e
+                            JOIN graph_nodes char_n ON char_n.id = char_e.from_node_id
+                            WHERE char_e.to_node_id = n.id
+                            AND char_e.edge_type = 'APPEARS_IN'
+                            AND char_n.node_type = 'character'
+                            AND UPPER(char_n.label) LIKE UPPER(?)
+                        )
+                    """)
+                    params.append(f"%{char_name}%")
+
+                if char_conditions:
+                    conditions.append(f"({' OR '.join(char_conditions)})")
+
+            # Combine conditions
+            if conditions:
+                base_query += " AND " + " AND ".join(conditions)
+
+            # Add ordering and limit
+            base_query += " ORDER BY s.script_order LIMIT ?"
+            params.append(limit)
+
+            # Execute query
+            cursor = connection.execute(base_query, tuple(params))
+            rows = cursor.fetchall()
+
+            # Format results
+            results = []
+            for row in rows:
+                scene_data = {
+                    "scene_id": row["id"],
+                    "heading": row["heading"],
+                    "description": row["description"],
+                    "script_order": row["script_order"],
+                    "temporal_order": row["temporal_order"],
+                    "logical_order": row["logical_order"],
+                    "time_of_day": row["time_of_day"],
+                }
+
+                # Get characters in scene
+                char_query = """
+                    SELECT DISTINCT c.name
+                    FROM characters c
+                    JOIN graph_nodes cn
+                        ON cn.entity_id = c.id AND cn.node_type = 'character'
+                    JOIN graph_edges e
+                        ON e.from_node_id = cn.id AND e.edge_type = 'APPEARS_IN'
+                    JOIN graph_nodes sn ON sn.id = e.to_node_id AND sn.entity_id = ?
+                """
+                char_cursor = connection.execute(char_query, (row["id"],))
+                scene_data["characters"] = [r["name"] for r in char_cursor.fetchall()]
+
+                # Get location
+                loc_query = """
+                    SELECT l.label
+                    FROM graph_nodes l
+                    JOIN graph_edges e
+                        ON e.to_node_id = l.id AND e.edge_type = 'AT_LOCATION'
+                    JOIN graph_nodes sn ON sn.id = e.from_node_id AND sn.entity_id = ?
+                    LIMIT 1
+                """
+                loc_cursor = connection.execute(loc_query, (row["id"],))
+                loc_row = loc_cursor.fetchone()
+                scene_data["location"] = loc_row["label"] if loc_row else None
+
+                results.append(scene_data)
+
+            return {
+                "script_id": script_id,
+                "results": results,
+                "total_matches": len(results),
+                "search_criteria": {
+                    "query": query,
+                    "location": location,
+                    "characters": characters,
+                },
+            }
 
     async def _tool_get_character_info(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get character information."""
@@ -881,14 +989,174 @@ class ScriptRAGMCPServer:
         # Validate script exists
         _ = self._validate_script_id(script_id)
 
-        # TODO: Implement when character analysis is ready
-        return {
-            "script_id": script_id,
-            "character_name": character_name,
-            "scenes_count": 0,
-            "dialogue_lines": 0,
-            "relationships": [],
-        }
+        # Get character information from database
+        from .database.connection import DatabaseConnection
+
+        with DatabaseConnection(str(self.config.get_database_path())) as connection:
+            # Find character in this script
+            char_query = """
+                SELECT c.*, cn.id as node_id
+                FROM characters c
+                JOIN graph_nodes cn
+                    ON cn.entity_id = c.id AND cn.node_type = 'character'
+                JOIN graph_edges e
+                    ON e.to_node_id = cn.id AND e.edge_type = 'HAS_CHARACTER'
+                JOIN graph_nodes sn ON sn.id = e.from_node_id
+                    AND sn.entity_id = ? AND sn.node_type = 'script'
+                WHERE UPPER(c.name) LIKE UPPER(?)
+                LIMIT 1
+            """
+            cursor = connection.execute(char_query, (script_id, f"%{character_name}%"))
+            char_row = cursor.fetchone()
+
+            if not char_row:
+                return {
+                    "script_id": script_id,
+                    "character_name": character_name,
+                    "error": f"Character '{character_name}' not found in script",
+                }
+
+            character_id = char_row["id"]
+            char_node_id = char_row["node_id"]
+
+            # Get scene appearances
+            scene_query = """
+                SELECT COUNT(DISTINCT s.id) as scene_count
+                FROM scenes s
+                JOIN graph_nodes sn
+                    ON sn.entity_id = s.id AND sn.node_type = 'scene'
+                JOIN graph_edges e
+                    ON e.to_node_id = sn.id AND e.edge_type = 'APPEARS_IN'
+                WHERE e.from_node_id = ?
+            """
+            scene_cursor = connection.execute(scene_query, (char_node_id,))
+            scene_count = scene_cursor.fetchone()["scene_count"]
+
+            # Get dialogue count
+            dialogue_query = """
+                SELECT COUNT(*) as dialogue_count
+                FROM dialogue d
+                WHERE d.character_id = ?
+            """
+            dialogue_cursor = connection.execute(dialogue_query, (character_id,))
+            dialogue_count = dialogue_cursor.fetchone()["dialogue_count"]
+
+            # Get character relationships
+            relationships = []
+
+            # Get characters this character speaks to
+            speaks_to_query = """
+                SELECT DISTINCT c2.name, COUNT(*) as interaction_count
+                FROM graph_edges e
+                JOIN graph_nodes cn2
+                    ON cn2.id = e.to_node_id AND cn2.node_type = 'character'
+                JOIN characters c2 ON c2.id = cn2.entity_id
+                WHERE e.from_node_id = ? AND e.edge_type = 'SPEAKS_TO'
+                GROUP BY c2.name
+                ORDER BY interaction_count DESC
+                LIMIT 10
+            """
+            speaks_cursor = connection.execute(speaks_to_query, (char_node_id,))
+            for row in speaks_cursor:
+                relationships.append(
+                    {
+                        "character": row["name"],
+                        "relationship_type": "speaks_to",
+                        "interaction_count": row["interaction_count"],
+                    }
+                )
+
+            # Get characters that speak to this character
+            spoken_to_query = """
+                SELECT DISTINCT c2.name, COUNT(*) as interaction_count
+                FROM graph_edges e
+                JOIN graph_nodes cn2
+                    ON cn2.id = e.from_node_id AND cn2.node_type = 'character'
+                JOIN characters c2 ON c2.id = cn2.entity_id
+                WHERE e.to_node_id = ? AND e.edge_type = 'SPEAKS_TO'
+                GROUP BY c2.name
+                ORDER BY interaction_count DESC
+                LIMIT 10
+            """
+            spoken_cursor = connection.execute(spoken_to_query, (char_node_id,))
+            for row in spoken_cursor:
+                # Check if we already have this relationship
+                existing = next(
+                    (r for r in relationships if r["character"] == row["name"]), None
+                )
+                if existing:
+                    existing["relationship_type"] = "mutual_dialogue"
+                    existing["interaction_count"] += row["interaction_count"]
+                else:
+                    relationships.append(
+                        {
+                            "character": row["name"],
+                            "relationship_type": "spoken_to_by",
+                            "interaction_count": row["interaction_count"],
+                        }
+                    )
+
+            # Get co-appearances in scenes
+            coappear_query = """
+                SELECT c2.name, COUNT(DISTINCT s.id) as shared_scenes
+                FROM graph_edges e1
+                JOIN graph_nodes sn ON sn.id = e1.to_node_id AND sn.node_type = 'scene'
+                JOIN scenes s ON s.id = sn.entity_id
+                JOIN graph_edges e2
+                    ON e2.to_node_id = sn.id AND e2.edge_type = 'APPEARS_IN'
+                JOIN graph_nodes cn2
+                    ON cn2.id = e2.from_node_id AND cn2.node_type = 'character'
+                JOIN characters c2 ON c2.id = cn2.entity_id
+                WHERE e1.from_node_id = ? AND e1.edge_type = 'APPEARS_IN'
+                    AND cn2.id != ?
+                GROUP BY c2.name
+                ORDER BY shared_scenes DESC
+                LIMIT 10
+            """
+            coappear_cursor = connection.execute(
+                coappear_query, (char_node_id, char_node_id)
+            )
+            for row in coappear_cursor:
+                # Find existing relationship or create new
+                existing = next(
+                    (r for r in relationships if r["character"] == row["name"]), None
+                )
+                if existing:
+                    existing["shared_scenes"] = row["shared_scenes"]
+                else:
+                    relationships.append(
+                        {
+                            "character": row["name"],
+                            "relationship_type": "appears_with",
+                            "shared_scenes": row["shared_scenes"],
+                        }
+                    )
+
+            # Calculate character arc info
+            first_last_query = """
+                SELECT MIN(s.script_order) as first_appearance,
+                       MAX(s.script_order) as last_appearance
+                FROM scenes s
+                JOIN graph_nodes sn
+                    ON sn.entity_id = s.id AND sn.node_type = 'scene'
+                JOIN graph_edges e
+                    ON e.to_node_id = sn.id AND e.edge_type = 'APPEARS_IN'
+                WHERE e.from_node_id = ?
+            """
+            arc_cursor = connection.execute(first_last_query, (char_node_id,))
+            arc_row = arc_cursor.fetchone()
+
+            return {
+                "script_id": script_id,
+                "character_name": char_row["name"],
+                "character_id": character_id,
+                "description": char_row["description"],
+                "scenes_count": scene_count,
+                "dialogue_lines": dialogue_count,
+                "first_appearance": arc_row["first_appearance"] if arc_row else None,
+                "last_appearance": arc_row["last_appearance"] if arc_row else None,
+                "relationships": relationships,
+            }
 
     async def _tool_analyze_timeline(self, args: dict[str, Any]) -> dict[str, Any]:
         """Analyze script timeline."""
@@ -901,13 +1169,197 @@ class ScriptRAGMCPServer:
 
         include_flashbacks = args.get("include_flashbacks", True)
 
-        # TODO: Implement timeline analysis
-        return {
-            "script_id": script_id,
-            "timeline_type": "linear",
-            "flashbacks_detected": 0 if include_flashbacks else None,
-            "time_periods": [],
-        }
+        # Analyze timeline from database
+        from .database.connection import DatabaseConnection
+
+        with DatabaseConnection(str(self.config.get_database_path())) as connection:
+            # Get all scenes in script
+            scenes_query = """
+                SELECT s.*, n.properties
+                FROM scenes s
+                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN graph_nodes sn ON sn.id = e.from_node_id
+                    AND sn.entity_id = ? AND sn.node_type = 'script'
+                ORDER BY s.script_order
+            """
+            cursor = connection.execute(scenes_query, (script_id,))
+            scenes = cursor.fetchall()
+
+            # Analyze timeline structure
+            timeline_type = "linear"
+            flashbacks_detected = 0
+            flash_forwards_detected = 0
+            time_periods = []
+            temporal_jumps = []
+
+            # Check if we have temporal ordering different from script ordering
+            has_temporal_order = any(s["temporal_order"] is not None for s in scenes)
+
+            if has_temporal_order:
+                # Analyze temporal structure
+                script_to_temporal = {}
+                for scene in scenes:
+                    if scene["temporal_order"] is not None:
+                        script_to_temporal[scene["script_order"]] = scene[
+                            "temporal_order"
+                        ]
+
+                # Detect non-linear storytelling
+                prev_temporal = None
+                for i, scene in enumerate(scenes):
+                    if scene["temporal_order"] is not None:
+                        curr_temporal = scene["temporal_order"]
+
+                        if prev_temporal is not None:
+                            # Check for temporal jumps
+                            if curr_temporal < prev_temporal:
+                                flashbacks_detected += 1
+                                temporal_jumps.append(
+                                    {
+                                        "type": "flashback",
+                                        "from_scene": i,
+                                        "temporal_distance": prev_temporal
+                                        - curr_temporal,
+                                    }
+                                )
+                            elif curr_temporal > prev_temporal + 1:
+                                flash_forwards_detected += 1
+                                temporal_jumps.append(
+                                    {
+                                        "type": "flash_forward",
+                                        "from_scene": i,
+                                        "temporal_distance": curr_temporal
+                                        - prev_temporal,
+                                    }
+                                )
+
+                        prev_temporal = curr_temporal
+
+                if flashbacks_detected > 0 or flash_forwards_detected > 0:
+                    timeline_type = "non_linear"
+
+            # Analyze time periods in the script
+            time_distribution: dict[str, int] = {}
+            location_timeline = []
+
+            for scene in scenes:
+                # Track time of day distribution
+                time_of_day = scene["time_of_day"]
+                if time_of_day:
+                    time_distribution[time_of_day] = (
+                        time_distribution.get(time_of_day, 0) + 1
+                    )
+
+                # Track location changes over time
+                if scene["heading"]:
+                    location_timeline.append(
+                        {
+                            "scene_order": scene["script_order"],
+                            "temporal_order": scene["temporal_order"],
+                            "heading": scene["heading"],
+                            "time_of_day": time_of_day,
+                        }
+                    )
+
+            # Group consecutive scenes by time period
+            current_period = None
+            period_start = 0
+
+            for i, scene in enumerate(scenes):
+                tod = scene["time_of_day"] or "UNSPECIFIED"
+
+                if current_period != tod:
+                    if current_period is not None:
+                        time_periods.append(
+                            {
+                                "time_of_day": current_period,
+                                "start_scene": period_start,
+                                "end_scene": i - 1,
+                                "scene_count": i - period_start,
+                            }
+                        )
+                    current_period = tod
+                    period_start = i
+
+            # Add final period
+            if current_period is not None:
+                time_periods.append(
+                    {
+                        "time_of_day": current_period,
+                        "start_scene": period_start,
+                        "end_scene": len(scenes) - 1,
+                        "scene_count": len(scenes) - period_start,
+                    }
+                )
+
+            # Check for flashback sequences using scene dependencies
+            flashback_sequences = []
+            if include_flashbacks:
+                dependency_query = """
+                    SELECT sd.*,
+                           s1.script_order as from_order, s1.heading as from_heading,
+                           s2.script_order as to_order, s2.heading as to_heading
+                    FROM scene_dependencies sd
+                    JOIN scenes s1 ON s1.id = sd.from_scene_id
+                    JOIN scenes s2 ON s2.id = sd.to_scene_id
+                    JOIN graph_nodes n1 ON n1.entity_id = s1.id
+                    JOIN graph_edges e1
+                        ON e1.to_node_id = n1.id AND e1.edge_type = 'HAS_SCENE'
+                    JOIN graph_nodes sn ON sn.id = e1.from_node_id AND sn.entity_id = ?
+                    WHERE sd.dependency_type = 'flashback_to'
+                """
+                dep_cursor = connection.execute(dependency_query, (script_id,))
+                for dep in dep_cursor:
+                    flashback_sequences.append(
+                        {
+                            "from_scene": dep["from_order"],
+                            "to_scene": dep["to_order"],
+                            "strength": dep["strength"],
+                            "description": dep["description"],
+                        }
+                    )
+
+            # Build final analysis
+            result = {
+                "script_id": script_id,
+                "timeline_type": timeline_type,
+                "total_scenes": len(scenes),
+                "has_temporal_ordering": has_temporal_order,
+                "time_distribution": time_distribution,
+                "time_periods": time_periods,
+                "temporal_jumps": temporal_jumps if include_flashbacks else [],
+            }
+
+            if include_flashbacks:
+                result.update(
+                    {
+                        "flashbacks_detected": flashbacks_detected,
+                        "flash_forwards_detected": flash_forwards_detected,
+                        "flashback_sequences": flashback_sequences,
+                    }
+                )
+
+            # Add narrative structure analysis
+            if len(scenes) > 0:
+                act_boundaries = {
+                    "act_1_end": len(scenes) // 4,
+                    "act_2_midpoint": len(scenes) // 2,
+                    "act_2_end": (3 * len(scenes)) // 4,
+                }
+
+                result["narrative_structure"] = {
+                    "estimated_acts": 3,
+                    "act_boundaries": act_boundaries,
+                    "scenes_per_act": {
+                        "act_1": act_boundaries["act_1_end"],
+                        "act_2": act_boundaries["act_2_end"]
+                        - act_boundaries["act_1_end"],
+                        "act_3": len(scenes) - act_boundaries["act_2_end"],
+                    },
+                }
+
+            return result
 
     async def _tool_list_scripts(self, _args: dict[str, Any]) -> dict[str, Any]:
         """List all scripts."""
@@ -934,17 +1386,193 @@ class ScriptRAGMCPServer:
         if not script_id or scene_id is None:
             raise ValueError("script_id and scene_id are required")
 
-        # TODO: Implement actual scene update when database is ready
-        return {
-            "script_id": script_id,
-            "scene_id": scene_id,
-            "updated": True,
-            "changes": {
-                "heading": args.get("heading"),
-                "action": args.get("action"),
-                "dialogue": args.get("dialogue"),
-            },
-        }
+        # Update scene in database
+        from .database.connection import DatabaseConnection
+        from .database.operations import GraphOperations
+
+        with DatabaseConnection(str(self.config.get_database_path())) as connection:
+            graph_ops = GraphOperations(connection)
+
+            # First verify the scene belongs to this script
+            verify_query = """
+                SELECT s.id, n.id as node_id
+                FROM scenes s
+                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN graph_nodes sn ON sn.id = e.from_node_id
+                    AND sn.entity_id = ? AND sn.node_type = 'script'
+                WHERE s.id = ?
+            """
+            cursor = connection.execute(verify_query, (script_id, scene_id))
+            scene_row = cursor.fetchone()
+
+            if not scene_row:
+                raise ValueError(f"Scene {scene_id} not found in script {script_id}")
+
+            scene_node_id = scene_row["node_id"]
+
+            # Get update parameters
+            heading = args.get("heading")
+            action = args.get("action")
+            dialogue_entries = args.get("dialogue", [])
+
+            # Track changes made
+            changes = {}
+
+            # Update scene metadata using graph operations
+            if heading or action:
+                success = graph_ops.update_scene_metadata(
+                    scene_node_id=scene_node_id,
+                    heading=heading,
+                    description=action,
+                    propagate_to_graph=True,
+                )
+                if success:
+                    if heading:
+                        changes["heading"] = heading
+                    if action:
+                        changes["action"] = action
+
+            # Handle dialogue updates
+            if dialogue_entries:
+                # Delete existing dialogue for this scene
+                delete_dialogue_query = """
+                    DELETE FROM dialogue
+                    WHERE scene_id = ?
+                """
+                connection.execute(delete_dialogue_query, (scene_id,))
+
+                # Insert new dialogue entries
+                dialogue_count = 0
+                for entry in dialogue_entries:
+                    character_name = entry.get("character")
+                    text = entry.get("text")
+                    parenthetical = entry.get("parenthetical")
+
+                    if character_name and text:
+                        # Find or create character
+                        char_query = """
+                            SELECT c.id FROM characters c
+                            JOIN graph_nodes cn ON cn.entity_id = c.id
+                            JOIN graph_edges e
+                                ON e.to_node_id = cn.id
+                                AND e.edge_type = 'HAS_CHARACTER'
+                            JOIN graph_nodes sn
+                                ON sn.id = e.from_node_id AND sn.entity_id = ?
+                            WHERE UPPER(c.name) = UPPER(?)
+                        """
+                        char_cursor = connection.execute(
+                            char_query, (script_id, character_name)
+                        )
+                        char_row = char_cursor.fetchone()
+
+                        if char_row:
+                            character_id = char_row["id"]
+                        else:
+                            # Create new character
+                            from uuid import uuid4
+
+                            character_id = str(uuid4())
+
+                            insert_char_query = """
+                                INSERT INTO characters (
+                                    id, name, description, created_at, updated_at
+                                ) VALUES (?, ?, '', datetime('now'), datetime('now'))
+                            """
+                            connection.execute(
+                                insert_char_query,
+                                (character_id, character_name.upper()),
+                            )
+
+                            # Add to graph
+                            from uuid import UUID
+
+                            from .models import Character
+
+                            # Get script node ID
+                            script_nodes = graph_ops.graph.find_nodes(
+                                node_type="script", entity_id=script_id
+                            )
+                            if not script_nodes:
+                                raise ValueError(f"Script {script_id} not found")
+
+                            script_node_id = script_nodes[0].id
+
+                            graph_ops.create_character_node(
+                                Character(
+                                    id=UUID(character_id),
+                                    name=character_name.upper(),
+                                    description="",
+                                ),
+                                script_node_id,
+                            )
+
+                        # Insert dialogue
+                        from uuid import uuid4
+
+                        dialogue_id = str(uuid4())
+
+                        insert_dialogue_query = """
+                            INSERT INTO dialogue (
+                                id, element_type, text, raw_text, scene_id,
+                                order_in_scene, character_id, character_name,
+                                created_at, updated_at
+                            ) VALUES (
+                                ?, 'dialogue', ?, ?, ?, ?, ?, ?,
+                                datetime('now'), datetime('now')
+                            )
+                        """
+                        connection.execute(
+                            insert_dialogue_query,
+                            (
+                                dialogue_id,
+                                text,
+                                text,  # raw_text
+                                scene_id,
+                                dialogue_count,
+                                character_id,
+                                character_name.upper(),
+                            ),
+                        )
+                        dialogue_count += 1
+
+                        # Insert parenthetical if provided
+                        if parenthetical:
+                            paren_id = str(uuid4())
+                            insert_paren_query = """
+                                INSERT INTO parentheticals (
+                                    id, element_type, text, raw_text, scene_id,
+                                    order_in_scene, associated_dialogue_id,
+                                    created_at, updated_at
+                                ) VALUES (
+                                    ?, 'parenthetical', ?, ?, ?, ?, ?,
+                                    datetime('now'), datetime('now')
+                                )
+                            """
+                            connection.execute(
+                                insert_paren_query,
+                                (
+                                    paren_id,
+                                    parenthetical,
+                                    f"({parenthetical})",
+                                    scene_id,
+                                    dialogue_count,
+                                    dialogue_id,
+                                ),
+                            )
+                            dialogue_count += 1
+
+                changes["dialogue"] = f"Updated with {len(dialogue_entries)} entries"
+
+                # Update character appearances in graph
+                graph_ops._update_character_appearances(scene_node_id, action or "")
+
+            return {
+                "script_id": script_id,
+                "scene_id": scene_id,
+                "updated": True,
+                "changes": changes,
+            }
 
     async def _tool_delete_scene(self, args: dict[str, Any]) -> dict[str, Any]:
         """Delete a scene."""
@@ -954,12 +1582,70 @@ class ScriptRAGMCPServer:
         if not script_id or scene_id is None:
             raise ValueError("script_id and scene_id are required")
 
-        # TODO: Implement actual scene deletion when database is ready
-        return {
-            "script_id": script_id,
-            "scene_id": scene_id,
-            "deleted": True,
-        }
+        # Delete scene from database
+        from .database.connection import DatabaseConnection
+        from .database.operations import GraphOperations
+
+        with DatabaseConnection(str(self.config.get_database_path())) as connection:
+            graph_ops = GraphOperations(connection)
+
+            # First verify the scene belongs to this script
+            verify_query = """
+                SELECT s.id, s.script_order, n.id as node_id
+                FROM scenes s
+                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN graph_nodes sn ON sn.id = e.from_node_id
+                    AND sn.entity_id = ? AND sn.node_type = 'script'
+                WHERE s.id = ?
+            """
+            cursor = connection.execute(verify_query, (script_id, scene_id))
+            scene_row = cursor.fetchone()
+
+            if not scene_row:
+                raise ValueError(f"Scene {scene_id} not found in script {script_id}")
+
+            scene_node_id = scene_row["node_id"]
+            deleted_script_order = scene_row["script_order"]
+
+            # Use graph operations to delete with reference integrity
+            success = graph_ops.delete_scene_with_references(scene_node_id)
+
+            if not success:
+                raise ValueError(f"Failed to delete scene {scene_id}")
+
+            # Get remaining scenes that need reordering
+            reorder_query = """
+                SELECT s.id, s.script_order, n.id as node_id
+                FROM scenes s
+                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN graph_nodes sn ON sn.id = e.from_node_id
+                    AND sn.entity_id = ? AND sn.node_type = 'script'
+                WHERE s.script_order > ?
+                ORDER BY s.script_order
+            """
+            reorder_cursor = connection.execute(
+                reorder_query, (script_id, deleted_script_order)
+            )
+            scenes_to_reorder = reorder_cursor.fetchall()
+
+            # Update script_order for remaining scenes
+            for i, scene in enumerate(scenes_to_reorder):
+                new_order = deleted_script_order + i
+                update_query = """
+                    UPDATE scenes
+                    SET script_order = ?, updated_at = datetime('now')
+                    WHERE id = ?
+                """
+                connection.execute(update_query, (new_order, scene["id"]))
+
+            return {
+                "script_id": script_id,
+                "scene_id": scene_id,
+                "deleted": True,
+                "scenes_reordered": len(scenes_to_reorder),
+            }
 
     async def _tool_inject_scene(self, args: dict[str, Any]) -> dict[str, Any]:
         """Inject a new scene."""
@@ -970,14 +1656,193 @@ class ScriptRAGMCPServer:
         if not script_id or position is None or not heading:
             raise ValueError("script_id, position, and heading are required")
 
-        # TODO: Implement actual scene injection when database is ready
-        return {
-            "script_id": script_id,
-            "scene_id": f"scene_{position}",
-            "position": position,
-            "heading": heading,
-            "injected": True,
-        }
+        # Inject scene into database
+        from uuid import uuid4
+
+        from .database.connection import DatabaseConnection
+        from .database.operations import GraphOperations
+        from .models import Location, Scene
+
+        with DatabaseConnection(str(self.config.get_database_path())) as connection:
+            graph_ops = GraphOperations(connection)
+
+            # Verify script exists
+            script_query = """
+                SELECT n.id as node_id
+                FROM graph_nodes n
+                WHERE n.entity_id = ? AND n.node_type = 'script'
+            """
+            cursor = connection.execute(script_query, (script_id,))
+            script_row = cursor.fetchone()
+
+            if not script_row:
+                raise ValueError(f"Script {script_id} not found")
+
+            script_node_id = script_row["node_id"]
+
+            # Count existing scenes to validate position
+            count_query = """
+                SELECT COUNT(*) as scene_count
+                FROM scenes s
+                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                WHERE e.from_node_id = ?
+            """
+            count_cursor = connection.execute(count_query, (script_node_id,))
+            scene_count = count_cursor.fetchone()["scene_count"]
+
+            # Validate position
+            if position < 0 or position > scene_count:
+                raise ValueError(
+                    f"Invalid position {position}. Must be between 0 and {scene_count}"
+                )
+
+            # Parse scene heading to extract location info
+            location = None
+            time_of_day = None
+
+            # Simple parsing of scene heading (e.g., "INT. COFFEE SHOP - DAY")
+            import re
+
+            heading_pattern = r"^(INT\.|EXT\.)\s+(.+?)(?:\s*-\s*(.+))?$"
+            match = re.match(heading_pattern, heading.upper())
+
+            if match:
+                int_ext = match.group(1)
+                location_name = match.group(2).strip()
+                time_of_day = match.group(3).strip() if match.group(3) else None
+
+                location = Location(
+                    interior=int_ext == "INT.",
+                    name=location_name,
+                    time=time_of_day,
+                    raw_text=heading,
+                )
+
+            # Create new scene
+            scene_id = uuid4()
+            scene = Scene(
+                id=scene_id,
+                location=location,
+                heading=heading,
+                description=args.get("action", ""),
+                script_order=position,  # Will be adjusted after reordering
+                script_id=script_id,
+                time_of_day=time_of_day,
+            )
+
+            # Get dialogue entries if provided
+            dialogue_entries = args.get("dialogue", [])
+            characters = []
+
+            # Extract character names from dialogue
+            for entry in dialogue_entries:
+                char_name = entry.get("character")
+                if char_name and char_name not in characters:
+                    characters.append(char_name)
+
+            # Use graph operations to inject the scene
+            success = graph_ops.inject_scene_at_position(
+                script_node_id=script_node_id,
+                scene=scene,
+                position=position,
+                characters=characters,
+                location=location_name if location else None,
+            )
+
+            if not success:
+                raise ValueError(f"Failed to inject scene at position {position}")
+
+            # Add dialogue entries if provided
+            if dialogue_entries:
+                dialogue_count = 0
+                for entry in dialogue_entries:
+                    character_name = entry.get("character")
+                    text = entry.get("text")
+                    parenthetical = entry.get("parenthetical")
+
+                    if character_name and text:
+                        # Find character
+                        char_query = """
+                            SELECT c.id FROM characters c
+                            JOIN graph_nodes cn ON cn.entity_id = c.id
+                            JOIN graph_edges e
+                                ON e.to_node_id = cn.id
+                                AND e.edge_type = 'HAS_CHARACTER'
+                            JOIN graph_nodes sn
+                                ON sn.id = e.from_node_id AND sn.entity_id = ?
+                            WHERE UPPER(c.name) = UPPER(?)
+                        """
+                        char_cursor = connection.execute(
+                            char_query, (script_id, character_name)
+                        )
+                        char_row = char_cursor.fetchone()
+
+                        if char_row:
+                            character_id = char_row["id"]
+
+                            # Insert dialogue
+                            dialogue_id = str(uuid4())
+
+                            insert_dialogue_query = """
+                                INSERT INTO dialogue (
+                                    id, element_type, text, raw_text, scene_id,
+                                    order_in_scene, character_id, character_name,
+                                    created_at, updated_at
+                                ) VALUES (
+                                    ?, 'dialogue', ?, ?, ?, ?, ?, ?,
+                                    datetime('now'), datetime('now')
+                                )
+                            """
+                            connection.execute(
+                                insert_dialogue_query,
+                                (
+                                    dialogue_id,
+                                    text,
+                                    text,
+                                    str(scene_id),
+                                    dialogue_count,
+                                    character_id,
+                                    character_name.upper(),
+                                ),
+                            )
+                            dialogue_count += 1
+
+                            # Insert parenthetical if provided
+                            if parenthetical:
+                                paren_id = str(uuid4())
+                                insert_paren_query = """
+                                    INSERT INTO parentheticals (
+                                        id, element_type, text, raw_text, scene_id,
+                                        order_in_scene, associated_dialogue_id,
+                                        created_at, updated_at
+                                    ) VALUES (
+                                        ?, 'parenthetical', ?, ?, ?, ?, ?,
+                                        datetime('now'), datetime('now')
+                                    )
+                                """
+                                connection.execute(
+                                    insert_paren_query,
+                                    (
+                                        paren_id,
+                                        parenthetical,
+                                        f"({parenthetical})",
+                                        str(scene_id),
+                                        dialogue_count,
+                                        dialogue_id,
+                                    ),
+                                )
+                                dialogue_count += 1
+
+            return {
+                "script_id": script_id,
+                "scene_id": str(scene_id),
+                "position": position,
+                "heading": heading,
+                "injected": True,
+                "characters_added": len(characters),
+                "dialogue_entries": len(dialogue_entries),
+            }
 
     async def _tool_get_scene_details(self, args: dict[str, Any]) -> dict[str, Any]:
         """Get scene details."""

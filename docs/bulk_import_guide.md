@@ -13,13 +13,13 @@ structures (Series → Seasons → Episodes).
 
 ```bash
 # Import all fountain files from a directory
-scriptrag script import ./screenplays/
+uv run scriptrag script import ./screenplays/
 
 # Import using glob patterns
-scriptrag script import "**/*.fountain"
+uv run scriptrag script import "**/*.fountain"
 
 # Import with preview (dry run)
-scriptrag script import ./scripts/ --dry-run
+uv run scriptrag script import ./scripts/ --dry-run
 ```
 
 ## TV Series Detection
@@ -50,7 +50,7 @@ If your files use a non-standard naming convention, you can provide a custom reg
 
 ```bash
 # Custom pattern with named groups
-scriptrag script import "*.fountain" \
+uv run scriptrag script import "*.fountain" \
     --pattern "(?P<series>.+?)_Season(?P<season>\d+)_Ep(?P<episode>\d+)"
 ```
 
@@ -66,14 +66,14 @@ The pattern should include named groups:
 Force all imported files to belong to a specific series:
 
 ```bash
-scriptrag script import "episodes/*.fountain" \
+uv run scriptrag script import "episodes/*.fountain" \
     --series-name "Breaking Bad"
 ```
 
 ### Import Behavior Control
 
 ```bash
-scriptrag script import "*.fountain" \
+uv run scriptrag script import "*.fountain" \
     --skip-existing \        # Skip files already in database (default: true)
     --update-existing \      # Update if file is newer
     --batch-size 20 \       # Files per transaction batch (default: 10)
@@ -100,7 +100,7 @@ Breaking Bad/
 Command:
 
 ```bash
-scriptrag script import "Breaking Bad/**/*.fountain"
+uv run scriptrag script import "Breaking Bad/**/*.fountain"
 ```
 
 ### Example 2: Import with Preview
@@ -108,7 +108,7 @@ scriptrag script import "Breaking Bad/**/*.fountain"
 First, preview what would be imported:
 
 ```bash
-scriptrag script import "./TV Shows/" --dry-run
+uv run scriptrag script import "./TV Shows/" --dry-run
 ```
 
 Output shows:
@@ -122,14 +122,14 @@ Output shows:
 For files named like `MyShow_Season01_Episode01_Title.fountain`:
 
 ```bash
-scriptrag script import "MyShow*.fountain" \
+uv run scriptrag script import "MyShow*.fountain" \
     --pattern "(?P<series>.+?)_Season(?P<season>\d+)_Episode(?P<episode>\d+)_(?P<title>.+)"
 ```
 
 ### Example 4: Import Specific Season
 
 ```bash
-scriptrag script import "Season 3/*.fountain" \
+uv run scriptrag script import "Season 3/*.fountain" \
     --series-name "The Wire"
 ```
 
@@ -192,8 +192,8 @@ Use the search commands to explore imported content:
 
 ```bash
 # List all imported series
-scriptrag search all --type series
+uv run scriptrag search all --type series
 
 # Find specific episodes
-scriptrag search scenes --series "Breaking Bad" --season 1
+uv run scriptrag search scenes --series "Breaking Bad" --season 1
 ```

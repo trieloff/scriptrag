@@ -388,7 +388,7 @@ class HerosJourneyMentor(BaseMentor):
     async def _get_script_data(
         self,
         script_id: UUID,
-        db_operations: Any,  # noqa: ARG002
+        _db_operations: Any,
     ) -> dict | None:
         """Get script data including scenes and characters."""
         try:
@@ -488,10 +488,10 @@ class HerosJourneyMentor(BaseMentor):
 
     def _find_stage_in_scenes(
         self,
-        stage: HerosJourneyStage,  # noqa: ARG002
-        scenes: list[dict],  # noqa: ARG002
-        start_scene: int,  # noqa: ARG002
-        end_scene: int,  # noqa: ARG002
+        _stage: HerosJourneyStage,
+        _scenes: list[dict],
+        _start_scene: int,
+        _end_scene: int,
     ) -> dict | None:
         """Find scenes that contain the specified stage."""
         # This would analyze scene content for stage keywords and patterns
@@ -541,9 +541,7 @@ class HerosJourneyMentor(BaseMentor):
         return None
 
     async def _analyze_archetypes(
-        self,
-        characters: list[dict],  # noqa: ARG002
-        scenes: list[dict],  # noqa: ARG002
+        self, _characters: list[dict], _scenes: list[dict]
     ) -> list[MentorAnalysis]:
         """Analyze character archetypes in the script."""
         analyses = []
@@ -577,7 +575,7 @@ class HerosJourneyMentor(BaseMentor):
 
     async def _analyze_transformation(
         self,
-        script_data: dict,  # noqa: ARG002
+        _script_data: dict,
     ) -> list[MentorAnalysis]:
         """Analyze the hero's transformation arc."""
         analyses = []
@@ -607,8 +605,7 @@ class HerosJourneyMentor(BaseMentor):
         return analyses
 
     async def _analyze_journey_alignment(
-        self,
-        scenes: list[dict],  # noqa: ARG002
+        self, _scenes: list[dict]
     ) -> list[MentorAnalysis]:
         """Analyze alignment between internal and external journeys."""
         analyses = []

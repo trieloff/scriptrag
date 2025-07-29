@@ -5,22 +5,22 @@
 ### Initialize a Project
 
 ```bash
-scriptrag init my-screenplay-project
+uv run scriptrag init my-screenplay-project
 cd my-screenplay-project
 ```
 
 ### Parse a Screenplay
 
 ```bash
-scriptrag parse my-script.fountain
+uv run scriptrag parse my-script.fountain
 ```
 
 ### Query the Graph
 
 ```bash
-scriptrag query "Who are the main characters?"
-scriptrag query "What scenes take place at night?"
-scriptrag query "Show character relationship network"
+uv run scriptrag query "Who are the main characters?"
+uv run scriptrag query "What scenes take place at night?"
+uv run scriptrag query "Show character relationship network"
 ```
 
 ## Configuration
@@ -59,12 +59,12 @@ level = "INFO"
 ### Batch Processing
 
 ```bash
-scriptrag batch-parse scripts/*.fountain
+uv run scriptrag batch-parse scripts/*.fountain
 ```
 
 ### Export Data
 
 ```bash
-scriptrag export --format json output.json
-scriptrag export --format graphml network.graphml
+uv run scriptrag export --format json output.json
+uv run scriptrag export --format graphml network.graphml
 ```

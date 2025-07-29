@@ -55,8 +55,8 @@ To use MCP servers with ScriptRAG, add this configuration to your Terragon envir
 {
   "mcpServers": {
     "scriptrag": {
-      "command": "python",
-      "args": ["-m", "scriptrag.mcp_server"],
+      "command": "uv",
+      "args": ["run", "scriptrag-mcp"],
       "env": {
         "DATABASE_URL": "$DATABASE_URL"
       }
@@ -97,7 +97,7 @@ If database initialization fails:
 
 - The script continues (database may already exist)
 - Check `data/` directory permissions
-- Manually run: `python -m scriptrag.database.init`
+- Manually run: `uv run python -m scriptrag.database.init`
 
 ## Quick Commands
 
@@ -105,10 +105,10 @@ After setup completes, you can use these commands:
 
 ```bash
 # Run the CLI
-python -m scriptrag
+uv run scriptrag
 
 # Start MCP server
-python -m scriptrag.mcp_server
+uv run scriptrag-mcp
 
 # Run tests
 make test

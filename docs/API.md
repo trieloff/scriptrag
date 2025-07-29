@@ -23,7 +23,7 @@ make run-api
 make run-api-dev
 
 # Or using the CLI directly
-scriptrag server api --host 0.0.0.0 --port 8000
+uv run scriptrag server api --host 0.0.0.0 --port 8000
 ```
 
 The API will be available at `http://localhost:8000` with interactive documentation

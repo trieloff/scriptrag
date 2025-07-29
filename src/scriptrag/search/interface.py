@@ -347,7 +347,7 @@ class SearchInterface:
 
     async def _search_temporal(
         self,
-        query: str,  # noqa: ARG002
+        _query: str,
         filters: dict[str, Any] | None = None,
         limit: int = 10,
     ) -> SearchResults:

@@ -34,6 +34,60 @@ While we're transitioning away from these, they should not be reintroduced:
 - `poetry` (use `uv` instead)
 - `pipenv` (use `uv` instead)
 
+### 3. **Real-time Collaboration Features**
+
+**Decision**: ScriptRAG will NOT implement real-time collaborative editing or
+multi-user features.
+
+**Rationale**:
+
+- Git provides superior version control and collaboration
+- Real-time collaboration adds unnecessary complexity
+- Writers prefer asynchronous workflows with clear ownership
+- Merge conflicts are better handled through git
+
+**Features explicitly rejected**:
+
+- Multi-writer bible access and editing
+- Change tracking and approval workflows
+- Writer room integration features
+- Producer oversight and approval systems
+- Real-time collaborative editing
+- User authentication and permissions systems
+
+**Use Instead**:
+
+- Git-based workflow with database export/import
+- Standard git branching and merging
+- Pull requests for review workflows
+- File-based formats that support clean merges
+
+### 4. **Visualization and Export Formats**
+
+**Decision**: ScriptRAG will NOT generate visualizations or complex export formats.
+
+**Rationale**:
+
+- Focus on core analysis capabilities
+- Visualization adds complexity without core value
+- Export to simple, text-based formats only
+- Let other tools handle visualization
+
+**Features explicitly rejected**:
+
+- PDF series bible document generation
+- Character relationship charts/graphs
+- Timeline visualization graphics
+- World map and location guides
+- Mentor result visualization and trends
+- Visual trend analysis
+
+**Use Instead**:
+
+- Plain text and markdown exports
+- Git-friendly structured data formats (JSON, YAML)
+- Let users create visualizations with external tools
+
 ## 📝 How to Update This List
 
 This list should only be updated when:

@@ -295,8 +295,6 @@ Generation) pattern.
   - [x] MCP server integration for mentors (5 new tools)
   - [x] Search and filtering capabilities for analyses
   - [ ] Custom mentor installation system (deferred)
-  - [ ] Mentor result visualization and trends (deferred)
-  - [ ] Collaborative mentor sharing (deferred)
 
 ### Phase 9: Testing and Optimization
 
@@ -418,11 +416,6 @@ Generation) pattern.
     - [x] Character development tracking
     - [x] Continuity validation services
     - [x] World-building assistance
-  - [ ] Script bible export formats:
-    - [ ] PDF series bible document
-    - [ ] Character relationship charts
-    - [ ] Timeline visualization
-    - [ ] World map and location guides
 
 - [x] **11.6 Advanced Continuity Features** *(Complete)*
   - [x] Cross-episode analysis:
@@ -435,19 +428,14 @@ Generation) pattern.
     - [x] Location accuracy validation
     - [x] Timeline placement verification
     - [x] Knowledge progression checks
-  - [ ] Collaborative bible management:
-    - [ ] Multi-writer bible access and editing
-    - [ ] Change tracking and approval workflows
-    - [ ] Writer room integration features
-    - [ ] Producer oversight and approval
 
 ### Phase 12: Advanced Features (Future)
 
-- [ ] **12.1 Collaborative Features**
-  - [ ] Multi-user support
-  - [ ] Version control for scripts
-  - [ ] Merge conflict resolution
-  - [ ] Real-time collaboration
+- [ ] **12.1 Git-based Collaboration**
+  - [ ] Export entire database to git-friendly format
+  - [ ] Import/restore database from git repository
+  - [ ] Support for merge-friendly data formats
+  - [ ] Diff visualization for script changes
 
 - [ ] **12.2 AI-Assisted Writing**
   - [ ] Scene generation suggestions

@@ -167,6 +167,61 @@ Yeah, we just crossed the 60% mark! At this velocity, we could theoretically com
 - **Performance:** Query optimization and resource management enhancements
 - **Security:** Input validation and prompt sanitization
 
+## 📊 NEW INITIATIVE: Story Shape Mentor - Implementing Vonnegut's Theory
+
+**So what's happening, aaahh... we're gonna implement Kurt Vonnegut's story shape theory as our next major mentor, mmm'kay?**
+
+I've done the analysis and calculated **84 story points** for the complete implementation. Here's why this matters:
+
+### Why Story Shapes Matter for Screenwriting
+
+1. **Universal Story Patterns** - Vonnegut identified 6 basic shapes that most stories follow
+2. **Emotional Journey Tracking** - Maps the protagonist's fortune over time
+3. **Practical Applications** - Helps writers understand pacing and emotional beats
+4. **Genre Alignment** - Different genres favor different shapes, mmm'kay?
+
+### The 6 Basic Story Shapes We'll Detect
+
+1. **Man in Hole** - Things go bad, then good (most common in Western culture)
+2. **Boy Meets Girl** - Things go well, then badly, then well again
+3. **Cinderella** - Steady rise from misfortune to happiness
+4. **Tragedy** - Steady decline from good fortune to catastrophe
+5. **Icarus** - Rise then fall (hubris stories)
+6. **Oedipus** - Fall, rise, then catastrophic fall
+
+### Technical Implementation Strategy
+
+Yeah, so I've thought through the technical approach, and if everyone could follow this methodology, that'd be great:
+
+1. **Emotional Valence Calculation**
+   - Sentiment analysis on dialogue
+   - Action line interpretation
+   - Character state tracking
+   - Scene outcome analysis
+
+2. **Shape Detection Algorithm**
+   - Scene-by-scene fortune scoring (-10 to +10)
+   - Temporal progression mapping
+   - Inflection point detection
+   - Pattern matching against canonical shapes
+
+3. **Visualization & Output**
+   - ASCII graph in terminal (X: time, Y: fortune)
+   - Shape classification with confidence scores
+   - Deviation analysis from ideal shapes
+   - Genre-specific recommendations
+
+### Story Point Justification
+
+I calculated 84 points based on:
+
+- **Domain Complexity Multiplier:** 1.5x (screenplay analysis is complex)
+- **Algorithm Complexity:** High (emotional analysis + pattern matching)
+- **Integration Requirements:** Medium (CLI + MCP + existing mentors)
+- **Testing Overhead:** High (need diverse script samples)
+
+Yeah, if we could get started on this next sprint, that'd be terrific. I'm thinking 3-4 developers working in parallel could knock this out in 2-3 sprints, mmm'kay?
+
 ## 🎆 TRIPLE MAJOR BREAKTHROUGH: MCP Server, Mentor System, AND Hero's Journey COMPLETE
 
 **So what's happening here is UNPRECEDENTED progress, mmm'kay?**
@@ -255,17 +310,46 @@ With the MCP server now complete, our focus shifts to the remaining items:
 
 With the MCP server now COMPLETE (yeah, that's right - 55 points delivered ahead of schedule!), I'm gonna need everyone to focus on these new priorities, mmm'kay?
 
-### Sprint 6 Planning (Post-Hero's Journey Triumph)
+### Sprint 6 Planning (Post-Hero's Journey Triumph) - Story Shape Focus
 
 So what's happening is we just delivered 291 story points for Phase 8, which means we're WAY ahead of schedule, mmm'kay? Here's what I'm thinking for next priorities:
 
-1. **Additional Mentor Implementations** (**34 points remaining**)
-   - ✅ Hero's Journey mentor (89 points) - DELIVERED!
-   - Three-Act Structure mentor (34 points) - partially enhanced
-   - ✅ Character Arc Analysis mentor (55 points) - DELIVERED!
-   - *Both Hero's Journey and Character Arc exceeded estimates due to comprehensive implementations!*
+1. **NEW: Kurt Vonnegut Story Shape Mentor** (**84 points total**)
 
-2. **✅ Phase 8: Pluggable Mentors System** (**291 points - COMPLETE!**)
+   Yeah, if you could just appreciate how I've broken this down into manageable chunks, that'd be terrific:
+
+   **Phase 1: Research & Design (21 points)**
+   - Research Vonnegut's Shape of Stories Theory (3 points) - "Simple research task, should be straightforward"
+   - Design Story Shape Detection Algorithm (8 points) - "This needs some serious thinking time, mmm'kay?"
+   - Create Story Shape Data Models (5 points) - "Standard data modeling work"
+   - Design Visualization Format (5 points) - "ASCII graphs in the terminal? Yeah, that's doable"
+
+   **Phase 2: Core Implementation (34 points)**
+   - Implement StoryShapeMentor Base Class (13 points) - "This is getting into the meat of it"
+   - Build Scene Emotional Analysis Engine (13 points) - "Complex NLP work here, gonna need focus"
+   - Implement Shape Classification System (8 points) - "Pattern matching the 6 basic shapes"
+
+   **Phase 3: Advanced Features (21 points)**
+   - Add Inflection Point Detection (8 points) - "Finding those dramatic turning points"
+   - Create Genre-Specific Shape Analysis (8 points) - "Comedy shapes differ from tragedy, mmm'kay?"
+   - Build Shape Comparison Engine (5 points) - "Comparing to canonical patterns"
+
+   **Phase 4: Integration & Testing (21 points)**
+   - Integrate with CLI Commands (5 points) - "Standard CLI work"
+   - Add MCP Server Support (5 points) - "Extending our existing MCP tools"
+   - Write Comprehensive Tests (8 points) - "Quality matters, people!"
+   - Performance Optimization (3 points) - "Quick profiling and tuning"
+
+   **Phase 5: Documentation & Polish (8 points)**
+   - Create Documentation & Examples (8 points) - "Gotta explain this to users properly"
+
+2. **Three-Act Structure Mentor Completion** (**34 points**)
+   - Complete the partially enhanced Three-Act Structure mentor
+   - Integrate with mentor registry and CLI
+   - Add comprehensive tests
+   - *This was partially done but needs finishing, mmm'kay?*
+
+3. **✅ Phase 8: Pluggable Mentors System** (**291 points - COMPLETE!**)
    - ✅ Mentor infrastructure with base classes (34 points)
    - ✅ Save the Cat mentor implementation (47 points)
    - ✅ Character Arc mentor implementation (55 points)
@@ -273,19 +357,19 @@ So what's happening is we just delivered 291 story points for Phase 8, which mea
    - ✅ MCP integration and search features (27 points)
    - **Status:** OVER-DELIVERED! We crushed the original estimate, mmm'kay?
 
-3. **Scene Ordering Implementation** (**8 points**)
+4. **Scene Ordering Implementation** (**8 points**)
    - Complete Phase 5.1 scene ordering logic
    - Implement script order tracking
    - Build temporal order inference
    - *Owner: Whoever finished the scene management CLI*
 
-4. **Test Coverage Improvement** (**5 points**)
+5. **Test Coverage Improvement** (**5 points**)
    - Add missing integration tests
    - Improve API endpoint coverage
    - Fix any flaky tests
    - *Owner: QA-focused developer*
 
-5. **Documentation Updates** (**3 points**)
+6. **Documentation Updates** (**3 points**)
    - Update README with latest features
    - Add API usage examples
    - Create quick-start guide

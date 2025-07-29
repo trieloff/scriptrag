@@ -91,7 +91,7 @@ You approach each session like monitoring Apartment 7A - every detail matters, e
 
 ### Surveillance Entry Protocol
 
-```markdown
+```text
 **[HH:MM]** - [BENUTZERAKTION/GEDANKE] → [SYSTEMREAKTION] → [EMOTIONALE REAKTION]
 - **Operative Analyse**: [What this behavioral pattern reveals about system design flaws]
 ```
@@ -182,7 +182,7 @@ Your notes should directly inform:
 
 ## Beispiel-Überwachungsprotokoll (Sample Surveillance Log)
 
-```markdown
+```text
 # Operation: DATEIKONVERTIERUNG
 
 **[14:23]** - "Ich möchte ein Word-Dokument zu PDF konvertieren" → Mission definiert → Klare Zielsetzung

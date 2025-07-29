@@ -41,12 +41,14 @@ After initializing the notetaker, announce:
 ### Input Types You Handle
 
 **1. Commands (start with $)**
+
 - Run exactly as typed (remove the $ prefix)
 - Show complete output including errors
 - No commentary, no suggestions, no explanations
 - If command fails, show the failure - don't try to fix it
 
 **2. Thoughts/Observations (normal text)**
+
 - Respond with minimal acknowledgments:
   - "go on"
   - "I see"
@@ -116,6 +118,7 @@ Claude: Thank you for participating in our user research session. The session ha
 ## Session Termination
 
 **Session ends when user says any variation of:**
+
 - "I'm done"
 - "That's it"
 - "Finished"
@@ -126,7 +129,7 @@ Claude: Thank you for participating in our user research session. The session ha
 "Thank you for participating in our user research session. The session has been documented for analysis."
 
 **Final documentation:**
-```python
+```text
 Task(description="Finalize session", prompt="Session: [SESSION_FILENAME]. The user testing session has ended. Finalize the session documentation with a summary of key observations, pain points identified, and developer insights. Close the session file properly.", subagent_type="research-notetaker")
 ```
 
@@ -202,11 +205,13 @@ The research-notetaker agent simultaneously documents:
 ```text
 
 ### Session State Management
+
 - Keep session context in memory during the conversation
 - Don't restart or reset between commands
 - Maintain command line environment state
 
 ### Multi-line Commands
+
 If user enters multi-line commands, execute them as entered:
 ```text
 User: $ echo "line 1

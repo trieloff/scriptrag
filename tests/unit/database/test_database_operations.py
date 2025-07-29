@@ -11,13 +11,10 @@ from uuid import UUID, uuid4
 import pytest
 
 from scriptrag.database import DatabaseConnection
-from scriptrag.database.connection import DatabaseError, TransactionError
-from scriptrag.database.graph import GraphEdge, GraphNode, GraphQueryError
+from scriptrag.database.graph import GraphEdge, GraphNode
 from scriptrag.models import (
     Character,
-    EdgeType,
     Location,
-    NodeType,
     Scene,
     SceneOrderType,
     Script,
@@ -110,7 +107,7 @@ class TestDatabaseConnection:
     def test_nested_transactions_not_allowed(self, db_connection):
         """Test that nested transactions raise error."""
         with (
-            pytest.raises(TransactionError, match="nested transaction"),
+            pytest.raises(sqlite3.Error, match="nested transaction"),
             db_connection.transaction(),
             db_connection.transaction(),
         ):
@@ -121,7 +118,7 @@ class TestDatabaseConnection:
         conn = DatabaseConnection(temp_db_path)
         # Don't open connection
 
-        with pytest.raises(DatabaseError, match="closed"):
+        with pytest.raises(sqlite3.Error, match="closed"):
             conn.fetch_one("SELECT 1")
 
     def test_execute_many(self, db_connection):
@@ -161,10 +158,10 @@ class TestGraphDatabase:
             "created_at": datetime.utcnow().isoformat(),
         }
 
-        node = graph_db.create_node(NodeType.SCRIPT, node_data)
+        node = graph_db.create_node("script", node_data)
 
         assert isinstance(node, GraphNode)
-        assert node.type == NodeType.SCRIPT
+        assert node.type == "script"
         assert node.properties["title"] == "Test Script"
         assert node.properties["author"] == "Test Author"
         assert isinstance(node.id, str)
@@ -174,14 +171,14 @@ class TestGraphDatabase:
         """Test node retrieval."""
         # Create a node
         node = graph_db.create_node(
-            NodeType.CHARACTER, {"name": "PROTAGONIST", "description": "Main character"}
+            "character", {"name": "PROTAGONIST", "description": "Main character"}
         )
 
         # Retrieve it
         retrieved = graph_db.get_node(node.id)
         assert retrieved is not None
         assert retrieved.id == node.id
-        assert retrieved.type == NodeType.CHARACTER
+        assert retrieved.type == "character"
         assert retrieved.properties["name"] == "PROTAGONIST"
 
     def test_get_nonexistent_node(self, graph_db):
@@ -194,7 +191,7 @@ class TestGraphDatabase:
         """Test node update."""
         # Create a node
         node = graph_db.create_node(
-            NodeType.SCENE, {"heading": "INT. ROOM - DAY", "description": "Original"}
+            "scene", {"heading": "INT. ROOM - DAY", "description": "Original"}
         )
 
         # Update it
@@ -210,7 +207,7 @@ class TestGraphDatabase:
     def test_delete_node(self, graph_db):
         """Test node deletion."""
         # Create a node
-        node = graph_db.create_node(NodeType.LOCATION, {"name": "COFFEE SHOP"})
+        node = graph_db.create_node("location", {"name": "COFFEE SHOP"})
 
         # Delete it
         success = graph_db.delete_node(node.id)
@@ -223,11 +220,11 @@ class TestGraphDatabase:
     def test_delete_node_with_edges(self, graph_db):
         """Test that deleting node also deletes its edges."""
         # Create nodes
-        script = graph_db.create_node(NodeType.SCRIPT, {"title": "Test"})
-        scene = graph_db.create_node(NodeType.SCENE, {"heading": "INT. ROOM - DAY"})
+        script = graph_db.create_node("script", {"title": "Test"})
+        scene = graph_db.create_node("scene", {"heading": "INT. ROOM - DAY"})
 
         # Create edge
-        graph_db.create_edge(script.id, scene.id, EdgeType.HAS_SCENE)
+        graph_db.create_edge(script.id, scene.id, "has_scene")
 
         # Delete scene node
         graph_db.delete_node(scene.id)
@@ -239,36 +236,36 @@ class TestGraphDatabase:
     def test_create_edge(self, graph_db):
         """Test edge creation."""
         # Create nodes
-        char1 = graph_db.create_node(NodeType.CHARACTER, {"name": "ALICE"})
-        char2 = graph_db.create_node(NodeType.CHARACTER, {"name": "BOB"})
+        char1 = graph_db.create_node("character", {"name": "ALICE"})
+        char2 = graph_db.create_node("character", {"name": "BOB"})
 
         # Create edge
         edge = graph_db.create_edge(
             char1.id,
             char2.id,
-            EdgeType.INTERACTS_WITH,
+            "interacts_with",
             {"context": "They are friends", "weight": 5},
         )
 
         assert isinstance(edge, GraphEdge)
         assert edge.source_id == char1.id
         assert edge.target_id == char2.id
-        assert edge.type == EdgeType.INTERACTS_WITH
+        assert edge.type == "interacts_with"
         assert edge.properties["context"] == "They are friends"
         assert edge.properties["weight"] == 5
 
     def test_create_duplicate_edge(self, graph_db):
         """Test creating duplicate edge updates existing."""
         # Create nodes
-        node1 = graph_db.create_node(NodeType.SCENE, {"heading": "Scene 1"})
-        node2 = graph_db.create_node(NodeType.SCENE, {"heading": "Scene 2"})
+        node1 = graph_db.create_node("scene", {"heading": "Scene 1"})
+        node2 = graph_db.create_node("scene", {"heading": "Scene 2"})
 
         # Create edge
-        edge1 = graph_db.create_edge(node1.id, node2.id, EdgeType.FOLLOWS, {"order": 1})
+        edge1 = graph_db.create_edge(node1.id, node2.id, "follows", {"order": 1})
 
         # Create duplicate with different properties
         edge2 = graph_db.create_edge(
-            node1.id, node2.id, EdgeType.FOLLOWS, {"order": 2, "direct": True}
+            node1.id, node2.id, "follows", {"order": 2, "direct": True}
         )
 
         # Should be same edge ID but updated properties
@@ -279,16 +276,16 @@ class TestGraphDatabase:
     def test_get_edges_various_filters(self, graph_db):
         """Test getting edges with various filters."""
         # Create test graph
-        script = graph_db.create_node(NodeType.SCRIPT, {"title": "Test"})
-        scene1 = graph_db.create_node(NodeType.SCENE, {"heading": "Scene 1"})
-        scene2 = graph_db.create_node(NodeType.SCENE, {"heading": "Scene 2"})
-        char = graph_db.create_node(NodeType.CHARACTER, {"name": "ALICE"})
+        script = graph_db.create_node("script", {"title": "Test"})
+        scene1 = graph_db.create_node("scene", {"heading": "Scene 1"})
+        scene2 = graph_db.create_node("scene", {"heading": "Scene 2"})
+        char = graph_db.create_node("character", {"name": "ALICE"})
 
         # Create edges
-        graph_db.create_edge(script.id, scene1.id, EdgeType.HAS_SCENE)
-        graph_db.create_edge(script.id, scene2.id, EdgeType.HAS_SCENE)
-        graph_db.create_edge(scene1.id, char.id, EdgeType.FEATURES_CHARACTER)
-        graph_db.create_edge(scene1.id, scene2.id, EdgeType.FOLLOWS)
+        graph_db.create_edge(script.id, scene1.id, "has_scene")
+        graph_db.create_edge(script.id, scene2.id, "has_scene")
+        graph_db.create_edge(scene1.id, char.id, "features_character")
+        graph_db.create_edge(scene1.id, scene2.id, "follows")
 
         # Test source filter
         edges = graph_db.get_edges(source_id=script.id)
@@ -301,14 +298,12 @@ class TestGraphDatabase:
         assert edges[0].target_id == char.id
 
         # Test type filter
-        edges = graph_db.get_edges(edge_type=EdgeType.HAS_SCENE)
+        edges = graph_db.get_edges(edge_type="has_scene")
         assert len(edges) == 2
-        assert all(e.type == EdgeType.HAS_SCENE for e in edges)
+        assert all(e.type == "has_scene" for e in edges)
 
         # Test combined filters
-        edges = graph_db.get_edges(
-            source_id=scene1.id, edge_type=EdgeType.FEATURES_CHARACTER
-        )
+        edges = graph_db.get_edges(source_id=scene1.id, edge_type="features_character")
         assert len(edges) == 1
         assert edges[0].source_id == scene1.id
         assert edges[0].target_id == char.id
@@ -316,9 +311,9 @@ class TestGraphDatabase:
     def test_delete_edge(self, graph_db):
         """Test edge deletion."""
         # Create nodes and edge
-        node1 = graph_db.create_node(NodeType.LOCATION, {"name": "ROOM A"})
-        node2 = graph_db.create_node(NodeType.LOCATION, {"name": "ROOM B"})
-        edge = graph_db.create_edge(node1.id, node2.id, EdgeType.CONNECTS_TO)
+        node1 = graph_db.create_node("location", {"name": "ROOM A"})
+        node2 = graph_db.create_node("location", {"name": "ROOM B"})
+        edge = graph_db.create_edge(node1.id, node2.id, "connects_to")
 
         # Delete edge
         success = graph_db.delete_edge(edge.id)
@@ -331,37 +326,37 @@ class TestGraphDatabase:
     def test_query_nodes(self, graph_db):
         """Test querying nodes."""
         # Create test nodes
-        graph_db.create_node(NodeType.CHARACTER, {"name": "ALICE", "age": 25})
-        graph_db.create_node(NodeType.CHARACTER, {"name": "BOB", "age": 30})
-        graph_db.create_node(NodeType.CHARACTER, {"name": "CHARLIE", "age": 25})
-        graph_db.create_node(NodeType.LOCATION, {"name": "PARK"})
+        graph_db.create_node("character", {"name": "ALICE", "age": 25})
+        graph_db.create_node("character", {"name": "BOB", "age": 30})
+        graph_db.create_node("character", {"name": "CHARLIE", "age": 25})
+        graph_db.create_node("location", {"name": "PARK"})
 
         # Query by type
-        chars = graph_db.query_nodes(node_type=NodeType.CHARACTER)
+        chars = graph_db.query_nodes(node_type="character")
         assert len(chars) == 3
 
         # Query by properties
         young_chars = graph_db.query_nodes(
-            node_type=NodeType.CHARACTER, properties={"age": 25}
+            node_type="character", properties={"age": 25}
         )
         assert len(young_chars) == 2
 
         # Query with limit
-        limited = graph_db.query_nodes(node_type=NodeType.CHARACTER, limit=2)
+        limited = graph_db.query_nodes(node_type="character", limit=2)
         assert len(limited) == 2
 
     def test_get_neighbors(self, graph_db):
         """Test getting node neighbors."""
         # Create a small graph
-        center = graph_db.create_node(NodeType.SCENE, {"heading": "Center Scene"})
-        char1 = graph_db.create_node(NodeType.CHARACTER, {"name": "CHAR1"})
-        char2 = graph_db.create_node(NodeType.CHARACTER, {"name": "CHAR2"})
-        loc = graph_db.create_node(NodeType.LOCATION, {"name": "LOCATION"})
+        center = graph_db.create_node("scene", {"heading": "Center Scene"})
+        char1 = graph_db.create_node("character", {"name": "CHAR1"})
+        char2 = graph_db.create_node("character", {"name": "CHAR2"})
+        loc = graph_db.create_node("location", {"name": "LOCATION"})
 
         # Create edges
-        graph_db.create_edge(center.id, char1.id, EdgeType.FEATURES_CHARACTER)
-        graph_db.create_edge(center.id, char2.id, EdgeType.FEATURES_CHARACTER)
-        graph_db.create_edge(center.id, loc.id, EdgeType.LOCATED_AT)
+        graph_db.create_edge(center.id, char1.id, "features_character")
+        graph_db.create_edge(center.id, char2.id, "features_character")
+        graph_db.create_edge(center.id, loc.id, "located_at")
 
         # Get all neighbors
         neighbors = graph_db.get_neighbors(center.id)
@@ -369,22 +364,20 @@ class TestGraphDatabase:
 
         # Get neighbors of specific type
         char_neighbors = graph_db.get_neighbors(
-            center.id, edge_type=EdgeType.FEATURES_CHARACTER
+            center.id, edge_type="features_character"
         )
         assert len(char_neighbors) == 2
-        assert all(n.type == NodeType.CHARACTER for n in char_neighbors)
+        assert all(n.type == "character" for n in char_neighbors)
 
     def test_graph_transaction_rollback(self, graph_db):
         """Test that graph operations rollback properly."""
         # Create initial node
-        node1 = graph_db.create_node(NodeType.SCRIPT, {"title": "Initial"})
+        node1 = graph_db.create_node("script", {"title": "Initial"})
 
         try:
             with graph_db.connection.transaction():
                 # Create node in transaction
-                node2 = graph_db.create_node(
-                    NodeType.SCRIPT, {"title": "In Transaction"}
-                )
+                node2 = graph_db.create_node("script", {"title": "In Transaction"})
                 # Force an error
                 raise ValueError("Forced error")
         except ValueError:
@@ -422,7 +415,7 @@ class TestGraphOperations:
 
         node = graph_ops.create_script(script)
 
-        assert node.type == NodeType.SCRIPT
+        assert node.type == "script"
         assert node.properties["title"] == "New Script"
         assert node.properties["author"] == "Author Name"
         assert node.properties["genre"] == "Action"
@@ -440,7 +433,7 @@ class TestGraphOperations:
 
         scene_node = graph_ops.create_scene(scene, sample_script_node.id)
 
-        assert scene_node.type == NodeType.SCENE
+        assert scene_node.type == "scene"
         assert scene_node.properties["heading"] == "INT. COFFEE SHOP - DAY"
         assert scene_node.properties["script_order"] == 1
 
@@ -448,7 +441,7 @@ class TestGraphOperations:
         edges = graph_ops.graph.get_edges(
             source_id=sample_script_node.id,
             target_id=scene_node.id,
-            edge_type=EdgeType.HAS_SCENE,
+            edge_type="has_scene",
         )
         assert len(edges) == 1
 
@@ -462,7 +455,7 @@ class TestGraphOperations:
 
         char_node = graph_ops.create_character(character)
 
-        assert char_node.type == NodeType.CHARACTER
+        assert char_node.type == "character"
         assert char_node.properties["name"] == "PROTAGONIST"
         assert char_node.properties["description"] == "The main character"
         assert "HERO" in char_node.properties["aliases"]
@@ -478,7 +471,7 @@ class TestGraphOperations:
 
         loc_node = graph_ops.create_location(location)
 
-        assert loc_node.type == NodeType.LOCATION
+        assert loc_node.type == "location"
         assert loc_node.properties["interior"] is True
         assert loc_node.properties["name"] == "APARTMENT"
         assert loc_node.properties["time"] == "NIGHT"
@@ -501,7 +494,7 @@ class TestGraphOperations:
             scene_node.id, char_node.id, {"dialogue_count": 5}
         )
 
-        assert edge.type == EdgeType.FEATURES_CHARACTER
+        assert edge.type == "features_character"
         assert edge.properties["dialogue_count"] == 5
 
     def test_link_scene_location(self, graph_ops, sample_script_node):
@@ -520,7 +513,7 @@ class TestGraphOperations:
         # Link them
         edge = graph_ops.link_scene_location(scene_node.id, loc_node.id)
 
-        assert edge.type == EdgeType.LOCATED_AT
+        assert edge.type == "located_at"
 
     def test_get_script_scenes(self, graph_ops, sample_script_node):
         """Test retrieving script scenes in order."""
@@ -610,7 +603,7 @@ class TestGraphOperations:
 
         # Check interactions
         edges = graph_ops.graph.get_edges(
-            source_id=char1_node.id, edge_type=EdgeType.INTERACTS_WITH
+            source_id=char1_node.id, edge_type="interacts_with"
         )
         assert len(edges) == 1
         assert edges[0].target_id == char2_node.id
@@ -682,7 +675,7 @@ class TestGraphOperations:
         )
 
         fake_script_id = str(uuid4())
-        with pytest.raises(GraphQueryError):
+        with pytest.raises(ValueError):
             graph_ops.create_scene(scene, fake_script_id)
 
     @patch("scriptrag.database.graph.GraphDatabase.create_node")

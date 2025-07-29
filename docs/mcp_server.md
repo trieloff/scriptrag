@@ -16,14 +16,14 @@ The MCP server provides a standardized interface for:
 ## Running the Server
 
 ```bash
-# Using Python module
-python -m scriptrag.mcp_server
+# Using uv to run the MCP server
+uv run scriptrag-mcp
 
 # With custom configuration
-python -m scriptrag.mcp_server --config-file config.yaml
+uv run scriptrag-mcp --config-file config.yaml
 
 # With environment variables
-SCRIPTRAG_MCP_HOST=0.0.0.0 SCRIPTRAG_MCP_PORT=9000 python -m scriptrag.mcp_server
+SCRIPTRAG_MCP_HOST=0.0.0.0 SCRIPTRAG_MCP_PORT=9000 uv run scriptrag-mcp
 ```
 
 ## Configuration
@@ -96,8 +96,8 @@ To use with Claude Desktop, add to your configuration:
 {
   "mcpServers": {
     "scriptrag": {
-      "command": "python",
-      "args": ["-m", "scriptrag.mcp_server"],
+      "command": "uv",
+      "args": ["run", "scriptrag-mcp"],
       "env": {
         "SCRIPTRAG_DB_PATH": "/path/to/screenplay.db"
       }

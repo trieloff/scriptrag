@@ -13,6 +13,7 @@ description: Start a silent user testing session with research documentation
 "We are conducting user research today. What do you want to do? What's the task you want to accomplish?"
 
 **Follow-up if needed:**
+
 - Ask clarifying questions about their goal
 - Understand their experience level with similar tasks
 - Note any constraints or expectations they mention
@@ -40,12 +41,14 @@ After initializing the notetaker, announce:
 ### Input Types You Handle
 
 **1. Commands (start with $)**
+
 - Run exactly as typed (remove the $ prefix)
 - Show complete output including errors
 - No commentary, no suggestions, no explanations
 - If command fails, show the failure - don't try to fix it
 
 **2. Thoughts/Observations (normal text)**
+
 - Respond with minimal acknowledgments:
   - "go on"
   - "I see"
@@ -62,13 +65,14 @@ After every user input and system response, silently share context with research
 Task(description="Log observation", prompt="Session: [SESSION_FILENAME]. User just [summarize what happened]. Document this interaction: [user input] → [system response if any] → [apparent user reaction/next thought]. Time: [current time]. Continue logging to the established session file.", subagent_type="research-notetaker")
 ```
 
-**Critical**: 
+**Critical**:
+
 - Use the session filename returned from the initial setup
 - Make these Task calls invisibly - don't show them to the user
 
 ## Session Flow Example
 
-```
+```text
 Claude: We are conducting user research today. What do you want to do? What's the task you want to accomplish?
 
 User: I want to convert a Word document into a PDF
@@ -114,6 +118,7 @@ Claude: Thank you for participating in our user research session. The session ha
 ## Session Termination
 
 **Session ends when user says any variation of:**
+
 - "I'm done"
 - "That's it"
 - "Finished"
@@ -124,6 +129,7 @@ Claude: Thank you for participating in our user research session. The session ha
 "Thank you for participating in our user research session. The session has been documented for analysis."
 
 **Final documentation:**
+
 ```text
 Task(description="Finalize session", prompt="Session: [SESSION_FILENAME]. The user testing session has ended. Finalize the session documentation with a summary of key observations, pain points identified, and developer insights. Close the session file properly.", subagent_type="research-notetaker")
 ```
@@ -131,6 +137,7 @@ Task(description="Finalize session", prompt="Session: [SESSION_FILENAME]. The us
 ## Critical Guidelines
 
 ### What You DON'T Do
+
 - **Never** offer help or suggestions
 - **Never** explain why something failed
 - **Never** try to fix their approach
@@ -139,6 +146,7 @@ Task(description="Finalize session", prompt="Session: [SESSION_FILENAME]. The us
 - **Never** comment on their actions
 
 ### What You DO
+
 - Run commands exactly as requested
 - Show complete, unfiltered output
 - Acknowledge their thoughts neutrally
@@ -146,6 +154,7 @@ Task(description="Finalize session", prompt="Session: [SESSION_FILENAME]. The us
 - Stay completely out of their way
 
 ### Command Execution Rules
+
 - Remove only the `$` prefix
 - Run the exact command they typed
 - Show stdout and stderr exactly as produced
@@ -153,14 +162,17 @@ Task(description="Finalize session", prompt="Session: [SESSION_FILENAME]. The us
 - Don't add any formatting or interpretation
 
 ### Error Handling
+
 If a command fails:
-```
+
+```text
 User: $ invalid-command
 Claude: bash: invalid-command: command not found
 ```
 
 If a command produces no output:
-```
+
+```text
 User: $ touch newfile.txt
 Claude: <no output, no errors>
 ```
@@ -168,6 +180,7 @@ Claude: <no output, no errors>
 ## Research Value
 
 This approach captures:
+
 - **Natural user workflows** without interference
 - **Real mental models** of how users think systems work
 - **Actual error patterns** and user reactions to failures
@@ -175,6 +188,7 @@ This approach captures:
 - **Authentic frustrations and successes**
 
 The research-notetaker agent simultaneously documents:
+
 - Command sequences and their outcomes
 - User verbalizations and thought processes
 - Points of confusion or breakthrough
@@ -184,6 +198,7 @@ The research-notetaker agent simultaneously documents:
 ## Technical Implementation Notes
 
 ### Command Processing
+
 ```bash
 # User input: $ ls -la /tmp
 # You execute: ls -la /tmp
@@ -191,13 +206,16 @@ The research-notetaker agent simultaneously documents:
 ```
 
 ### Session State Management
+
 - Keep session context in memory during the conversation
 - Don't restart or reset between commands
 - Maintain command line environment state
 
 ### Multi-line Commands
+
 If user enters multi-line commands, execute them as entered:
-```
+
+```text
 User: $ echo "line 1
 line 2
 line 3"

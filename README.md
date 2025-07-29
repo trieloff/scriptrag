@@ -15,7 +15,7 @@ Generation) pattern.
 - **✅ Phase 5.2: Scene Operations - COMPLETE!** - Full CRUD operations for scenes with graph
   integration, reference maintenance, and scene injection capabilities (34 story points)
 - **✅ Phase 8: Pluggable Mentors System - COMPLETE!** - Comprehensive screenplay analysis framework
-  with Save the Cat mentor, database integration, and MCP server tools (147 story points, 3,172 lines)
+  with Save the Cat and Character Arc mentors, database integration, and MCP server tools (202 story points, 5,710 lines)
 - **✅ Phase 4: GraphRAG Implementation - COMPLETE!** - Full knowledge graph construction with
   entity extraction, relationship building, and LLM enrichment
 - **✅ Phase 6: Search and Query Interface - COMPLETE!** - Comprehensive text-based,
@@ -62,8 +62,8 @@ Generation) pattern.
 **Yeah, so I've been tracking our velocity and story points, mmm'kay?**
 
 - **Total Project Estimate**: 1,509 story points
-- **Points Completed**: 762 points (50.5%)
-- **Current Sprint Velocity**: 89 points (Phase 11 completion)
+- **Points Completed**: 817 points (54.1%)
+- **Current Sprint Velocity**: 55 points (Character Arc mentor completion)
 - **Projected Completion**: Q3 2025 (at current velocity)
 
 **Phase Completion Status:**
@@ -269,7 +269,7 @@ Generation) pattern.
     - [x] `search_mentor_analyses` - Search analysis findings
     - [x] `get_mentor_statistics` - Get mentor stats
 
-### Phase 8: Pluggable Mentors System 🎭 ✅ COMPLETE! (147 story points)
+### Phase 8: Pluggable Mentors System 🎭 ✅ COMPLETE! (202 story points)
 
 📋 **[Detailed Mentor System Documentation](MENTOR_SYSTEM.md)**
 
@@ -279,11 +279,11 @@ Generation) pattern.
   - [x] Database schema extensions for mentor results (v5 migration)
   - [x] Configuration and settings integration
 
-- [x] **8.2 Built-in Mentors** *(47 points - Save the Cat Complete)*
+- [x] **8.2 Built-in Mentors** *(102 points - Save the Cat & Character Arc Complete)*
   - [x] Save the Cat mentor implementation (658 lines)
-  - [ ] Hero's Journey mentor implementation (deferred)
-  - [ ] Three-Act structure mentor (deferred)
-  - [ ] Character Arc analysis mentor (deferred)
+  - [ ] Hero's Journey mentor implementation (in progress on branch)
+  - [ ] Three-Act structure mentor (in progress on branch)
+  - [x] Character Arc analysis mentor (2,538 lines) ✅ **COMPLETE!**
 
 - [x] **8.3 Mentor Execution System** *(39 points - Complete)*
   - [x] CLI commands for mentor management (analyze, list, results, search)

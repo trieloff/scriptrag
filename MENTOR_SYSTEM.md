@@ -208,22 +208,22 @@ class MentorRunner:
 
 ```bash
 # Run specific mentor
-scriptrag mentor run --mentor "save_the_cat" --script-id 123
+uv run scriptrag mentor run --mentor "save_the_cat" --script-id 123
 
 # Run all mentors
-scriptrag mentor run-all --script-id 123
+uv run scriptrag mentor run-all --script-id 123
 
 # List available mentors
-scriptrag mentor list
+uv run scriptrag mentor list
 
 # View mentor results
-scriptrag mentor results --script-id 123 --mentor "save_the_cat"
+uv run scriptrag mentor results --script-id 123 --mentor "save_the_cat"
 
 # Install custom mentor
-scriptrag mentor install --file custom_mentor.md
+uv run scriptrag mentor install --file custom_mentor.md
 
 # Validate mentor definition
-scriptrag mentor validate --file new_mentor.md
+uv run scriptrag mentor validate --file new_mentor.md
 ```
 
 ## Built-in Mentors

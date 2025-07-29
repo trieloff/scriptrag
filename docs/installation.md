@@ -6,6 +6,15 @@
 - SQLite 3.38 or higher (for vector support)
 - uv package manager
 
+## Why uv?
+
+ScriptRAG uses [uv](https://github.com/astral-sh/uv) as its package manager for several key benefits:
+
+- **Automatic Virtual Environment Management**: uv handles virtual environment creation and activation automatically
+- **Faster Dependency Resolution**: Significantly faster than pip for installing and resolving dependencies
+- **Reproducible Builds**: Ensures consistent dependency versions across all environments
+- **Simplified Commands**: No need to manually activate virtual environments before running commands
+
 ## Install uv
 
 ```bash

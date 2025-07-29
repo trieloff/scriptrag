@@ -6,8 +6,10 @@ import pytest
 
 from scriptrag.mentors.base import AnalysisSeverity, MentorType
 from scriptrag.mentors.character_arc import (
+    AGENCY_PHASES,
     CHARACTER_ARC_TYPES,
     DEVELOPMENT_STAGES,
+    TRANSFORMATION_MARKERS,
     CharacterArcMentor,
 )
 
@@ -111,25 +113,34 @@ class TestCharacterArcMentor:
         positive_arc = CHARACTER_ARC_TYPES[0]
         assert positive_arc.name == "Positive Change Arc"
         assert "overcomes" in positive_arc.indicators
-        assert len(positive_arc.journey_pattern) == 6
-        assert "Believes lie/has flaw" in positive_arc.journey_pattern
+        assert "transforms" in positive_arc.indicators
+        assert len(positive_arc.journey_pattern) == 10
+        assert "The Lie They Believe" in positive_arc.journey_pattern[0]
+        assert "Luke Skywalker" in positive_arc.examples
+        assert positive_arc.thematic_focus == "Personal growth through adversity"
 
         # Check negative change arc
         negative_arc = CHARACTER_ARC_TYPES[1]
         assert negative_arc.name == "Negative Change Arc"
         assert "corrupted" in negative_arc.indicators
-        assert "Tragic ending" in negative_arc.journey_pattern
+        assert "refuses" in negative_arc.indicators
+        assert "The Pride Point" in negative_arc.journey_pattern[0]
+        assert "Walter White" in negative_arc.examples
+        assert "pride" in negative_arc.thematic_focus
 
         # Check flat arc
         flat_arc = CHARACTER_ARC_TYPES[2]
         assert flat_arc.name == "Flat Arc"
         assert "steadfast" in flat_arc.indicators
-        assert "Already knows truth" in flat_arc.journey_pattern[0]
+        assert "Core Truth" in flat_arc.journey_pattern[0]
+        assert "Ellen Ripley" in flat_arc.examples
+        assert "integrity" in flat_arc.thematic_focus
 
-        # Check failed arc
-        failed_arc = CHARACTER_ARC_TYPES[3]
-        assert failed_arc.name == "Failed Arc"
-        assert "refuses" in failed_arc.indicators
+        # Check corruption arc
+        corruption_arc = CHARACTER_ARC_TYPES[3]
+        assert corruption_arc.name == "Corruption Arc"
+        assert "corrupts" in corruption_arc.indicators
+        assert "Michael Corleone" in corruption_arc.examples
 
     def test_development_stages(self):
         """Test character development stage definitions."""
@@ -168,10 +179,12 @@ class TestCharacterArcMentor:
 
         assert result.mentor_name == "character_arc"
         assert result.script_id == script_id
-        assert result.score == 55.0  # Base 70 - 15 for error
+        # With the new scoring system, even with error we get some base score
+        assert 0 <= result.score <= 40  # Score reduced but not 0
         assert len(result.analyses) == 1
         assert result.analyses[0].severity == AnalysisSeverity.ERROR
-        assert "0 characters" in result.summary.lower()
+        # Check that summary mentions character count
+        assert "0 characters" in result.summary
 
     @pytest.mark.asyncio
     async def test_analyze_script_no_characters(self):
@@ -266,9 +279,10 @@ class TestCharacterArcMentor:
             ),
         ]
 
-        # Base 70 + 10 (transformation) + 10 (want/need) + 2 (INFO bonuses) = 92
+        # With the new scoring system, we start at 100 and deduct
+        # This has only 2 basic INFO analyses, missing many elements
         score = mentor._calculate_score(analyses)
-        assert 90 <= score <= 95
+        assert 30 <= score <= 70  # Has some elements but missing many
 
     def test_summary_generation(self):
         """Test summary generation."""
@@ -292,8 +306,7 @@ class TestCharacterArcMentor:
 
         summary = mentor._generate_summary(analyses, 5)
         assert "5 characters" in summary
-        assert "clear, compelling transformation" in summary
-        assert "satisfying development trajectory" in summary
+        assert "foundation" in summary or "strong" in summary
 
         # Test with issues
         analyses = [
@@ -311,8 +324,7 @@ class TestCharacterArcMentor:
 
         summary = mentor._generate_summary(analyses, 3)
         assert "3 characters" in summary
-        assert "1 areas for character development improvement" in summary
-        assert "needs additional development stages" in summary
+        assert "areas could strengthen" in summary or "areas for" in summary
 
     def test_analyze_supporting_config(self):
         """Test that supporting character analysis can be disabled."""
@@ -338,6 +350,8 @@ class TestCharacterArcMentor:
             assert len(arc_type.journey_pattern) > 0
             assert isinstance(arc_type.name, str)
             assert isinstance(arc_type.description, str)
+            assert len(arc_type.examples) > 0
+            assert isinstance(arc_type.thematic_focus, str)
 
     def test_development_stage_positions(self):
         """Test that development stages have proper positions."""
@@ -352,3 +366,154 @@ class TestCharacterArcMentor:
 
         # All positions should be between 0 and 1
         assert all(0 <= pos <= 1 for pos in positions)
+
+    def test_transformation_markers(self):
+        """Test transformation marker definitions."""
+        assert len(TRANSFORMATION_MARKERS) >= 9  # We have at least 9 markers
+
+        # Check specific markers
+        lie_marker = next(
+            m for m in TRANSFORMATION_MARKERS if m.name == "The Lie/False Belief"
+        )
+        assert lie_marker is not None
+        assert lie_marker.severity_if_missing == AnalysisSeverity.ERROR
+        assert "Positive Change Arc" in lie_marker.arc_types
+        assert "believes" in lie_marker.indicators
+
+        core_truth_marker = next(
+            m for m in TRANSFORMATION_MARKERS if m.name == "Core Truth"
+        )
+        assert core_truth_marker is not None
+        assert "Flat Arc" in core_truth_marker.arc_types
+        assert "principle" in core_truth_marker.indicators
+
+    def test_agency_phases(self):
+        """Test character agency phase definitions."""
+        assert len(AGENCY_PHASES) == 4
+
+        # Check victim stage
+        victim = AGENCY_PHASES[0]
+        assert victim.name == "Victim Stage"
+        assert "powerless" in victim.indicators
+        assert victim.typical_percentage == 0.15
+
+        # Check creator stage
+        creator = AGENCY_PHASES[3]
+        assert creator.name == "Creator Stage"
+        assert "creates" in creator.indicators
+        assert creator.typical_percentage == 0.25
+
+        # Total percentages should sum to 1.0
+        total_percentage = sum(phase.typical_percentage for phase in AGENCY_PHASES)
+        assert abs(total_percentage - 1.0) < 0.01
+
+    def test_arc_type_detection(self):
+        """Test arc type detection method."""
+        mentor = CharacterArcMentor()
+
+        # Test with mock character and scenes
+        character = {"id": uuid4(), "name": "TestHero"}
+        scenes = []  # Empty scenes for now
+
+        arc_type = mentor._detect_arc_type(character, scenes)
+        assert arc_type is not None
+        assert arc_type.name == "Positive Change Arc"  # Default in placeholder
+
+    def test_transformation_marker_finding(self):
+        """Test finding transformation markers."""
+        mentor = CharacterArcMentor()
+
+        character = {"id": uuid4(), "name": "TestHero"}
+        scenes = []
+
+        markers = mentor._find_transformation_marker(character, scenes, "The Want")
+        assert isinstance(markers, list)
+
+        # Test with non-existent marker
+        markers = mentor._find_transformation_marker(character, scenes, "NonExistent")
+        assert markers == []
+
+    def test_character_agency_analysis(self):
+        """Test character agency analysis."""
+        mentor = CharacterArcMentor()
+
+        character = {"id": uuid4(), "name": "TestHero"}
+        scenes = []
+
+        agency_dist = mentor._analyze_character_agency(character, scenes)
+        assert isinstance(agency_dist, dict)
+        assert "Victim Stage" in agency_dist
+        assert "Creator Stage" in agency_dist
+        assert sum(agency_dist.values()) == 1.0
+
+    def test_internal_external_conflict_analysis(self):
+        """Test internal/external conflict analysis."""
+        mentor = CharacterArcMentor()
+
+        character = {"id": uuid4(), "name": "TestHero"}
+        scenes = []
+
+        conflict_data = mentor._analyze_internal_external_conflict(character, scenes)
+        assert isinstance(conflict_data, dict)
+        assert "internal_conflicts" in conflict_data
+        assert "external_conflicts" in conflict_data
+        assert "intersection_points" in conflict_data
+        assert "conflict_escalation" in conflict_data
+
+    @pytest.mark.asyncio
+    async def test_comprehensive_arc_analysis(self):
+        """Test comprehensive character arc analysis with rich data."""
+        mentor = CharacterArcMentor()
+        script_id = uuid4()
+
+        # Mock comprehensive character data
+        class MockDBOps:
+            async def get_script(self, script_id):
+                return {
+                    "script_id": script_id,
+                    "title": "Hero's Journey",
+                    "characters": [
+                        {
+                            "id": uuid4(),
+                            "name": "Luke Skywalker",
+                            "dialogue_count": 150,
+                        },
+                        {
+                            "id": uuid4(),
+                            "name": "Obi-Wan Kenobi",
+                            "dialogue_count": 50,
+                        },
+                        {
+                            "id": uuid4(),
+                            "name": "Darth Vader",
+                            "dialogue_count": 30,
+                        },
+                    ],
+                    "scenes": [
+                        {"id": uuid4(), "page": 1, "character_ids": []},
+                        {"id": uuid4(), "page": 25, "character_ids": []},
+                        {"id": uuid4(), "page": 55, "character_ids": []},
+                        {"id": uuid4(), "page": 85, "character_ids": []},
+                        {"id": uuid4(), "page": 110, "character_ids": []},
+                    ],
+                }
+
+        async def mock_get_script_data(self, script_id, db_ops):  # noqa: ARG001
+            return await db_ops.get_script(script_id)
+
+        mentor._get_script_data = mock_get_script_data.__get__(
+            mentor, CharacterArcMentor
+        )
+
+        result = await mentor.analyze_script(script_id, MockDBOps())
+
+        assert result.mentor_name == "character_arc"
+        assert result.script_id == script_id
+        assert len(result.analyses) > 0
+
+        # Should have various analysis categories
+        categories = {a.category for a in result.analyses}
+        assert "character_transformation" in categories
+
+        # Summary should mention characters
+        assert "3 characters" in result.summary

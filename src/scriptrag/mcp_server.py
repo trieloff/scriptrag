@@ -867,11 +867,11 @@ class ScriptRAGMCPServer:
 
             # Base query to find scenes for this script
             base_query = """
-                SELECT DISTINCT s.*, n.properties
+                SELECT DISTINCT s.*, n.properties_json as properties
                 FROM scenes s
-                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
-                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
-                JOIN graph_nodes script_n ON script_n.id = e.from_node_id
+                JOIN nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN nodes script_n ON script_n.id = e.from_node_id
                     AND script_n.entity_id = ? AND script_n.node_type = 'script'
                 WHERE 1=1
             """
@@ -886,8 +886,8 @@ class ScriptRAGMCPServer:
             if location:
                 conditions.append("""
                     EXISTS (
-                        SELECT 1 FROM graph_edges loc_e
-                        JOIN graph_nodes loc_n ON loc_n.id = loc_e.to_node_id
+                        SELECT 1 FROM edges loc_e
+                        JOIN nodes loc_n ON loc_n.id = loc_e.to_node_id
                         WHERE loc_e.from_node_id = n.id
                         AND loc_e.edge_type = 'AT_LOCATION'
                         AND UPPER(loc_n.label) LIKE UPPER(?)
@@ -901,8 +901,8 @@ class ScriptRAGMCPServer:
                 for char_name in characters:
                     char_conditions.append("""
                         EXISTS (
-                            SELECT 1 FROM graph_edges char_e
-                            JOIN graph_nodes char_n ON char_n.id = char_e.from_node_id
+                            SELECT 1 FROM edges char_e
+                            JOIN nodes char_n ON char_n.id = char_e.from_node_id
                             WHERE char_e.to_node_id = n.id
                             AND char_e.edge_type = 'APPEARS_IN'
                             AND char_n.node_type = 'character'
@@ -943,11 +943,11 @@ class ScriptRAGMCPServer:
                 char_query = """
                     SELECT DISTINCT c.name
                     FROM characters c
-                    JOIN graph_nodes cn
+                    JOIN nodes cn
                         ON cn.entity_id = c.id AND cn.node_type = 'character'
-                    JOIN graph_edges e
+                    JOIN edges e
                         ON e.from_node_id = cn.id AND e.edge_type = 'APPEARS_IN'
-                    JOIN graph_nodes sn ON sn.id = e.to_node_id AND sn.entity_id = ?
+                    JOIN nodes sn ON sn.id = e.to_node_id AND sn.entity_id = ?
                 """
                 char_cursor = connection.execute(char_query, (row["id"],))
                 scene_data["characters"] = [r["name"] for r in char_cursor.fetchall()]
@@ -955,10 +955,10 @@ class ScriptRAGMCPServer:
                 # Get location
                 loc_query = """
                     SELECT l.label
-                    FROM graph_nodes l
-                    JOIN graph_edges e
+                    FROM nodes l
+                    JOIN edges e
                         ON e.to_node_id = l.id AND e.edge_type = 'AT_LOCATION'
-                    JOIN graph_nodes sn ON sn.id = e.from_node_id AND sn.entity_id = ?
+                    JOIN nodes sn ON sn.id = e.from_node_id AND sn.entity_id = ?
                     LIMIT 1
                 """
                 loc_cursor = connection.execute(loc_query, (row["id"],))
@@ -997,11 +997,11 @@ class ScriptRAGMCPServer:
             char_query = """
                 SELECT c.*, cn.id as node_id
                 FROM characters c
-                JOIN graph_nodes cn
+                JOIN nodes cn
                     ON cn.entity_id = c.id AND cn.node_type = 'character'
-                JOIN graph_edges e
+                JOIN edges e
                     ON e.to_node_id = cn.id AND e.edge_type = 'HAS_CHARACTER'
-                JOIN graph_nodes sn ON sn.id = e.from_node_id
+                JOIN nodes sn ON sn.id = e.from_node_id
                     AND sn.entity_id = ? AND sn.node_type = 'script'
                 WHERE UPPER(c.name) LIKE UPPER(?)
                 LIMIT 1
@@ -1013,6 +1013,9 @@ class ScriptRAGMCPServer:
                 return {
                     "script_id": script_id,
                     "character_name": character_name,
+                    "scenes_count": 0,
+                    "dialogue_lines": 0,
+                    "relationships": [],
                     "error": f"Character '{character_name}' not found in script",
                 }
 
@@ -1023,9 +1026,9 @@ class ScriptRAGMCPServer:
             scene_query = """
                 SELECT COUNT(DISTINCT s.id) as scene_count
                 FROM scenes s
-                JOIN graph_nodes sn
+                JOIN nodes sn
                     ON sn.entity_id = s.id AND sn.node_type = 'scene'
-                JOIN graph_edges e
+                JOIN edges e
                     ON e.to_node_id = sn.id AND e.edge_type = 'APPEARS_IN'
                 WHERE e.from_node_id = ?
             """
@@ -1047,8 +1050,8 @@ class ScriptRAGMCPServer:
             # Get characters this character speaks to
             speaks_to_query = """
                 SELECT DISTINCT c2.name, COUNT(*) as interaction_count
-                FROM graph_edges e
-                JOIN graph_nodes cn2
+                FROM edges e
+                JOIN nodes cn2
                     ON cn2.id = e.to_node_id AND cn2.node_type = 'character'
                 JOIN characters c2 ON c2.id = cn2.entity_id
                 WHERE e.from_node_id = ? AND e.edge_type = 'SPEAKS_TO'
@@ -1069,8 +1072,8 @@ class ScriptRAGMCPServer:
             # Get characters that speak to this character
             spoken_to_query = """
                 SELECT DISTINCT c2.name, COUNT(*) as interaction_count
-                FROM graph_edges e
-                JOIN graph_nodes cn2
+                FROM edges e
+                JOIN nodes cn2
                     ON cn2.id = e.from_node_id AND cn2.node_type = 'character'
                 JOIN characters c2 ON c2.id = cn2.entity_id
                 WHERE e.to_node_id = ? AND e.edge_type = 'SPEAKS_TO'
@@ -1099,12 +1102,12 @@ class ScriptRAGMCPServer:
             # Get co-appearances in scenes
             coappear_query = """
                 SELECT c2.name, COUNT(DISTINCT s.id) as shared_scenes
-                FROM graph_edges e1
-                JOIN graph_nodes sn ON sn.id = e1.to_node_id AND sn.node_type = 'scene'
+                FROM edges e1
+                JOIN nodes sn ON sn.id = e1.to_node_id AND sn.node_type = 'scene'
                 JOIN scenes s ON s.id = sn.entity_id
-                JOIN graph_edges e2
+                JOIN edges e2
                     ON e2.to_node_id = sn.id AND e2.edge_type = 'APPEARS_IN'
-                JOIN graph_nodes cn2
+                JOIN nodes cn2
                     ON cn2.id = e2.from_node_id AND cn2.node_type = 'character'
                 JOIN characters c2 ON c2.id = cn2.entity_id
                 WHERE e1.from_node_id = ? AND e1.edge_type = 'APPEARS_IN'
@@ -1137,9 +1140,9 @@ class ScriptRAGMCPServer:
                 SELECT MIN(s.script_order) as first_appearance,
                        MAX(s.script_order) as last_appearance
                 FROM scenes s
-                JOIN graph_nodes sn
+                JOIN nodes sn
                     ON sn.entity_id = s.id AND sn.node_type = 'scene'
-                JOIN graph_edges e
+                JOIN edges e
                     ON e.to_node_id = sn.id AND e.edge_type = 'APPEARS_IN'
                 WHERE e.from_node_id = ?
             """
@@ -1175,11 +1178,11 @@ class ScriptRAGMCPServer:
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
             # Get all scenes in script
             scenes_query = """
-                SELECT s.*, n.properties
+                SELECT s.*, n.properties_json as properties
                 FROM scenes s
-                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
-                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
-                JOIN graph_nodes sn ON sn.id = e.from_node_id
+                JOIN nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN nodes sn ON sn.id = e.from_node_id
                     AND sn.entity_id = ? AND sn.node_type = 'script'
                 ORDER BY s.script_order
             """
@@ -1303,10 +1306,10 @@ class ScriptRAGMCPServer:
                     FROM scene_dependencies sd
                     JOIN scenes s1 ON s1.id = sd.from_scene_id
                     JOIN scenes s2 ON s2.id = sd.to_scene_id
-                    JOIN graph_nodes n1 ON n1.entity_id = s1.id
-                    JOIN graph_edges e1
+                    JOIN nodes n1 ON n1.entity_id = s1.id
+                    JOIN edges e1
                         ON e1.to_node_id = n1.id AND e1.edge_type = 'HAS_SCENE'
-                    JOIN graph_nodes sn ON sn.id = e1.from_node_id AND sn.entity_id = ?
+                    JOIN nodes sn ON sn.id = e1.from_node_id AND sn.entity_id = ?
                     WHERE sd.dependency_type = 'flashback_to'
                 """
                 dep_cursor = connection.execute(dependency_query, (script_id,))
@@ -1337,6 +1340,14 @@ class ScriptRAGMCPServer:
                         "flashbacks_detected": flashbacks_detected,
                         "flash_forwards_detected": flash_forwards_detected,
                         "flashback_sequences": flashback_sequences,
+                    }
+                )
+            else:
+                result.update(
+                    {
+                        "flashbacks_detected": None,
+                        "flash_forwards_detected": None,
+                        "flashback_sequences": [],
                     }
                 )
 
@@ -1397,9 +1408,9 @@ class ScriptRAGMCPServer:
             verify_query = """
                 SELECT s.id, n.id as node_id
                 FROM scenes s
-                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
-                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
-                JOIN graph_nodes sn ON sn.id = e.from_node_id
+                JOIN nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN nodes sn ON sn.id = e.from_node_id
                     AND sn.entity_id = ? AND sn.node_type = 'script'
                 WHERE s.id = ?
             """
@@ -1453,11 +1464,11 @@ class ScriptRAGMCPServer:
                         # Find or create character
                         char_query = """
                             SELECT c.id FROM characters c
-                            JOIN graph_nodes cn ON cn.entity_id = c.id
-                            JOIN graph_edges e
+                            JOIN nodes cn ON cn.entity_id = c.id
+                            JOIN edges e
                                 ON e.to_node_id = cn.id
                                 AND e.edge_type = 'HAS_CHARACTER'
-                            JOIN graph_nodes sn
+                            JOIN nodes sn
                                 ON sn.id = e.from_node_id AND sn.entity_id = ?
                             WHERE UPPER(c.name) = UPPER(?)
                         """
@@ -1593,9 +1604,9 @@ class ScriptRAGMCPServer:
             verify_query = """
                 SELECT s.id, s.script_order, n.id as node_id
                 FROM scenes s
-                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
-                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
-                JOIN graph_nodes sn ON sn.id = e.from_node_id
+                JOIN nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN nodes sn ON sn.id = e.from_node_id
                     AND sn.entity_id = ? AND sn.node_type = 'script'
                 WHERE s.id = ?
             """
@@ -1618,9 +1629,9 @@ class ScriptRAGMCPServer:
             reorder_query = """
                 SELECT s.id, s.script_order, n.id as node_id
                 FROM scenes s
-                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
-                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
-                JOIN graph_nodes sn ON sn.id = e.from_node_id
+                JOIN nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN nodes sn ON sn.id = e.from_node_id
                     AND sn.entity_id = ? AND sn.node_type = 'script'
                 WHERE s.script_order > ?
                 ORDER BY s.script_order
@@ -1669,7 +1680,7 @@ class ScriptRAGMCPServer:
             # Verify script exists
             script_query = """
                 SELECT n.id as node_id
-                FROM graph_nodes n
+                FROM nodes n
                 WHERE n.entity_id = ? AND n.node_type = 'script'
             """
             cursor = connection.execute(script_query, (script_id,))
@@ -1684,8 +1695,8 @@ class ScriptRAGMCPServer:
             count_query = """
                 SELECT COUNT(*) as scene_count
                 FROM scenes s
-                JOIN graph_nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
-                JOIN graph_edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
+                JOIN nodes n ON n.entity_id = s.id AND n.node_type = 'scene'
+                JOIN edges e ON e.to_node_id = n.id AND e.edge_type = 'HAS_SCENE'
                 WHERE e.from_node_id = ?
             """
             count_cursor = connection.execute(count_query, (script_node_id,))
@@ -1765,11 +1776,11 @@ class ScriptRAGMCPServer:
                         # Find character
                         char_query = """
                             SELECT c.id FROM characters c
-                            JOIN graph_nodes cn ON cn.entity_id = c.id
-                            JOIN graph_edges e
+                            JOIN nodes cn ON cn.entity_id = c.id
+                            JOIN edges e
                                 ON e.to_node_id = cn.id
                                 AND e.edge_type = 'HAS_CHARACTER'
-                            JOIN graph_nodes sn
+                            JOIN nodes sn
                                 ON sn.id = e.from_node_id AND sn.entity_id = ?
                             WHERE UPPER(c.name) = UPPER(?)
                         """

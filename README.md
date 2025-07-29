@@ -62,7 +62,7 @@ Generation) pattern.
 **Yeah, so I've been tracking our velocity and story points, mmm'kay?**
 
 - **Total Project Estimate**: 1,509 story points
-- **Points Completed**: 817 points (54.1%)
+- **Points Completed**: 906 points (60.0%)
 - **Current Sprint Velocity**: 55 points (Character Arc mentor completion)
 - **Projected Completion**: Q3 2025 (at current velocity)
 
@@ -72,8 +72,9 @@ Generation) pattern.
 - Phase 4: ✅ Complete (89 points)
 - Phase 6: ✅ Complete (134 points)
 - Phase 7.3: ✅ Complete (98 points)
+- Phase 8: ✅ Complete (291 points) - *Character Arc and Hero's Journey complete, mmm'kay?*
 - Phase 11: ✅ Complete (268 points) - *That's terrific work, team!*
-- Remaining Phases: 747 points
+- Remaining Phases: 511 points
 
 *If everyone could just keep up this velocity, that'd be great.*
 
@@ -269,7 +270,7 @@ Generation) pattern.
     - [x] `search_mentor_analyses` - Search analysis findings
     - [x] `get_mentor_statistics` - Get mentor stats
 
-### Phase 8: Pluggable Mentors System 🎭 ✅ COMPLETE! (202 story points)
+### Phase 8: Pluggable Mentors System 🎭 ✅ COMPLETE! (291 story points)
 
 📋 **[Detailed Mentor System Documentation](MENTOR_SYSTEM.md)**
 
@@ -279,13 +280,13 @@ Generation) pattern.
   - [x] Database schema extensions for mentor results (v5 migration)
   - [x] Configuration and settings integration
 
-- [x] **8.2 Built-in Mentors** *(102 points - Save the Cat & Character Arc Complete)*
-  - [x] Save the Cat mentor implementation (658 lines)
-  - [ ] Hero's Journey mentor implementation (in progress on branch)
-  - [ ] Three-Act structure mentor (in progress on branch)
-  - [x] Character Arc analysis mentor (2,538 lines) ✅ **COMPLETE!**
+- [x] **8.2 Built-in Mentors** *(191 points - Save the Cat, Hero's Journey & Character Arc Complete)*
+  - [x] Save the Cat mentor implementation (658 lines) - 47 points
+  - [x] Hero's Journey mentor implementation (1,207 lines) - 89 points
+  - [ ] Three-Act structure mentor (enhanced but not fully integrated)
+  - [x] Character Arc analysis mentor (2,538 lines) - 55 points ✅ **COMPLETE!**
 
-- [x] **8.3 Mentor Execution System** *(39 points - Complete)*
+- [x] **8.3 Mentor Execution System** *(50 points - Complete)*
   - [x] CLI commands for mentor management (analyze, list, results, search)
   - [x] LLM integration for mentor analysis
   - [x] Automated execution system with progress tracking

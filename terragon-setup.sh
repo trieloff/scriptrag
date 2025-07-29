@@ -234,8 +234,19 @@ if ! command -v uv &> /dev/null; then
     if ! command -v uv &> /dev/null; then
         log_info "uv not found in PATH after installation, checking explicit location..."
         if [ -x "$HOME/.local/bin/uv" ]; then
-            log_info "Found uv at $HOME/.local/bin/uv, using explicit path"
-            UV_CMD="$HOME/.local/bin/uv"
+            log_info "Found uv at $HOME/.local/bin/uv"
+            # Create symlink to make uv available system-wide
+            log_info "Creating symlink to make uv available in PATH..."
+            sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv || {
+                log_warning "Failed to create symlink, using explicit path"
+                UV_CMD="$HOME/.local/bin/uv"
+            }
+            # Check if symlink worked
+            if command -v uv &> /dev/null; then
+                log_success "uv is now available in PATH"
+            else
+                UV_CMD="$HOME/.local/bin/uv"
+            fi
         else
             log_error "Cannot find uv executable after installation"
             exit 1

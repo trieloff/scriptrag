@@ -495,7 +495,21 @@ class ThreeActStructureMentor(BaseMentor):
                 analyses.extend(causality_analyses)
 
             if progress_callback:
-                progress_callback(0.9, "Generating structural insights...")
+                progress_callback(0.85, "Analyzing B-story relationships...")
+
+            # Analyze B-story (romantic subplot)
+            b_story_analyses = await self._analyze_b_story(scenes, total_pages)
+            analyses.extend(b_story_analyses)
+
+            if progress_callback:
+                progress_callback(0.9, "Analyzing genre-specific elements...")
+
+            # Analyze genre-specific elements
+            genre_analyses = await self._analyze_genre_specifics(scenes, total_pages)
+            analyses.extend(genre_analyses)
+
+            if progress_callback:
+                progress_callback(0.95, "Generating structural insights...")
 
             # Generate overall score and summary
             score = self._calculate_score(analyses)
@@ -674,6 +688,11 @@ class ThreeActStructureMentor(BaseMentor):
             max_page = int(
                 (element.target_percentage + element.tolerance) * total_pages
             )
+
+            # Override with custom page_range if provided for this element
+            if element.page_range:
+                min_page, max_page = element.page_range
+                target_page = (min_page + max_page) // 2
 
             # Look for this element in the script
             element_found = self._find_element_in_scenes(
@@ -943,7 +962,9 @@ class ThreeActStructureMentor(BaseMentor):
         expected_act1 = float(genre_info["act_i_percentage"]) / 100
 
         act_breaks = self._find_act_breaks(scenes, total_pages)
-        actual_act1 = act_breaks[1]["end"] - act_breaks[1]["start"]
+        # Safe access with default values to prevent KeyError
+        act1_data = act_breaks.get(1, {"start": 0.0, "end": expected_act1})
+        actual_act1 = act1_data["end"] - act1_data["start"]
 
         deviation = abs(actual_act1 - expected_act1) * 100
         if deviation > 5:  # More than 5% deviation

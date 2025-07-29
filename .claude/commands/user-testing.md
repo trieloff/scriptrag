@@ -214,7 +214,8 @@ The research-notetaker agent simultaneously documents:
 ### Multi-line Commands
 
 If user enters multi-line commands, execute them as entered:
-```bash
+
+```text
 User: $ echo "line 1
 line 2
 line 3"

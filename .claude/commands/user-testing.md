@@ -24,7 +24,7 @@ Once you understand their goal, initialize the research-notetaker:
 
 ```text
 Task(description="Start research logging", prompt="You are research-notetaker. A new user testing session is beginning. The user wants to: [USER'S STATED GOAL]. Create a new session file in research/notes/ with a descriptive filename based on the date and this goal. Set up the session header template and RETURN THE SESSION FILENAME so the coordinator can reference it in future calls.", subagent_type="research-notetaker")
-```
+```python
 
 **IMPORTANT**: The research-notetaker will return the session filename. Save this filename for all subsequent observation calls.
 
@@ -61,7 +61,7 @@ After initializing the notetaker, announce:
 
 After every user input and system response, silently share context with research-notetaker using the session filename:
 
-```text
+```python
 Task(description="Log observation", prompt="Session: [SESSION_FILENAME]. User just [summarize what happened]. Document this interaction: [user input] → [system response if any] → [apparent user reaction/next thought]. Time: [current time]. Continue logging to the established session file.", subagent_type="research-notetaker")
 ```
 
@@ -113,7 +113,7 @@ Claude: go on
 User: I'm done.
 
 Claude: Thank you for participating in our user research session. The session has been documented for analysis.
-```
+```text
 
 ## Session Termination
 
@@ -129,7 +129,6 @@ Claude: Thank you for participating in our user research session. The session ha
 "Thank you for participating in our user research session. The session has been documented for analysis."
 
 **Final documentation:**
-
 ```text
 Task(description="Finalize session", prompt="Session: [SESSION_FILENAME]. The user testing session has ended. Finalize the session documentation with a summary of key observations, pain points identified, and developer insights. Close the session file properly.", subagent_type="research-notetaker")
 ```
@@ -203,7 +202,7 @@ The research-notetaker agent simultaneously documents:
 # User input: $ ls -la /tmp
 # You execute: ls -la /tmp
 # Show exactly what bash returns
-```
+```text
 
 ### Session State Management
 
@@ -214,7 +213,6 @@ The research-notetaker agent simultaneously documents:
 ### Multi-line Commands
 
 If user enters multi-line commands, execute them as entered:
-
 ```text
 User: $ echo "line 1
 line 2

@@ -67,7 +67,7 @@ jobs:
       - name: Install dependencies
         run: |
           source .venv/bin/activate
-          uv pip install -e ".[dev]"
+          uv pip install -e ".[test]"
 
       - name: Run Ruff linter
         run: |
@@ -116,7 +116,7 @@ jobs:
       - name: Install dependencies
         run: |
           source .venv/bin/activate
-          uv pip install -e ".[dev]"
+          uv pip install -e ".[test]"
 
       - name: Run MyPy
         run: |
@@ -150,7 +150,7 @@ jobs:
       - name: Install dependencies
         run: |
           source .venv/bin/activate
-          uv pip install -e ".[dev]"
+          uv pip install -e ".[test]"
 
       - name: Run Bandit security linter
         run: |

@@ -177,6 +177,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **Points Completed**: 906 points (56.9%)
 - **Current Sprint Velocity**: 55 points (Character Arc mentor completion)
 - **Projected Completion**: Q3 2025 (at current velocity)
+- **New Addition**: 84 story points for Story Shape Mentor (Vonnegut's theory)
 
 **Phase Completion Status:**
 
@@ -354,11 +355,17 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 📋 **[Detailed Mentor System Documentation](MENTOR_SYSTEM.md)**
 
 - [x] **8.1 Mentor Infrastructure** *(34 points - Complete)*
-- [x] **8.2 Built-in Mentors** *(191 points - Complete)*
-  - [x] Save the Cat mentor (47 points)
-  - [x] Hero's Journey mentor (89 points)
-  - [x] Character Arc mentor (55 points)
-  - [ ] Story Shape mentor (84 points - Planned)
+  - [x] Mentor base classes and interfaces (293 lines)
+  - [x] Mentor registry and discovery system (282 lines)
+  - [x] Database schema extensions for mentor results (v5 migration)
+  - [x] Configuration and settings integration
+
+- [x] **8.2 Built-in Mentors** *(275 points - Complete)*
+  - [x] Save the Cat mentor implementation (658 lines) - 47 points
+  - [x] Hero's Journey mentor implementation (1,207 lines) - 89 points
+  - [x] Character Arc analysis mentor (2,538 lines) - 55 points
+  - [x] Story Shape mentor (Vonnegut's theory) - 84 points ✅ **COMPLETE\!**
+  - [ ] Three-Act structure mentor (enhanced but not fully integrated)
 - [x] **8.3 Mentor Execution System** *(50 points - Complete)*
 - [x] **8.4 Advanced Mentor Features** *(27 points - Partial)*
 
@@ -410,6 +417,33 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [ ] **8.5.3 Advanced Features** *(21 points)*
 - [ ] **8.5.4 Integration & Testing** *(21 points)*
 - [ ] **8.5.5 Documentation & Polish** *(8 points)*
+
+### Phase 8.5: Story Shape Mentor Implementation (NEW)
+
+- [ ] **8.5.1 Research & Design** *(21 points)*
+  - [ ] Research Vonnegut's Shape of Stories Theory - 3 points
+  - [ ] Design Story Shape Detection Algorithm - 8 points
+  - [ ] Create Story Shape Data Models - 5 points
+  - [ ] Design Visualization Format - 5 points
+
+- [ ] **8.5.2 Core Implementation** *(34 points)*
+  - [ ] Implement StoryShapeMentor Base Class - 13 points
+  - [ ] Build Scene Emotional Analysis Engine - 13 points
+  - [ ] Implement Shape Classification System - 8 points
+
+- [ ] **8.5.3 Advanced Features** *(21 points)*
+  - [ ] Add Inflection Point Detection - 8 points
+  - [ ] Create Genre-Specific Shape Analysis - 8 points
+  - [ ] Build Shape Comparison Engine - 5 points
+
+- [ ] **8.5.4 Integration & Testing** *(21 points)*
+  - [ ] Integrate with CLI Commands - 5 points
+  - [ ] Add MCP Server Support - 5 points
+  - [ ] Write Comprehensive Tests - 8 points
+  - [ ] Performance Optimization - 3 points
+
+- [ ] **8.5.5 Documentation & Polish** *(8 points)*
+  - [ ] Create Documentation & Examples - 8 points
 
 ### Phase 12: Advanced Features (Future)
 

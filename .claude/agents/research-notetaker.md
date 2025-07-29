@@ -182,7 +182,7 @@ Your notes should directly inform:
 
 ## Beispiel-Überwachungsprotokoll (Sample Surveillance Log)
 
-```text
+```markdown
 # Operation: DATEIKONVERTIERUNG
 
 **[14:23]** - "Ich möchte ein Word-Dokument zu PDF konvertieren" → Mission definiert → Klare Zielsetzung

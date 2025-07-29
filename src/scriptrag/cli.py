@@ -53,6 +53,7 @@ app = typer.Typer(
 )
 
 console = Console()
+logger = get_logger(__name__)
 
 
 def get_latest_script_id(connection: DatabaseConnection) -> tuple[str, str] | None:
@@ -640,10 +641,19 @@ def script_info(
         console.print(f"Size: {stat.st_size:,} bytes")
         console.print(f"Modified: {stat.st_mtime}")
 
-        # TODO: Parse and show more detailed info
+        # Log placeholder usage
+        logger.warning(
+            "info command placeholder - screenplay analysis not implemented",
+            script_path=str(script_path),
+        )
+
+        # Not yet implemented - tracking in issue #TODO-012
         console.print(
-            "[dim]Detailed screenplay analysis will be available "
-            "in future versions[/dim]"
+            "[yellow]⚠️  Detailed screenplay analysis not yet implemented[/yellow]"
+        )
+        console.print(
+            "[dim]This feature is planned for a future release. "
+            "Track progress at issue #TODO-012[/dim]"
         )
     else:
         # Show info about current database
@@ -654,9 +664,17 @@ def script_info(
             console.print(f"[bold blue]Database Info:[/bold blue] {db_path}")
             console.print(f"Size: {db_path.stat().st_size:,} bytes")
 
-            # TODO: Query database for more info
+            # Log placeholder usage
+            logger.warning(
+                "info command placeholder - database statistics not yet implemented",
+                db_path=str(db_path),
+            )
+
+            # Not yet implemented - tracking in issue #TODO-013
+            console.print("[yellow]⚠️  Database statistics not yet implemented[/yellow]")
             console.print(
-                "[dim]Database statistics will be available in future versions[/dim]"
+                "[dim]This feature is planned for a future release. "
+                "Track progress at issue #TODO-013[/dim]"
             )
         else:
             console.print(

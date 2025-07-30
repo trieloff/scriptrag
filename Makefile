@@ -111,7 +111,16 @@ test-watch: ## Run tests in watch mode
 
 .PHONY: test-parallel
 test-parallel: ## Run tests in parallel with coverage
-	uv run pytest tests/ -v -n auto --cov=scriptrag --cov-report=xml --cov-report=term-missing
+	uv run pytest tests/ -v -n auto --cov=scriptrag --cov-report=
+	uv run coverage combine
+	uv run coverage xml
+	uv run coverage report --show-missing
+
+.PHONY: test-ci
+test-ci: ## Run tests for CI with proper coverage combination
+	uv run pytest tests/ -n auto --dist loadscope -q --no-header --tb=short --cov=scriptrag --cov-report= --junit-xml=junit.xml
+	uv run coverage combine
+	uv run coverage xml
 
 .PHONY: test-profile
 test-profile: ## Run tests with profiling

@@ -9,7 +9,7 @@ This module provides operations for:
 
 import json
 import re
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -456,8 +456,8 @@ class SceneOrderingOperations:
                 dependency_type=dependency_type,
                 description=description,
                 strength=strength,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=datetime.now(UTC),
+                updated_at=datetime.now(UTC),
             )
         except Exception as e:
             logger.error(f"Failed to create dependency: {e}")

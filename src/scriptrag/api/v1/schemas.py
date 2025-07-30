@@ -1,10 +1,11 @@
 """Pydantic schemas for API request/response models."""
 
+import re
 from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ResponseStatus(str, Enum):
@@ -33,9 +34,110 @@ class ErrorResponse(BaseResponse):
 class ScriptUploadRequest(BaseModel):
     """Script upload request."""
 
-    title: str = Field(description="Script title")
-    content: str = Field(description="Fountain format content")
-    author: str | None = Field(default=None, description="Script author")
+    title: str = Field(
+        description="Script title",
+        min_length=1,
+        max_length=200,
+    )
+    content: str = Field(
+        description="Fountain format content",
+        min_length=1,
+        max_length=10 * 1024 * 1024,  # 10MB limit
+    )
+    author: str | None = Field(
+        default=None,
+        description="Script author",
+        min_length=1,
+        max_length=100,
+    )
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        """Validate title is not whitespace and has alphanumeric characters."""
+        if not v or v.isspace():
+            raise ValueError("Title cannot be empty or contain only whitespace")
+
+        # Check if title contains at least one alphanumeric character
+        if not re.search(r"[a-zA-Z0-9]", v):
+            raise ValueError("Title must contain at least one alphanumeric character")
+
+        return v.strip()
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        """Validate content is not empty and appears to be Fountain format."""
+        if not v or v.isspace():
+            raise ValueError("Content cannot be empty or contain only whitespace")
+
+        # Basic Fountain format validation - check for at least one of:
+        # - Scene heading (INT./EXT./EST./INT/EXT/EST)
+        # - Character name (all caps line followed by dialogue)
+        # - Transition (ends with TO:)
+        # - Action lines (just need some text)
+
+        lines = v.strip().split("\n")
+        non_empty_lines = [line.strip() for line in lines if line.strip()]
+
+        if not non_empty_lines:
+            raise ValueError("Content must contain some non-empty lines")
+
+        # Check for scene headings
+        scene_heading_pattern = re.compile(
+            r"^(INT\.?|EXT\.?|EST\.?|I\/E\.?)[\s\.]|^\.[A-Z]", re.IGNORECASE
+        )
+
+        # Check for character names (all caps, possibly with extensions)
+        character_pattern = re.compile(r"^[A-Z][A-Z0-9\s]+(?:\s*\([^)]+\))?$")
+
+        # Check for transitions
+        transition_pattern = re.compile(r"TO:$|^>")
+
+        has_screenplay_element = False
+
+        for i, line in enumerate(non_empty_lines):
+            # Scene heading check
+            if scene_heading_pattern.match(line):
+                has_screenplay_element = True
+                break
+
+            # Character/dialogue check
+            if character_pattern.match(line) and i + 1 < len(non_empty_lines):
+                # Next line should be dialogue (not all caps)
+                next_line = non_empty_lines[i + 1]
+                if next_line and not next_line.isupper():
+                    has_screenplay_element = True
+                    break
+
+            # Transition check
+            if transition_pattern.search(line):
+                has_screenplay_element = True
+                break
+
+        if not has_screenplay_element:
+            raise ValueError(
+                "Content must contain recognizable Fountain/screenplay elements "
+                "(scene headings, character dialogue, or transitions)"
+            )
+
+        return v
+
+    @field_validator("author")
+    @classmethod
+    def validate_author(cls, v: str | None) -> str | None:
+        """Validate author name if provided."""
+        if v is None:
+            return v
+
+        if v.isspace():
+            raise ValueError("Author cannot contain only whitespace")
+
+        # Check if author contains at least one alphanumeric character
+        if not re.search(r"[a-zA-Z0-9]", v):
+            raise ValueError("Author must contain at least one alphanumeric character")
+
+        return v.strip()
 
 
 class ScriptResponse(BaseModel):
@@ -82,9 +184,17 @@ class SceneResponse(BaseModel):
 class SceneCreateRequest(BaseModel):
     """Scene creation request."""
 
-    scene_number: int
-    heading: str
-    content: str
+    scene_number: int = Field(ge=1, description="Scene number must be positive")
+    heading: str = Field(min_length=1, description="Scene heading")
+    content: str = Field(min_length=1, description="Scene content")
+
+    @field_validator("heading")
+    @classmethod
+    def validate_heading(cls, v: str) -> str:
+        """Validate heading is not empty."""
+        if not v or v.isspace():
+            raise ValueError("Heading cannot be empty or contain only whitespace")
+        return v.strip()
 
 
 class SceneUpdateRequest(BaseModel):

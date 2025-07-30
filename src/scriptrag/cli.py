@@ -33,6 +33,7 @@ from .database.bible import ScriptBibleOperations
 from .database.connection import DatabaseConnection
 from .database.continuity import ContinuityValidator
 from .database.operations import GraphOperations
+from .database.statistics import DatabaseStatistics
 from .mentors.base import MentorAnalysis, MentorResult
 from .models import SceneOrderType
 from .parser.bulk_import import BulkImporter
@@ -503,6 +504,15 @@ def script_import(
         settings = get_settings()
         db_path = Path(settings.database.path)
 
+        # Ensure database is initialized with schema
+        from scriptrag.database import initialize_database
+
+        if not db_path.exists():
+            console.print("[blue]Initializing database...[/blue]")
+            if not initialize_database(db_path):
+                console.print("[red]Failed to initialize database[/red]")
+                raise typer.Exit(1)
+
         # Find fountain files
         file_paths = []
         path = Path(path_or_pattern)
@@ -662,20 +672,136 @@ def script_info(
 
         if db_path.exists():
             console.print(f"[bold blue]Database Info:[/bold blue] {db_path}")
-            console.print(f"Size: {db_path.stat().st_size:,} bytes")
 
-            # Log placeholder usage
-            logger.warning(
-                "info command placeholder - database statistics not yet implemented",
-                db_path=str(db_path),
-            )
+            # Get and display database statistics
+            with get_connection() as conn:
+                stats_collector = DatabaseStatistics(conn)
+                stats = stats_collector.get_all_statistics()
 
-            # Not yet implemented - tracking in issue #TODO-013
-            console.print("[yellow]⚠️  Database statistics not yet implemented[/yellow]")
-            console.print(
-                "[dim]This feature is planned for a future release. "
-                "Track progress at issue #TODO-013[/dim]"
-            )
+                # Database Overview
+                db_metrics = stats["database"]
+                console.print(f"\nSize: {db_metrics['file_size']:,} bytes")
+
+                # Entity Summary Table
+                console.print("\n[bold cyan]Entity Summary[/bold cyan]")
+                entity_table = Table(show_header=True, header_style="bold")
+                entity_table.add_column("Entity Type", style="dim")
+                entity_table.add_column("Count", justify="right")
+
+                entity_table.add_row("Scripts", f"{db_metrics['total_scripts']:,}")
+                entity_table.add_row("Scenes", f"{db_metrics['total_scenes']:,}")
+                entity_table.add_row(
+                    "Characters", f"{db_metrics['total_characters']:,}"
+                )
+                entity_table.add_row("Locations", f"{db_metrics['total_locations']:,}")
+                entity_table.add_row("Episodes", f"{db_metrics['total_episodes']:,}")
+                entity_table.add_row("Seasons", f"{db_metrics['total_seasons']:,}")
+                console.print(entity_table)
+
+                # Graph Statistics
+                graph_stats = stats["graph"]
+                if graph_stats["total_nodes"] > 0:
+                    console.print("\n[bold cyan]Graph Statistics[/bold cyan]")
+                    graph_table = Table(show_header=True, header_style="bold")
+                    graph_table.add_column("Metric", style="dim")
+                    graph_table.add_column("Value", justify="right")
+
+                    graph_table.add_row(
+                        "Total Nodes", f"{graph_stats['total_nodes']:,}"
+                    )
+                    graph_table.add_row(
+                        "Total Edges", f"{graph_stats['total_edges']:,}"
+                    )
+                    graph_table.add_row(
+                        "Average Degree", f"{graph_stats['avg_degree']}"
+                    )
+                    graph_table.add_row(
+                        "Graph Density", f"{graph_stats['graph_density']:.4f}"
+                    )
+                    console.print(graph_table)
+
+                    # Node types breakdown
+                    if graph_stats["node_types"]:
+                        console.print("\n[bold]Node Types:[/bold]")
+                        for node_type, count in graph_stats["node_types"].items():
+                            console.print(f"  • {node_type}: {count:,}")
+
+                    # Edge types breakdown
+                    if graph_stats["edge_types"]:
+                        console.print("\n[bold]Edge Types:[/bold]")
+                        for edge_type, count in graph_stats["edge_types"].items():
+                            console.print(f"  • {edge_type}: {count:,}")
+
+                # Embedding Statistics
+                embed_stats = stats["embeddings"]
+                if embed_stats["total_embeddings"] > 0:
+                    console.print("\n[bold cyan]Embedding Coverage[/bold cyan]")
+                    embed_table = Table(show_header=True, header_style="bold")
+                    embed_table.add_column("Metric", style="dim")
+                    embed_table.add_column("Value", justify="right")
+
+                    embed_table.add_row(
+                        "Total Embeddings", f"{embed_stats['total_embeddings']:,}"
+                    )
+                    embed_table.add_row(
+                        "Embedded Scripts", f"{embed_stats['embedded_scripts']}"
+                    )
+                    embed_table.add_row(
+                        "Embedded Scenes", f"{embed_stats['embedded_scenes']}"
+                    )
+                    embed_table.add_row(
+                        "Coverage", f"{embed_stats['coverage_percentage']:.1f}%"
+                    )
+                    console.print(embed_table)
+
+                    if embed_stats["embedding_models"]:
+                        console.print("\n[bold]Embedding Models:[/bold]")
+                        for model, count in embed_stats["embedding_models"].items():
+                            console.print(f"  • {model}: {count:,} embeddings")
+
+                # Usage Patterns
+                usage = stats["usage"]
+
+                # Most connected characters
+                if usage["most_connected_characters"]:
+                    console.print("\n[bold cyan]Most Connected Characters[/bold cyan]")
+                    char_table = Table(show_header=True, header_style="bold")
+                    char_table.add_column("Character", style="bold")
+                    char_table.add_column("Connections", justify="right")
+
+                    for char in usage["most_connected_characters"][:5]:
+                        char_table.add_row(char["name"], str(char["connections"]))
+                    console.print(char_table)
+
+                # Longest scripts
+                if usage["longest_scripts"]:
+                    console.print("\n[bold cyan]Longest Scripts[/bold cyan]")
+                    script_table = Table(show_header=True, header_style="bold")
+                    script_table.add_column("Script", style="bold")
+                    script_table.add_column("Scenes", justify="right")
+
+                    for script in usage["longest_scripts"][:5]:
+                        script_table.add_row(script["title"], str(script["scenes"]))
+                    console.print(script_table)
+
+                # Busiest locations
+                if usage["busiest_locations"]:
+                    console.print("\n[bold cyan]Busiest Locations[/bold cyan]")
+                    loc_table = Table(show_header=True, header_style="bold")
+                    loc_table.add_column("Location", style="bold")
+                    loc_table.add_column("Type", style="dim")
+                    loc_table.add_column("Scenes", justify="right")
+
+                    for loc in usage["busiest_locations"][:5]:
+                        loc_type = "INT" if loc["interior"] else "EXT"
+                        loc_table.add_row(loc["name"], loc_type, str(loc["scenes"]))
+                    console.print(loc_table)
+
+                # Time of day distribution
+                if usage["common_times_of_day"]:
+                    console.print("\n[bold cyan]Scene Times of Day[/bold cyan]")
+                    for time, count in list(usage["common_times_of_day"].items())[:5]:
+                        console.print(f"  • {time}: {count} scenes")
         else:
             console.print(
                 "[yellow]No database found. Use 'scriptrag script parse' "

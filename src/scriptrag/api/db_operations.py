@@ -229,12 +229,13 @@ class DatabaseOperations:
             raise RuntimeError("Database not initialized")
 
         with self._connection.get_connection() as conn:
-            # Get scripts with scene count and embeddings check using raw SQL
+            # Get scripts with scene count, character count, and embeddings check
             result = conn.execute(
                 """
                 SELECT
                     s.*,
                     COUNT(DISTINCT sc.id) as scene_count,
+                    COUNT(DISTINCT c.id) as character_count,
                     EXISTS(
                         SELECT 1
                         FROM embeddings e
@@ -245,18 +246,11 @@ class DatabaseOperations:
                     ) as has_embeddings
                 FROM scripts s
                 LEFT JOIN scenes sc ON s.id = sc.script_id
+                LEFT JOIN characters c ON s.id = c.script_id
                 GROUP BY s.id
                 ORDER BY s.created_at DESC
                 """
             ).fetchall()
-
-            # Log unimplemented feature usage
-            if result:
-                logger.warning(
-                    "list_scripts returning placeholder values",
-                    placeholder_fields=["character_count"],
-                    script_count=len(result),
-                )
 
             return [
                 {
@@ -266,9 +260,7 @@ class DatabaseOperations:
                     "created_at": row["created_at"],
                     "updated_at": row["updated_at"],
                     "scene_count": row["scene_count"],
-                    # Not yet implemented - tracking in issue #TODO-010
-                    "character_count": 0,  # Character counting not yet implemented
-                    # Embeddings check now implemented
+                    "character_count": row["character_count"],
                     "has_embeddings": bool(row["has_embeddings"]),
                 }
                 for row in result

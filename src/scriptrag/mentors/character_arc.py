@@ -16,7 +16,7 @@ The mentor analyzes:
 """
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, TypedDict
 from uuid import UUID
 
@@ -530,7 +530,7 @@ class CharacterArcMentor(BaseMentor):
         Returns:
             Complete character arc analysis result
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
         analyses: list[MentorAnalysis] = []
 
         try:
@@ -615,7 +615,7 @@ class CharacterArcMentor(BaseMentor):
             summary = self._generate_summary(analyses, len(characters))
 
             execution_time = int(
-                (datetime.utcnow() - start_time).total_seconds() * 1000
+                (datetime.now(UTC) - start_time).total_seconds() * 1000
             )
 
             if progress_callback:
@@ -648,7 +648,7 @@ class CharacterArcMentor(BaseMentor):
             )
 
             execution_time = int(
-                (datetime.utcnow() - start_time).total_seconds() * 1000
+                (datetime.now(UTC) - start_time).total_seconds() * 1000
             )
 
             return MentorResult(

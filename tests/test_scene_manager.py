@@ -242,9 +242,9 @@ class TestSceneDependencyAnalysis:
 
         # Mock scenes
         mock_scenes = [
-            Mock(id="scene1"),
-            Mock(id="scene2"),
-            Mock(id="scene3"),
+            Mock(id="scene1", properties={"elements": []}),
+            Mock(id="scene2", properties={"elements": []}),
+            Mock(id="scene3", properties={"elements": []}),
         ]
 
         scene_manager.operations.get_script_scenes = Mock(return_value=mock_scenes)
@@ -276,10 +276,10 @@ class TestSceneDependencyAnalysis:
         script_node_id = "test-script"
 
         mock_scenes = [
-            Mock(id="scene1"),
-            Mock(id="scene2"),
-            Mock(id="scene3"),
-            Mock(id="scene4"),
+            Mock(id="scene1", properties={"elements": []}),
+            Mock(id="scene2", properties={"elements": []}),
+            Mock(id="scene3", properties={"elements": []}),
+            Mock(id="scene4", properties={"elements": []}),
         ]
 
         scene_manager.operations.get_script_scenes = Mock(return_value=mock_scenes)

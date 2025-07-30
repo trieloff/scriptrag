@@ -272,12 +272,12 @@ class SceneManager:
         # Matches: THE/A/AN followed by capitalized word(s)
         # Or standalone capitalized words that are likely objects
         prop_patterns = [
-            # "the GUN", "a BRIEFCASE"
-            r"\b(?:the|a|an)\s+([A-Z][A-Z]*(?:\s+[A-Z]+)?)\b",
-            r"\b([A-Z]{2,})\b",  # "GUN", "BULLETS" - standalone all-caps words
-            # Action verbs with objects
+            # "the GUN", "a BRIEFCASE" - capture only the prop name
+            r"\b(?:the|a|an)\s+([A-Z]+(?:\s+[A-Z]+)*)\b",
+            # Standalone all-caps words that are complete words
+            r"\b([A-Z]{2,})(?:\s+(?:from|into|and|to|in|on|at|of|with)\b|[.,;!?]|\s*$)",
+            # Action verbs with lowercase objects
             r"\b(?:picks up|grabs|holds|takes|drops|throws|uses|carries|"
-            # lowercase objects after verbs
             r"opens|closes)\s+(?:the\s+|a\s+)?([a-z]+)\b",
         ]
 
@@ -339,6 +339,7 @@ class SceneManager:
             "RUNS",
             "STANDS",
             "SITS",
+            "OUT",
         }
 
         for element in elements:
@@ -349,13 +350,23 @@ class SceneManager:
                 # Only analyze action lines
                 if element_type == "action" and text:
                     # Apply each pattern
-                    for pattern in prop_patterns:
-                        matches = re.finditer(pattern, text, re.IGNORECASE)
+                    for i, pattern in enumerate(prop_patterns):
+                        # Use case-sensitive matching for all-caps patterns
+                        flags = 0 if i < 2 else re.IGNORECASE
+                        matches = re.finditer(pattern, text, flags)
                         for match in matches:
                             prop = match.group(1).strip().upper()
                             # Filter out common non-prop words
                             if prop and prop not in exclude_words and len(prop) > 1:
-                                props.add(prop)
+                                # Additional filtering for multi-word props
+                                # Avoid partial phrases like "GUN FROM" or "KNIFE AND"
+                                if " " in prop:
+                                    # Only keep multi-word props that make sense
+                                    words = prop.split()
+                                    if all(w not in exclude_words for w in words):
+                                        props.add(prop)
+                                else:
+                                    props.add(prop)
 
         return props
 

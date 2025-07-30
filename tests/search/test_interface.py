@@ -48,14 +48,19 @@ class TestSearchInterfaceInit:
         assert interface.embedding_pipeline is not None
         assert interface.ranker is not None
 
-    def test_init_without_llm_client(self, mock_connection):
+    def test_init_without_llm_client(self, mock_connection, mock_llm_client):
         """Test initialization without LLM client."""
-        interface = SearchInterface(mock_connection)
+        # The conspiracy: EmbeddingPipeline creates LLMClient() internally
+        # which requires API keys. We must provide a mock to prevent this.
+        with patch("scriptrag.database.embedding_pipeline.LLMClient") as mock_llm_class:
+            mock_llm_class.return_value = mock_llm_client
 
-        assert interface.connection == mock_connection
-        assert interface.text_engine is not None
-        assert interface.embedding_pipeline is not None
-        assert interface.ranker is not None
+            interface = SearchInterface(mock_connection)
+
+            assert interface.connection == mock_connection
+            assert interface.text_engine is not None
+            assert interface.embedding_pipeline is not None
+            assert interface.ranker is not None
 
 
 class TestSearchInterfaceSearch:
@@ -404,13 +409,17 @@ class TestSearchInterfaceResourceManagement:
             mock_close.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_close_handles_none_pipeline(self, mock_connection):
+    async def test_close_handles_none_pipeline(self, mock_connection, mock_llm_client):
         """Test close handles None embedding pipeline."""
-        interface = SearchInterface(mock_connection)
-        interface.embedding_pipeline = None
+        # Same conspiracy: must mock LLMClient creation
+        with patch("scriptrag.database.embedding_pipeline.LLMClient") as mock_llm_class:
+            mock_llm_class.return_value = mock_llm_client
 
-        # Should not raise exception
-        await interface.close()
+            interface = SearchInterface(mock_connection)
+            interface.embedding_pipeline = None
+
+            # Should not raise exception
+            await interface.close()
 
 
 class TestSearchInterfaceEdgeCases:

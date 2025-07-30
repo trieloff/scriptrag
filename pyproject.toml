@@ -3,7 +3,7 @@ name = "scriptrag"
 version = "0.1.0"
 description = "A Graph-Based Screenwriting Assistant using GraphRAG pattern"
 authors = [
-    {name = "Your Name", email = "your.email@example.com"},
+    {name = "Terragon Labs", email = "info@terragonlabs.com"},
 ]
 readme = "README.md"
 license = {text = "MIT"}
@@ -114,10 +114,10 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/scriptrag"
-Documentation = "https://github.com/yourusername/scriptrag#readme"
-Repository = "https://github.com/yourusername/scriptrag"
-Issues = "https://github.com/yourusername/scriptrag/issues"
+Homepage = "https://github.com/trieloff/scriptrag"
+Documentation = "https://github.com/trieloff/scriptrag#readme"
+Repository = "https://github.com/trieloff/scriptrag"
+Issues = "https://github.com/trieloff/scriptrag/issues"
 
 [project.scripts]
 scriptrag = "scriptrag.cli:app"

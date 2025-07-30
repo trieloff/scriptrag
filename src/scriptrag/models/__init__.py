@@ -46,6 +46,34 @@ class SceneDependencyType(str, Enum):
     FLASHBACK_TO = "flashback_to"  # Scene A is a flashback to Scene B
 
 
+class NodeType(str, Enum):
+    """Types of nodes in the knowledge graph."""
+
+    SCRIPT = "script"
+    SCENE = "scene"
+    CHARACTER = "character"
+    LOCATION = "location"
+    PROP = "prop"
+    DIALOGUE = "dialogue"
+    ACTION = "action"
+    EPISODE = "episode"
+    SEASON = "season"
+
+
+class EdgeType(str, Enum):
+    """Types of edges in the knowledge graph."""
+
+    CONTAINS = "contains"
+    APPEARS_IN = "appears_in"
+    SPEAKS_TO = "speaks_to"
+    FOLLOWS = "follows"
+    REFERENCES = "references"
+    INTRODUCES = "introduces"
+    USES = "uses"
+    LOCATED_AT = "located_at"
+    PART_OF = "part_of"
+
+
 class BaseEntity(BaseModel):
     """Base class for all screenplay entities."""
 
@@ -763,11 +791,13 @@ __all__ = [
     "CharacterSpeaksTo",
     "ContinuityNote",
     "Dialogue",
+    "EdgeType",
     "ElementType",
     "Episode",
     "EventType",
     "KnowledgeType",
     "Location",
+    "NodeType",
     "NoteSeverity",
     "NoteStatus",
     "NoteType",

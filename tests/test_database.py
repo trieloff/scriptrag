@@ -916,9 +916,9 @@ class TestDatabaseConnectionErrors:
         # Path() constructor should reject mock objects
         with pytest.raises(TypeError) as exc_info:
             DatabaseConnection(mock_path)
-        assert "expected str, bytes or os.PathLike object, not Mock" in str(
-            exc_info.value
-        )
+        # Check for either error message format (different Python versions)
+        error_msg = str(exc_info.value)
+        assert "not Mock" in error_msg or "not 'Mock'" in error_msg
 
     def test_invalid_database_path_with_invalid_characters(self, tmp_path):
         """Test database paths with invalid characters."""

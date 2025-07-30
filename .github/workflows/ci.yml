@@ -213,12 +213,17 @@ jobs:
           echo "Python version: $(python --version)"
           echo "OS: ${{ matrix.os }}"
           echo "Runner: ${{ runner.os }}"
-          uv run pytest tests -n auto --dist loadscope -vv --tb=short --durations=20 --log-cli-level=DEBUG --cov=scriptrag --cov-report=xml --junit-xml=junit.xml
+          uv run pytest tests -n auto --dist loadscope -vv --tb=short --durations=20 --log-cli-level=DEBUG --cov=scriptrag --cov-report= --junit-xml=junit.xml
           echo "Finished pytest at $(date)"
 
       - name: Run tests with pytest (Linux/macOS)
         if: runner.os != 'Windows'
-        run: uv run pytest tests -n auto --dist loadscope -q --no-header --tb=short --cov=scriptrag --cov-report=xml --junit-xml=junit.xml
+        run: uv run pytest tests -n auto --dist loadscope -q --no-header --tb=short --cov=scriptrag --cov-report= --junit-xml=junit.xml
+
+      - name: Combine coverage data
+        run: |
+          uv run coverage combine
+          uv run coverage xml
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

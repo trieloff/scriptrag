@@ -89,6 +89,7 @@ dev = [
     "jupyter>=1.0.0",
     "notebook>=7.0.0",
     "build>=1.0.0",  # Package building
+    "twine>=5.0.0",  # Package validation and upload
 
     # Additional testing tools
     "pytest-benchmark>=4.0.0",  # Performance testing

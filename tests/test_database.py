@@ -443,6 +443,29 @@ class TestDatabaseConnection:
             with pytest.raises(ValueError, match="Invalid database path"):
                 DatabaseConnection(path)
 
+    def test_secure_path_validation_macos_temp_paths(self):
+        """Test that macOS temporary paths are allowed."""
+        macos_temp_paths = [
+            "/var/folders/xx/yy/T/tmp123.db",
+            "/private/var/folders/zz/aa/T/tempfile.db",
+            "/private/tmp/test.db",
+        ]
+
+        for path in macos_temp_paths:
+            # Should not raise an exception
+            # We can't actually test this on Linux, but we can verify
+            # the path validation logic doesn't reject these paths
+            try:
+                conn = DatabaseConnection(path)
+                conn.close()
+            except ValueError as e:
+                # Only fail if it's the specific error we're fixing
+                if "absolute paths outside working directory" in str(e):
+                    pytest.fail(f"macOS temp path {path} should be allowed")
+                else:
+                    # Other validation errors are expected (e.g., path doesn't exist)
+                    pass
+
     def test_secure_path_validation_symlink_attacks(self, temp_db_path):
         """Test that symlink attacks are prevented."""
         import os

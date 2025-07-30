@@ -6,6 +6,7 @@ including transaction support, connection pooling, and error handling.
 
 import contextlib
 import os
+import platform
 import re
 import sqlite3
 import threading
@@ -149,19 +150,50 @@ class DatabaseConnection:
             cwd = Path.cwd()
 
             # Allow paths in temp directories for testing
-            temp_dirs = [Path("/tmp"), Path("/var/tmp")]  # noqa: S108  # nosec B108
+            temp_dirs = [
+                Path("/tmp"),  # noqa: S108  # nosec B108
+                Path("/var/tmp"),  # noqa: S108  # nosec B108
+                Path("/private/tmp"),  # macOS  # nosec B108
+                Path("/private/var/tmp"),  # macOS  # nosec B108
+            ]
+
+            # Add TMPDIR if set
             if os.environ.get("TMPDIR"):
                 temp_dirs.append(Path(os.environ["TMPDIR"]))
 
-            # Check if it's in a temp directory
+            # On macOS, also check for /var/folders and /private/var/folders
+            # which are commonly used for temporary files
+            # Always add these paths to support testing on any platform
+            temp_dirs.extend(
+                [
+                    Path("/var/folders"),  # nosec B108
+                    Path("/private/var/folders"),  # nosec B108
+                ]
+            )
+
+            # Check if it's in a temp directory or subdirectory
             is_in_temp = False
             for temp_dir in temp_dirs:
                 try:
+                    # Check if the path is within or equal to the temp directory
                     resolved_path.relative_to(temp_dir)
                     is_in_temp = True
                     break
                 except ValueError:
-                    continue
+                    # Also check if any parent of resolved_path starts with temp_dir
+                    # This handles cases like /var/folders/xx/yy/T/tmpfile.db
+                    try:
+                        for parent in resolved_path.parents:
+                            if parent == temp_dir or str(parent).startswith(
+                                str(temp_dir) + os.sep
+                            ):
+                                is_in_temp = True
+                                break
+                    except (AttributeError, TypeError):
+                        # Ignore errors when checking parents (e.g., if parents is None)
+                        continue
+                    if is_in_temp:
+                        break
 
             # If not in temp, check if it's in the current working directory
             if not is_in_temp:
@@ -282,7 +314,6 @@ class DatabaseConnection:
         # Set journal mode to WAL for better concurrency
         # But use DELETE mode in tests or on Windows to avoid file locking issues
         import os
-        import platform
 
         if os.environ.get("PYTEST_CURRENT_TEST") or platform.system() == "Windows":
             conn.execute("PRAGMA journal_mode = DELETE")

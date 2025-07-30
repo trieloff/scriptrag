@@ -10,7 +10,7 @@ from enum import Enum
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator
 
 
 class ElementType(str, Enum):
@@ -82,12 +82,17 @@ class BaseEntity(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-    model_config = ConfigDict(
-        json_encoders={
-            UUID: str,
-            datetime: lambda v: v.isoformat(),
-        }
-    )
+    model_config = ConfigDict()
+
+    @field_serializer("id")
+    def serialize_uuid(self, value: UUID) -> str:
+        """Serialize UUID to string."""
+        return str(value)
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_datetime(self, value: datetime) -> str:
+        """Serialize datetime to ISO format."""
+        return value.isoformat()
 
 
 class Location(BaseModel):

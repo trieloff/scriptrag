@@ -49,9 +49,8 @@ fi
 echo "[SETUP] Installing core dependencies..."
 if [ -f "pyproject.toml" ]; then
     if command -v uv >/dev/null 2>&1; then
-        # Try uv first (faster)
-        uv pip install -e . 2>/dev/null || \
-        pip install -e . 2>/dev/null || \
+        # Use uv sync (faster and more reliable)
+        uv sync 2>/dev/null || \
         echo "[WARNING] Dependency installation failed - environment may be incomplete"
     else
         # Fallback to regular pip

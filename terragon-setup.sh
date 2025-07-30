@@ -105,10 +105,10 @@ show_remaining_steps() {
             echo "   source .venv/bin/activate"
         fi
         if [ "${COMPLETED_STEPS[pip_upgrade]}" -eq 0 ]; then
-            echo "   uv pip install --upgrade pip setuptools wheel"
+            echo "   # No need to upgrade pip with uv sync"
         fi
         if [ "${COMPLETED_STEPS[dependencies]}" -eq 0 ]; then
-            echo "   uv pip install -e '.[dev,test,docs]'"
+            echo "   uv sync --all-extras"
         fi
         if [ "${COMPLETED_STEPS[env_file]}" -eq 0 ] && [ -f ".env.example" ]; then
             echo "   cp .env.example .env"
@@ -297,11 +297,8 @@ source .venv/bin/activate || {
 
 mark_completed "venv_activate"
 
-# Upgrade pip, setuptools, and wheel
-log_info "Upgrading pip, setuptools, and wheel..."
-${UV_CMD} pip install --upgrade pip setuptools wheel || {
-    log_warning "Failed to upgrade pip/setuptools/wheel, continuing..."
-}
+# No need to upgrade pip/setuptools/wheel with uv sync
+log_info "Using uv sync for dependency management..."
 
 mark_completed "pip_upgrade"
 check_timeout
@@ -309,10 +306,10 @@ check_timeout
 # Install project dependencies
 log_info "Installing project dependencies..."
 if [ -f "pyproject.toml" ]; then
-    # Install in editable mode with all extras for development
-    ${UV_CMD} pip install -e ".[dev,test,docs]" || {
+    # Install all extras for development
+    ${UV_CMD} sync --all-extras || {
         log_warning "Failed to install with all extras, trying base installation..."
-        ${UV_CMD} pip install -e "." || {
+        ${UV_CMD} sync || {
             log_error "Failed to install project dependencies"
             exit 1
         }

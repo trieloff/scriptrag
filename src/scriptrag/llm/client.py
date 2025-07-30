@@ -170,6 +170,9 @@ class LLMClient:
 
             return content
 
+        except (httpx.TimeoutException, httpx.ConnectError):
+            # Let retryable exceptions bubble up to the retry decorator
+            raise
         except Exception as e:
             self.logger.error("Text generation failed", model=model, error=str(e))
             raise LLMClientError(f"Text generation failed: {e}") from e
@@ -229,6 +232,9 @@ class LLMClient:
 
             return embeddings
 
+        except (httpx.TimeoutException, httpx.ConnectError):
+            # Let retryable exceptions bubble up to the retry decorator
+            raise
         except Exception as e:
             self.logger.error("Embedding generation failed", model=model, error=str(e))
             raise LLMClientError(f"Embedding generation failed: {e}") from e

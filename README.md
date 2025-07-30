@@ -1,68 +1,180 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-[![39% Vibe_Coded](https://img.shields.io/badge/39%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
+[![41% Vibe_Coded](https://img.shields.io/badge/41%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
 
 ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
 Generation) pattern.
 
-## 🚀 Recent Major Progress
+## 📚 Documentation
 
-**Significant development milestones achieved with 15+ merged PRs and 13,000+ lines of new code:**
+### For Users
 
-- **✅ Phase 11: Script Bible & Continuity Management - COMPLETE!** - Comprehensive continuity tracking
-  with character profiles, world-building elements, timeline management, and automated validation
-- **✅ Phase 5.2: Scene Operations - COMPLETE!** - Full CRUD operations for scenes with graph
-  integration, reference maintenance, and scene injection capabilities (34 story points)
-- **✅ Phase 8: Pluggable Mentors System - COMPLETE!** - Comprehensive screenplay analysis framework
-  with Save the Cat and Character Arc mentors, database integration, and MCP server tools (202 story points, 5,710 lines)
-- **✅ Phase 4: GraphRAG Implementation - COMPLETE!** - Full knowledge graph construction with
-  entity extraction, relationship building, and LLM enrichment
-- **✅ Phase 6: Search and Query Interface - COMPLETE!** - Comprehensive text-based,
-  semantic, and entity search with advanced ranking
-- **✅ Phase 7.3: MCP Server Implementation - COMPLETE!** - Full Model Context Protocol server
-  with 23 tools (including 7 bible/continuity tools and 5 mentor tools), security hardening, and comprehensive test suite
-- **🎭 New: Screenplay Mentors** - Automated analysis with industry-standard methodologies
-- **✅ Enhanced CLI Interface** - Full command-line functionality including script bible management and mentor commands
-- **📊 Database Schema v6** - Added Script Bible/continuity tables and mentor system with full migration support
-- **📊 New: AI Content Indicators Database** - Comprehensive patterns for detecting AI-generated content
-- **🔍 Knowledge Graph Builder** - Automated screenplay parsing with configurable LLM enrichment limits
-- **⚡ Performance Optimizations** - Enhanced search resource management and error handling
-- **📁 Bulk Import & TV Series Detection** - Import entire TV series with automatic season/episode organization
-- **🛡️ Security Hardening** - File path validation, UUID-based script IDs, and cache management
+- **[Installation Guide](docs/installation.md)** - Get ScriptRAG up and running
+- **[User Guide](docs/user-guide.md)** - Complete guide for screenwriters
+- **[Usage Examples](docs/usage.md)** - Common workflows and examples
+- **[Bulk Import Guide](docs/bulk_import_guide.md)** - Import multiple screenplays
+- **[MCP Usage Examples](examples/mcp_usage_examples.md)** - Using with AI assistants
+
+### For Developers
+
+- **[Developer Guide](docs/developer-guide.md)** - Contributing to ScriptRAG
+- **[Architecture Overview](docs/architecture.md)** - System design and patterns
+- **[API Reference](docs/api-reference.md)** - Complete API documentation
+- **[MCP Server Documentation](docs/mcp_server.md)** - Model Context Protocol integration
+- **[AI Agent Guidelines](AGENTS.md)** - Guidelines for AI contributors
+- **[Claude Coding Guidelines](CLAUDE.md)** - Coding standards and workflows
+
+### For Project Managers
+
+- **Development Roadmap** - 10-phase development plan (see below)
+- **Story Points Summary** - Progress tracking (see below)
+- **[Weekly Status Report](WEEKLY_STATUS_REPORT.md)** - Current sprint status
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.11+
+- uv package manager
+- SQLite 3.38+ (for vector support)
+- LMStudio running at <http://localhost:1234>
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/trieloff/scriptrag.git
+cd scriptrag
+
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install dependencies (uv will automatically create virtual environment)
+uv sync
+```
+
+### Command Line Usage
+
+**Note:** Run these commands from the project root directory after installation.
+
+```bash
+# Parse a screenplay
+uv run scriptrag parse screenplay.fountain
+
+# Search for dialogue
+uv run scriptrag search dialogue "I love you"
+
+# Find scenes with specific characters
+uv run scriptrag search character "PROTAGONIST"
+
+# Import entire TV series
+uv run scriptrag script import "Breaking Bad/**/*.fountain"
+
+# Run mentor analysis
+uv run scriptrag mentor analyze my_script.fountain --mentor save-the-cat
+```
+
+### Python API Usage
+
+```python
+from scriptrag import ScriptRAG
+
+# Initialize ScriptRAG
+srag = ScriptRAG(
+    llm_endpoint="http://localhost:1234/v1",
+    db_path="./screenplay.db"
+)
+
+# Parse a screenplay
+script = srag.parse_fountain("path/to/screenplay.fountain")
+
+# Search for scenes with a character
+scenes = srag.search_scenes(character="PROTAGONIST")
+
+# Semantic search for similar scenes
+similar_scenes = await srag.search_similar_scenes(
+    query="emotional confrontation between friends",
+    limit=5
+)
+```
 
 ## Features
+
+### Core Features
 
 - **Fountain Parser**: Read and parse screenplays in Fountain format
 - **Graph Database**: SQLite-based lightweight graph database for screenplay structure
 - **Local LLM Integration**: Uses LMStudio for text generation and embeddings
-- **Embedding Pipeline**: Comprehensive semantic analysis with content extraction, embedding generation,
-  and similarity search for screenplay elements
-- **Advanced Search**: Find shows, seasons, episodes, scenes, characters, locations, concepts, objects,
-  and temporal points with both keyword and semantic search capabilities
-- **Scene Management**: Order scenes by script order, temporal order, or logical dependencies
-- **Scene Editing**: Full CRUD operations - update scene content/metadata, delete with reference
-  maintenance, inject new scenes at specific positions, all with graph integration
-- **Script Bible Support**: Comprehensive continuity management with character development tracking,
-  world-building documentation, timeline management, and cross-episode consistency validation
-- **Bulk Import**: Import multiple Fountain files at once with automatic TV series detection
-- **TV Series Detection**: Automatically extract season/episode information from filenames
+- **Advanced Search**: Find shows, seasons, episodes, scenes, characters, locations, and more
+- **Scene Management**: Full CRUD operations with temporal and logical ordering
+- **Script Bible Support**: Comprehensive continuity management and world-building
+- **Bulk Import**: Import multiple Fountain files with TV series detection
+
+### Advanced Features
+
+- **Screenplay Mentors**: Automated analysis with industry-standard methodologies
+  - Save the Cat structure analysis
+  - Hero's Journey tracking
+  - Character Arc development
+- **MCP Server**: Model Context Protocol integration with 23+ tools for AI assistants
+- **Embedding Pipeline**: Semantic analysis and similarity search
+- **Knowledge Graph**: Entity extraction and relationship building
+
+## 🎭 Screenplay Mentors
+
+ScriptRAG includes built-in screenplay analysis mentors:
+
+- **Save the Cat**: Blake Snyder's 15-beat structure analysis
+- **Hero's Journey**: Joseph Campbell's monomyth tracking
+- **Character Arc**: Character development and transformation analysis
+
+See the [Mentor System Documentation](MENTOR_SYSTEM.md) for details.
 
 ## Tech Stack
 
 - **Language**: Python with uv package manager
 - **Database**: SQLite as a graph database
-- **LLM**: Local LLMs via LMStudio (OpenAI-compatible API at <http://localhost:1234/v1>)
+- **LLM**: Local LLMs via LMStudio (OpenAI-compatible API)
 - **Parser**: Fountain screenplay format parser
 - **Pattern**: GraphRAG (Graph + Retrieval-Augmented Generation)
-- **Interface**: MCP (Model Context Protocol) server for AI assistant integration
+- **Interface**: MCP (Model Context Protocol) server
 
-## 📊 Story Point Summary - By Bill Lumbergh
+## 🚀 Recent Major Progress
+
+**Significant development milestones achieved with 15+ merged PRs and 13,000+ lines of new code:**
+
+- **✅ Phase 11: Script Bible & Continuity Management - COMPLETE!**
+- **✅ Phase 8: Pluggable Mentors System - COMPLETE!**
+- **✅ Phase 7.3: MCP Server Implementation - COMPLETE!**
+- **✅ Phase 6: Search and Query Interface - COMPLETE!**
+- **✅ Phase 5.2: Scene Operations - COMPLETE!**
+- **✅ Phase 4: GraphRAG Implementation - COMPLETE!**
+
+## Contributing
+
+Contributions are welcome! Please see our [Developer Guide](docs/developer-guide.md) and [AI Agent Guidelines](AGENTS.md) for more details.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## References
+
+- [Fountain Format](https://fountain.io/)
+- [GraphRAG with SQLite Example](https://deepwiki.com/stephenc222/example-graphrag-with-sqlite/1-overview)
+- [LMStudio](https://lmstudio.ai/)
+- [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
+
+---
+
+<details>
+<summary>📊 Story Point Summary - By Bill Lumbergh</summary>
 
 **Yeah, so I've been tracking our velocity and story points, mmm'kay?**
 
-- **Total Project Estimate**: 1,509 story points
-- **Points Completed**: 906 points (60.0%)
+- **Total Project Estimate**: 1,593 story points (updated with Story Shape Mentor)
+- **Points Completed**: 906 points (56.9%)
 - **Current Sprint Velocity**: 55 points (Character Arc mentor completion)
 - **Projected Completion**: Q3 2025 (at current velocity)
 
@@ -72,13 +184,16 @@ Generation) pattern.
 - Phase 4: ✅ Complete (89 points)
 - Phase 6: ✅ Complete (134 points)
 - Phase 7.3: ✅ Complete (98 points)
-- Phase 8: ✅ Complete (291 points) - *Character Arc and Hero's Journey complete, mmm'kay?*
-- Phase 11: ✅ Complete (268 points) - *That's terrific work, team!*
+- Phase 8: ✅ Complete (291 points)
+- Phase 11: ✅ Complete (268 points)
 - Remaining Phases: 511 points
 
 *If everyone could just keep up this velocity, that'd be great.*
 
-## Project Plan & Tasks
+</details>
+
+<details>
+<summary>📋 Project Plan & Tasks</summary>
 
 ### Phase 1: Project Setup and Foundation
 
@@ -162,16 +277,15 @@ Generation) pattern.
 
 - [x] **4.1.1 PR #17 Feedback Resolution** *(7/7 complete)*
   - [x] Make demo limits configurable in build_knowledge_graph.py example
-    (--max-scenes, --max-characters CLI args)
-  - [x] Complete mock implementation of _get_character_dialogue_samples with proper dialogue extraction
-  - [x] Add confirmation for file deletion in example script (--force-delete bypass option)
-  - [x] Optimize character mentions extraction with regex patterns and caching
-  - [x] Fix all linting issues (line length, whitespace, code style)
-  - [x] Maintain test coverage (all 151 tests passing)
-  - [x] Pass type checking with no mypy issues
+  - [x] Complete mock implementation of _get_character_dialogue_samples
+  - [x] Add confirmation for file deletion in example script
+  - [x] Optimize character mentions extraction
+  - [x] Fix all linting issues
+  - [x] Maintain test coverage
+  - [x] Pass type checking
 
 - [x] **4.2 Graph Indexing** *(5/5 complete)*
-  - [x] Implement hierarchical indexing (show → season → episode → scene)
+  - [x] Implement hierarchical indexing
   - [x] Create character relationship graphs
   - [x] Build location-based scene graphs
   - [x] Index temporal relationships
@@ -187,36 +301,26 @@ Generation) pattern.
 ### Phase 5: Scene Management Features
 
 - [x] **5.1 Scene Ordering** *(34 points - Complete)*
-  - [x] Implement script order tracking (ensure_script_order maintains proper scene numbering)
-  - [x] Build temporal order inference engine (infer_temporal_order analyzes time markers, flashbacks/forwards)
-  - [x] Create logical dependency analyzer (analyze_logical_dependencies tracks character intros, plot dependencies)
-  - [x] Design UI/API for reordering scenes (Full CLI commands: scene list --order, scene reorder, scene analyze)
-  - [x] Maintain consistency across orderings (validate_ordering_consistency ensures all three systems work together)
+  - [x] Implement script order tracking
+  - [x] Build temporal order inference engine
+  - [x] Create logical dependency analyzer
+  - [x] Design UI/API for reordering scenes
+  - [x] Maintain consistency across orderings
 
 - [x] **5.2 Scene Operations** *(34 points - Complete)*
-  - [x] **Update Scene**
-    - [x] Modify time/location metadata
-    - [x] Edit dialogue and action
-    - [x] Update character appearances
-    - [x] Propagate changes through graph
-  - [x] **Delete Scene**
-    - [x] Remove scene and update references
-    - [x] Handle dependency resolution
-    - [x] Maintain story continuity
-  - [x] **Inject Scene**
-    - [x] Insert new scenes at specified positions
-    - [x] Update all ordering systems
-    - [x] Validate logical consistency
-    - [x] Re-embed and index new content
+  - [x] Update Scene functionality
+  - [x] Delete Scene with reference maintenance
+  - [x] Inject Scene at specified positions
+  - [x] Graph integration for all operations
 
 ### Phase 6: Search and Query Interface
 
 - [x] **6.1 Search Implementation** *(5/5 complete)*
-  - [x] Text-based search (dialogue, action)
-  - [x] Entity search (characters, locations)
-  - [x] Temporal search (time ranges, sequences)
+  - [x] Text-based search
+  - [x] Entity search
+  - [x] Temporal search
   - [x] Concept/theme search
-  - [x] Relationship search (character interactions)
+  - [x] Relationship search
 
 - [x] **6.2 Advanced Queries** *(5/5 complete)*
   - [x] Multi-criteria search
@@ -230,415 +334,106 @@ Generation) pattern.
 - [x] **7.1 REST API** *(5/5 complete)*
   - [x] Design OpenAPI specification
   - [x] Implement FastAPI backend
-  - [x] Create endpoints for:
-    - [x] Script upload/parsing
-    - [x] Search operations
-    - [x] Scene management
-    - [x] Graph visualization
-    - [x] Export functionality
+  - [x] Create endpoints for all operations
 
 - [x] **7.2 CLI Interface** *(4/4 complete)*
-  - [x] Create command-line tool using Click/Typer
-  - [x] Implement commands for all major operations
-  - [x] Add interactive mode for complex queries
-  - [x] Create batch processing capabilities
+  - [x] Create command-line tool using Typer
+  - [x] Implement commands for all operations
+  - [x] Add interactive mode
+  - [x] Create batch processing
 
 - [x] **7.3 MCP Server** *(11/11 complete)*
-  - [x] Implement Model Context Protocol server (999 lines, comprehensive implementation)
-  - [x] Create MCP tools for:
-    - [x] Script parsing and analysis (`parse_script`)
-    - [x] Scene search and retrieval (`search_scenes`, `get_scene_details`)
-    - [x] Character/location queries (`get_character_info`, `get_character_relationships`)
-    - [x] Scene manipulation operations (`update_scene`, `delete_scene`, `inject_scene`)
-    - [x] Graph traversal and analysis (`analyze_timeline`, `list_scripts`, `export_data`)
-    - [x] Script bible management (`create_series_bible`, `create_character_profile`, `create_world_element`)
-    - [x] Continuity validation (`run_continuity_check`, `get_continuity_notes`, `generate_continuity_report`)
-    - [x] Knowledge tracking (`add_character_knowledge`, `create_plot_thread`)
-  - [x] Define MCP resource schemas for:
-    - [x] Screenplay structure (Available Screenplays resource)
-    - [x] Scene metadata (Scene Details resource)
-    - [x] Character relationships (Character Information resource)
-    - [x] Timeline information (Script Timeline resource)
-  - [x] Implement MCP prompts for common tasks (5 pre-configured analysis prompts)
-  - [x] Create MCP server configuration (Environment variables, YAML/JSON config)
-  - [x] Write MCP client examples (Claude Desktop integration, usage examples)
-  - [x] Integration with Claude and other MCP-compatible assistants (Full MCP compatibility)
-  - [x] Added 5 mentor-specific tools:
-    - [x] `list_mentors` - List available mentors
-    - [x] `analyze_script_with_mentor` - Run mentor analysis
-    - [x] `get_mentor_results` - Retrieve past results
-    - [x] `search_mentor_analyses` - Search analysis findings
-    - [x] `get_mentor_statistics` - Get mentor stats
+  - [x] Implement Model Context Protocol server
+  - [x] Create 23 MCP tools
+  - [x] Define MCP resource schemas
+  - [x] Implement MCP prompts
+  - [x] Full Claude integration
 
 ### Phase 8: Pluggable Mentors System 🎭 ✅ COMPLETE! (291 story points)
 
 📋 **[Detailed Mentor System Documentation](MENTOR_SYSTEM.md)**
 
 - [x] **8.1 Mentor Infrastructure** *(34 points - Complete)*
-  - [x] Mentor base classes and interfaces (293 lines)
-  - [x] Mentor registry and discovery system (282 lines)
-  - [x] Database schema extensions for mentor results (v5 migration)
-  - [x] Configuration and settings integration
-
-- [x] **8.2 Built-in Mentors** *(191 points - Save the Cat, Hero's Journey & Character Arc Complete)*
-  - [x] Save the Cat mentor implementation (658 lines) - 47 points
-  - [x] Hero's Journey mentor implementation (1,207 lines) - 89 points
-  - [ ] Three-Act structure mentor (enhanced but not fully integrated)
-  - [x] Character Arc analysis mentor (2,538 lines) - 55 points ✅ **COMPLETE!**
-
+- [x] **8.2 Built-in Mentors** *(191 points - Complete)*
+  - [x] Save the Cat mentor (47 points)
+  - [x] Hero's Journey mentor (89 points)
+  - [x] Character Arc mentor (55 points)
+  - [ ] Story Shape mentor (84 points - Planned)
 - [x] **8.3 Mentor Execution System** *(50 points - Complete)*
-  - [x] CLI commands for mentor management (analyze, list, results, search)
-  - [x] LLM integration for mentor analysis
-  - [x] Automated execution system with progress tracking
-  - [x] Mentor result storage and history tracking (629 lines DB ops)
-
 - [x] **8.4 Advanced Mentor Features** *(27 points - Partial)*
-  - [x] MCP server integration for mentors (5 new tools)
-  - [x] Search and filtering capabilities for analyses
-  - [ ] Custom mentor installation system (deferred)
 
 ### Phase 9: Testing and Optimization
 
 - [ ] **9.1 Testing Suite**
   - [ ] Unit tests for all components
-  - [ ] Integration tests for GraphRAG pipeline
+  - [ ] Integration tests
   - [ ] Performance benchmarks
-  - [ ] Test data generation (sample screenplays)
-  - [ ] End-to-end testing scenarios
+  - [ ] Test data generation
+  - [ ] End-to-end testing
 
 - [ ] **9.2 Performance Optimization**
-  - [ ] Query optimization for graph traversals
+  - [ ] Query optimization
   - [ ] Embedding cache optimization
-  - [ ] Async processing for LLM calls
-  - [ ] Database indexing strategy
-  - [ ] Memory usage profiling
+  - [ ] Async processing
+  - [ ] Database indexing
+  - [ ] Memory profiling
 
 ### Phase 10: Documentation and Deployment
 
 - [ ] **10.1 Documentation**
   - [ ] API documentation
-  - [ ] User guide for scriptwriters
+  - [ ] User guide completion
   - [ ] Developer documentation
-  - [ ] Example notebooks/tutorials
+  - [ ] Example notebooks
   - [ ] Architecture diagrams
 
 - [ ] **10.2 Deployment**
-  - [ ] Create uv/uvx deployment setup
-  - [ ] Write deployment scripts using uv
-  - [ ] Create backup/restore procedures
-  - [ ] Performance monitoring setup
-  - [ ] Create installation guide with uvx
+  - [ ] Create uv/uvx deployment
+  - [ ] Deployment scripts
+  - [ ] Backup/restore procedures
+  - [ ] Performance monitoring
+  - [ ] Installation guide
 
 ### Phase 11: Script Bible and Continuity Management ✅
 
 - [x] **11.1 Script Bible Foundation** *(Complete)*
-  - [x] Design script bible data models:
-    - [x] Series/show overview and premise
-    - [x] Character development arcs and progression
-    - [x] World-building elements and rules
-    - [x] Timeline and continuity tracking
-    - [x] Tone and style guidelines
-  - [x] Create script bible database schema:
-    - [x] Bible metadata table (series info, premise, logline)
-    - [x] Character profiles table (backstory, traits, relationships)
-    - [x] World elements table (locations, rules, lore, concepts)
-    - [x] Timeline events table (chronological story events)
-    - [x] Continuity notes table (episode-by-episode tracking)
-    - [x] Style guidelines table (tone, voice, creative vision)
-  - [x] Implement script bible CRUD operations
-  - [x] Add script bible versioning and change tracking
-
 - [x] **11.2 Character Development System** *(Complete)*
-  - [x] Enhanced character models:
-    - [x] Detailed backstory and history
-    - [x] Personality traits and psychological profiles
-    - [x] Character arc milestones and development tracking
-    - [x] Relationship matrices and dynamics
-    - [x] Dialogue voice patterns and speech characteristics
-    - [x] Goals, motivations, and internal conflicts
-  - [x] Character relationship tracking:
-    - [x] Dynamic relationship status changes
-    - [x] Conflict history between characters
-    - [x] Shared secrets and revelation tracking
-    - [x] Power dynamic evolution
-    - [x] Romantic relationship timelines
-  - [x] Character consistency validation:
-    - [x] Voice pattern analysis across scenes
-    - [x] Behavioral consistency checking
-    - [x] Knowledge progression validation
-    - [x] Character arc coherence analysis
-
 - [x] **11.3 World-Building and Lore Management** *(Complete)*
-  - [x] World element models:
-    - [x] Location hierarchies and spatial relationships
-    - [x] Cultural and social structure documentation
-    - [x] Genre-specific rules (sci-fi tech, fantasy magic, etc.)
-    - [x] Historical events and background timeline
-    - [x] Mythology and legend documentation
-  - [x] Concept and object tracking:
-    - [x] Important objects and their significance
-    - [x] Recurring themes and motifs
-    - [x] Symbolic elements and meanings
-    - [x] Easter eggs and hidden connections
-  - [x] World consistency validation:
-    - [x] Rule adherence checking
-    - [x] Geographic continuity validation
-    - [x] Timeline consistency analysis
-    - [x] Cultural element coherence
-
 - [x] **11.4 Timeline and Continuity System** *(Complete)*
-  - [x] Enhanced timeline management:
-    - [x] Chronological event ordering
-    - [x] Flashback/flash-forward documentation
-    - [x] Character age progression tracking
-    - [x] Seasonal/holiday continuity
-    - [x] Real-world time correlation
-  - [x] Continuity tracking:
-    - [x] Episode-by-episode continuity notes
-    - [x] Props and costume continuity
-    - [x] Character knowledge progression
-    - [x] Plot thread resolution tracking
-    - [x] Callback and reference opportunities
-  - [x] Consistency validation:
-    - [x] Timeline conflict detection
-    - [x] Character knowledge inconsistency alerts
-    - [x] Continuity error identification
-    - [x] Plot hole detection and reporting
-
 - [x] **11.5 Script Bible Interface and Tools** *(Complete)*
-  - [x] CLI commands for script bible management:
-    - [x] Create and initialize script bible
-    - [x] Add/edit character profiles and arcs
-    - [x] Manage world elements and lore
-    - [x] Track timeline events and continuity
-    - [x] Generate continuity reports
-  - [x] MCP server integration:
-    - [x] Script bible query and search tools
-    - [x] Character development tracking
-    - [x] Continuity validation services
-    - [x] World-building assistance
-
 - [x] **11.6 Advanced Continuity Features** *(Complete)*
-  - [x] Cross-episode analysis:
-    - [x] Character arc progression validation
-    - [x] Relationship development consistency
-    - [x] World rule adherence checking
-    - [x] Timeline continuity verification
-  - [x] Bible-driven scene validation:
-    - [x] Character behavior consistency alerts
-    - [x] Location accuracy validation
-    - [x] Timeline placement verification
-    - [x] Knowledge progression checks
+
+### Phase 8.5: Story Shape Mentor Implementation (NEW)
+
+- [ ] **8.5.1 Research & Design** *(21 points)*
+- [ ] **8.5.2 Core Implementation** *(34 points)*
+- [ ] **8.5.3 Advanced Features** *(21 points)*
+- [ ] **8.5.4 Integration & Testing** *(21 points)*
+- [ ] **8.5.5 Documentation & Polish** *(8 points)*
 
 ### Phase 12: Advanced Features (Future)
 
 - [ ] **12.1 Git-based Collaboration**
-  - [ ] Export entire database to git-friendly format
-  - [ ] Import/restore database from git repository
-  - [ ] Support for merge-friendly data formats
-  - [ ] Diff visualization for script changes
+  - [ ] Export to git-friendly format
+  - [ ] Import/restore from git
+  - [ ] Merge-friendly formats
+  - [ ] Diff visualization
 
 - [ ] **12.2 AI-Assisted Writing**
-  - [ ] Scene generation suggestions
+  - [ ] Scene generation
   - [ ] Dialogue improvement
-  - [ ] Plot consistency checking
-  - [ ] Character voice consistency
-  - [ ] Theme development assistance
-  - [ ] Bible-driven writing assistance:
-    - [ ] Character-appropriate dialogue suggestions
-    - [ ] World rule compliance checking
-    - [ ] Timeline-aware scene placement
-    - [ ] Continuity-conscious plot development
+  - [ ] Plot consistency
+  - [ ] Character voice
+  - [ ] Theme development
+  - [ ] Bible-driven assistance
 
-## Getting Started
+</details>
 
-### Prerequisites
-
-- Python 3.11+
-- uv package manager
-- SQLite 3.35+
-- LMStudio running at <http://localhost:1234>
-
-### Setup Documentation
+<details>
+<summary>🔧 Setup Documentation</summary>
 
 - **[Terragon Setup Guide](TERRAGON_SETUP.md)** - Complete Terragon environment configuration
 - **[Setup Summary](SETUP_SUMMARY.md)** - Overview of setup process and scripts
 - **[Setup Complete Guide](SETUP_COMPLETE.md)** - Phase 1.2 completion details
 
-### Feature Documentation
-
-- **[Bulk Import Guide](docs/bulk_import_guide.md)** - Comprehensive guide for importing multiple screenplays
-- **[Bulk Import API](docs/api/bulk_import.md)** - API documentation for bulk import modules
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/scriptrag.git
-cd scriptrag
-
-# Install uv if not already installed
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Install dependencies (uv will automatically create virtual environment)
-uv sync
-```
-
-### Quick Start
-
-```python
-from scriptrag import ScriptRAG
-
-# Initialize ScriptRAG
-srag = ScriptRAG(
-    llm_endpoint="http://localhost:1234/v1",
-    db_path="./screenplay.db"
-)
-
-# Parse a screenplay
-script = srag.parse_fountain("path/to/screenplay.fountain")
-
-# Generate embeddings for semantic search
-await srag.process_script_embeddings(script.id)
-
-# Search for scenes with a character
-scenes = srag.search_scenes(character="PROTAGONIST")
-
-# Semantic search for similar scenes
-similar_scenes = await srag.search_similar_scenes(
-    query="emotional confrontation between friends",
-    limit=5
-)
-
-# Update a scene
-srag.update_scene(
-    scene_id=123,
-    new_location="INT. COFFEE SHOP - DAY"
-)
-```
-
-### Command Line Examples
-
-```bash
-# Parse and build knowledge graph from a screenplay
-uv run scriptrag parse examples/data/sample_screenplay.fountain
-
-# Search for dialogue containing specific text
-uv run scriptrag search dialogue "I love you"
-
-# Find scenes with specific characters
-uv run scriptrag search character "PROTAGONIST" "ANTAGONIST"
-
-# Semantic search for thematically similar content
-uv run scriptrag search semantic "betrayal and revenge"
-
-# List all characters and their relationships
-uv run scriptrag graph characters
-
-# Analyze temporal structure of the screenplay
-uv run scriptrag analyze timeline
-```
-
-### Bulk Import Examples
-
-```bash
-# Import entire TV series from a directory structure
-uv run scriptrag script import "Breaking Bad/**/*.fountain"
-
-# Import with custom season/episode pattern
-uv run scriptrag script import "*.fountain" \
-    --pattern "S(?P<season>\d+)E(?P<episode>\d+)"
-
-# Preview import without actually importing (dry run)
-uv run scriptrag script import "Season*/*.fountain" --dry-run
-
-# Import from directory with automatic series detection
-uv run scriptrag script import ./scripts/
-
-# Import with series name override
-uv run scriptrag script import "episodes/*.fountain" \
-    --series-name "My TV Show"
-
-# Control import behavior
-uv run scriptrag script import "*.fountain" \
-    --skip-existing \      # Skip files already in database
-    --batch-size 20        # Process 20 files per batch
-```
-
-The bulk import feature automatically:
-
-- Detects TV series patterns in filenames (e.g., S01E01, 1x01, Episode 101)
-- Extracts season and episode numbers
-- Groups episodes by series and seasons
-- Creates proper database relationships
-- Handles special episodes and multi-part episodes
-- Supports custom regex patterns for non-standard naming
-
-### Using the MCP Server
-
-**✅ COMPLETE IMPLEMENTATION** - The MCP server is fully operational with 11 tools and comprehensive security features.
-
-```bash
-# Start the MCP server
-uv run scriptrag-mcp
-
-# With custom configuration
-uv run scriptrag-mcp --config-file config.yaml
-
-# The MCP server provides 18 tools for AI assistants:
-# • parse_script - Parse Fountain screenplays
-# • search_scenes - Find scenes by criteria
-# • get_character_info - Character analysis
-# • analyze_timeline - Timeline and temporal analysis
-# • list_scripts - Available screenplay listing
-# • update_scene - Modify scene content
-# • delete_scene - Remove scenes
-# • inject_scene - Add new scenes
-# • get_scene_details - Detailed scene information
-# • get_character_relationships - Character relationship graphs
-# • export_data - Export screenplay data
-# • create_series_bible - Create script bibles for continuity
-# • create_character_profile - Manage character profiles
-# • create_world_element - Track world-building elements
-# • run_continuity_check - Automated continuity validation
-# • get_continuity_notes - View continuity issues
-# • generate_continuity_report - Comprehensive continuity reports
-# • add_character_knowledge - Track character knowledge
-# • create_plot_thread - Manage plot threads
-```
-
-**Security Features:**
-
-- UUID-based script identification
-- File path validation and sanitization
-- Resource caching with configurable limits
-- Input validation for all tools
-
-**Documentation:**
-
-- [MCP Server Documentation](docs/mcp_server.md)
-- [Usage Examples](examples/mcp_usage_examples.md)
-- Claude Desktop integration guide included
-
-## References
-
-- [Fountain Format](https://fountain.io/)
-- [Tagirijus/Fountain](https://deepwiki.com/Tagirijus/fountain)
-- [GraphRAG with SQLite Example](https://deepwiki.com/stephenc222/example-graphrag-with-sqlite/1-overview)
-- [LMStudio](https://lmstudio.ai/)
-- [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
-
-## Development Guidelines
-
-### For AI Agents and Contributors
-
-- **[AI Agent Guidelines](AGENTS.md)** - Commit message format with movie quotes and project rules
-- **[Claude Coding Guidelines](CLAUDE.md)** - Comprehensive coding standards and development workflow
-
-## Contributing
-
-Contributions are welcome! Please see our contributing guidelines for more details.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+</details>

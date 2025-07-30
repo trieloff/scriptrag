@@ -1,6 +1,6 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-[![39% Vibe_Coded](https://img.shields.io/badge/39%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
+[![41% Vibe_Coded](https://img.shields.io/badge/41%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
 
 ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
@@ -61,10 +61,11 @@ Generation) pattern.
 
 **Yeah, so I've been tracking our velocity and story points, mmm'kay?**
 
-- **Total Project Estimate**: 1,509 story points
-- **Points Completed**: 906 points (60.0%)
+- **Total Project Estimate**: 1,593 story points (updated with Story Shape Mentor)
+- **Points Completed**: 906 points (56.9%)
 - **Current Sprint Velocity**: 55 points (Character Arc mentor completion)
 - **Projected Completion**: Q3 2025 (at current velocity)
+- **New Addition**: 84 story points for Story Shape Mentor (Vonnegut's theory)
 
 **Phase Completion Status:**
 
@@ -285,6 +286,7 @@ Generation) pattern.
   - [x] Hero's Journey mentor implementation (1,207 lines) - 89 points
   - [ ] Three-Act structure mentor (enhanced but not fully integrated)
   - [x] Character Arc analysis mentor (2,538 lines) - 55 points ✅ **COMPLETE!**
+  - [ ] **Story Shape mentor** (Vonnegut's theory) - 84 points (**NEW - Planned**)
 
 - [x] **8.3 Mentor Execution System** *(50 points - Complete)*
   - [x] CLI commands for mentor management (analyze, list, results, search)
@@ -429,6 +431,33 @@ Generation) pattern.
     - [x] Location accuracy validation
     - [x] Timeline placement verification
     - [x] Knowledge progression checks
+
+### Phase 8.5: Story Shape Mentor Implementation (NEW)
+
+- [ ] **8.5.1 Research & Design** *(21 points)*
+  - [ ] Research Vonnegut's Shape of Stories Theory - 3 points
+  - [ ] Design Story Shape Detection Algorithm - 8 points
+  - [ ] Create Story Shape Data Models - 5 points
+  - [ ] Design Visualization Format - 5 points
+
+- [ ] **8.5.2 Core Implementation** *(34 points)*
+  - [ ] Implement StoryShapeMentor Base Class - 13 points
+  - [ ] Build Scene Emotional Analysis Engine - 13 points
+  - [ ] Implement Shape Classification System - 8 points
+
+- [ ] **8.5.3 Advanced Features** *(21 points)*
+  - [ ] Add Inflection Point Detection - 8 points
+  - [ ] Create Genre-Specific Shape Analysis - 8 points
+  - [ ] Build Shape Comparison Engine - 5 points
+
+- [ ] **8.5.4 Integration & Testing** *(21 points)*
+  - [ ] Integrate with CLI Commands - 5 points
+  - [ ] Add MCP Server Support - 5 points
+  - [ ] Write Comprehensive Tests - 8 points
+  - [ ] Performance Optimization - 3 points
+
+- [ ] **8.5.5 Documentation & Polish** *(8 points)*
+  - [ ] Create Documentation & Examples - 8 points
 
 ### Phase 12: Advanced Features (Future)
 

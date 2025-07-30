@@ -37,6 +37,9 @@ def configure_logging(
         stream=sys.stdout,
     )
 
+    # Explicitly set root logger level (basicConfig may not work if handlers exist)
+    logging.getLogger().setLevel(numeric_level)
+
     # Shared processors for all configurations
     shared_processors: list[Processor] = [
         structlog.contextvars.merge_contextvars,

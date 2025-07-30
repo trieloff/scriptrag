@@ -270,14 +270,11 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
-      - name: Install dependencies
-        run: make install
-
       - name: Build distribution
         run: make build
 
       - name: Check distribution
-        run: uv run twine check dist/*
+        run: make check-dist
 
       - name: Upload distribution
         uses: actions/upload-artifact@v4

@@ -78,20 +78,20 @@ install-pre-commit: ## Install pre-commit hooks
 	@echo "✅ Pre-commit hooks installed"
 
 .PHONY: update
-update: check-uv ## Update all dependencies to latest versions
+update: install ## Update all dependencies to latest versions
 	uv sync --all-extras --upgrade
 	uv run pre-commit autoupdate
 	@echo "✅ Dependencies updated"
 
 # Code quality
 .PHONY: format
-format: check-uv ## Format code with ruff
+format: install ## Format code with ruff
 	uv run ruff check --fix src/ tests/
 	uv run ruff format src/ tests/
 	@echo "✅ Code formatted"
 
 .PHONY: lint
-lint: check-uv ## Run all linters (ruff, mypy, bandit, etc.)
+lint: install ## Run all linters (ruff, mypy, bandit, etc.)
 	@echo "🔍 Running Ruff..."
 	uv run ruff check src/ tests/
 	@echo "🔍 Running MyPy..."
@@ -105,11 +105,11 @@ lint: check-uv ## Run all linters (ruff, mypy, bandit, etc.)
 	@echo "✅ All linting checks passed"
 
 .PHONY: type-check
-type-check: check-uv ## Run type checking with mypy
+type-check: install ## Run type checking with mypy
 	uv run mypy src/ --show-error-codes --pretty
 
 .PHONY: security
-security: check-uv ## Run security checks (bandit, safety, pip-audit)
+security: install ## Run security checks (bandit, safety, pip-audit)
 	uv run bandit -r src/ -c pyproject.toml -f json -o .bandit-report.json
 	uv run safety check --json > .safety-report.json || true
 	uv run pip-audit || true
@@ -117,34 +117,34 @@ security: check-uv ## Run security checks (bandit, safety, pip-audit)
 
 # Testing
 .PHONY: test
-test: check-uv ## Run all tests with coverage
+test: install ## Run all tests with coverage
 	uv run pytest tests/ -v --cov=scriptrag --cov-report=term-missing --cov-report=html
 
 .PHONY: test-fast
-test-fast: check-uv ## Run tests without coverage (faster)
+test-fast: install ## Run tests without coverage (faster)
 	uv run pytest tests/ -v
 
 .PHONY: test-watch
-test-watch: check-uv ## Run tests in watch mode
+test-watch: install ## Run tests in watch mode
 	uv run pytest-watch tests/ -- -v
 
 .PHONY: test-parallel
-test-parallel: check-uv ## Run tests in parallel with coverage
+test-parallel: install ## Run tests in parallel with coverage
 	uv run pytest tests/ -v -n auto --cov=scriptrag --cov-report=xml --cov-report=term-missing $(PYTEST_ARGS)
 
 .PHONY: test-profile
-test-profile: check-uv ## Run tests with profiling
+test-profile: install ## Run tests with profiling
 	uv run pytest tests/ -v --profile --profile-svg
 
 .PHONY: coverage
-coverage: check-uv ## Generate coverage report
+coverage: install ## Generate coverage report
 	uv run coverage run -m pytest tests/
 	uv run coverage report
 	uv run coverage html
 	@echo "✅ Coverage report generated in htmlcov/"
 
 .PHONY: coverage-combine
-coverage-combine: ## Combine coverage data from parallel test runs
+coverage-combine: install ## Combine coverage data from parallel test runs
 	uv run coverage combine
 	uv run coverage report
 	uv run coverage html
@@ -152,61 +152,66 @@ coverage-combine: ## Combine coverage data from parallel test runs
 
 # Documentation
 .PHONY: docs
-docs: check-uv ## Build documentation
+docs: install ## Build documentation
 	uv run mkdocs build
 	@echo "✅ Documentation built in site/"
 
 .PHONY: docs-serve
-docs-serve: check-uv ## Serve documentation locally
+docs-serve: install ## Serve documentation locally
 	uv run mkdocs serve --dev-addr localhost:8000
 
 .PHONY: docs-deploy
-docs-deploy: check-uv ## Deploy documentation to GitHub Pages
+docs-deploy: install ## Deploy documentation to GitHub Pages
 	uv run mkdocs gh-deploy --force
 
 # Development tasks
 .PHONY: run
-run: check-uv ## Run the CLI application
+run: install ## Run the CLI application
 	uv run python -m scriptrag
 
 .PHONY: run-mcp
-run-mcp: check-uv ## Run the MCP server
+run-mcp: install ## Run the MCP server
 	uv run python -m scriptrag.mcp_server
 
 .PHONY: run-api
-run-api: check-uv ## Run the REST API server
+run-api: install ## Run the REST API server
 	uv run python -m scriptrag server api
 
 .PHONY: run-api-dev
-run-api-dev: check-uv ## Run the REST API server in development mode with auto-reload
+run-api-dev: install ## Run the REST API server in development mode with auto-reload
 	uv run python -m scriptrag server api --reload
 
 .PHONY: shell
-shell: check-uv ## Start IPython shell with project context
+shell: install ## Start IPython shell with project context
 	uv run ipython -i -c "from scriptrag import *; print('ScriptRAG modules loaded')"
 
 .PHONY: notebook
-notebook: check-uv ## Start Jupyter notebook server
+notebook: install ## Start Jupyter notebook server
 	uv run jupyter notebook --notebook-dir=notebooks/
 
 # Database tasks
 .PHONY: db-init
-db-init: check-uv ## Initialize the database
+db-init: install ## Initialize the database
 	uv run python -m scriptrag.database.init
 
 .PHONY: db-migrate
-db-migrate: check-uv ## Run database migrations
+db-migrate: install ## Run database migrations
 	uv run python -m scriptrag.database.migrate
 
 .PHONY: db-seed
-db-seed: check-uv ## Seed database with sample data
+db-seed: install ## Seed database with sample data
 	uv run python -m scriptrag.database.seed
 
 # Build and distribution
 .PHONY: build
-build: clean check-uv ## Build distribution packages
+build: clean install ## Build distribution packages
 	uv run python -m build
 	@echo "✅ Distribution packages built in dist/"
+
+.PHONY: check-dist
+check-dist: install ## Check distribution packages
+	uv run twine check dist/*
+	@echo "✅ Distribution packages validated"
 
 .PHONY: publish-test
 publish-test: build ## Publish to TestPyPI
@@ -248,18 +253,18 @@ clean-all: clean ## Clean everything including venv
 check: check-uv lint type-check security test ## Run all quality checks
 
 .PHONY: check-fast
-check-fast: check-uv ## Run fast quality checks (no tests)
+check-fast: install ## Run fast quality checks (no tests)
 	uv run ruff check src/ tests/
 	uv run mypy src/ --no-error-summary
 	uv run ruff format --check src/ tests/
 
 .PHONY: pre-commit
-pre-commit: check-uv ## Run pre-commit on all files
+pre-commit: install ## Run pre-commit on all files
 	uv run pre-commit run --all-files
 
 # Project specific
 .PHONY: parse-fountain
-parse-fountain: check-uv ## Parse a fountain file (usage: make parse-fountain FILE=script.fountain)
+parse-fountain: install ## Parse a fountain file (usage: make parse-fountain FILE=script.fountain)
 	@if [ -z "$(FILE)" ]; then \
 		echo "Error: Please specify a fountain file. Usage: make parse-fountain FILE=script.fountain"; \
 		exit 1; \
@@ -280,11 +285,11 @@ git-clean: ## Clean git repository (remove untracked files)
 
 # Dependencies management
 .PHONY: deps-upgrade
-deps-upgrade: check-uv ## Upgrade all dependencies to latest versions
+deps-upgrade: install ## Upgrade all dependencies to latest versions
 	uv sync --all-extras --upgrade
 
 .PHONY: deps-tree
-deps-tree: check-uv ## Show dependency tree
+deps-tree: install ## Show dependency tree
 	uv run pipdeptree
 
 .PHONY: deps-check

@@ -117,29 +117,19 @@ security: install ## Run security checks (bandit, safety, pip-audit)
 
 # Testing
 .PHONY: test
-test: install ## Run all tests with coverage
-	uv run pytest tests/ -v --cov=scriptrag --cov-report=term-missing --cov-report=html
+test: install ## Run all tests in parallel with coverage
+	uv run pytest tests/ -v -n auto --cov=scriptrag --cov-report= --junit-xml=junit.xml $(PYTEST_ARGS)
+	uv run coverage combine || true  # May already be combined by pytest-xdist
+	uv run coverage xml
+	uv run coverage report --show-missing
 
 .PHONY: test-fast
 test-fast: install ## Run tests without coverage (faster)
-	uv run pytest tests/ -v
+	uv run pytest tests/ -v -n auto
 
 .PHONY: test-watch
 test-watch: install ## Run tests in watch mode
 	uv run pytest-watch tests/ -- -v
-
-.PHONY: test-parallel
-test-parallel: install ## Run tests in parallel with coverage
-	uv run pytest tests/ -v -n auto --cov=scriptrag --cov-report= $(PYTEST_ARGS)
-	uv run coverage combine
-	uv run coverage xml
-	uv run coverage report --show-missing
-
-.PHONY: test-ci
-test-ci: install ## Run tests for CI with proper coverage combination
-	uv run pytest tests/ -n auto --dist loadscope -q --no-header --tb=short --cov=scriptrag --cov-report= --junit-xml=junit.xml
-	uv run coverage combine
-	uv run coverage xml
 
 .PHONY: test-profile
 test-profile: install ## Run tests with profiling

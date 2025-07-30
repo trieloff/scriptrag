@@ -198,12 +198,12 @@ jobs:
           echo "Python version: $(python --version)"
           echo "OS: ${{ matrix.os }}"
           echo "Runner: ${{ runner.os }}"
-          make test-parallel
+          make test
           echo "Finished pytest at $(date)"
 
       - name: Run tests with pytest (Linux/macOS)
         if: runner.os != 'Windows'
-        run: make test-parallel
+        run: make test
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -329,7 +329,7 @@ jobs:
         run: make install
 
       - name: Run integration tests
-        run: make test-parallel PYTEST_ARGS="-m integration"
+        run: make test PYTEST_ARGS="-m integration"
         env:
           SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
           SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}

@@ -270,6 +270,9 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
+      - name: Install dependencies
+        run: make install
+
       - name: Build distribution
         run: make build
 

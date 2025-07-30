@@ -16,26 +16,10 @@ from scriptrag.database.connection import (
     set_default_connection,
     temporary_connection,
 )
-from scriptrag.database.schema import create_database
 
 
 class TestDatabaseConnection:
     """Test database connection management."""
-
-    @pytest.fixture
-    def temp_db_path(self):
-        """Create temporary database path."""
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            db_path = Path(f.name)
-
-        # Initialize schema
-        create_database(db_path)
-
-        yield db_path
-
-        # Cleanup
-        if db_path.exists():
-            db_path.unlink()
 
     def test_connection_initialization(self, temp_db_path):
         """Test connection initialization with different parameters."""

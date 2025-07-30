@@ -1,6 +1,6 @@
 """Script management endpoints."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 
@@ -49,8 +49,8 @@ async def upload_script(
             id=stored_script.id or "",
             title=stored_script.title,
             author=stored_script.author,
-            created_at=stored_script.created_at or datetime.utcnow(),
-            updated_at=stored_script.updated_at or datetime.utcnow(),
+            created_at=stored_script.created_at or datetime.now(UTC),
+            updated_at=stored_script.updated_at or datetime.now(UTC),
             scene_count=len(stored_script.scenes),
             character_count=len(stored_script.characters),
             has_embeddings=any(
@@ -97,8 +97,8 @@ async def upload_script_file(
             id=stored_script.id or "",
             title=stored_script.title,
             author=stored_script.author,
-            created_at=stored_script.created_at or datetime.utcnow(),
-            updated_at=stored_script.updated_at or datetime.utcnow(),
+            created_at=stored_script.created_at or datetime.now(UTC),
+            updated_at=stored_script.updated_at or datetime.now(UTC),
             scene_count=len(stored_script.scenes),
             character_count=len(stored_script.characters),
             has_embeddings=any(
@@ -126,8 +126,8 @@ async def list_scripts(
                 id=script["id"],
                 title=script["title"],
                 author=script["author"],
-                created_at=script["created_at"] or datetime.utcnow(),
-                updated_at=script["updated_at"] or datetime.utcnow(),
+                created_at=script["created_at"] or datetime.now(UTC),
+                updated_at=script["updated_at"] or datetime.now(UTC),
                 scene_count=script["scene_count"],
                 character_count=script["character_count"],
                 has_embeddings=script["has_embeddings"],
@@ -155,8 +155,8 @@ async def get_script(
             id=script.id or "",
             title=script.title,
             author=script.author,
-            created_at=script.created_at or datetime.utcnow(),
-            updated_at=script.updated_at or datetime.utcnow(),
+            created_at=script.created_at or datetime.now(UTC),
+            updated_at=script.updated_at or datetime.now(UTC),
             scene_count=len(script.scenes),
             character_count=len(script.characters),
             has_embeddings=any(scene.embedding is not None for scene in script.scenes),

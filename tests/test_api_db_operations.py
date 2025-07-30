@@ -262,6 +262,7 @@ class TestScriptOperations:
                 "updated_at": datetime.now().isoformat(),
                 "scene_count": 10,
                 "character_count": 3,
+                "has_embeddings": 1,  # SQLite returns 0/1 for boolean
             },
             {
                 "id": str(uuid4()),
@@ -271,6 +272,7 @@ class TestScriptOperations:
                 "updated_at": datetime.now().isoformat(),
                 "scene_count": 5,
                 "character_count": 2,
+                "has_embeddings": 0,  # SQLite returns 0/1 for boolean
             },
         ]
 
@@ -282,9 +284,11 @@ class TestScriptOperations:
         assert result[0]["title"] == "Script 1"
         assert result[0]["scene_count"] == 10
         assert result[0]["character_count"] == 3
+        assert result[0]["has_embeddings"] is True
         assert result[1]["title"] == "Script 2"
         assert result[1]["scene_count"] == 5
         assert result[1]["character_count"] == 2
+        assert result[1]["has_embeddings"] is False
 
     @pytest.mark.asyncio
     async def test_list_scripts_empty(self, db_ops, mock_connection):
@@ -441,6 +445,7 @@ class TestSceneOperations:
             "script_order": 1,
             "heading": "INT. OFFICE - DAY",
             "description": "The office is busy.",
+            "has_embedding": 1,  # SQLite returns 0/1 for boolean
         }
 
         mock_connection.execute.return_value.fetchone.return_value = scene_data
@@ -456,7 +461,7 @@ class TestSceneOperations:
         assert result["word_count"] == 4  # "The office is busy."
         assert result["page_start"] is None  # Hardcoded in implementation
         assert result["page_end"] is None  # Hardcoded in implementation
-        assert result["has_embedding"] is False  # Hardcoded in implementation
+        assert result["has_embedding"] is True  # Now actually checks embeddings
 
     @pytest.mark.asyncio
     async def test_create_scene_success(self, db_ops, mock_connection):

@@ -5,12 +5,15 @@ including transaction support, connection pooling, and error handling.
 """
 
 import contextlib
+import os
+import re
 import sqlite3
 import threading
+import urllib.parse
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 from scriptrag.config import get_logger
 
@@ -20,20 +23,230 @@ logger = get_logger(__name__)
 class DatabaseConnection:
     """Manages SQLite database connections for ScriptRAG."""
 
+    # Windows reserved device names
+    WINDOWS_RESERVED_NAMES: ClassVar[set[str]] = {
+        "CON",
+        "PRN",
+        "AUX",
+        "NUL",
+        "COM1",
+        "COM2",
+        "COM3",
+        "COM4",
+        "COM5",
+        "COM6",
+        "COM7",
+        "COM8",
+        "COM9",
+        "LPT1",
+        "LPT2",
+        "LPT3",
+        "LPT4",
+        "LPT5",
+        "LPT6",
+        "LPT7",
+        "LPT8",
+        "LPT9",
+    }
+
+    # Maximum path length limits
+    MAX_FILENAME_LENGTH = 255
+    MAX_PATH_LENGTH = 4096
+
+    # Allowed characters in database paths (alphanumeric, dash, underscore, slash, dot)
+    SAFE_PATH_PATTERN = re.compile(r"^[a-zA-Z0-9._/\-]+$")
+
     def __init__(self, db_path: str | Path, **kwargs: Any) -> None:
         """Initialize database connection manager.
 
         Args:
             db_path: Path to SQLite database file
             **kwargs: Additional connection parameters
+
+        Raises:
+            ValueError: If the database path is invalid or insecure
         """
-        self.db_path = Path(db_path)
+        # Validate the path before using it
+        self.db_path = self._validate_and_normalize_path(db_path)
+
         self.connection_params = {
             "timeout": kwargs.get("timeout", 30.0),
             "check_same_thread": kwargs.get("check_same_thread", False),
             "isolation_level": kwargs.get("isolation_level"),  # Autocommit mode
         }
         self._local = threading.local()
+
+    def _validate_and_normalize_path(self, db_path: str | Path) -> Path:
+        """Validate and normalize a database path for security.
+
+        Args:
+            db_path: Path to validate
+
+        Returns:
+            Normalized Path object
+
+        Raises:
+            ValueError: If the path is invalid or insecure
+        """
+        # Convert to string for validation
+        path_str = str(db_path)
+
+        # Check for null bytes
+        if "\x00" in path_str:
+            raise ValueError("Invalid database path: contains null bytes")
+
+        # Check for URL encoding that might hide directory traversal
+        decoded_path = urllib.parse.unquote(path_str)
+        if decoded_path != path_str:
+            # Path contains URL encoding, validate the decoded version too
+            self._validate_and_normalize_path(decoded_path)
+
+        # Convert to Path object
+        path = Path(path_str)
+
+        # Resolve the path to handle symlinks and relative paths
+        try:
+            # Use resolve() to follow symlinks and normalize the path
+            # If the path doesn't exist yet, use parent resolution
+            if path.exists():
+                resolved_path = path.resolve()
+            else:
+                # For non-existent files, resolve the parent and append the filename
+                parent = path.parent
+                if parent.exists():
+                    resolved_path = parent.resolve() / path.name
+                else:
+                    # If parent doesn't exist, just work with the path as-is
+                    # but still check for directory traversal
+                    resolved_path = path
+        except (RuntimeError, OSError):
+            raise ValueError("Invalid database path: cannot resolve path") from None
+
+        # Convert back to string for validation
+        resolved_str = str(resolved_path)
+
+        # Check for directory traversal patterns
+        traversal_patterns = [
+            "..",
+            "/..",
+            "\\..",
+            "../",
+            "..\\",
+            "%2e%2e",
+            "%252e%252e",  # URL encoded dots
+            "\u2044..",  # Unicode fraction slash
+            "\uff0f..",  # Fullwidth slash
+            "\u2215..",  # Division slash
+        ]
+
+        for pattern in traversal_patterns:
+            if pattern in path_str.lower() or pattern in resolved_str.lower():
+                raise ValueError("Invalid database path: directory traversal detected")
+
+        # Check for absolute paths (unless in a safe directory)
+        if resolved_path.is_absolute():
+            # Get the current working directory
+            cwd = Path.cwd()
+
+            # Allow paths in temp directories for testing
+            temp_dirs = [Path("/tmp"), Path("/var/tmp")]  # noqa: S108  # nosec B108
+            if os.environ.get("TMPDIR"):
+                temp_dirs.append(Path(os.environ["TMPDIR"]))
+
+            # Check if it's in a temp directory
+            is_in_temp = False
+            for temp_dir in temp_dirs:
+                try:
+                    resolved_path.relative_to(temp_dir)
+                    is_in_temp = True
+                    break
+                except ValueError:
+                    continue
+
+            # If not in temp, check if it's in the current working directory
+            if not is_in_temp:
+                try:
+                    # Check if the resolved path is within the current working directory
+                    resolved_path.relative_to(cwd)
+                except ValueError:
+                    # Path is outside CWD and not in temp, reject it
+                    raise ValueError(
+                        "Invalid database path: "
+                        "absolute paths outside working directory not allowed"
+                    ) from None
+
+        # Check file extension
+        if not path_str.endswith(".db"):
+            raise ValueError("Invalid database path: must have .db extension")
+
+        # Check for hidden files
+        for part in resolved_path.parts:
+            if part.startswith(".") and part != ".":
+                raise ValueError("Invalid database path: hidden files not allowed")
+
+        # Check for Windows reserved names
+        name_without_ext = resolved_path.stem.upper()
+        if name_without_ext in self.WINDOWS_RESERVED_NAMES:
+            raise ValueError("Invalid database path: Windows reserved name")
+
+        # Check path length limits
+        if len(resolved_path.name) > self.MAX_FILENAME_LENGTH:
+            raise ValueError("Invalid database path: filename too long")
+
+        if len(str(resolved_path)) > self.MAX_PATH_LENGTH:
+            raise ValueError("Invalid database path: path too long")
+
+        # Check for dangerous special characters
+        dangerous_chars = [
+            "|",
+            ";",
+            "&",
+            ">",
+            "<",
+            "`",
+            "$",
+            "*",
+            "?",
+            "[",
+            "]",
+            "(",
+            ")",
+            "{",
+            "}",
+            "'",
+            '"',
+            "\\x",
+            "\n",
+            "\r",
+            "\t",
+        ]
+
+        for char in dangerous_chars:
+            if char in path_str:
+                raise ValueError(
+                    "Invalid database path: contains dangerous special characters"
+                )
+
+        # Check for Unicode tricks (zero-width spaces, etc.)
+        unicode_tricks = [
+            "\u200b",  # Zero-width space
+            "\ufeff",  # Zero-width no-break space
+            "\u200c",  # Zero-width non-joiner
+            "\u200d",  # Zero-width joiner
+        ]
+
+        for trick in unicode_tricks:
+            if trick in path_str:
+                raise ValueError(
+                    "Invalid database path: contains hidden Unicode characters"
+                )
+
+        # Additional validation using safe pattern
+        if not self.SAFE_PATH_PATTERN.match(path_str):
+            raise ValueError("Invalid database path: contains invalid characters")
+
+        # If we've made it here, the path is safe
+        return resolved_path
 
     def _get_connection(self) -> sqlite3.Connection:
         """Get a thread-local database connection.

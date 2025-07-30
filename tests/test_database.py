@@ -277,6 +277,200 @@ class TestDatabaseConnection:
         script_info = db_connection.get_table_info("scripts")
         assert len(script_info) > 0
 
+    def test_secure_path_validation_directory_traversal(self):
+        """Test that directory traversal attacks are prevented."""
+        # Test various directory traversal patterns
+        traversal_paths = [
+            "../../../etc/passwd.db",
+            "..\\..\\..\\windows\\system32\\config\\sam.db",
+            "data/../../../etc/passwd.db",
+            "data/../../sensitive.db",
+            "./../../etc/passwd.db",
+            "data/./../../etc/passwd.db",
+            "/tmp/../etc/passwd.db",  # noqa: S108
+            "..%2F..%2Fetc%2Fpasswd.db",  # URL encoded
+            "..%5C..%5Cwindows%5Csystem32.db",  # URL encoded backslash
+            "data/..%2F..%2Fetc%2Fpasswd.db",
+        ]
+
+        for path in traversal_paths:
+            with pytest.raises(ValueError, match="Invalid database path"):
+                DatabaseConnection(path)
+
+    def test_secure_path_validation_absolute_paths(self):
+        """Test that absolute paths outside safe directories are rejected."""
+        absolute_paths = [
+            "/etc/passwd.db",
+            "/var/lib/mysql/mysql.db",
+            "C:\\Windows\\System32\\config\\sam.db",
+            "\\\\server\\share\\database.db",  # UNC path
+            "/dev/null.db",
+            "/proc/self/environ.db",
+        ]
+
+        for path in absolute_paths:
+            with pytest.raises(ValueError, match="Invalid database path"):
+                DatabaseConnection(path)
+
+    def test_secure_path_validation_file_extensions(self):
+        """Test that only .db extensions are allowed."""
+        invalid_extensions = [
+            "database.txt",
+            "database.sql",
+            "database.sqlite",
+            "database.sqlite3",
+            "database",  # No extension
+            "database.db.txt",
+            "database.DB",  # Case variation
+            "database.db.",
+            "database.db ",  # Trailing space
+        ]
+
+        for path in invalid_extensions:
+            with pytest.raises(ValueError, match="Invalid database path"):
+                DatabaseConnection(path)
+
+    def test_secure_path_validation_null_bytes(self):
+        """Test that null bytes in paths are rejected."""
+        null_byte_paths = [
+            "database\x00.db",
+            "database.db\x00.txt",
+            "\x00database.db",
+            "data\x00base.db",
+            "database.db\x00",
+        ]
+
+        for path in null_byte_paths:
+            with pytest.raises(ValueError, match="Invalid database path"):
+                DatabaseConnection(path)
+
+    def test_secure_path_validation_special_characters(self):
+        """Test that dangerous special characters are rejected."""
+        special_char_paths = [
+            "database|command.db",
+            "database;rm -rf /.db",
+            "database&command.db",
+            "database>output.db",
+            "database<input.db",
+            "database`command`.db",
+            "database$(command).db",
+            "database${PWD}.db",
+            "database*.db",
+            "database?.db",
+            "database[0-9].db",
+        ]
+
+        for path in special_char_paths:
+            with pytest.raises(ValueError, match="Invalid database path"):
+                DatabaseConnection(path)
+
+    def test_secure_path_validation_length_limits(self):
+        """Test that excessively long paths are rejected."""
+        # Create a path that's too long (>255 chars for filename, >4096 for full path)
+        long_filename = "a" * 300 + ".db"
+        long_path = "data/" + "subdir/" * 600 + "database.db"
+
+        with pytest.raises(ValueError, match="Invalid database path"):
+            DatabaseConnection(long_filename)
+
+        with pytest.raises(ValueError, match="Invalid database path"):
+            DatabaseConnection(long_path)
+
+    def test_secure_path_validation_valid_paths(self):
+        """Test that legitimate paths are accepted."""
+        valid_paths = [
+            "database.db",
+            "data/database.db",
+            "data/scripts/test_script.db",
+            "test_123.db",
+            "my-database.db",
+            "my_database.db",
+            "./database.db",
+            "data/subdir/database.db",
+        ]
+
+        for path in valid_paths:
+            # Should not raise an exception
+            conn = DatabaseConnection(path)
+            assert conn.db_path.name.endswith(".db")
+            conn.close()
+
+    def test_secure_path_validation_unicode_attacks(self):
+        """Test that Unicode-based attacks are prevented."""
+        unicode_paths = [
+            "data\u2044database.db",  # Unicode fraction slash
+            "data\uff0f\uff0e\uff0e\uff0fdatabase.db",  # Fullwidth slash and dots
+            "database\u200b.db",  # Zero-width space
+            "database\ufeff.db",  # Zero-width no-break space
+            "data\u2215..\u2215etc\u2215passwd.db",  # Division slash
+        ]
+
+        for path in unicode_paths:
+            with pytest.raises(ValueError, match="Invalid database path"):
+                DatabaseConnection(path)
+
+    def test_secure_path_validation_windows_reserved_names(self):
+        """Test that Windows reserved names are rejected."""
+
+        # These should be rejected on all platforms for consistency
+        reserved_names = [
+            "CON.db",
+            "PRN.db",
+            "AUX.db",
+            "NUL.db",
+            "COM1.db",
+            "COM2.db",
+            "LPT1.db",
+            "LPT2.db",
+            "con.db",  # Case variation
+            "data/CON.db",
+        ]
+
+        for path in reserved_names:
+            with pytest.raises(ValueError, match="Invalid database path"):
+                DatabaseConnection(path)
+
+    def test_secure_path_validation_hidden_files(self):
+        """Test handling of hidden file paths."""
+        # Hidden files starting with dot should be rejected
+        hidden_paths = [
+            ".database.db",
+            ".hidden/database.db",
+            "data/.database.db",
+        ]
+
+        for path in hidden_paths:
+            with pytest.raises(ValueError, match="Invalid database path"):
+                DatabaseConnection(path)
+
+    def test_secure_path_validation_symlink_attacks(self, temp_db_path):
+        """Test that symlink attacks are prevented."""
+        import os
+        import platform
+
+        # Skip on Windows if symlinks aren't supported
+        if platform.system() == "Windows":
+            try:
+                os.symlink("test", "test_symlink")
+                Path("test_symlink").unlink()
+            except (OSError, NotImplementedError):
+                pytest.skip("Symlinks not supported on this Windows system")
+
+        # Create a symlink pointing outside the safe directory
+        symlink_path = temp_db_path.parent / "evil_symlink.db"
+        target_path = "/etc/passwd"
+
+        try:
+            if symlink_path.exists():
+                symlink_path.unlink()
+            os.symlink(target_path, str(symlink_path))
+
+            with pytest.raises(ValueError, match="Invalid database path"):
+                DatabaseConnection(symlink_path)
+        finally:
+            if symlink_path.exists():
+                symlink_path.unlink()
+
 
 class TestGraphDatabase:
     """Test basic graph database operations."""

@@ -27,8 +27,8 @@ Generation) pattern.
 
 ### For Project Managers
 
-- **[Development Roadmap](#project-plan--tasks)** - 10-phase development plan
-- **[Story Points Summary](#-story-point-summary---by-bill-lumbergh)** - Progress tracking
+- **Development Roadmap** - 10-phase development plan (see below)
+- **Story Points Summary** - Progress tracking (see below)
 - **[Weekly Status Report](WEEKLY_STATUS_REPORT.md)** - Current sprint status
 
 ## 🚀 Quick Start
@@ -54,7 +54,28 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 uv sync
 ```
 
-### Basic Usage
+### Command Line Usage
+
+**Note:** Run these commands from the project root directory after installation.
+
+```bash
+# Parse a screenplay
+uv run scriptrag parse screenplay.fountain
+
+# Search for dialogue
+uv run scriptrag search dialogue "I love you"
+
+# Find scenes with specific characters
+uv run scriptrag search character "PROTAGONIST"
+
+# Import entire TV series
+uv run scriptrag script import "Breaking Bad/**/*.fountain"
+
+# Run mentor analysis
+uv run scriptrag mentor analyze my_script.fountain --mentor save-the-cat
+```
+
+### Python API Usage
 
 ```python
 from scriptrag import ScriptRAG
@@ -76,27 +97,6 @@ similar_scenes = await srag.search_similar_scenes(
     query="emotional confrontation between friends",
     limit=5
 )
-```
-
-### Command Line Examples
-
-**Note:** Run these commands from the project root directory after installation.
-
-```bash
-# Parse a screenplay
-uv run scriptrag parse screenplay.fountain
-
-# Search for dialogue
-uv run scriptrag search dialogue "I love you"
-
-# Find scenes with specific characters
-uv run scriptrag search character "PROTAGONIST"
-
-# Import entire TV series
-uv run scriptrag script import "Breaking Bad/**/*.fountain"
-
-# Run mentor analysis
-uv run scriptrag mentor analyze my_script.fountain --mentor save-the-cat
 ```
 
 ## Features
@@ -168,7 +168,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-## 📊 Story Point Summary - By Bill Lumbergh
+<details>
+<summary>📊 Story Point Summary - By Bill Lumbergh</summary>
 
 **Yeah, so I've been tracking our velocity and story points, mmm'kay?**
 
@@ -189,7 +190,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 *If everyone could just keep up this velocity, that'd be great.*
 
-## Project Plan & Tasks
+</details>
+
+<details>
+<summary>📋 Project Plan & Tasks</summary>
 
 ### Phase 1: Project Setup and Foundation
 
@@ -423,8 +427,13 @@ This project is licensed under the MIT License - see the LICENSE file for detail
   - [ ] Theme development
   - [ ] Bible-driven assistance
 
-## Setup Documentation
+</details>
+
+<details>
+<summary>🔧 Setup Documentation</summary>
 
 - **[Terragon Setup Guide](TERRAGON_SETUP.md)** - Complete Terragon environment configuration
 - **[Setup Summary](SETUP_SUMMARY.md)** - Overview of setup process and scripts
 - **[Setup Complete Guide](SETUP_COMPLETE.md)** - Phase 1.2 completion details
+
+</details>

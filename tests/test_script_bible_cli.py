@@ -573,8 +573,8 @@ class TestScriptBibleCLI:
         assert result.exit_code == 0
         assert "Report saved to:" in result.stdout
         # Check that the filename appears in the output
-        # (might be wrapped in console formatting)
-        assert "report.json" in result.stdout
+        # (might be wrapped in console formatting or contain newlines)
+        assert "report.json" in result.stdout.replace("\n", "")
         assert output_file.exists()
 
     def test_bible_command_help(self, cli_runner):

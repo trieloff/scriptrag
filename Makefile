@@ -110,8 +110,8 @@ test-watch: ## Run tests in watch mode
 	uv run pytest-watch tests/ -- -v
 
 .PHONY: test-parallel
-test-parallel: ## Run tests in parallel
-	uv run pytest tests/ -v -n auto
+test-parallel: ## Run tests in parallel with coverage
+	uv run pytest tests/ -v -n auto --cov=scriptrag --cov-report=xml --cov-report=term-missing
 
 .PHONY: test-profile
 test-profile: ## Run tests with profiling
@@ -123,6 +123,13 @@ coverage: ## Generate coverage report
 	uv run coverage report
 	uv run coverage html
 	@echo "✅ Coverage report generated in htmlcov/"
+
+.PHONY: coverage-combine
+coverage-combine: ## Combine coverage data from parallel test runs
+	uv run coverage combine
+	uv run coverage report
+	uv run coverage html
+	@echo "✅ Combined coverage report generated in htmlcov/"
 
 # Documentation
 .PHONY: docs

@@ -709,3 +709,12 @@ class TestMigrationFunctions:
             # Parent should be created
             assert db_path.parent.exists()
             assert db_path.exists()
+
+            # CRITICAL: Force database cleanup on Windows
+            # Windows holds file locks aggressively
+            import gc
+
+            gc.collect()
+            import time
+
+            time.sleep(0.1)

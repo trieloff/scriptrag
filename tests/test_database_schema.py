@@ -1,8 +1,6 @@
 """Comprehensive tests for database schema module."""
 
 import sqlite3
-import tempfile
-from pathlib import Path
 
 import pytest
 
@@ -17,17 +15,9 @@ from scriptrag.database.schema import (
 class TestDatabaseSchema:
     """Test database schema management."""
 
-    @pytest.fixture
-    def temp_db_path(self):
-        """Create temporary database path."""
-        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
-            db_path = Path(f.name)
-
-        yield db_path
-
-        # Cleanup
-        if db_path.exists():
-            db_path.unlink()
+    # REMOVED: Local fixture was causing Windows file lock issues
+    # Now using the global temp_db_path fixture from conftest.py
+    # which has proper Windows cleanup logic
 
     def test_create_database(self, temp_db_path):
         """Test database creation with schema."""

@@ -288,12 +288,24 @@ class TestDatabaseConnection:
 
             # Create connection should create directory
             conn = DatabaseConnection(db_path)
-            with conn.get_connection() as db:
-                db.execute("CREATE TABLE test (id INTEGER)")
+            try:
+                with conn.get_connection() as db:
+                    db.execute("CREATE TABLE test (id INTEGER)")
 
-            # Verify directory was created
-            assert db_path.parent.exists()
-            assert db_path.exists()
+                # Verify directory was created
+                assert db_path.parent.exists()
+                assert db_path.exists()
+            finally:
+                # CRITICAL: Close connection before Windows cleanup
+                conn.close()
+                # Force garbage collection on Windows
+                import gc
+
+                gc.collect()
+                # Give Windows time to release the file handle
+                import time
+
+                time.sleep(0.1)
 
     def test_concurrent_access(self, temp_db_path):
         """Test concurrent access from multiple threads."""

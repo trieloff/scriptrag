@@ -30,14 +30,18 @@ echo ""
 
 # Check if we're in a PR
 echo "🔍 Checking PR status..."
-gh pr status --json currentBranch,title,number,url,isDraft,state || echo "No PR found for current branch"
-
-# If PR exists, get detailed info
-PR_NUMBER=$(gh pr status --json currentBranch,number --jq '.currentBranch.number // empty' 2>/dev/null || echo "")
+PR_INFO=$(gh pr list --head "$BRANCH" --json number,title,state,url --limit 1)
+if [ -n "$PR_INFO" ] && [ "$PR_INFO" != "[]" ]; then
+    echo "$PR_INFO" | jq -r '.[0] | "PR #\(.number): \(.title)\nState: \(.state)\nURL: \(.url)"'
+    PR_NUMBER=$(echo "$PR_INFO" | jq -r '.[0].number // empty')
+else
+    echo "No PR found for current branch"
+    PR_NUMBER=""
+fi
 if [ -n "$PR_NUMBER" ]; then
     echo ""
     echo "📋 PR #$PR_NUMBER details:"
-    gh pr view "$PR_NUMBER" --json title,state,mergeable,checks --jq '. | "Title: \(.title)\nState: \(.state)\nMergeable: \(.mergeable)\nChecks: \(.checks | length) total"'
+    gh pr view "$PR_NUMBER" --json title,state,mergeable,statusCheckRollup --jq '. | "Title: \(.title)\nState: \(.state)\nMergeable: \(.mergeable)\nChecks: \(.statusCheckRollup | length) total"'
 
     echo ""
     echo "🔍 PR checks status:"

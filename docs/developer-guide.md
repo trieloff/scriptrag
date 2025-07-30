@@ -855,7 +855,7 @@ uvx install scriptrag
 uvx scriptrag analyze my-script.fountain
 
 # For development deployment
-uv pip install -e .
+uv sync --all-extras
 
 # Environment variables work the same way
 export SCRIPTRAG_API_URL=http://localhost:8000/api/v1

@@ -5,7 +5,7 @@ character development tracking, continuity validation, and storyline management.
 """
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -681,7 +681,7 @@ class ScriptBibleOperations:
                     assigned_to = COALESCE(?, assigned_to)
                 WHERE id = ?
                 """,
-                (resolution_notes, datetime.utcnow().isoformat(), resolved_by, note_id),
+                (resolution_notes, datetime.now(UTC).isoformat(), resolved_by, note_id),
             )
             updated = cursor.rowcount > 0
 

@@ -14,7 +14,7 @@ The mentor analyzes:
 """
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, cast
 from uuid import UUID
 
@@ -545,7 +545,7 @@ class HerosJourneyMentor(BaseMentor):
         Returns:
             Complete Hero's Journey analysis result
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
         analyses: list[MentorAnalysis] = []
 
         try:
@@ -597,7 +597,7 @@ class HerosJourneyMentor(BaseMentor):
             summary = self._generate_summary(analyses, len(scenes))
 
             execution_time = int(
-                (datetime.utcnow() - start_time).total_seconds() * 1000
+                (datetime.now(UTC) - start_time).total_seconds() * 1000
             )
 
             if progress_callback:
@@ -630,7 +630,7 @@ class HerosJourneyMentor(BaseMentor):
             )
 
             execution_time = int(
-                (datetime.utcnow() - start_time).total_seconds() * 1000
+                (datetime.now(UTC) - start_time).total_seconds() * 1000
             )
 
             return MentorResult(

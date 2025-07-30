@@ -229,10 +229,20 @@ class DatabaseOperations:
             raise RuntimeError("Database not initialized")
 
         with self._connection.get_connection() as conn:
-            # Get scripts with scene count using raw SQL
+            # Get scripts with scene count and embeddings check using raw SQL
             result = conn.execute(
                 """
-                SELECT s.*, COUNT(sc.id) as scene_count
+                SELECT
+                    s.*,
+                    COUNT(DISTINCT sc.id) as scene_count,
+                    EXISTS(
+                        SELECT 1
+                        FROM embeddings e
+                        INNER JOIN scenes sc2 ON e.entity_id = sc2.id
+                        WHERE sc2.script_id = s.id
+                        AND e.entity_type = 'scene'
+                        LIMIT 1
+                    ) as has_embeddings
                 FROM scripts s
                 LEFT JOIN scenes sc ON s.id = sc.script_id
                 GROUP BY s.id
@@ -244,7 +254,7 @@ class DatabaseOperations:
             if result:
                 logger.warning(
                     "list_scripts returning placeholder values",
-                    placeholder_fields=["character_count", "has_embeddings"],
+                    placeholder_fields=["character_count"],
                     script_count=len(result),
                 )
 
@@ -258,8 +268,8 @@ class DatabaseOperations:
                     "scene_count": row["scene_count"],
                     # Not yet implemented - tracking in issue #TODO-010
                     "character_count": 0,  # Character counting not yet implemented
-                    # Not yet implemented - tracking in issue #TODO-011
-                    "has_embeddings": False,  # Embeddings check not yet implemented
+                    # Embeddings check now implemented
+                    "has_embeddings": bool(row["has_embeddings"]),
                 }
                 for row in result
             ]
@@ -370,7 +380,16 @@ class DatabaseOperations:
 
             # Get results
             results_sql = f"""
-                SELECT sc.*, s.title
+                SELECT
+                    sc.*,
+                    s.title,
+                    EXISTS(
+                        SELECT 1
+                        FROM embeddings e
+                        WHERE e.entity_id = sc.id
+                        AND e.entity_type = 'scene'
+                        LIMIT 1
+                    ) as has_embedding
                 FROM scenes sc
                 JOIN scripts s ON sc.script_id = s.id
                 {where_clause}
@@ -394,7 +413,7 @@ class DatabaseOperations:
                             "word_count": len((row["description"] or "").split()),
                             "page_start": None,
                             "page_end": None,
-                            "has_embedding": False,  # TODO: check embeddings
+                            "has_embedding": bool(row["has_embedding"]),
                         },
                         "score": None,
                         "highlights": [],
@@ -487,6 +506,49 @@ class DatabaseOperations:
 
         return characters
 
+    async def get_embeddings_coverage(self, script_id: str) -> dict[str, Any]:
+        """Get embeddings coverage statistics for a script.
+
+        Args:
+            script_id: Script ID
+
+        Returns:
+            Dictionary with coverage statistics
+        """
+        if not self._connection:
+            raise RuntimeError("Database not initialized")
+
+        with self._connection.get_connection() as conn:
+            # Get total scenes and embedded scenes count
+            result = conn.execute(
+                """
+                SELECT
+                    COUNT(DISTINCT sc.id) as total_scenes,
+                    COUNT(DISTINCT e.entity_id) as embedded_scenes
+                FROM scenes sc
+                LEFT JOIN embeddings e ON e.entity_id = sc.id
+                    AND e.entity_type = 'scene'
+                WHERE sc.script_id = ?
+                """,
+                (script_id,),
+            ).fetchone()
+
+            total_scenes = result["total_scenes"] or 0
+            embedded_scenes = result["embedded_scenes"] or 0
+            coverage_percentage = (
+                (embedded_scenes / total_scenes * 100) if total_scenes > 0 else 0
+            )
+
+            return {
+                "script_id": script_id,
+                "total_scenes": total_scenes,
+                "embedded_scenes": embedded_scenes,
+                "coverage_percentage": round(coverage_percentage, 2),
+                "has_full_coverage": (
+                    embedded_scenes == total_scenes and total_scenes > 0
+                ),
+            }
+
     async def get_scene(self, scene_id: str) -> dict[str, Any] | None:
         """Get a scene by ID."""
         if not self._connection:
@@ -494,7 +556,20 @@ class DatabaseOperations:
 
         with self._connection.get_connection() as conn:
             result = conn.execute(
-                "SELECT * FROM scenes WHERE id = ?", (scene_id,)
+                """
+                SELECT
+                    sc.*,
+                    EXISTS(
+                        SELECT 1
+                        FROM embeddings e
+                        WHERE e.entity_id = sc.id
+                        AND e.entity_type = 'scene'
+                        LIMIT 1
+                    ) as has_embedding
+                FROM scenes sc
+                WHERE sc.id = ?
+                """,
+                (scene_id,),
             ).fetchone()
 
             if not result:
@@ -512,7 +587,7 @@ class DatabaseOperations:
                 "word_count": len((result["description"] or "").split()),
                 "page_start": None,
                 "page_end": None,
-                "has_embedding": False,  # TODO: check embeddings
+                "has_embedding": bool(result["has_embedding"]),
             }
 
     async def create_scene(

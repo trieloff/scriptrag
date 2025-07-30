@@ -57,35 +57,22 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
-
-      - name: Create virtual environment
-        run: uv venv
+          enable-cache: true
 
       - name: Install dependencies
-        run: |
-          source .venv/bin/activate
-          uv pip install -e ".[dev]"
+        run: uv sync --extra dev
 
       - name: Run Ruff linter
-        run: |
-          source .venv/bin/activate
-          ruff check src tests --output-format=github
+        run: uv run ruff check src tests --output-format=github
 
       - name: Run Ruff formatter
-        run: |
-          source .venv/bin/activate
-          ruff format --check src tests
+        run: uv run ruff format --check src tests
 
       - name: Check docstring coverage
-        run: |
-          source .venv/bin/activate
-          interrogate -c pyproject.toml
+        run: uv run interrogate -c pyproject.toml
 
       - name: Check for dead code
-        run: |
-          source .venv/bin/activate
-          vulture src --min-confidence 80
+        run: uv run vulture src --min-confidence 80
 
   type-check:
     name: Type Checking
@@ -104,20 +91,13 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
-
-      - name: Create virtual environment
-        run: uv venv
+          enable-cache: true
 
       - name: Install dependencies
-        run: |
-          source .venv/bin/activate
-          uv pip install -e ".[dev]"
+        run: uv sync --extra dev
 
       - name: Run MyPy
-        run: |
-          source .venv/bin/activate
-          mypy src --show-error-codes --pretty
+        run: uv run mypy src --show-error-codes --pretty
 
   security:
     name: Security Checks
@@ -136,20 +116,13 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
-
-      - name: Create virtual environment
-        run: uv venv
+          enable-cache: true
 
       - name: Install dependencies
-        run: |
-          source .venv/bin/activate
-          uv pip install -e ".[dev]"
+        run: uv sync --extra dev
 
       - name: Run Bandit security linter
-        run: |
-          source .venv/bin/activate
-          bandit -r src -c pyproject.toml -f json -o bandit-report.json
+        run: uv run bandit -r src -c pyproject.toml -f json -o bandit-report.json
 
       - name: Upload Bandit report
         uses: actions/upload-artifact@v4
@@ -159,9 +132,7 @@ jobs:
           path: bandit-report.json
 
       - name: Run Safety check
-        run: |
-          source .venv/bin/activate
-          safety check --json > safety-report.json || true
+        run: uv run safety check --json > safety-report.json || true
 
       - name: Upload Safety report
         uses: actions/upload-artifact@v4
@@ -171,9 +142,7 @@ jobs:
           path: safety-report.json
 
       - name: Run pip-audit
-        run: |
-          source .venv/bin/activate
-          pip-audit || true
+        run: uv run pip-audit || true
 
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -204,30 +173,24 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
 
-      - name: Create virtual environment
-        run: uv venv
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: uv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          restore-keys: |
+            uv-${{ runner.os }}-py${{ matrix.python-version }}-
 
       - name: Install dependencies
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            source .venv/Scripts/activate
-          else
-            source .venv/bin/activate
-          fi
-          uv pip install -e ".[test]"
+        run: uv sync --extra test
         shell: bash
 
       - name: Run tests with pytest
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            source .venv/Scripts/activate
-          else
-            source .venv/bin/activate
-          fi
-          pytest tests -v --cov=scriptrag --cov-report=xml --cov-report=term-missing --junit-xml=junit.xml
-        shell: bash
+        run: uv run pytest tests -n auto --dist loadscope -q --no-header --tb=short --cov=scriptrag --cov-report=xml --junit-xml=junit.xml
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -261,7 +224,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
 
       - name: Create virtual environment
         run: uv venv
@@ -272,9 +235,7 @@ jobs:
           uv pip install -e ".[docs]"
 
       - name: Build documentation
-        run: |
-          source .venv/bin/activate
-          mkdocs build --strict
+        run: uv run mkdocs build --strict
 
       - name: Upload documentation
         uses: actions/upload-artifact@v4
@@ -299,7 +260,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
 
       - name: Install build dependencies
         run: |
@@ -358,7 +319,7 @@ jobs:
         uses: astral-sh/setup-uv@v3
         with:
           version: ${{ env.UV_VERSION }}
-          enable-cache: false
+          enable-cache: true
 
       - name: Create virtual environment
         run: uv venv
@@ -369,9 +330,7 @@ jobs:
           uv pip install -e ".[test]"
 
       - name: Run integration tests
-        run: |
-          source .venv/bin/activate
-          pytest tests -v -m integration
+        run: uv run pytest tests -n auto -q --no-header --tb=short -m integration
         env:
           SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
           SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}

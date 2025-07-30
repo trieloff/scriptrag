@@ -11,8 +11,7 @@ help: ## Show this help message
 # Environment setup
 .PHONY: install
 install: ## Install the project in development mode with all dependencies
-	uv venv
-	uv pip install -e ".[dev,test,docs]"
+	uv sync --all-extras
 	@echo "✅ Installation complete. Activate venv with: source .venv/bin/activate"
 
 .PHONY: setup-dev
@@ -21,12 +20,12 @@ setup-dev: ## Complete developer environment setup (venv, deps, hooks, tools)
 	@echo "1️⃣ Creating virtual environment..."
 	uv venv
 	@echo "2️⃣ Installing all dependencies..."
-	@bash -c 'source .venv/bin/activate && uv pip install -e ".[dev,test,docs]"'
+	uv sync --all-extras
 	@echo "3️⃣ Installing pre-commit hooks..."
-	@bash -c 'source .venv/bin/activate && pre-commit install'
-	@bash -c 'source .venv/bin/activate && pre-commit install --hook-type commit-msg'
+	uv run pre-commit install
+	uv run pre-commit install --hook-type commit-msg
 	@echo "4️⃣ Running initial pre-commit checks..."
-	@bash -c 'source .venv/bin/activate && pre-commit run --all-files || echo "⚠️  Some pre-commit checks failed. Run '\''make format'\'' to fix."'
+	uv run pre-commit run --all-files || echo "⚠️  Some pre-commit checks failed. Run 'make format' to fix."
 	@echo "5️⃣ Checking for Node.js dependencies..."
 	@if command -v npm >/dev/null 2>&1; then \
 		echo "Installing markdownlint-cli..."; \
@@ -61,135 +60,135 @@ install-pre-commit: ## Install pre-commit hooks
 
 .PHONY: update
 update: ## Update all dependencies to latest versions
-	uv pip install --upgrade -e ".[dev,test,docs]"
-	pre-commit autoupdate
+	uv sync --all-extras --upgrade
+	uv run pre-commit autoupdate
 	@echo "✅ Dependencies updated"
 
 # Code quality
 .PHONY: format
 format: ## Format code with ruff
-	@bash -c 'source .venv/bin/activate && ruff check --fix src/ tests/'
-	@bash -c 'source .venv/bin/activate && ruff format src/ tests/'
+	uv run ruff check --fix src/ tests/
+	uv run ruff format src/ tests/
 	@echo "✅ Code formatted"
 
 .PHONY: lint
 lint: ## Run all linters (ruff, mypy, bandit, etc.)
 	@echo "🔍 Running Ruff..."
-	@bash -c 'source .venv/bin/activate && ruff check src/ tests/'
+	uv run ruff check src/ tests/
 	@echo "🔍 Running MyPy..."
-	@bash -c 'source .venv/bin/activate && mypy src/'
+	uv run mypy src/
 	@echo "🔍 Running Bandit security checks..."
-	@bash -c 'source .venv/bin/activate && bandit -r src/ -c pyproject.toml'
+	uv run bandit -r src/ -c pyproject.toml
 	@echo "🔍 Checking docstring coverage..."
-	@bash -c 'source .venv/bin/activate && interrogate -c pyproject.toml'
+	uv run interrogate -c pyproject.toml
 	@echo "🔍 Checking for dead code..."
-	@bash -c 'source .venv/bin/activate && vulture src/ --min-confidence 80'
+	uv run vulture src/ --min-confidence 80
 	@echo "✅ All linting checks passed"
 
 .PHONY: type-check
 type-check: ## Run type checking with mypy
-	@bash -c 'source .venv/bin/activate && mypy src/ --show-error-codes --pretty'
+	uv run mypy src/ --show-error-codes --pretty
 
 .PHONY: security
 security: ## Run security checks (bandit, safety, pip-audit)
-	@bash -c 'source .venv/bin/activate && bandit -r src/ -c pyproject.toml -f json -o .bandit-report.json'
-	@bash -c 'source .venv/bin/activate && safety check --json > .safety-report.json || true'
-	@bash -c 'source .venv/bin/activate && pip-audit || true'
+	uv run bandit -r src/ -c pyproject.toml -f json -o .bandit-report.json
+	uv run safety check --json > .safety-report.json || true
+	uv run pip-audit || true
 	@echo "✅ Security scan complete (see .bandit-report.json and .safety-report.json)"
 
 # Testing
 .PHONY: test
 test: ## Run all tests with coverage
-	@bash -c 'source .venv/bin/activate && pytest tests/ -v --cov=scriptrag --cov-report=term-missing --cov-report=html'
+	uv run pytest tests/ -v --cov=scriptrag --cov-report=term-missing --cov-report=html
 
 .PHONY: test-fast
 test-fast: ## Run tests without coverage (faster)
-	@bash -c 'source .venv/bin/activate && pytest tests/ -v'
+	uv run pytest tests/ -v
 
 .PHONY: test-watch
 test-watch: ## Run tests in watch mode
-	pytest-watch tests/ -- -v
+	uv run pytest-watch tests/ -- -v
 
 .PHONY: test-parallel
 test-parallel: ## Run tests in parallel
-	pytest tests/ -v -n auto
+	uv run pytest tests/ -v -n auto
 
 .PHONY: test-profile
 test-profile: ## Run tests with profiling
-	pytest tests/ -v --profile --profile-svg
+	uv run pytest tests/ -v --profile --profile-svg
 
 .PHONY: coverage
 coverage: ## Generate coverage report
-	coverage run -m pytest tests/
-	coverage report
-	coverage html
+	uv run coverage run -m pytest tests/
+	uv run coverage report
+	uv run coverage html
 	@echo "✅ Coverage report generated in htmlcov/"
 
 # Documentation
 .PHONY: docs
 docs: ## Build documentation
-	mkdocs build
+	uv run mkdocs build
 	@echo "✅ Documentation built in site/"
 
 .PHONY: docs-serve
 docs-serve: ## Serve documentation locally
-	mkdocs serve --dev-addr localhost:8000
+	uv run mkdocs serve --dev-addr localhost:8000
 
 .PHONY: docs-deploy
 docs-deploy: ## Deploy documentation to GitHub Pages
-	mkdocs gh-deploy --force
+	uv run mkdocs gh-deploy --force
 
 # Development tasks
 .PHONY: run
 run: ## Run the CLI application
-	python -m scriptrag
+	uv run python -m scriptrag
 
 .PHONY: run-mcp
 run-mcp: ## Run the MCP server
-	python -m scriptrag.mcp_server
+	uv run python -m scriptrag.mcp_server
 
 .PHONY: run-api
 run-api: ## Run the REST API server
-	python -m scriptrag server api
+	uv run python -m scriptrag server api
 
 .PHONY: run-api-dev
 run-api-dev: ## Run the REST API server in development mode with auto-reload
-	python -m scriptrag server api --reload
+	uv run python -m scriptrag server api --reload
 
 .PHONY: shell
 shell: ## Start IPython shell with project context
-	ipython -i -c "from scriptrag import *; print('ScriptRAG modules loaded')"
+	uv run ipython -i -c "from scriptrag import *; print('ScriptRAG modules loaded')"
 
 .PHONY: notebook
 notebook: ## Start Jupyter notebook server
-	jupyter notebook --notebook-dir=notebooks/
+	uv run jupyter notebook --notebook-dir=notebooks/
 
 # Database tasks
 .PHONY: db-init
 db-init: ## Initialize the database
-	python -m scriptrag.database.init
+	uv run python -m scriptrag.database.init
 
 .PHONY: db-migrate
 db-migrate: ## Run database migrations
-	python -m scriptrag.database.migrate
+	uv run python -m scriptrag.database.migrate
 
 .PHONY: db-seed
 db-seed: ## Seed database with sample data
-	python -m scriptrag.database.seed
+	uv run python -m scriptrag.database.seed
 
 # Build and distribution
 .PHONY: build
 build: clean ## Build distribution packages
-	python -m build
+	uv run python -m build
 	@echo "✅ Distribution packages built in dist/"
 
 .PHONY: publish-test
 publish-test: build ## Publish to TestPyPI
-	python -m twine upload --repository testpypi dist/*
+	uv run python -m twine upload --repository testpypi dist/*
 
 .PHONY: publish
 publish: build ## Publish to PyPI
-	python -m twine upload dist/*
+	uv run python -m twine upload dist/*
 
 # Cleaning
 .PHONY: clean
@@ -224,13 +223,13 @@ check: lint type-check security test ## Run all quality checks
 
 .PHONY: check-fast
 check-fast: ## Run fast quality checks (no tests)
-	@bash -c 'source .venv/bin/activate && ruff check src/ tests/'
-	@bash -c 'source .venv/bin/activate && mypy src/ --no-error-summary'
-	@bash -c 'source .venv/bin/activate && ruff format --check src/ tests/'
+	uv run ruff check src/ tests/
+	uv run mypy src/ --no-error-summary
+	uv run ruff format --check src/ tests/
 
 .PHONY: pre-commit
 pre-commit: ## Run pre-commit on all files
-	@bash -c 'source .venv/bin/activate && pre-commit run --all-files'
+	uv run pre-commit run --all-files
 
 # Project specific
 .PHONY: parse-fountain
@@ -239,7 +238,7 @@ parse-fountain: ## Parse a fountain file (usage: make parse-fountain FILE=script
 		echo "Error: Please specify a fountain file. Usage: make parse-fountain FILE=script.fountain"; \
 		exit 1; \
 	fi
-	python -m scriptrag parse "$(FILE)"
+	uv run python -m scriptrag parse "$(FILE)"
 
 .PHONY: start-llm
 start-llm: ## Instructions to start LMStudio
@@ -256,11 +255,11 @@ git-clean: ## Clean git repository (remove untracked files)
 # Dependencies management
 .PHONY: deps-upgrade
 deps-upgrade: ## Upgrade all dependencies to latest versions
-	uv pip install --upgrade $(shell uv pip freeze | cut -d= -f1)
+	uv sync --all-extras --upgrade
 
 .PHONY: deps-tree
 deps-tree: ## Show dependency tree
-	pipdeptree
+	uv run pipdeptree
 
 .PHONY: deps-check
 deps-check: ## Check for dependency conflicts

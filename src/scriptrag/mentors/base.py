@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class MentorType(str, Enum):
@@ -77,12 +77,17 @@ class MentorAnalysis(BaseModel):
         default_factory=dict, description="Additional mentor-specific data"
     )
 
-    model_config = ConfigDict(
-        json_encoders={
-            UUID: str,
-            datetime: lambda v: v.isoformat(),
-        }
-    )
+    model_config = ConfigDict()
+
+    @field_serializer("id")
+    def serialize_uuid(self, value: UUID) -> str:
+        """Serialize UUID to string."""
+        return str(value)
+
+    @field_serializer("scene_id", "character_id", "element_id")
+    def serialize_optional_uuid(self, value: UUID | None) -> str | None:
+        """Serialize optional UUID to string."""
+        return str(value) if value else None
 
 
 class MentorResult(BaseModel):
@@ -115,12 +120,17 @@ class MentorResult(BaseModel):
         default_factory=dict, description="Configuration used for analysis"
     )
 
-    model_config = ConfigDict(
-        json_encoders={
-            UUID: str,
-            datetime: lambda v: v.isoformat(),
-        }
-    )
+    model_config = ConfigDict()
+
+    @field_serializer("id", "script_id")
+    def serialize_uuid(self, value: UUID) -> str:
+        """Serialize UUID to string."""
+        return str(value)
+
+    @field_serializer("analysis_date")
+    def serialize_datetime(self, value: datetime) -> str:
+        """Serialize datetime to ISO format."""
+        return value.isoformat()
 
     @property
     def error_count(self) -> int:

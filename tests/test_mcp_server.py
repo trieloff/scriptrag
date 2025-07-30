@@ -25,8 +25,19 @@ def mock_settings():
 
 
 @pytest.fixture
-def mcp_server(mock_settings):
+def mcp_server(mock_settings, tmp_path):
     """Create MCP server instance for testing."""
+    # Create a temporary database for testing
+    test_db_path = tmp_path / "test.db"
+    mock_settings.database = MagicMock()
+    mock_settings.database.path = test_db_path
+    mock_settings.get_database_path = MagicMock(return_value=test_db_path)
+
+    # Initialize database with schema
+    from scriptrag.database.migrations import initialize_database
+
+    initialize_database(test_db_path)
+
     with patch("scriptrag.mcp_server.ScriptRAG"):
         return ScriptRAGMCPServer(mock_settings)
 

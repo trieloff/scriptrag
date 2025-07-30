@@ -33,8 +33,8 @@ class ErrorResponse(BaseResponse):
 class ScriptUploadRequest(BaseModel):
     """Script upload request."""
 
-    title: str = Field(description="Script title")
-    content: str = Field(description="Fountain format content")
+    title: str = Field(description="Script title", min_length=1)
+    content: str = Field(description="Fountain format content", min_length=1)
     author: str | None = Field(default=None, description="Script author")
 
 

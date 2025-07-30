@@ -229,7 +229,7 @@ def test_script_upload_json_invalid_empty_content(client):
     }
 
     response = client.post("/api/v1/scripts/upload", json=script_data)
-    assert response.status_code == 400  # Parse error
+    assert response.status_code == 422  # Validation error
 
 
 def test_script_upload_json_malformed_fountain(client):
@@ -273,7 +273,7 @@ def test_script_upload_file_invalid_extension(client):
     files = {"file": ("test_script.txt", b"content", "text/plain")}
 
     response = client.post("/api/v1/scripts/upload-file", files=files)
-    assert response.status_code == 400
+    assert response.status_code == 422
     assert "fountain" in response.json()["detail"].lower()
 
 
@@ -282,7 +282,7 @@ def test_script_upload_file_no_filename(client):
     files = {"file": (None, b"content", "text/plain")}
 
     response = client.post("/api/v1/scripts/upload-file", files=files)
-    assert response.status_code == 400
+    assert response.status_code == 422
 
 
 def test_get_script_details_valid(client):

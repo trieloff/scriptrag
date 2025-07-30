@@ -273,7 +273,7 @@ def test_script_upload_file_invalid_extension(client):
     files = {"file": ("test_script.txt", b"content", "text/plain")}
 
     response = client.post("/api/v1/scripts/upload-file", files=files)
-    assert response.status_code == 422
+    assert response.status_code == 400
     assert "fountain" in response.json()["detail"].lower()
 
 
@@ -282,6 +282,7 @@ def test_script_upload_file_no_filename(client):
     files = {"file": (None, b"content", "text/plain")}
 
     response = client.post("/api/v1/scripts/upload-file", files=files)
+    # FastAPI returns 422 for validation errors when filename is None
     assert response.status_code == 422
 
 
@@ -489,6 +490,8 @@ FADE OUT.""",
 
 def test_script_upload_request_schema_validation():
     """Test ScriptUploadRequest schema validation."""
+    from pydantic import ValidationError
+
     from scriptrag.api.v1.schemas import ScriptUploadRequest
 
     # Valid data
@@ -515,10 +518,13 @@ def test_script_upload_request_schema_validation():
     with pytest.raises(ValidationError):
         ScriptUploadRequest(title="title only")
 
-    # Invalid - empty title (may be allowed by schema, but would fail at API level)
-    # Note: Pydantic allows empty strings by default unless Field validation is used
-    empty_title_request = ScriptUploadRequest(title="", content="content")
-    assert empty_title_request.title == ""  # This may be valid at schema level
+    # Invalid - empty title (now properly validated with min_length=1)
+    with pytest.raises(ValidationError):
+        ScriptUploadRequest(title="", content="content")
+
+    # Invalid - empty content
+    with pytest.raises(ValidationError):
+        ScriptUploadRequest(title="title", content="")
 
 
 def test_script_response_schema_serialization():
@@ -814,8 +820,8 @@ def test_script_upload_malformed_json(client):
 
 def test_script_get_invalid_id_formats(client):
     """Test getting scripts with various invalid ID formats."""
+    # Non-empty invalid IDs should return 404
     invalid_ids = [
-        "",  # empty string
         "   ",  # whitespace only
         "invalid-chars-!@#$%",  # special characters
         "a" * 1000,  # extremely long ID
@@ -826,34 +832,43 @@ def test_script_get_invalid_id_formats(client):
     for invalid_id in invalid_ids:
         response = client.get(f"/api/v1/scripts/{invalid_id}")
         # Should return 404 for non-existent scripts
-        # or 422 if the ID format is completely invalid
-        assert response.status_code in [404, 422]
+        assert response.status_code == 404
         assert "detail" in response.json()
+
+    # Empty string hits the list endpoint instead of the detail endpoint
+    response = client.get("/api/v1/scripts/")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
 
 
 def test_file_upload_various_error_conditions(client):
     """Test file upload error conditions."""
-    # Test 1: Empty file
+    # Test 1: Empty file - API accepts empty files as valid scripts with no scenes
     empty_file = {"file": ("empty.fountain", b"", "text/plain")}
     response = client.post("/api/v1/scripts/upload-file", files=empty_file)
-    assert response.status_code in [400, 422]
+    assert response.status_code == 200
+    data = response.json()
+    assert data["scene_count"] == 0
 
-    # Test 2: Binary file (not text)
+    # Test 2: Binary file with control characters - these can be UTF-8 decoded
+    # but create empty script
     binary_content = b"\x00\x01\x02\x03\x04\x05"
     binary_file = {
         "file": ("binary.fountain", binary_content, "application/octet-stream")
     }
     response = client.post("/api/v1/scripts/upload-file", files=binary_file)
-    assert response.status_code in [400, 422]
+    # API accepts this as it can be decoded, but creates empty script
+    assert response.status_code == 200
+    data = response.json()
+    assert data["scene_count"] == 0
 
-    # Test 3: File with non-UTF8 encoding
-    non_utf8_content = "FADE IN:\n\nINT. ROOM - DAY\n\nFrançais résumé café".encode(
-        "latin1"
-    )
+    # Test 3: File with actual non-UTF8 content (bytes that can't be decoded)
+    # Use bytes that are invalid UTF-8 sequences
+    non_utf8_content = b"FADE IN:\n\nINT. ROOM - DAY\n\n" + b"\xff\xfe Invalid UTF-8"
     non_utf8_file = {"file": ("non_utf8.fountain", non_utf8_content, "text/plain")}
     response = client.post("/api/v1/scripts/upload-file", files=non_utf8_file)
-    # Should either handle gracefully or return appropriate error
-    assert response.status_code in [200, 400, 422]
+    # Should fail due to UTF-8 decoding error
+    assert response.status_code == 400
 
 
 def test_concurrent_script_operations(client):

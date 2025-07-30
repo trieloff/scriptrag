@@ -140,6 +140,8 @@ addopts = [
     "--strict-markers",
     "--cov=scriptrag",
     "--cov-report=xml",  # Only XML for codecov.io
+    "--timeout=300",  # 5 minute timeout per test
+    "--timeout-method=thread",  # Use thread method for Windows compatibility
 ]
 testpaths = ["tests"]
 pythonpath = ["src"]
@@ -148,6 +150,10 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
 ]
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)8s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 
 [tool.coverage.run]
 source = ["scriptrag"]

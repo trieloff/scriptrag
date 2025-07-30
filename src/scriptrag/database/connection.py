@@ -27,6 +27,10 @@ class DatabaseConnection:
             db_path: Path to SQLite database file
             **kwargs: Additional connection parameters
         """
+        # Validate db_path to prevent mock contamination
+        db_path_str = str(db_path)
+        if db_path_str.startswith("<") or "Mock" in db_path_str:
+            raise ValueError(f"Invalid database path: {db_path}")
         self.db_path = Path(db_path)
         self.connection_params = {
             "timeout": kwargs.get("timeout", 30.0),

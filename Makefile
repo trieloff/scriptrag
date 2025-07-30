@@ -1,5 +1,6 @@
 # ScriptRAG Development Makefile
-# Requires: make, python3.11+, uv
+# Requires: make, python3.11+
+# UV will be installed automatically if missing
 
 .PHONY: help
 help: ## Show this help message
@@ -8,14 +9,32 @@ help: ## Show this help message
 	@echo ""
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
+# UV bootstrap
+.PHONY: check-uv
+check-uv:
+	@command -v uv >/dev/null 2>&1 || (echo "UV not found. Installing..." && $(MAKE) install-uv)
+
+.PHONY: install-uv
+install-uv: ## Install UV package manager
+	@echo "Installing UV package manager..."
+	@if command -v curl >/dev/null 2>&1; then \
+		curl -LsSf https://astral.sh/uv/install.sh | sh; \
+	elif command -v wget >/dev/null 2>&1; then \
+		wget -qO- https://astral.sh/uv/install.sh | sh; \
+	else \
+		echo "Error: Neither curl nor wget found. Please install UV manually from https://github.com/astral-sh/uv"; \
+		exit 1; \
+	fi
+	@echo "✅ UV installed. You may need to restart your shell or add UV to your PATH."
+
 # Environment setup
 .PHONY: install
-install: ## Install the project in development mode with all dependencies
+install: check-uv ## Install the project in development mode with all dependencies
 	uv sync --all-extras
 	@echo "✅ Installation complete. Activate venv with: source .venv/bin/activate"
 
 .PHONY: setup-dev
-setup-dev: ## Complete developer environment setup (venv, deps, hooks, tools)
+setup-dev: check-uv ## Complete developer environment setup (venv, deps, hooks, tools)
 	@echo "🚀 Setting up complete developer environment..."
 	@echo "1️⃣ Creating virtual environment..."
 	uv venv
@@ -59,20 +78,20 @@ install-pre-commit: ## Install pre-commit hooks
 	@echo "✅ Pre-commit hooks installed"
 
 .PHONY: update
-update: ## Update all dependencies to latest versions
+update: check-uv ## Update all dependencies to latest versions
 	uv sync --all-extras --upgrade
 	uv run pre-commit autoupdate
 	@echo "✅ Dependencies updated"
 
 # Code quality
 .PHONY: format
-format: ## Format code with ruff
+format: check-uv ## Format code with ruff
 	uv run ruff check --fix src/ tests/
 	uv run ruff format src/ tests/
 	@echo "✅ Code formatted"
 
 .PHONY: lint
-lint: ## Run all linters (ruff, mypy, bandit, etc.)
+lint: check-uv ## Run all linters (ruff, mypy, bandit, etc.)
 	@echo "🔍 Running Ruff..."
 	uv run ruff check src/ tests/
 	@echo "🔍 Running MyPy..."
@@ -86,11 +105,11 @@ lint: ## Run all linters (ruff, mypy, bandit, etc.)
 	@echo "✅ All linting checks passed"
 
 .PHONY: type-check
-type-check: ## Run type checking with mypy
+type-check: check-uv ## Run type checking with mypy
 	uv run mypy src/ --show-error-codes --pretty
 
 .PHONY: security
-security: ## Run security checks (bandit, safety, pip-audit)
+security: check-uv ## Run security checks (bandit, safety, pip-audit)
 	uv run bandit -r src/ -c pyproject.toml -f json -o .bandit-report.json
 	uv run safety check --json > .safety-report.json || true
 	uv run pip-audit || true
@@ -98,27 +117,27 @@ security: ## Run security checks (bandit, safety, pip-audit)
 
 # Testing
 .PHONY: test
-test: ## Run all tests with coverage
+test: check-uv ## Run all tests with coverage
 	uv run pytest tests/ -v --cov=scriptrag --cov-report=term-missing --cov-report=html
 
 .PHONY: test-fast
-test-fast: ## Run tests without coverage (faster)
+test-fast: check-uv ## Run tests without coverage (faster)
 	uv run pytest tests/ -v
 
 .PHONY: test-watch
-test-watch: ## Run tests in watch mode
+test-watch: check-uv ## Run tests in watch mode
 	uv run pytest-watch tests/ -- -v
 
 .PHONY: test-parallel
-test-parallel: ## Run tests in parallel
-	uv run pytest tests/ -v -n auto
+test-parallel: check-uv ## Run tests in parallel
+	uv run pytest tests/ -v -n auto $(PYTEST_ARGS)
 
 .PHONY: test-profile
-test-profile: ## Run tests with profiling
+test-profile: check-uv ## Run tests with profiling
 	uv run pytest tests/ -v --profile --profile-svg
 
 .PHONY: coverage
-coverage: ## Generate coverage report
+coverage: check-uv ## Generate coverage report
 	uv run coverage run -m pytest tests/
 	uv run coverage report
 	uv run coverage html
@@ -126,59 +145,59 @@ coverage: ## Generate coverage report
 
 # Documentation
 .PHONY: docs
-docs: ## Build documentation
+docs: check-uv ## Build documentation
 	uv run mkdocs build
 	@echo "✅ Documentation built in site/"
 
 .PHONY: docs-serve
-docs-serve: ## Serve documentation locally
+docs-serve: check-uv ## Serve documentation locally
 	uv run mkdocs serve --dev-addr localhost:8000
 
 .PHONY: docs-deploy
-docs-deploy: ## Deploy documentation to GitHub Pages
+docs-deploy: check-uv ## Deploy documentation to GitHub Pages
 	uv run mkdocs gh-deploy --force
 
 # Development tasks
 .PHONY: run
-run: ## Run the CLI application
+run: check-uv ## Run the CLI application
 	uv run python -m scriptrag
 
 .PHONY: run-mcp
-run-mcp: ## Run the MCP server
+run-mcp: check-uv ## Run the MCP server
 	uv run python -m scriptrag.mcp_server
 
 .PHONY: run-api
-run-api: ## Run the REST API server
+run-api: check-uv ## Run the REST API server
 	uv run python -m scriptrag server api
 
 .PHONY: run-api-dev
-run-api-dev: ## Run the REST API server in development mode with auto-reload
+run-api-dev: check-uv ## Run the REST API server in development mode with auto-reload
 	uv run python -m scriptrag server api --reload
 
 .PHONY: shell
-shell: ## Start IPython shell with project context
+shell: check-uv ## Start IPython shell with project context
 	uv run ipython -i -c "from scriptrag import *; print('ScriptRAG modules loaded')"
 
 .PHONY: notebook
-notebook: ## Start Jupyter notebook server
+notebook: check-uv ## Start Jupyter notebook server
 	uv run jupyter notebook --notebook-dir=notebooks/
 
 # Database tasks
 .PHONY: db-init
-db-init: ## Initialize the database
+db-init: check-uv ## Initialize the database
 	uv run python -m scriptrag.database.init
 
 .PHONY: db-migrate
-db-migrate: ## Run database migrations
+db-migrate: check-uv ## Run database migrations
 	uv run python -m scriptrag.database.migrate
 
 .PHONY: db-seed
-db-seed: ## Seed database with sample data
+db-seed: check-uv ## Seed database with sample data
 	uv run python -m scriptrag.database.seed
 
 # Build and distribution
 .PHONY: build
-build: clean ## Build distribution packages
+build: clean check-uv ## Build distribution packages
 	uv run python -m build
 	@echo "✅ Distribution packages built in dist/"
 
@@ -219,21 +238,21 @@ clean-all: clean ## Clean everything including venv
 
 # Quality checks (combines multiple checks)
 .PHONY: check
-check: lint type-check security test ## Run all quality checks
+check: check-uv lint type-check security test ## Run all quality checks
 
 .PHONY: check-fast
-check-fast: ## Run fast quality checks (no tests)
+check-fast: check-uv ## Run fast quality checks (no tests)
 	uv run ruff check src/ tests/
 	uv run mypy src/ --no-error-summary
 	uv run ruff format --check src/ tests/
 
 .PHONY: pre-commit
-pre-commit: ## Run pre-commit on all files
+pre-commit: check-uv ## Run pre-commit on all files
 	uv run pre-commit run --all-files
 
 # Project specific
 .PHONY: parse-fountain
-parse-fountain: ## Parse a fountain file (usage: make parse-fountain FILE=script.fountain)
+parse-fountain: check-uv ## Parse a fountain file (usage: make parse-fountain FILE=script.fountain)
 	@if [ -z "$(FILE)" ]; then \
 		echo "Error: Please specify a fountain file. Usage: make parse-fountain FILE=script.fountain"; \
 		exit 1; \
@@ -254,11 +273,11 @@ git-clean: ## Clean git repository (remove untracked files)
 
 # Dependencies management
 .PHONY: deps-upgrade
-deps-upgrade: ## Upgrade all dependencies to latest versions
+deps-upgrade: check-uv ## Upgrade all dependencies to latest versions
 	uv sync --all-extras --upgrade
 
 .PHONY: deps-tree
-deps-tree: ## Show dependency tree
+deps-tree: check-uv ## Show dependency tree
 	uv run pipdeptree
 
 .PHONY: deps-check

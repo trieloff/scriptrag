@@ -60,19 +60,10 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: make install
 
-      - name: Run Ruff linter
-        run: uv run ruff check src tests --output-format=github
-
-      - name: Run Ruff formatter
-        run: uv run ruff format --check src tests
-
-      - name: Check docstring coverage
-        run: uv run interrogate -c pyproject.toml
-
-      - name: Check for dead code
-        run: uv run vulture src --min-confidence 80
+      - name: Run linting checks
+        run: make lint
 
   type-check:
     name: Type Checking
@@ -94,10 +85,10 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: make install
 
       - name: Run MyPy
-        run: uv run mypy src --show-error-codes --pretty
+        run: make type-check
 
   security:
     name: Security Checks
@@ -119,30 +110,24 @@ jobs:
           enable-cache: true
 
       - name: Install dependencies
-        run: uv sync --extra dev
+        run: make install
 
-      - name: Run Bandit security linter
-        run: uv run bandit -r src -c pyproject.toml -f json -o bandit-report.json
+      - name: Run security checks
+        run: make security
 
       - name: Upload Bandit report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: bandit-report
-          path: bandit-report.json
-
-      - name: Run Safety check
-        run: uv run safety check --json > safety-report.json || true
+          path: .bandit-report.json
 
       - name: Upload Safety report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: safety-report
-          path: safety-report.json
-
-      - name: Run pip-audit
-        run: uv run pip-audit || true
+          path: .safety-report.json
 
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -186,7 +171,7 @@ jobs:
             uv-${{ runner.os }}-py${{ matrix.python-version }}-
 
       - name: Install dependencies
-        run: uv sync --extra test
+        run: make install
         shell: bash
 
       - name: Windows Debug Info
@@ -213,12 +198,12 @@ jobs:
           echo "Python version: $(python --version)"
           echo "OS: ${{ matrix.os }}"
           echo "Runner: ${{ runner.os }}"
-          uv run pytest tests -n auto --dist loadscope -vv --tb=short --durations=20 --log-cli-level=DEBUG --cov=scriptrag --cov-report=xml --junit-xml=junit.xml
+          make test-parallel
           echo "Finished pytest at $(date)"
 
       - name: Run tests with pytest (Linux/macOS)
         if: runner.os != 'Windows'
-        run: uv run pytest tests -n auto --dist loadscope -q --no-header --tb=short --cov=scriptrag --cov-report=xml --junit-xml=junit.xml
+        run: make test-parallel
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -255,16 +240,10 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
-      - name: Create virtual environment
-        run: uv venv
-
-      - name: Install dependencies
+      - name: Install dependencies and build documentation
         run: |
-          source .venv/bin/activate
-          uv pip install -e ".[docs]"
-
-      - name: Build documentation
-        run: uv run mkdocs build --strict
+          make install
+          make docs
 
       - name: Upload documentation
         uses: actions/upload-artifact@v4
@@ -291,15 +270,11 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
-      - name: Install build dependencies
-        run: |
-          uv pip install --system build twine
-
       - name: Build distribution
-        run: python -m build
+        run: make build
 
       - name: Check distribution
-        run: twine check dist/*
+        run: uv run twine check dist/*
 
       - name: Upload distribution
         uses: actions/upload-artifact@v4
@@ -350,16 +325,11 @@ jobs:
           version: ${{ env.UV_VERSION }}
           enable-cache: true
 
-      - name: Create virtual environment
-        run: uv venv
-
       - name: Install dependencies
-        run: |
-          source .venv/bin/activate
-          uv pip install -e ".[test]"
+        run: make install
 
       - name: Run integration tests
-        run: uv run pytest tests -n auto -q --no-header --tb=short -m integration
+        run: make test-parallel PYTEST_ARGS="-m integration"
         env:
           SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
           SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}

@@ -46,7 +46,7 @@ class DatabaseConnection:
             SQLite connection object
         """
         if not hasattr(self._local, "connection") or self._local.connection is None:
-            logger.debug(f"Creating new database connection to {self.db_path}")
+            # Creating new database connection
 
             # Ensure database file's parent directory exists
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -135,7 +135,7 @@ class DatabaseConnection:
         try:
             yield conn
             conn.commit()
-            logger.debug("Transaction committed successfully")
+            # Transaction committed
         except Exception as e:
             logger.error(f"Transaction failed, rolling back: {e}")
             conn.rollback()
@@ -274,7 +274,7 @@ class DatabaseConnection:
     def close(self) -> None:
         """Close the database connection."""
         if hasattr(self._local, "connection") and self._local.connection:
-            logger.debug("Closing database connection")
+            # Closing database connection
             # Ensure all transactions are committed or rolled back
             with contextlib.suppress(Exception):
                 self._local.connection.rollback()

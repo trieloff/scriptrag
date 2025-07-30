@@ -197,7 +197,6 @@ class GraphDatabase:
                 (node_id, node_type, entity_id, label, properties_json),
             )
 
-        logger.debug(f"Added node {node_id} of type {node_type}")
         return node_id
 
     def get_node(self, node_id: str) -> GraphNode | None:
@@ -260,12 +259,7 @@ class GraphDatabase:
 
         with self.connection.transaction() as conn:
             cursor = conn.execute(sql, params)
-            updated = cursor.rowcount > 0
-
-        if updated:
-            logger.debug(f"Updated node {node_id}")
-
-        return updated
+        return cursor.rowcount > 0
 
     def delete_node(self, node_id: str) -> bool:
         """Delete a node and all its edges.
@@ -285,12 +279,7 @@ class GraphDatabase:
 
             # Delete the node
             cursor = conn.execute("DELETE FROM nodes WHERE id = ?", (node_id,))
-            deleted = cursor.rowcount > 0
-
-        if deleted:
-            logger.debug(f"Deleted node {node_id}")
-
-        return deleted
+        return cursor.rowcount > 0
 
     def find_nodes(
         self,
@@ -371,9 +360,7 @@ class GraphDatabase:
                 (edge_id, from_node_id, to_node_id, edge_type, properties_json, weight),
             )
 
-        logger.debug(
-            f"Added edge {edge_id}: {from_node_id} -{edge_type}-> {to_node_id}"
-        )
+        # Edge added successfully
         return edge_id
 
     def get_edge(self, edge_id: str) -> GraphEdge | None:
@@ -399,12 +386,7 @@ class GraphDatabase:
         """
         with self.connection.transaction() as conn:
             cursor = conn.execute("DELETE FROM edges WHERE id = ?", (edge_id,))
-            deleted = cursor.rowcount > 0
-
-        if deleted:
-            logger.debug(f"Deleted edge {edge_id}")
-
-        return deleted
+        return cursor.rowcount > 0
 
     def find_edges(
         self,

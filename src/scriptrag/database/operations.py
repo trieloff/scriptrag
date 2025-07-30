@@ -109,7 +109,6 @@ class GraphOperations:
             properties={"season_number": season.number},
         )
 
-        logger.debug(f"Added season {season.number} to script graph")
         return season_node_id
 
     def add_episode_to_season(
@@ -153,7 +152,6 @@ class GraphOperations:
             properties={"episode_number": episode.number},
         )
 
-        logger.debug(f"Added episode {episode.number} to season graph")
         return episode_node_id
 
     # Character operations
@@ -186,7 +184,6 @@ class GraphOperations:
             properties={"character_name": character.name},
         )
 
-        logger.debug(f"Created character node for {character.name}")
         return character_node_id
 
     # Location operations
@@ -220,7 +217,6 @@ class GraphOperations:
             properties={"location_name": location.name},
         )
 
-        logger.debug(f"Created location node for {location}")
         return location_node_id
 
     # Scene operations
@@ -284,7 +280,6 @@ class GraphOperations:
                 properties={"script_order": scene.script_order},
             )
 
-        logger.debug(f"Created scene node {scene.script_order}")
         return scene_node_id
 
     def connect_scene_to_location(
@@ -393,9 +388,7 @@ class GraphOperations:
             )
             edge_ids.append(edge_id)
 
-        logger.debug(
-            f"Created {order_type.value} sequence for {len(scene_node_ids)} scenes"
-        )
+        # Successfully created scene sequence
         return edge_ids
 
     def update_scene_order(

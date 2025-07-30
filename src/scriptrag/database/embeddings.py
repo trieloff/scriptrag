@@ -95,16 +95,7 @@ class EmbeddingManager:
 
         try:
             model = model or self.embedding_model
-            embedding = await self.llm_client.generate_embedding(content, model=model)
-
-            logger.debug(
-                "Generated embedding",
-                content_length=len(content),
-                model=model,
-                embedding_dim=len(embedding),
-            )
-
-            return embedding
+            return await self.llm_client.generate_embedding(content, model=model)
 
         except LLMClientError as e:
             logger.error(
@@ -165,12 +156,7 @@ class EmbeddingManager:
                 for content, embedding in zip(batch, embeddings, strict=True):
                     results.append((content, embedding))
 
-                logger.debug(
-                    "Processed batch",
-                    batch_start=i,
-                    batch_size=len(batch),
-                    total_processed=len(results),
-                )
+                # Batch processed
 
             logger.info("Generated all embeddings", total_count=len(results))
             return results
@@ -316,13 +302,7 @@ class EmbeddingManager:
                     ),
                 )
 
-            logger.debug(
-                "Stored embedding",
-                entity_type=entity_type,
-                entity_id=entity_id,
-                model=model,
-                dimension=dimension,
-            )
+            # Embedding stored successfully
 
         except Exception as e:
             logger.error(
@@ -485,17 +465,7 @@ class EmbeddingManager:
                     """,
                     (entity_type, entity_id, model),
                 )
-                deleted = cursor.rowcount > 0
-
-            if deleted:
-                logger.debug(
-                    "Deleted embedding",
-                    entity_type=entity_type,
-                    entity_id=entity_id,
-                    model=model,
-                )
-
-            return deleted
+            return cursor.rowcount > 0
 
         except Exception as e:
             logger.error(
@@ -818,12 +788,7 @@ class EmbeddingManager:
                     )
 
                     refreshed_count += 1
-                    logger.debug(
-                        "Refreshed embedding",
-                        entity_type=entity_type_db,
-                        entity_id=entity_id,
-                        model=model,
-                    )
+                    # Embedding refreshed
 
                 except Exception as e:
                     logger.warning(

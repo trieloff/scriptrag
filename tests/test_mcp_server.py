@@ -386,3 +386,234 @@ class TestScriptRAGMCPServer:
         await mcp_server.stop()
 
         assert mcp_server._scripts_cache == {}
+
+    @pytest.mark.asyncio
+    async def test_tool_get_scene_details(self, mcp_server, tmp_path):  # noqa: ARG002
+        """Test get scene details tool."""
+        # Add a script to cache first
+        script = Script(title="Test Script", source_file="test.fountain")
+        script_id = "test_script_1"
+        mcp_server._scripts_cache[script_id] = script
+
+        # Setup test data in database
+        from scriptrag.database.connection import DatabaseConnection
+
+        db_connection = DatabaseConnection(str(mcp_server.config.get_database_path()))
+        with db_connection.transaction() as conn:
+            # Insert test script
+            conn.execute(
+                "INSERT INTO scripts (id, title) VALUES (?, ?)",
+                (script_id, "Test Script"),
+            )
+
+            # Insert test location
+            location_id = "loc_1"
+            conn.execute(
+                """INSERT INTO locations (id, script_id, name, interior,
+                   time_of_day, raw_text) VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    location_id,
+                    script_id,
+                    "COFFEE SHOP",
+                    True,
+                    "DAY",
+                    "INT. COFFEE SHOP - DAY",
+                ),
+            )
+
+            # Insert test scene
+            scene_id = "scene_1"
+            conn.execute(
+                """INSERT INTO scenes (id, script_id, location_id, heading,
+                   description, script_order, temporal_order, logical_order,
+                   estimated_duration_minutes, time_of_day, date_in_story)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    scene_id,
+                    script_id,
+                    location_id,
+                    "INT. COFFEE SHOP - DAY",
+                    "Opening scene in coffee shop",
+                    1,
+                    1,
+                    1,
+                    3.5,
+                    "DAY",
+                    "Day 1",
+                ),
+            )
+
+            # Insert characters
+            char1_id = "char_1"
+            char2_id = "char_2"
+            conn.execute(
+                "INSERT INTO characters (id, script_id, name) VALUES (?, ?, ?)",
+                (char1_id, script_id, "JOHN"),
+            )
+            conn.execute(
+                "INSERT INTO characters (id, script_id, name) VALUES (?, ?, ?)",
+                (char2_id, script_id, "MARY"),
+            )
+
+            # Insert scene elements
+            elements = [
+                (
+                    1,
+                    "action",
+                    "The coffee shop bustles with morning activity.",
+                    None,
+                    None,
+                ),
+                (2, "character", "JOHN", char1_id, "JOHN"),
+                (3, "dialogue", "I've been waiting for this moment.", char1_id, "JOHN"),
+                (4, "parenthetical", "nervously", char1_id, "JOHN"),
+                (5, "dialogue", "What took you so long?", char1_id, "JOHN"),
+                (
+                    6,
+                    "action",
+                    "Mary enters, shaking rain from her umbrella.",
+                    None,
+                    None,
+                ),
+                (7, "character", "MARY", char2_id, "MARY"),
+                (8, "dialogue", "Traffic was terrible.", char2_id, "MARY"),
+                (9, "parenthetical", "sitting down", char2_id, "MARY"),
+                (10, "dialogue", "But I'm here now.", char2_id, "MARY"),
+            ]
+
+            for order, elem_type, text, char_id, char_name in elements:
+                elem_id = f"elem_{order}"
+                conn.execute(
+                    """INSERT INTO scene_elements (id, scene_id, element_type, text,
+                       raw_text, order_in_scene, character_id, character_name)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        elem_id,
+                        scene_id,
+                        elem_type,
+                        text,
+                        text,
+                        order,
+                        char_id,
+                        char_name,
+                    ),
+                )
+
+        # Test successful retrieval
+        args = {"script_id": script_id, "scene_id": scene_id}
+        result = await mcp_server._tool_get_scene_details(args)
+
+        assert result["script_id"] == script_id
+        assert result["scene_id"] == scene_id
+        assert result["heading"] == "INT. COFFEE SHOP - DAY"
+        assert "bustles with morning activity" in result["action"]
+        assert "Mary enters" in result["action"]
+        assert result["page_number"] == 1
+
+        # Check dialogue structure
+        assert len(result["dialogue"]) == 4  # 2 from John, 2 from Mary
+
+        # First dialogue entry (John)
+        assert result["dialogue"][0]["character"] == "JOHN"
+        assert result["dialogue"][0]["text"] == "I've been waiting for this moment."
+        assert result["dialogue"][0]["parentheticals"] == ["nervously"]
+
+        # Second dialogue entry (John)
+        assert result["dialogue"][1]["character"] == "JOHN"
+        assert result["dialogue"][1]["text"] == "What took you so long?"
+        assert result["dialogue"][1]["parentheticals"] == []
+
+        # Third dialogue entry (Mary)
+        assert result["dialogue"][2]["character"] == "MARY"
+        assert result["dialogue"][2]["text"] == "Traffic was terrible."
+        assert result["dialogue"][2]["parentheticals"] == ["sitting down"]
+
+        # Check characters
+        assert len(result["characters"]) == 2
+        john_stats = next(c for c in result["characters"] if c["name"] == "JOHN")
+        mary_stats = next(c for c in result["characters"] if c["name"] == "MARY")
+        assert john_stats["line_count"] == 2
+        assert mary_stats["line_count"] == 2
+
+        # Check location info
+        assert result["location"]["name"] == "COFFEE SHOP"
+        assert result["location"]["interior"] == 1  # SQLite returns 1 for True
+        assert result["location"]["time_of_day"] == "DAY"
+
+        # Check additional metadata
+        assert result["temporal_order"] == 1
+        assert result["logical_order"] == 1
+        assert result["estimated_duration_minutes"] == 3.5
+        assert result["time_of_day"] == "DAY"
+        assert result["date_in_story"] == "Day 1"
+        assert result["description"] == "Opening scene in coffee shop"
+
+    @pytest.mark.asyncio
+    async def test_tool_get_scene_details_not_found(self, mcp_server):
+        """Test get scene details tool with non-existent scene."""
+        # Add a script to cache
+        script = Script(title="Test Script", source_file="test.fountain")
+        mcp_server._scripts_cache["script_0"] = script
+
+        args = {"script_id": "script_0", "scene_id": "non_existent_scene"}
+
+        with pytest.raises(ValueError, match="Scene not found"):
+            await mcp_server._tool_get_scene_details(args)
+
+    @pytest.mark.asyncio
+    async def test_tool_get_scene_details_no_location(self, mcp_server):
+        """Test get scene details tool for scene without location."""
+        # Add a script to cache
+        script = Script(title="Test Script", source_file="test.fountain")
+        script_id = "test_script_2"
+        mcp_server._scripts_cache[script_id] = script
+
+        # Setup test data without location
+        from scriptrag.database.connection import DatabaseConnection
+
+        db_connection = DatabaseConnection(str(mcp_server.config.get_database_path()))
+        with db_connection.transaction() as conn:
+            # Insert test script
+            conn.execute(
+                "INSERT INTO scripts (id, title) VALUES (?, ?)",
+                (script_id, "Test Script"),
+            )
+
+            # Insert test scene without location
+            scene_id = "scene_no_loc"
+            conn.execute(
+                """INSERT INTO scenes (id, script_id, heading, script_order)
+                   VALUES (?, ?, ?, ?)""",
+                (scene_id, script_id, "FADE IN:", 1),
+            )
+
+        args = {"script_id": script_id, "scene_id": scene_id}
+        result = await mcp_server._tool_get_scene_details(args)
+
+        assert result["location"] is None
+        assert result["heading"] == "FADE IN:"
+        assert result["dialogue"] == []
+        assert result["characters"] == []
+
+    @pytest.mark.asyncio
+    async def test_tool_get_scene_details_missing_params(self, mcp_server):
+        """Test get scene details tool with missing parameters."""
+        # Missing script_id
+        with pytest.raises(ValueError, match="script_id and scene_id are required"):
+            await mcp_server._tool_get_scene_details({"scene_id": "scene_1"})
+
+        # Missing scene_id
+        with pytest.raises(ValueError, match="script_id and scene_id are required"):
+            await mcp_server._tool_get_scene_details({"script_id": "script_0"})
+
+        # Both missing
+        with pytest.raises(ValueError, match="script_id and scene_id are required"):
+            await mcp_server._tool_get_scene_details({})
+
+    @pytest.mark.asyncio
+    async def test_tool_get_scene_details_invalid_script(self, mcp_server):
+        """Test get scene details tool with invalid script_id."""
+        args = {"script_id": "non_existent_script", "scene_id": "scene_1"}
+
+        with pytest.raises(ValueError, match="Script not found"):
+            await mcp_server._tool_get_scene_details(args)

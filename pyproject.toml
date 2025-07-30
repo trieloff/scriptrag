@@ -88,6 +88,7 @@ dev = [
     "ipython>=8.18.0",
     "jupyter>=1.0.0",
     "notebook>=7.0.0",
+    "build>=1.0.0",  # Package building
 
     # Additional testing tools
     "pytest-benchmark>=4.0.0",  # Performance testing

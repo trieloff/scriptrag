@@ -641,20 +641,422 @@ def script_info(
         console.print(f"Size: {stat.st_size:,} bytes")
         console.print(f"Modified: {stat.st_mtime}")
 
-        # Log placeholder usage
-        logger.warning(
-            "info command placeholder - screenplay analysis not implemented",
-            script_path=str(script_path),
-        )
+        # Import required modules for analysis
+        from collections import Counter
 
-        # Not yet implemented - tracking in issue #TODO-012
-        console.print(
-            "[yellow]⚠️  Detailed screenplay analysis not yet implemented[/yellow]"
-        )
-        console.print(
-            "[dim]This feature is planned for a future release. "
-            "Track progress at issue #TODO-012[/dim]"
-        )
+        from rich.panel import Panel
+        from rich.table import Table
+
+        from scriptrag.parser import FountainParser, FountainParsingError
+
+        # Parse screenplay without importing to database
+        try:
+            # Temporarily suppress jouvence debug logging
+            import logging
+
+            jouvence_logger = logging.getLogger("jouvence")
+            original_level = jouvence_logger.level
+            jouvence_logger.setLevel(logging.WARNING)
+
+            parser = FountainParser()
+            script = parser.parse_file(script_path)
+
+            # Restore original logging level
+            jouvence_logger.setLevel(original_level)
+
+            # Basic metrics
+            scenes = parser.get_scenes()
+            characters = parser.get_characters()
+
+            console.print()
+            console.print(
+                Panel(
+                    f"[bold]{script.title}[/bold]",
+                    subtitle=f"by {script.author or 'Unknown'}",
+                    style="cyan",
+                )
+            )
+
+            # Display title page metadata if available
+            if script.title_page:
+                metadata_items = []
+                for key, value in script.title_page.items():
+                    if key.lower() not in ["title", "author"] and value:
+                        metadata_items.append(f"{key}: {value}")
+                if metadata_items:
+                    console.print("[dim]" + " | ".join(metadata_items) + "[/dim]")
+
+            console.print()
+
+            # Basic statistics table
+            stats_table = Table(title="Screenplay Statistics", style="cyan")
+            stats_table.add_column("Metric", style="bright_cyan")
+            stats_table.add_column("Value", justify="right")
+
+            # Page count estimate (1 page = ~250 words or ~1 minute of screen time)
+            total_words = 0
+            total_dialogue_lines = 0
+            total_action_lines = 0
+
+            for scene in scenes:
+                for element in scene.elements:
+                    words = len(element.text.split())
+                    total_words += words
+                    if hasattr(element, "element_type"):
+                        if element.element_type.value == "dialogue":
+                            total_dialogue_lines += 1
+                        elif element.element_type.value == "action":
+                            total_action_lines += 1
+
+            estimated_pages = max(1, round(total_words / 250))
+            estimated_minutes = estimated_pages  # 1 page ≈ 1 minute
+
+            stats_table.add_row("Total Scenes", str(len(scenes)))
+            stats_table.add_row("Total Characters", str(len(characters)))
+            stats_table.add_row("Total Words", f"{total_words:,}")
+            stats_table.add_row("Dialogue Lines", f"{total_dialogue_lines:,}")
+            stats_table.add_row("Action Lines", f"{total_action_lines:,}")
+            stats_table.add_row("Estimated Pages", f"~{estimated_pages}")
+            stats_table.add_row("Estimated Runtime", f"~{estimated_minutes} minutes")
+
+            console.print(stats_table)
+            console.print()
+
+            # Act structure analysis
+            act_breaks = []
+            for i, scene in enumerate(scenes):
+                # Look for common act break indicators
+                if scene.heading:
+                    heading_lower = scene.heading.lower()
+                    if any(
+                        marker in heading_lower
+                        for marker in ["act ", "end of act", "fade out", "blackout"]
+                    ):
+                        act_breaks.append((i, scene.heading))
+
+                # Check for major transitions that might indicate act breaks
+                for element in scene.elements:
+                    if (
+                        hasattr(element, "element_type")
+                        and element.element_type.value == "transition"
+                        and any(
+                            marker in element.text.lower()
+                            for marker in ["fade out", "cut to black", "end of act"]
+                        )
+                    ):
+                        act_breaks.append((i, element.text))
+
+            # Estimate acts based on standard structure if no explicit breaks found
+            if not act_breaks and len(scenes) > 10:
+                # Three-act structure: roughly 25%-50%-25%
+                act1_end = int(len(scenes) * 0.25)
+                act2_end = int(len(scenes) * 0.75)
+                structure_table = Table(title="Estimated Act Structure", style="blue")
+                structure_table.add_column("Act", style="bright_blue")
+                structure_table.add_column("Scenes", justify="right")
+                structure_table.add_column("Percentage", justify="right")
+
+                structure_table.add_row("Act I", f"1-{act1_end}", "25%")
+                structure_table.add_row("Act II", f"{act1_end + 1}-{act2_end}", "50%")
+                structure_table.add_row(
+                    "Act III", f"{act2_end + 1}-{len(scenes)}", "25%"
+                )
+
+                console.print(structure_table)
+                console.print()
+
+            # Scene length analysis
+            scene_lengths = []
+            for scene in scenes:
+                scene_words = sum(
+                    len(element.text.split()) for element in scene.elements
+                )
+                scene_lengths.append(scene_words)
+
+            if scene_lengths:
+                avg_length = sum(scene_lengths) / len(scene_lengths)
+                min_length = min(scene_lengths)
+                max_length = max(scene_lengths)
+
+                length_table = Table(title="Scene Length Analysis", style="cyan")
+                length_table.add_column("Metric", style="bright_cyan")
+                length_table.add_column("Words", justify="right")
+                length_table.add_column("Est. Pages", justify="right")
+
+                length_table.add_row(
+                    "Average Scene", f"{avg_length:.0f}", f"{avg_length / 250:.1f}"
+                )
+                length_table.add_row(
+                    "Shortest Scene", str(min_length), f"{min_length / 250:.1f}"
+                )
+                length_table.add_row(
+                    "Longest Scene", str(max_length), f"{max_length / 250:.1f}"
+                )
+
+                console.print(length_table)
+                console.print()
+
+            # Scene analysis
+            if scenes:
+                scene_table = Table(title="Scene Analysis", style="green")
+                scene_table.add_column("Type", style="bright_green")
+                scene_table.add_column("Count", justify="right")
+                scene_table.add_column("Percentage", justify="right")
+
+                # Count INT/EXT scenes
+                int_scenes = sum(
+                    1 for s in scenes if s.location and s.location.interior
+                )
+                ext_scenes = sum(
+                    1 for s in scenes if s.location and not s.location.interior
+                )
+                no_location = len(scenes) - int_scenes - ext_scenes
+
+                if int_scenes > 0:
+                    scene_table.add_row(
+                        "Interior (INT)",
+                        str(int_scenes),
+                        f"{int_scenes / len(scenes) * 100:.1f}%",
+                    )
+                if ext_scenes > 0:
+                    scene_table.add_row(
+                        "Exterior (EXT)",
+                        str(ext_scenes),
+                        f"{ext_scenes / len(scenes) * 100:.1f}%",
+                    )
+                if no_location > 0:
+                    scene_table.add_row(
+                        "No Location",
+                        str(no_location),
+                        f"{no_location / len(scenes) * 100:.1f}%",
+                    )
+
+                # Time of day analysis
+                time_counter = Counter()  # type: ignore[var-annotated]
+                for scene in scenes:
+                    if scene.location and scene.location.time:
+                        time_counter[scene.location.time.upper()] += 1
+
+                if time_counter:
+                    scene_table.add_row("", "", "")  # Separator
+                    for time, count in time_counter.most_common():
+                        scene_table.add_row(
+                            f"Time: {time}",
+                            str(count),
+                            f"{count / len(scenes) * 100:.1f}%",
+                        )
+
+                console.print(scene_table)
+                console.print()
+
+            # Character analysis
+            if characters:
+                char_table = Table(title="Character Analysis (Top 10)", style="yellow")
+                char_table.add_column("Character", style="bright_yellow")
+                char_table.add_column("Dialogue Lines", justify="right")
+                char_table.add_column("Scene Appearances", justify="right")
+
+                # Count dialogue and appearances per character
+                char_stats = {}
+                for char in characters:
+                    char_stats[char.name] = {
+                        "dialogue": 0,
+                        "scenes": 0,
+                    }
+
+                # Process scenes to count character appearances and dialogue
+                for scene in scenes:
+                    # Track which characters appear in this scene
+                    scene_chars = set()
+
+                    # Parse fountain content to associate dialogue with characters
+                    current_character = None
+                    for element in scene.elements:
+                        # Look for CHARACTER elements in the raw fountain
+                        if hasattr(element, "element_type"):
+                            if (
+                                element.element_type.value == "dialogue"
+                                and current_character
+                            ):
+                                # Count this dialogue for the current character
+                                if current_character in char_stats:
+                                    char_stats[current_character]["dialogue"] += 1
+                                scene_chars.add(current_character)
+                            elif element.element_type.value == "action":
+                                # Check for character names in action
+                                for char in characters:
+                                    if char.name in element.text.upper():
+                                        scene_chars.add(char.name)
+
+                        # Check if this is a character name (looking at raw text)
+                        if hasattr(element, "raw_text"):
+                            raw_upper = element.raw_text.strip().upper()
+                            # Character names are typically all caps
+                            for char in characters:
+                                if raw_upper.startswith(char.name):
+                                    current_character = char.name
+                                    break
+
+                    # Update scene appearances
+                    for char_name in scene_chars:
+                        if char_name in char_stats:
+                            char_stats[char_name]["scenes"] += 1
+
+                # Alternative approach: re-parse to get proper character associations
+                if all(stats["dialogue"] == 0 for stats in char_stats.values()):
+                    # Fall back to counting based on character names in scenes
+                    for scene in scenes:
+                        for char in characters:
+                            if char.id in scene.characters:
+                                char_stats[char.name]["scenes"] += 1
+                                # Estimate dialogue based on scene participation
+                                # This is a rough estimate when proper parsing fails
+                                char_stats[char.name]["dialogue"] += 1
+
+                # Sort by dialogue count and show top 10
+                sorted_chars = sorted(
+                    char_stats.items(),
+                    key=lambda x: (x[1]["dialogue"], x[1]["scenes"]),
+                    reverse=True,
+                )[:10]
+
+                for char_name, stats in sorted_chars:
+                    if stats["dialogue"] > 0 or stats["scenes"] > 0:
+                        char_table.add_row(
+                            char_name,
+                            str(stats["dialogue"]),
+                            str(stats["scenes"]),
+                        )
+
+                console.print(char_table)
+                console.print()
+
+            # Location analysis
+            location_counter = Counter()  # type: ignore[var-annotated]
+            for scene in scenes:
+                if scene.location:
+                    location_counter[scene.location.name] += 1
+
+            if location_counter:
+                loc_table = Table(title="Most Used Locations (Top 10)", style="magenta")
+                loc_table.add_column("Location", style="bright_magenta")
+                loc_table.add_column("Scene Count", justify="right")
+                loc_table.add_column("Percentage", justify="right")
+
+                for location, count in location_counter.most_common(10):
+                    loc_table.add_row(
+                        location,
+                        str(count),
+                        f"{count / len(scenes) * 100:.1f}%",
+                    )
+
+                console.print(loc_table)
+
+            # Insights and recommendations
+            console.print()
+            console.print(
+                Panel("[bold]Screenplay Insights[/bold]", style="bright_blue")
+            )
+
+            insights = []
+
+            # Page length insight
+            if estimated_pages < 90:
+                insights.append(
+                    "• [yellow]Short screenplay:[/yellow] "
+                    "Consider expanding to reach feature length (90-120 pages)"
+                )
+            elif estimated_pages > 130:
+                insights.append(
+                    "• [yellow]Long screenplay:[/yellow] "
+                    "Consider trimming to standard length (90-120 pages)"
+                )
+            else:
+                insights.append(
+                    "• [green]Good length:[/green] "
+                    "Screenplay is within standard feature range"
+                )
+
+            # Scene distribution insight
+            if scenes:
+                if int_scenes > ext_scenes * 3:
+                    insights.append(
+                        "• [cyan]Interior heavy:[/cyan] "
+                        "Mostly indoor scenes - good for budget"
+                    )
+                elif ext_scenes > int_scenes * 2:
+                    insights.append(
+                        "• [cyan]Exterior heavy:[/cyan] "
+                        "Many outdoor scenes - weather dependent"
+                    )
+
+                # Character distribution
+                if characters and len(characters) > 50:
+                    insights.append(
+                        "• [yellow]Large cast:[/yellow] "
+                        "Consider consolidating minor characters"
+                    )
+                elif characters and len(characters) < 5:
+                    insights.append(
+                        "• [cyan]Small cast:[/cyan] Intimate character-driven story"
+                    )
+
+                # Scene length variance
+                if scene_lengths:
+                    avg_length = sum(scene_lengths) / len(scene_lengths)
+                    if max(scene_lengths) > avg_length * 3:
+                        insights.append(
+                            "• [yellow]Pacing note:[/yellow] "
+                            "Some very long scenes - check pacing"
+                        )
+
+                # Dialogue vs action ratio
+                if total_dialogue_lines > 0 and total_action_lines > 0:
+                    dialogue_ratio = total_dialogue_lines / (
+                        total_dialogue_lines + total_action_lines
+                    )
+                    if dialogue_ratio > 0.7:
+                        insights.append(
+                            "• [cyan]Dialogue heavy:[/cyan] "
+                            "Consider adding visual storytelling"
+                        )
+                    elif dialogue_ratio < 0.3:
+                        insights.append(
+                            "• [cyan]Action heavy:[/cyan] "
+                            "Visual storytelling emphasized"
+                        )
+
+            for insight in insights:
+                console.print(insight)
+
+            if not insights:
+                console.print(
+                    "[dim]Analysis complete - screenplay appears well-balanced[/dim]"
+                )
+
+            # Log successful analysis
+            logger.info(
+                "screenplay analysis completed",
+                script_path=str(script_path),
+                scenes=len(scenes),
+                characters=len(characters),
+                words=total_words,
+            )
+
+        except FountainParsingError as e:
+            console.print(f"[red]Error parsing screenplay:[/red] {e}")
+            logger.error(
+                "failed to parse screenplay",
+                script_path=str(script_path),
+                error=str(e),
+            )
+        except Exception as e:
+            console.print(f"[red]Unexpected error:[/red] {e}")
+            logger.error(
+                "unexpected error during screenplay analysis",
+                script_path=str(script_path),
+                error=str(e),
+            )
     else:
         # Show info about current database
         settings = get_settings()

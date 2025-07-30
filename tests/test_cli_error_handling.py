@@ -38,6 +38,7 @@ def mock_settings():
     mock_settings.logging = mock_logging_settings
     mock_settings.paths = mock_paths_settings
     mock_settings.get_log_file_path.return_value = None
+    mock_settings.get_database_path.return_value = "/test/db.sqlite"
 
     return mock_settings
 

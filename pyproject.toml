@@ -158,6 +158,8 @@ log_cli_date_format = "%Y-%m-%d %H:%M:%S"
 [tool.coverage.run]
 source = ["scriptrag"]
 branch = true
+parallel = true
+concurrency = ["thread", "multiprocessing"]
 
 [tool.coverage.report]
 precision = 2

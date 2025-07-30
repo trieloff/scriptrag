@@ -10,6 +10,12 @@
         ],
         "matcher": "Write|Edit|MultiEdit"
       }
+    ],
+    "SessionStart": [
+      {
+        "command": "cd $CLAUDE_PROJECT_DIR && make install",
+        "type": "command"
+      }
     ]
   }
 }

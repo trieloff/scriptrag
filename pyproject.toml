@@ -3,7 +3,7 @@ name = "scriptrag"
 version = "0.1.0"
 description = "A Graph-Based Screenwriting Assistant using GraphRAG pattern"
 authors = [
-    {name = "Terragon Labs", email = "info@terragonlabs.com"},
+    {name = "Lars Trieloff", email = "lars@trieloff.net"},
 ]
 readme = "README.md"
 license = {text = "MIT"}

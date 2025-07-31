@@ -1389,9 +1389,11 @@ class TestDatabaseConnectionErrors:
 
         # Make execute fail after successful connection
         def execute_side_effect(query, *_args):
-            if "PRAGMA" in query:
+            if "PRAGMA" in query or "schema_info" in query:
                 return MagicMock()
-            raise sqlite3.OperationalError("near 'INVALID': syntax error")
+            if "INVALID" in query:
+                raise sqlite3.OperationalError("near 'INVALID': syntax error")
+            return MagicMock()
 
         mock_conn.execute.side_effect = execute_side_effect
 

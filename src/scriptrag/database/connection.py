@@ -24,6 +24,10 @@ logger = get_logger(__name__)
 class DatabaseConnection:
     """Manages SQLite database connections for ScriptRAG."""
 
+    # Class-level cache for initialized databases
+    _initialized_databases: ClassVar[set[Path]] = set()
+    _initialized_lock: ClassVar[threading.Lock] = threading.Lock()
+
     # Windows reserved device names
     WINDOWS_RESERVED_NAMES: ClassVar[set[str]] = {
         "CON",
@@ -76,6 +80,7 @@ class DatabaseConnection:
             "isolation_level": kwargs.get("isolation_level"),  # Autocommit mode
         }
         self._local = threading.local()
+        self._init_lock = threading.Lock()  # Lock for schema initialization
 
     def _validate_and_normalize_path(self, db_path: str | Path) -> Path:
         """Validate and normalize a database path for security.
@@ -287,20 +292,52 @@ class DatabaseConnection:
             SQLite connection object
         """
         if not hasattr(self._local, "connection") or self._local.connection is None:
-            # Creating new database connection
-
-            # Ensure database file's parent directory exists
-            self.db_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Create connection with optimized settings
-            conn = sqlite3.connect(str(self.db_path), **self.connection_params)
-
-            # Configure connection for optimal performance and safety
-            self._configure_connection(conn)
-
+            # Create new database connection
+            conn = self._create_and_initialize_connection()
             self._local.connection = conn
 
         return cast(sqlite3.Connection, self._local.connection)
+
+    def _create_and_initialize_connection(self) -> sqlite3.Connection:
+        """Create a new database connection and initialize schema if needed.
+
+        Returns:
+            Configured SQLite connection
+
+        Raises:
+            RuntimeError: If unable to create connection or initialize schema
+        """
+        # Ensure database file's parent directory exists
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create connection with optimized settings
+        conn = sqlite3.connect(str(self.db_path), **self.connection_params)
+
+        # Configure connection for optimal performance and safety
+        self._configure_connection(conn)
+
+        # Check if database needs initialization (with thread safety)
+        # First check class-level cache to avoid repeated schema checks
+        needs_init = False
+        with self._initialized_lock:
+            if self.db_path not in self._initialized_databases:
+                # Only check schema if not in cache
+                needs_init = self._is_schema_missing(conn)
+                if not needs_init:
+                    # Schema exists, add to cache
+                    self._initialized_databases.add(self.db_path)
+
+        # Initialize schema if needed (outside of class lock)
+        if needs_init:
+            with self._init_lock:
+                # Double-check in case another thread initialized while we were waiting
+                if self._is_schema_missing(conn):
+                    self._initialize_schema(conn)
+                    # Add to cache after successful initialization
+                    with self._initialized_lock:
+                        self._initialized_databases.add(self.db_path)
+
+        return cast(sqlite3.Connection, conn)
 
     def _configure_connection(self, conn: sqlite3.Connection) -> None:
         """Configure SQLite connection with optimal settings.
@@ -330,6 +367,90 @@ class DatabaseConnection:
 
         # Set row factory for named column access
         conn.row_factory = sqlite3.Row
+
+    def _is_schema_missing(self, conn: sqlite3.Connection) -> bool:
+        """Check if the database schema is missing.
+
+        Args:
+            conn: Database connection to use for checking
+
+        Returns:
+            True if schema is missing and needs initialization
+        """
+        try:
+            # Check if the core tables exist using the provided connection
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes'"
+            )
+            return cursor.fetchone() is None
+        except sqlite3.Error:
+            # If there's any error accessing the database, assume it needs init
+            return True
+
+    def _initialize_schema(self, conn: sqlite3.Connection) -> None:
+        """Initialize the database schema.
+
+        Args:
+            conn: Database connection to initialize
+        """
+        from .migrations import MigrationRunner
+
+        logger.info(f"Initializing database schema at {self.db_path}")
+
+        try:
+            # Use the migration runner directly with the current connection
+            runner = MigrationRunner(self.db_path)
+
+            # Validate migrations first
+            if not runner.validate_migrations():
+                raise RuntimeError("Migration validation failed")
+
+            # Apply migrations using the existing connection
+            if runner.needs_migration():
+                pending = runner.get_pending_migrations()
+                logger.info(f"Applying {len(pending)} pending migrations")
+
+                for version in pending:
+                    migration_class = runner.migrations[version]
+                    migration = migration_class()
+
+                    logger.info(f"Applying {migration}")
+
+                    # Apply migration using the current connection
+                    migration.up(conn)
+
+                    # Record migration
+                    conn.execute(
+                        "INSERT INTO schema_info (version, description) VALUES (?, ?)",
+                        (version, migration.description),
+                    )
+
+                conn.commit()
+                logger.info("Database migration completed successfully")
+
+            logger.info("Database schema initialized successfully")
+
+        except ImportError as e:
+            logger.error(f"Failed to import migration module: {e}")
+            raise RuntimeError(
+                f"Failed to import migration module for {self.db_path}: {e}"
+            ) from e
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Database error during schema initialization: {e}")
+            raise RuntimeError(
+                f"Database error during schema initialization at {self.db_path}: {e}"
+            ) from e
+        except RuntimeError as e:
+            # Re-raise RuntimeError with more context
+            logger.error(f"Migration runtime error: {e}")
+            raise RuntimeError(f"Migration runtime error at {self.db_path}: {e}") from e
+        except Exception as e:
+            # Catch any other unexpected errors
+            logger.error(f"Unexpected error during schema initialization: {e}")
+            raise RuntimeError(
+                f"Unexpected error during schema initialization at {self.db_path}: "
+                f"{type(e).__name__}: {e}"
+            ) from e
 
     @contextmanager
     def get_connection(self) -> Generator[sqlite3.Connection, None, None]:

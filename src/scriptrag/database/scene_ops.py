@@ -180,7 +180,7 @@ class SceneOperations:
         """
         # Get all scenes
         scenes = self.graph.get_neighbors(
-            script_node_id, direction="outgoing", edge_type="contains_scene"
+            script_node_id, direction="out", edge_type="contains_scene"
         )
 
         if not scenes:

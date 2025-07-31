@@ -191,7 +191,7 @@ class TestMalformedInput:
 class TestDatabaseErrors:
     """Test handling of database-related errors."""
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     def test_database_not_found(self, mock_get_settings, cli_runner, mock_settings):
         """Test commands when database doesn't exist."""
         mock_get_settings.return_value = mock_settings
@@ -219,7 +219,7 @@ class TestDatabaseErrors:
                         or "no such table" in result.stdout.lower()
                     )
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     def test_database_connection_error(
         self, mock_db_conn, mock_get_settings, cli_runner, mock_settings
@@ -239,9 +239,9 @@ class TestDatabaseErrors:
                 or "database" in result.stdout.lower()
             )
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.bible.get_latest_script_id")
     def test_no_scripts_in_database(
         self,
         mock_get_latest,
@@ -317,7 +317,7 @@ class TestConfigurationErrors:
         # Should fail with error code 1 or 2
         assert result.exit_code in [1, 2]
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     def test_missing_required_config(self, mock_get_settings, cli_runner):
         """Test commands when required configuration is missing."""
         mock_get_settings.side_effect = Exception("Missing required configuration")
@@ -331,7 +331,7 @@ class TestConfigurationErrors:
 class TestExceptionHandling:
     """Test general exception handling and error recovery."""
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
     def test_unexpected_exception_handling(
@@ -399,7 +399,7 @@ class TestOptionValidation:
 class TestErrorMessages:
     """Test quality and clarity of error messages."""
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     def test_helpful_error_messages(self, mock_get_settings, cli_runner, mock_settings):
         """Test that error messages are helpful and actionable."""
         mock_get_settings.return_value = mock_settings
@@ -443,7 +443,7 @@ class TestExitCodes:
         assert result.exit_code == 2
 
         # Runtime error (should return 1)
-        with patch("scriptrag.cli.get_settings") as mock_settings:
+        with patch("scriptrag.config.settings.get_settings") as mock_settings:
             mock_settings.side_effect = Exception("Runtime error")
             result = cli_runner.invoke(app, ["script", "info"])
             assert result.exit_code == 1

@@ -89,7 +89,7 @@ class TestScriptInfoCommand:
         db_file = tmp_path / "test.db"
         db_file.touch()
 
-        with patch("scriptrag.cli.get_settings") as mock_settings:
+        with patch("scriptrag.config.settings.get_settings") as mock_settings:
             mock_settings.return_value.database.path = str(db_file)
 
             result = cli_runner.invoke(app, ["script", "info"])

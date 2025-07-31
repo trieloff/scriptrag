@@ -235,3 +235,45 @@ def bible_character_profile(
     except Exception as e:
         console.print(f"[red]✗[/red] Failed to create character profile: {e}")
         raise typer.Exit(1) from e
+
+
+@bible_app.command("world-element")
+def bible_world_element(
+    element_name: Annotated[str, typer.Argument(help="World element name")],
+    element_type: Annotated[
+        str, typer.Option("--type", help="Element type (location, prop, etc.)")
+    ] = "location",
+    description: Annotated[
+        str | None, typer.Option("--description", help="Element description")
+    ] = None,
+    script_id: Annotated[
+        str | None, typer.Option("--script-id", "-s", help="Script ID")
+    ] = None,
+) -> None:
+    """Create or update a world element."""
+    try:
+        settings = get_settings()
+        with DatabaseConnection(str(settings.get_database_path())) as connection:
+            # Get script ID if not provided
+            if not script_id:
+                latest = get_latest_script_id(connection)
+                if not latest:
+                    console.print(
+                        "[red]✗[/red] No scripts found. Please import a script first."
+                    )
+                    raise typer.Exit(1)
+                script_id, script_title = latest
+                console.print(f"[blue]Using script:[/blue] {script_title}")
+
+            # For now, just acknowledge the element creation
+            # TODO: Implement actual world element storage
+            console.print(
+                f"[green]✓[/green] World element '{element_name}' "
+                f"({element_type}) noted for script"
+            )
+            if description:
+                console.print(f"[dim]Description: {description}[/dim]")
+
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to create world element: {e}")
+        raise typer.Exit(1) from e

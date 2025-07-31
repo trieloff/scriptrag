@@ -367,10 +367,12 @@ class DatabaseOperations:
     async def update_script_bible(
         self,
         script_id: str,  # noqa: ARG002
-        bible_data: dict[str, Any],  # noqa: ARG002
+        bible_data: dict[str, Any],
     ) -> bool:
         """Update the script bible."""
         # This would need proper implementation
+        # TODO: Implement actual bible update logic using script_id and bible_data
+        _ = bible_data  # Acknowledge parameter until implemented
         return True
 
     # Validation operations

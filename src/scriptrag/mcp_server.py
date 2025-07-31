@@ -1432,11 +1432,17 @@ class ScriptRAGMCPServer:
 
             # Update scene metadata using graph operations
             if heading or action:
+                # Create metadata dict with only the fields accepted
+                metadata = {}
+                if heading:
+                    metadata["heading"] = heading
+                if action:
+                    metadata["description"] = action
+
                 success = graph_ops.update_scene_metadata(
                     scene_node_id=scene_node_id,
-                    heading=heading,
-                    description=action,
-                    propagate_to_graph=True,
+                    metadata=metadata,
+                    merge=True,
                 )
                 if success:
                     if heading:
@@ -1576,8 +1582,8 @@ class ScriptRAGMCPServer:
 
                 changes["dialogue"] = f"Updated with {len(dialogue_entries)} entries"
 
-                # Update character appearances in graph
-                graph_ops._update_character_appearances(scene_node_id, action or "")
+                # TODO: Update character appearances in graph
+                # This requires extracting character names and script_node_id
 
             return {
                 "script_id": script_id,
@@ -1769,11 +1775,9 @@ class ScriptRAGMCPServer:
             # Use graph operations to inject the scene
             # Convert 0-based position to 1-based for inject_scene_at_position
             success = graph_ops.inject_scene_at_position(
+                new_scene=scene,
                 script_node_id=script_node_id,
-                scene=scene,
                 position=position + 1,  # Convert 0-based to 1-based
-                characters=characters,
-                location=location_name if location else None,
             )
 
             if not success:

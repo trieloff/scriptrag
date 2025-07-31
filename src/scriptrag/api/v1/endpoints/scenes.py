@@ -444,7 +444,7 @@ async def get_scene_dependencies(
             )
 
         # Get dependencies
-        dependencies = await db_ops.get_scene_dependencies(scene_id, direction)
+        dependencies = await db_ops.get_scene_dependencies(scene_id)
 
         return {
             "scene_id": scene_id,

@@ -812,9 +812,7 @@ class SceneManager:
             order_mapping = {scene.id: idx + 1 for idx, scene in enumerate(scenes)}
 
             # Update the database
-            return self.operations.update_scene_order(
-                script_node_id, order_mapping, order_type
-            )
+            return self.operations.update_scene_order(script_node_id, order_mapping)
 
         except Exception as e:
             logger.error(f"Failed to update scene order: {e}")

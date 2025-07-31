@@ -129,7 +129,7 @@ jobs:
           name: safety-report
           path: .safety-report.json
 
-  test:
+  test-unix:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     needs: changes
@@ -137,12 +137,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest]
         python-version: ["3.12", "3.13"]
         exclude:
           # Reduce matrix for faster CI
-          - os: windows-latest
-            python-version: "3.13"
           - os: macos-latest
             python-version: "3.13"
 
@@ -174,50 +172,12 @@ jobs:
         run: make install
         shell: bash
 
-      - name: Windows Debug Info
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Write-Host "=== Windows Debug Information ==="
-          Write-Host "Temp directory: $env:TEMP"
-          Write-Host "Number of CPUs: $env:NUMBER_OF_PROCESSORS"
-          Write-Host "Available memory:"
-          Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory
-          Write-Host "Python location:"
-          Get-Command python
-          Write-Host "UV location:"
-          Get-Command uv
-          Write-Host "Current directory contents:"
-          Get-ChildItem -Force
-          Write-Host "================================="
-
-      - name: Run tests with pytest (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          echo "Starting pytest at $(date)"
-          echo "Python version: $(python --version)"
-          echo "OS: ${{ matrix.os }}"
-          echo "Runner: ${{ runner.os }}"
-          make test
-          echo "Finished pytest at $(date)"
-
-      - name: Surface failing tests (Windows)
-        uses: pmeier/pytest-results-action@main
-        if: always() && runner.os == 'Windows'
-        with:
-          path: junit.xml
-          summary: true
-          display-options: fEsX
-          fail-on-empty: true
-          title: "Test Results (${{ matrix.os }}, Python ${{ matrix.python-version }})"
-
-      - name: Run tests with pytest (Linux/macOS)
-        if: runner.os != 'Windows'
+      - name: Run tests with pytest
         run: make test
 
-      - name: Surface failing tests (Linux/macOS)
+      - name: Surface failing tests
         uses: pmeier/pytest-results-action@main
-        if: always() && runner.os != 'Windows'
+        if: always()
         with:
           path: junit.xml
           summary: true
@@ -241,6 +201,86 @@ jobs:
           name: codecov-umbrella
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  test-windows:
+    name: Test Python ${{ matrix.python-version }} on Windows
+    runs-on: windows-latest
+    needs: [changes, test-unix]
+    if: needs.changes.outputs.python == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Cache uv dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .venv
+          key: uv-${{ runner.os }}-py${{ matrix.python-version }}-${{ hashFiles('**/uv.lock', '**/pyproject.toml') }}
+          restore-keys: |
+            uv-${{ runner.os }}-py${{ matrix.python-version }}-
+
+      - name: Install dependencies
+        run: make install
+        shell: bash
+
+      - name: Windows Debug Info
+        shell: pwsh
+        run: |
+          Write-Host "=== Windows Debug Information ==="
+          Write-Host "Temp directory: $env:TEMP"
+          Write-Host "Number of CPUs: $env:NUMBER_OF_PROCESSORS"
+          Write-Host "Available memory:"
+          Get-CimInstance Win32_OperatingSystem | Select-Object TotalVisibleMemorySize, FreePhysicalMemory
+          Write-Host "Python location:"
+          Get-Command python
+          Write-Host "UV location:"
+          Get-Command uv
+          Write-Host "Current directory contents:"
+          Get-ChildItem -Force
+          Write-Host "================================="
+
+      - name: Run tests with pytest
+        run: |
+          echo "Starting pytest at $(date)"
+          echo "Python version: $(python --version)"
+          echo "OS: windows-latest"
+          echo "Runner: ${{ runner.os }}"
+          make test
+          echo "Finished pytest at $(date)"
+
+      - name: Surface failing tests
+        uses: pmeier/pytest-results-action@main
+        if: always()
+        with:
+          path: junit.xml
+          summary: true
+          display-options: fEsX
+          fail-on-empty: true
+          title: "Test Results (Windows, Python ${{ matrix.python-version }})"
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-windows-latest-py${{ matrix.python-version }}
+          path: junit.xml
 
   docs:
     name: Build Documentation
@@ -328,7 +368,7 @@ jobs:
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
-    needs: [changes, lint, type-check, test]
+    needs: [changes, lint, type-check, test-unix]
     if: needs.changes.outputs.python == 'true'
 
     steps:
@@ -369,7 +409,7 @@ jobs:
   all-checks:
     name: All Checks Passed
     runs-on: ubuntu-latest
-    needs: [changes, lint, type-check, security, test, docs, build, pre-commit]
+    needs: [changes, lint, type-check, security, test-unix, test-windows, docs, build, pre-commit]
     if: always()
     steps:
       - name: Check if all jobs passed
@@ -391,7 +431,7 @@ jobs:
   notify-terry:
     name: Notify Terry on Failure
     runs-on: ubuntu-latest
-    needs: [changes, lint, type-check, security, test, docs, build, pre-commit]
+    needs: [changes, lint, type-check, security, test-unix, test-windows, docs, build, pre-commit]
     if: |
       always() &&
       github.event_name == 'pull_request' &&
@@ -428,7 +468,8 @@ jobs:
               lint: '${{ needs.lint.result }}',
               typeCheck: '${{ needs.type-check.result }}',
               security: '${{ needs.security.result }}',
-              test: '${{ needs.test.result }}',
+              testUnix: '${{ needs.test-unix.result }}',
+              testWindows: '${{ needs.test-windows.result }}',
               docs: '${{ needs.docs.result }}',
               build: '${{ needs.build.result }}',
               preCommit: '${{ needs.pre-commit.result }}'

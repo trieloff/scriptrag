@@ -673,6 +673,13 @@ def script_info(
         if db_path.exists():
             console.print(f"[bold blue]Database Info:[/bold blue] {db_path}")
 
+            # Ensure database is initialized with schema
+            from scriptrag.database import initialize_database
+
+            if not initialize_database(db_path):
+                console.print("[red]Failed to initialize database[/red]")
+                raise typer.Exit(1)
+
             # Get and display database statistics
             with get_connection() as conn:
                 stats_collector = DatabaseStatistics(conn)

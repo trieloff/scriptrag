@@ -4,6 +4,7 @@ This module provides comprehensive statistics about the ScriptRAG database,
 including entity counts, graph metrics, embedding coverage, and usage patterns.
 """
 
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -65,6 +66,28 @@ class DatabaseStatistics:
 
         # Get all table row counts
         table_counts = {}
+
+        # Whitelist of allowed table names to prevent SQL injection
+        allowed_tables = {
+            "scripts",
+            "scenes",
+            "characters",
+            "locations",
+            "actions",
+            "dialogue",
+            "transitions",
+            "script_sections",
+            "nodes",
+            "edges",
+            "episodes",
+            "seasons",
+            "script_bible_entries",
+            "continuity_issues",
+            "vector_embeddings",
+            "embedding_metadata",
+            "mcp_resources",
+        }
+
         tables = self.connection.execute(
             "SELECT name FROM sqlite_master WHERE type='table' "
             "AND name NOT LIKE 'sqlite_%'"
@@ -75,15 +98,28 @@ class DatabaseStatistics:
             # Skip FTS tables as they have different structure
             if "_fts" in table_name:
                 continue
+
+            # Only query whitelisted tables to prevent SQL injection
+            if table_name not in allowed_tables:
+                logger.warning("Skipping unknown table in statistics", table=table_name)
+                continue
+
             try:
+                # Using parameterized query isn't possible for table names,
+                # but we've validated against whitelist
                 count = self.connection.execute(
                     f"SELECT COUNT(*) FROM {table_name}"
                 ).fetchone()[0]
                 table_counts[table_name] = count
-            except Exception as e:
+            except sqlite3.OperationalError as e:
+                # Handle specific database errors (e.g., table doesn't exist)
                 logger.warning(
-                    "Failed to count rows in table", table=table_name, error=str(e)
+                    "Database error counting rows", table=table_name, error=str(e)
                 )
+                continue
+            except sqlite3.DatabaseError as e:
+                # Handle other database errors
+                logger.error("Serious database error", table=table_name, error=str(e))
                 continue
 
         metrics["table_counts"] = table_counts
@@ -103,40 +139,54 @@ class DatabaseStatistics:
                 - graph_density: Graph density metric
         """
         # Node statistics
-        total_nodes = self.connection.execute("SELECT COUNT(*) FROM nodes").fetchone()[
-            0
-        ]
-        node_types = dict(
-            self.connection.execute(
-                "SELECT node_type, COUNT(*) FROM nodes GROUP BY node_type"
-            ).fetchall()
-        )
+        try:
+            total_nodes = self.connection.execute(
+                "SELECT COUNT(*) FROM nodes"
+            ).fetchone()[0]
+            node_types = dict(
+                self.connection.execute(
+                    "SELECT node_type, COUNT(*) FROM nodes GROUP BY node_type"
+                ).fetchall()
+            )
+        except sqlite3.OperationalError as e:
+            logger.warning("Nodes table not found", error=str(e))
+            total_nodes = 0
+            node_types = {}
 
         # Edge statistics
-        total_edges = self.connection.execute("SELECT COUNT(*) FROM edges").fetchone()[
-            0
-        ]
-        edge_types = dict(
-            self.connection.execute(
-                "SELECT edge_type, COUNT(*) FROM edges GROUP BY edge_type"
-            ).fetchall()
-        )
+        try:
+            total_edges = self.connection.execute(
+                "SELECT COUNT(*) FROM edges"
+            ).fetchone()[0]
+            edge_types = dict(
+                self.connection.execute(
+                    "SELECT edge_type, COUNT(*) FROM edges GROUP BY edge_type"
+                ).fetchall()
+            )
+        except sqlite3.OperationalError as e:
+            logger.warning("Edges table not found", error=str(e))
+            total_edges = 0
+            edge_types = {}
 
         # Calculate average degree
         avg_degree = 0.0
-        if total_nodes > 0:
-            # Count degrees for all nodes
-            degree_query = """
-            SELECT node_id, COUNT(*) as degree FROM (
-                SELECT from_node_id as node_id FROM edges
-                UNION ALL
-                SELECT to_node_id as node_id FROM edges
-            ) GROUP BY node_id
-            """
-            degrees = self.connection.execute(degree_query).fetchall()
-            if degrees:
-                total_degree = sum(d[1] for d in degrees)
-                avg_degree = total_degree / len(degrees)
+        if total_nodes > 0 and total_edges > 0:
+            try:
+                # Count degrees for all nodes
+                degree_query = """
+                SELECT node_id, COUNT(*) as degree FROM (
+                    SELECT from_node_id as node_id FROM edges
+                    UNION ALL
+                    SELECT to_node_id as node_id FROM edges
+                ) GROUP BY node_id
+                """
+                degrees = self.connection.execute(degree_query).fetchall()
+                if degrees:
+                    total_degree = sum(d[1] for d in degrees)
+                    avg_degree = total_degree / len(degrees)
+            except sqlite3.OperationalError:
+                # Edges table might be missing
+                avg_degree = 0.0
 
         # Calculate graph density
         # For directed graphs: density = edges / (nodes * (nodes - 1))
@@ -230,7 +280,7 @@ class DatabaseStatistics:
         connected_chars = self.connection.execute("""
             SELECT c.name, COUNT(DISTINCT e.id) as connections
             FROM characters c
-            JOIN nodes n ON n.entity_id = c.id AND n.node_type = 'character'
+            JOIN nodes n ON n.entity_id = c.id AND UPPER(n.node_type) = 'CHARACTER'
             LEFT JOIN edges e ON e.from_node_id = n.id OR e.to_node_id = n.id
             GROUP BY c.id, c.name
             ORDER BY connections DESC

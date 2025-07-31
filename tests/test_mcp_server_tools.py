@@ -42,15 +42,60 @@ class TestGetSceneDetailsTool:
     """Tests for get_scene_details tool."""
 
     @pytest.mark.asyncio
-    async def test_get_scene_details_basic(self, mcp_server_with_db):
+    async def test_get_scene_details_basic(
+        self, mcp_server_with_db, sample_script, sample_scene
+    ):
         """Test basic scene details retrieval."""
-        from scriptrag.models import Script
+        from scriptrag.database.connection import DatabaseConnection
 
-        # Add script to cache for testing
-        script = Script(title="Test", source_file="test.fountain")
-        mcp_server_with_db._scripts_cache["script_0"] = script
+        # CONSPIRACY FIX: Create a proper script with scenes in the database
+        db_path = str(mcp_server_with_db.config.get_database_path())
 
-        # Currently returns placeholder data
+        with DatabaseConnection(db_path) as conn, conn.transaction() as tx:
+            # Store the script first
+            tx.execute(
+                """
+                    INSERT INTO scripts (id, title, author, format, genre,
+                    description, is_series)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                (
+                    str(sample_script.id),
+                    sample_script.title,
+                    sample_script.author,
+                    sample_script.format,
+                    sample_script.genre,
+                    sample_script.description,
+                    sample_script.is_series,
+                ),
+            )
+
+            # Update scene to use numeric ID (1) as expected by test
+            sample_scene.id = 1
+            sample_scene.script_id = sample_script.id
+
+            # Store the scene
+            tx.execute(
+                """
+                    INSERT INTO scenes (id, script_id, heading, description,
+                    script_order, temporal_order, estimated_duration_minutes)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                (
+                    sample_scene.id,
+                    str(sample_scene.script_id),
+                    sample_scene.heading,
+                    sample_scene.description,
+                    sample_scene.script_order,
+                    sample_scene.temporal_order,
+                    sample_scene.estimated_duration_minutes,
+                ),
+            )
+
+        # Add script to cache
+        mcp_server_with_db._scripts_cache["script_0"] = sample_script
+
+        # Now the scene exists and can be retrieved
         result = await mcp_server_with_db._tool_get_scene_details(
             {"script_id": "script_0", "scene_id": 1}
         )

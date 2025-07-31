@@ -6,7 +6,6 @@ import sqlite3
 import tempfile
 import time
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 
@@ -156,10 +155,11 @@ def sample_location():
 
 
 @pytest.fixture
-def sample_scene():
+def sample_scene(sample_script):
     """Create a sample scene for testing."""
+    # CRITICAL FIX: Use script_id from sample_script for FK integrity
     return Scene(
-        script_id=uuid4(),
+        script_id=sample_script.id,
         heading="INT. COFFEE SHOP - DAY",
         description="Our protagonist enters a busy coffee shop",
         script_order=1,

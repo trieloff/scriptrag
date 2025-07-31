@@ -43,6 +43,37 @@ def mcp_server(mock_settings, tmp_path):
         return ScriptRAGMCPServer(mock_settings)
 
 
+@pytest.fixture
+def store_script_in_db(mcp_server):
+    """Helper function to properly store a script in the database."""
+    from scriptrag.database.connection import DatabaseConnection
+
+    def _store_script(script):
+        """Store script and return the database ID."""
+        db_path = str(mcp_server.config.get_database_path())
+        with DatabaseConnection(db_path) as conn, conn.transaction() as tx:
+            # Store the script in the database
+            tx.execute(
+                """
+                    INSERT INTO scripts (id, title, author, format, genre,
+                    description, is_series)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                (
+                    str(script.id),
+                    script.title,
+                    script.author,
+                    script.format,
+                    script.genre,
+                    script.description,
+                    script.is_series,
+                ),
+            )
+        return script.id
+
+    return _store_script
+
+
 class TestScriptRAGMCPServer:
     """Test ScriptRAGMCPServer class."""
 
@@ -834,13 +865,19 @@ class TestGetCharacterInfoTool:
         assert result["dialogue_lines"] == 0
 
     @pytest.mark.asyncio
-    async def test_get_character_info_with_relationships(self, mcp_server):
+    async def test_get_character_info_with_relationships(
+        self, mcp_server, store_script_in_db
+    ):
         """Test getting character info with relationships."""
         from scriptrag.database.connection import DatabaseConnection
         from scriptrag.database.operations import GraphOperations
         from scriptrag.models import Character, Scene
 
         script = Script(title="Test", source_file="test.fountain")
+        # CONSPIRACY FIX: Store script in database first
+        stored_script_id = store_script_in_db(script)
+        script.id = stored_script_id
+
         script_id = f"script_{script.id.hex[:8]}"
         mcp_server._scripts_cache[script_id] = script
 

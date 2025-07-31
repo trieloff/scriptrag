@@ -135,6 +135,19 @@ repos:
       - id: check-github-actions
       - id: check-readthedocs
 
+  # Custom hooks
+  - repo: local
+    hooks:
+      - id: check-magicmock-files
+        name: Check for MagicMock test artifacts
+        entry: |
+          bash -c 'if git diff --cached --name-only | grep -E "(MagicMock|Mock.*id=)" | grep -v "^D" > /dev/null; then
+            echo "Error: MagicMock test artifacts detected. These should not be committed.";
+            exit 1;
+          fi'
+        language: system
+        pass_filenames: false
+
 ci:
   autoupdate_schedule: weekly
   skip: [mypy]  # mypy is too slow for CI

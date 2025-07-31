@@ -186,3 +186,5 @@ config/local.yaml
 <Mock*
 *<Mock*
 *id='*'*
+MagicMock/
+*MagicMock*

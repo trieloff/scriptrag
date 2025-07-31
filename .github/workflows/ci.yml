@@ -165,19 +165,26 @@ jobs:
       - name: Run canary tests (minimal, fail-fast)
         run: |
           echo "🐤 Running canary tests with minimal output and 10 error limit"
-          SCRIPTRAG_LOG_LEVEL=ERROR uv run pytest -x -q --tb=short --maxfail=10 --disable-warnings
+          SCRIPTRAG_LOG_LEVEL=ERROR uv run pytest -x -q --tb=short --maxfail=10 --disable-warnings --junit-xml=junit.xml
         env:
           PYTHONPATH: src
 
-      - name: Surface canary test failures
+      - name: Surface canary test results
         uses: pmeier/pytest-results-action@main
-        if: failure()
+        if: always()
         with:
           path: junit.xml
           summary: true
           display-options: fEsX
-          fail-on-empty: false
-          title: "Canary Test Failures (Ubuntu, Python ${{ env.PYTHON_VERSION }})"
+          fail-on-empty: true
+          title: "Canary Test Results (Ubuntu, Python ${{ env.PYTHON_VERSION }})"
+
+      - name: Upload canary test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-canary-ubuntu-py${{ env.PYTHON_VERSION }}
+          path: junit.xml
 
   # Full test matrix - runs only after canary passes
   test-matrix:

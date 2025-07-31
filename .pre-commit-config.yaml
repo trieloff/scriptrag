@@ -141,7 +141,7 @@ repos:
       - id: check-magicmock-files
         name: Check for MagicMock test artifacts
         entry: |
-          bash -c 'if git diff --cached --name-only | grep -E "(MagicMock|Mock.*id=)" | grep -v "^D" > /dev/null; then
+          bash -c 'if git diff --cached --name-status | grep "^A" | cut -f2- | grep -E "(MagicMock|Mock.*id=)" > /dev/null; then
             echo "Error: MagicMock test artifacts detected. These should not be committed.";
             exit 1;
           fi'

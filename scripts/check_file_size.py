@@ -5,16 +5,6 @@ import argparse
 import sys
 from pathlib import Path
 
-# Known violations that we're tracking but not enforcing yet
-# These files need refactoring in separate PRs
-KNOWN_VIOLATIONS = {
-    "src/scriptrag/cli.py",
-    "src/scriptrag/mcp_server.py",
-    "src/scriptrag/mentors/character_arc.py",
-    "src/scriptrag/database/operations.py",
-    "src/scriptrag/database/migrations.py",
-}
-
 
 def count_lines(file_path: Path) -> int:
     """Count the number of lines in a file."""
@@ -61,14 +51,9 @@ def check_file_sizes(
                 )
         else:
             if lines > hard_limit:
-                # Check if this is a known violation
-                if str(path) in KNOWN_VIOLATIONS:
-                    msg = f"{path}: {lines} lines exceeds hard limit of {hard_limit}"
-                    warnings.append(f"{msg} (known violation)")
-                else:
-                    errors.append(
-                        f"{path}: {lines} lines exceeds hard limit of {hard_limit}"
-                    )
+                errors.append(
+                    f"{path}: {lines} lines exceeds hard limit of {hard_limit}"
+                )
             elif lines > soft_limit:
                 warnings.append(
                     f"{path}: {lines} lines exceeds soft limit of {soft_limit}"

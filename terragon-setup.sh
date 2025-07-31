@@ -218,7 +218,7 @@ check_timeout
 
 # Install ai-aligned-git (git wrapper for AI safety)
 log_info "Checking for ai-aligned-git..."
-if [ ! -f "$HOME/.local/bin/git" ] || ! grep -q "AI-Aligned-Git" "$HOME/.local/bin/git" 2>/dev/null; then
+if [ ! -f "$HOME/.local/bin/git" ] || ! grep -q "Git wrapper - Automatically detect AI tools" "$HOME/.local/bin/git" 2>/dev/null; then
     log_info "Installing ai-aligned-git for AI-safe git operations..."
     # Download and run the install script
     curl -fsSL https://raw.githubusercontent.com/trieloff/ai-aligned-git/main/install.sh -o /tmp/install-ai-aligned-git.sh && \
@@ -230,8 +230,31 @@ if [ ! -f "$HOME/.local/bin/git" ] || ! grep -q "AI-Aligned-Git" "$HOME/.local/b
 
     # Ensure ~/.local/bin is in PATH for this session
     export PATH="$HOME/.local/bin:$PATH"
+
+    # Create symlink to make ai-aligned-git available system-wide
+    if [ -f "$HOME/.local/bin/git" ]; then
+        log_info "Creating symlink for ai-aligned-git..."
+        sudo ln -sf "$HOME/.local/bin/git" /usr/local/bin/git || {
+            log_warning "Failed to create symlink for ai-aligned-git"
+        }
+        # Verify the symlink worked
+        if [ -L "/usr/local/bin/git" ]; then
+            log_success "ai-aligned-git symlink created at /usr/local/bin/git"
+        fi
+    fi
 else
     log_info "ai-aligned-git is already installed"
+
+    # Check if symlink exists, create if not
+    if [ ! -L "/usr/local/bin/git" ] && [ -f "$HOME/.local/bin/git" ]; then
+        log_info "Creating symlink for existing ai-aligned-git installation..."
+        sudo ln -sf "$HOME/.local/bin/git" /usr/local/bin/git || {
+            log_warning "Failed to create symlink for ai-aligned-git"
+        }
+        if [ -L "/usr/local/bin/git" ]; then
+            log_success "ai-aligned-git symlink created at /usr/local/bin/git"
+        fi
+    fi
 fi
 
 mark_completed "ai_aligned_git"

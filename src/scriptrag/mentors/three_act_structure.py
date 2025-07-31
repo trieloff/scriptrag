@@ -16,7 +16,7 @@ The mentor analyzes:
 """
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, TypedDict
 from uuid import UUID
 
@@ -447,7 +447,7 @@ class ThreeActStructureMentor(BaseMentor):
         Returns:
             Complete three-act structure analysis result
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
         analyses: list[MentorAnalysis] = []
 
         try:
@@ -516,7 +516,7 @@ class ThreeActStructureMentor(BaseMentor):
             summary = self._generate_summary(analyses, total_pages)
 
             execution_time = int(
-                (datetime.utcnow() - start_time).total_seconds() * 1000
+                (datetime.now(UTC) - start_time).total_seconds() * 1000
             )
 
             if progress_callback:
@@ -551,7 +551,7 @@ class ThreeActStructureMentor(BaseMentor):
             )
 
             execution_time = int(
-                (datetime.utcnow() - start_time).total_seconds() * 1000
+                (datetime.now(UTC) - start_time).total_seconds() * 1000
             )
 
             return MentorResult(

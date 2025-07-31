@@ -261,6 +261,7 @@ class TestScriptOperations:
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
                 "scene_count": 10,
+                "character_count": 3,
             },
             {
                 "id": str(uuid4()),
@@ -269,6 +270,7 @@ class TestScriptOperations:
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
                 "scene_count": 5,
+                "character_count": 2,
             },
         ]
 
@@ -279,8 +281,10 @@ class TestScriptOperations:
         assert len(result) == 2
         assert result[0]["title"] == "Script 1"
         assert result[0]["scene_count"] == 10
+        assert result[0]["character_count"] == 3
         assert result[1]["title"] == "Script 2"
         assert result[1]["scene_count"] == 5
+        assert result[1]["character_count"] == 2
 
     @pytest.mark.asyncio
     async def test_list_scripts_empty(self, db_ops, mock_connection):

@@ -1863,16 +1863,116 @@ class ScriptRAGMCPServer:
         if not script_id or scene_id is None:
             raise ValueError("script_id and scene_id are required")
 
-        # TODO: Implement when scene data is available
-        return {
-            "script_id": script_id,
-            "scene_id": scene_id,
-            "heading": "INT. LOCATION - DAY",
-            "action": "Scene action goes here.",
-            "dialogue": [],
-            "characters": [],
-            "page_number": 1,
-        }
+        # Validate script exists
+        _ = self._validate_script_id(script_id)
+
+        from .database.connection import DatabaseConnection
+
+        db_connection = DatabaseConnection(str(self.config.get_database_path()))
+        with db_connection.get_connection() as connection:
+            # Query scene data
+            scene_query = """
+                SELECT s.*, l.name as location_name, l.interior, l.time_of_day
+                FROM scenes s
+                LEFT JOIN locations l ON s.location_id = l.id
+                WHERE s.id = ? AND s.script_id = ?
+            """
+            cursor = connection.execute(scene_query, (scene_id, script_id))
+            scene_row = cursor.fetchone()
+
+            if not scene_row:
+                raise ValueError(f"Scene not found: {scene_id}")
+
+            # Extract scene elements (action, dialogue, parentheticals)
+            elements_query = """
+                SELECT se.*, c.name as character_name
+                FROM scene_elements se
+                LEFT JOIN characters c ON se.character_id = c.id
+                WHERE se.scene_id = ?
+                ORDER BY se.order_in_scene
+            """
+            cursor = connection.execute(elements_query, (scene_id,))
+            elements = cursor.fetchall()
+
+            # Build action text and dialogue array
+            action_parts = []
+            dialogue_entries = []
+            current_character = None
+            current_dialogue = None
+
+            for element in elements:
+                element_type = element["element_type"]
+                text = element["text"]
+
+                if element_type == "action":
+                    action_parts.append(text)
+                elif element_type == "dialogue":
+                    # If we have a previous dialogue entry, add it
+                    if current_dialogue:
+                        dialogue_entries.append(current_dialogue)
+
+                    current_character = (
+                        element["character_name"] or element["character_id"]
+                    )
+                    current_dialogue = {
+                        "character": current_character,
+                        "text": text,
+                        "parentheticals": [],
+                    }
+                elif element_type == "parenthetical" and current_dialogue:
+                    current_dialogue["parentheticals"].append(text)
+                elif element_type == "character":
+                    # Character cue - already handled in dialogue
+                    pass
+
+            # Add the last dialogue entry if exists
+            if current_dialogue:
+                dialogue_entries.append(current_dialogue)
+
+            # Get unique characters in the scene
+            char_query = """
+                SELECT DISTINCT c.name, COUNT(se.id) as line_count
+                FROM characters c
+                JOIN scene_elements se ON se.character_id = c.id
+                WHERE se.scene_id = ? AND se.element_type = 'dialogue'
+                GROUP BY c.id, c.name
+            """
+            cursor = connection.execute(char_query, (scene_id,))
+            character_stats = cursor.fetchall()
+
+            characters = []
+            for char_row in character_stats:
+                characters.append(
+                    {"name": char_row["name"], "line_count": char_row["line_count"]}
+                )
+
+            # Format response
+            return {
+                "script_id": script_id,
+                "scene_id": scene_id,
+                "heading": scene_row["heading"] or "",
+                "action": "\n\n".join(action_parts) if action_parts else "",
+                "dialogue": dialogue_entries,
+                "characters": characters,
+                "page_number": scene_row["script_order"] or 1,
+                "location": {
+                    "name": scene_row["location_name"] or "",
+                    "interior": (
+                        scene_row["interior"]
+                        if scene_row["interior"] is not None
+                        else True
+                    ),
+                    "time_of_day": scene_row["time_of_day"] or "",
+                }
+                if scene_row["location_id"]
+                else None,
+                "temporal_order": scene_row["temporal_order"],
+                "logical_order": scene_row["logical_order"],
+                "estimated_duration_minutes": scene_row["estimated_duration_minutes"],
+                "time_of_day": scene_row["time_of_day"],
+                "date_in_story": scene_row["date_in_story"],
+                "description": scene_row["description"] or "",
+            }
 
     async def _tool_get_character_relationships(
         self, args: dict[str, Any]

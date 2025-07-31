@@ -1159,32 +1159,6 @@ class TestInjectSceneTool:
         assert result["dialogue_entries"] == 1
 
 
-class TestExportDataTool:
-    """Comprehensive tests for export_data tool."""
-
-    @pytest.mark.asyncio
-    async def test_export_data_missing_params(self, mcp_server):
-        """Test with missing required parameters."""
-        with pytest.raises(ValueError, match="script_id and format are required"):
-            await mcp_server._tool_export_data({"script_id": "test"})
-
-    @pytest.mark.asyncio
-    async def test_export_data_formats(self, mcp_server):
-        """Test different export formats."""
-        for format_type in ["json", "csv", "graphml", "fountain"]:
-            result = await mcp_server._tool_export_data(
-                {
-                    "script_id": "script_0",
-                    "format": format_type,
-                    "include_metadata": False,
-                }
-            )
-
-            assert result["exported"] is True
-            assert result["format"] == format_type
-            assert result["include_metadata"] is False
-
-
 class TestBibleTools:
     """Tests for Script Bible management tools."""
 

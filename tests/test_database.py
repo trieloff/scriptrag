@@ -1129,25 +1129,17 @@ class TestDatabaseConnectionErrors:
         """Test that mock objects in database paths are rejected.
 
         This test verifies that when a Mock object is passed as a database path,
-        the Path() constructor properly raises a TypeError. This ensures type
-        safety and prevents accidental passing of mock objects in tests.
+        it's converted to string and then validated. The mock returns an absolute
+        path outside the working directory which is rejected by security validation.
         """
         mock_path = Mock()
         mock_path.__str__ = Mock(return_value="/mock/path.db")
 
-        # Path() constructor should reject mock objects
-        with pytest.raises(TypeError) as exc_info:
+        # The mock's string representation creates an absolute path outside cwd
+        with pytest.raises(
+            ValueError, match="absolute paths outside working directory"
+        ):
             DatabaseConnection(mock_path)
-        # Check for either error message format (different Python versions)
-        error_msg = str(exc_info.value)
-        assert (
-            "expected str, bytes or os.PathLike object, not Mock" in error_msg
-            or (
-                "argument should be a str or an os.PathLike object where __fspath__ "
-                "returns a str, not 'Mock'"
-            )
-            in error_msg
-        )
 
     def test_database_path_with_null_character_in_filename(self, tmp_path):
         """Test database paths with null character in filename.
@@ -1157,9 +1149,8 @@ class TestDatabaseConnectionErrors:
         invalid in file paths and could cause security issues if not handled.
         """
         null_path = tmp_path / "test\x00.db"
-        with pytest.raises(ValueError, match="embedded null"):
-            conn = DatabaseConnection(str(null_path))
-            conn._get_connection()
+        with pytest.raises(ValueError, match="contains null bytes"):
+            DatabaseConnection(str(null_path))
 
     def test_database_path_with_null_character_in_directory(self, tmp_path):
         """Test database paths with null character in directory component.
@@ -1169,9 +1160,8 @@ class TestDatabaseConnectionErrors:
         attacks and ensures file system compatibility.
         """
         invalid_path = str(tmp_path / "test\x00invalid" / "database.db")
-        with pytest.raises(ValueError, match="embedded null"):
-            conn = DatabaseConnection(invalid_path)
-            conn._get_connection()
+        with pytest.raises(ValueError, match="contains null bytes"):
+            DatabaseConnection(invalid_path)
 
     @patch("sqlite3.connect")
     def test_sqlite3_connect_permission_error(self, mock_connect, tmp_path):

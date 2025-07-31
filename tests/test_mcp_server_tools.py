@@ -49,16 +49,18 @@ class TestGetSceneDetailsTool:
         from scriptrag.database.connection import DatabaseConnection
 
         # CONSPIRACY FIX: Create a proper script with scenes in the database
+        # Use the same database path that the server will use
         db_path = str(mcp_server_with_db.config.get_database_path())
 
-        with DatabaseConnection(db_path) as conn, conn.transaction() as tx:
+        # CRITICAL: Use get_connection() to ensure same connection pool
+        with DatabaseConnection(db_path) as db_conn, db_conn.get_connection() as conn:
             # Store the script first
-            tx.execute(
+            conn.execute(
                 """
-                    INSERT INTO scripts (id, title, author, format, genre,
-                    description, is_series)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
+                INSERT INTO scripts (id, title, author, format, genre,
+                description, is_series)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
                 (
                     str(sample_script.id),
                     sample_script.title,
@@ -74,12 +76,12 @@ class TestGetSceneDetailsTool:
             sample_scene.script_id = sample_script.id
 
             # Store the scene
-            tx.execute(
+            conn.execute(
                 """
-                    INSERT INTO scenes (id, script_id, heading, description,
-                    script_order, temporal_order, estimated_duration_minutes)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
+                INSERT INTO scenes (id, script_id, heading, description,
+                script_order, temporal_order, estimated_duration_minutes)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
                 (
                     str(sample_scene.id),
                     str(sample_scene.script_id),
@@ -90,16 +92,18 @@ class TestGetSceneDetailsTool:
                     sample_scene.estimated_duration_minutes,
                 ),
             )
+            conn.commit()
 
-        # Add script to cache
-        mcp_server_with_db._scripts_cache["script_0"] = sample_script
+        # Add script to cache - CRITICAL: Use the actual script ID as the cache key
+        script_cache_id = str(sample_script.id)
+        mcp_server_with_db._scripts_cache[script_cache_id] = sample_script
 
         # Now the scene exists and can be retrieved
         result = await mcp_server_with_db._tool_get_scene_details(
-            {"script_id": "script_0", "scene_id": str(sample_scene.id)}
+            {"script_id": script_cache_id, "scene_id": str(sample_scene.id)}
         )
 
-        assert result["script_id"] == "script_0"
+        assert result["script_id"] == script_cache_id
         assert result["scene_id"] == str(sample_scene.id)
         assert "heading" in result
         assert "action" in result

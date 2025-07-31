@@ -253,11 +253,11 @@ async def inject_scene_after(
             raise HTTPException(status_code=404, detail="Reference scene not found")
 
         # Calculate position (inject after means position = current + 1)
-        new_position = getattr(ref_scene, "scene_number", 1) + 1
+        new_position = ref_scene.get("scene_number", 1) + 1
 
         # Use enhanced inject method with full re-indexing
         new_scene_id = await db_ops.inject_scene_at_position(
-            script_id=str(ref_scene.script_id) if ref_scene.script_id else "",
+            script_id=ref_scene.get("script_id", ""),
             scene_data=scene_data,
             position=new_position,
         )
@@ -500,7 +500,7 @@ async def inject_scene_at_position(
 
         # Inject scene with enhanced operations
         new_scene_id = await db_ops.inject_scene_at_position(
-            script_id=str(ref_scene.script_id) if ref_scene.script_id else "",
+            script_id=ref_scene.get("script_id", ""),
             scene_data=scene_data,
             position=position,
         )

@@ -5,13 +5,13 @@ from uuid import uuid4
 import pytest
 
 from scriptrag.mentors.base import AnalysisSeverity, MentorType
-from scriptrag.mentors.character_arc import (
+from scriptrag.mentors.character_arc import CharacterArcMentor
+from scriptrag.mentors.character_arc_markers import (
     AGENCY_PHASES,
-    CHARACTER_ARC_TYPES,
     DEVELOPMENT_STAGES,
     TRANSFORMATION_MARKERS,
-    CharacterArcMentor,
 )
+from scriptrag.mentors.character_arc_types import CHARACTER_ARC_TYPES
 
 
 class TestCharacterArcMentor:
@@ -527,7 +527,7 @@ class TestCharacterArcMentor:
         ]
 
         # Print debug info to understand why it's failing
-        arc_type = mentor._detect_arc_type(character, scenes)
+        arc_type = mentor.arc_detector.detect_arc_type(character, scenes)
 
         # If arc_type is None, let's check what's happening
         if arc_type is None:
@@ -567,7 +567,9 @@ class TestCharacterArcMentor:
                     ],
                 },
             ]
-            arc_type = mentor._detect_arc_type(character, scenes_with_more_context)
+            arc_type = mentor.arc_detector.detect_arc_type(
+                character, scenes_with_more_context
+            )
 
         assert arc_type is not None
         # With the dialogue showing change from isolation to connection,
@@ -581,11 +583,15 @@ class TestCharacterArcMentor:
         character = {"id": uuid4(), "name": "TestHero"}
         scenes = []
 
-        markers = mentor._find_transformation_marker(character, scenes, "The Want")
+        markers = mentor.arc_detector.find_transformation_marker(
+            character, scenes, "The Want"
+        )
         assert isinstance(markers, list)
 
         # Test with non-existent marker
-        markers = mentor._find_transformation_marker(character, scenes, "NonExistent")
+        markers = mentor.arc_detector.find_transformation_marker(
+            character, scenes, "NonExistent"
+        )
         assert markers == []
 
     def test_character_agency_analysis(self):
@@ -595,7 +601,9 @@ class TestCharacterArcMentor:
         character = {"id": uuid4(), "name": "TestHero"}
         scenes = []
 
-        agency_dist = mentor._analyze_character_agency(character, scenes)
+        agency_dist = mentor.conflict_analyzer.analyze_character_agency(
+            character, scenes
+        )
         assert isinstance(agency_dist, dict)
         assert "Victim Stage" in agency_dist
         assert "Creator Stage" in agency_dist
@@ -608,7 +616,9 @@ class TestCharacterArcMentor:
         character = {"id": uuid4(), "name": "TestHero"}
         scenes = []
 
-        conflict_data = mentor._analyze_internal_external_conflict(character, scenes)
+        conflict_data = mentor.conflict_analyzer.analyze_internal_external_conflict(
+            character, scenes
+        )
         assert isinstance(conflict_data, dict)
         assert "internal_conflicts" in conflict_data
         assert "external_conflicts" in conflict_data

@@ -770,7 +770,7 @@ class DatabaseOperations:
             logger.error(f"Invalid order type: {order_type}")
             return False
 
-        return self._graph_ops.reorder_scenes(script_id, scene_ids, order_type_enum)
+        return self._graph_ops.reorder_scenes(script_id, order_type_enum, scene_ids)
 
     async def infer_temporal_order(self, script_id: str) -> dict[str, int]:
         """Infer temporal (chronological) order of scenes."""
@@ -799,7 +799,7 @@ class DatabaseOperations:
         if not self._graph_ops:
             raise RuntimeError("Database not initialized")
 
-        return self._graph_ops.get_scene_dependencies(scene_id, direction)
+        return self._graph_ops.ordering.get_scene_dependencies(scene_id, direction)
 
     async def calculate_logical_order(self, script_id: str) -> list[str]:
         """Calculate logical order based on dependencies."""
@@ -838,14 +838,17 @@ class DatabaseOperations:
             # Note: scene_id is the database UUID, not the graph node ID
             # The graph operations will fail if the scene doesn't have a graph node
             with contextlib.suppress(Exception):
-                self._graph_ops.update_scene_metadata(
-                    scene_node_id=scene_id,
-                    heading=heading,
-                    description=content,
-                    time_of_day=time_of_day,
-                    location=location,
-                    propagate_to_graph=True,
-                )
+                metadata = {}
+                if heading is not None:
+                    metadata["heading"] = heading
+                if content is not None:
+                    metadata["description"] = content
+                if time_of_day is not None:
+                    metadata["time_of_day"] = time_of_day
+                if location is not None:
+                    metadata["location"] = location
+                if metadata:  # Only call if we have metadata to update
+                    self._graph_ops.update_scene_metadata(scene_id, metadata)
 
         # Always return True if we got this far - the database update succeeded
         return True
@@ -896,11 +899,7 @@ class DatabaseOperations:
             script_id=UUID(script_id),
         )
 
-        return self._graph_ops.inject_scene_at_position(
-            script_node_id=script_id,
-            scene=scene,
-            position=position,
-        )
+        return self._graph_ops.inject_scene_at_position(scene, script_id, position)
 
     async def update_scene_metadata(
         self,
@@ -909,20 +908,23 @@ class DatabaseOperations:
         description: str | None = None,
         time_of_day: str | None = None,
         location: str | None = None,
-        propagate_to_graph: bool = True,
     ) -> bool:
         """Update scene metadata with optional graph propagation."""
         if not self._graph_ops:
             raise RuntimeError("Database not initialized")
 
-        return self._graph_ops.update_scene_metadata(
-            scene_node_id=scene_id,
-            heading=heading,
-            description=description,
-            time_of_day=time_of_day,
-            location=location,
-            propagate_to_graph=propagate_to_graph,
-        )
+        metadata = {}
+        if heading is not None:
+            metadata["heading"] = heading
+        if description is not None:
+            metadata["description"] = description
+        if time_of_day is not None:
+            metadata["time_of_day"] = time_of_day
+        if location is not None:
+            metadata["location"] = location
+        # Note: propagate_to_graph is not supported in the new API
+
+        return self._graph_ops.update_scene_metadata(scene_id, metadata)
 
     async def validate_story_continuity(self, script_id: str) -> dict[str, Any]:
         """Validate story continuity across all scenes."""

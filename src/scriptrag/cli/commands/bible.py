@@ -1,6 +1,5 @@
 """Script Bible and continuity management commands for ScriptRAG CLI."""
 
-from pathlib import Path
 from typing import Annotated, Any
 
 import typer
@@ -218,7 +217,9 @@ def bible_character_profile(
                 console.print(
                     f"[yellow]⚠[/yellow] Profile for '{character_name}' already exists."
                 )
-                console.print("[dim]Use --force to overwrite (not implemented yet)[/dim]")
+                console.print(
+                    "[dim]Use --force to overwrite (not implemented yet)[/dim]"
+                )
             else:
                 # Create new profile
                 bible_ops.create_character_profile(

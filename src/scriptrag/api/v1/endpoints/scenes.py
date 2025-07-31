@@ -615,7 +615,6 @@ async def update_scene_metadata(
     description: str | None = None,
     time_of_day: str | None = None,
     location: str | None = None,
-    propagate_to_graph: bool = True,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> SceneResponse:
     """Update scene metadata with optional graph propagation."""
@@ -632,7 +631,6 @@ async def update_scene_metadata(
             description=description,
             time_of_day=time_of_day,
             location=location,
-            propagate_to_graph=propagate_to_graph,
         )
 
         if not success:

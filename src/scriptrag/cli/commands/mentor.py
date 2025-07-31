@@ -222,9 +222,9 @@ def mentor_analyze(
             mentor_db = MentorDatabaseOperations(connection)
             saved = mentor_db.store_mentor_result(analysis_result)
             if saved:
-                console.print(f"\n[green]✓[/green] Results saved to database")
+                console.print("\n[green]✓[/green] Results saved to database")
             else:
-                console.print(f"\n[yellow]⚠[/yellow] Failed to save results to database")
+                console.print("\n[yellow]⚠[/yellow] Failed to save results to database")
 
     except Exception as e:
         console.print(f"[red]Error running analysis: {e}[/red]")

@@ -541,9 +541,7 @@ def scene_analyze(
 
             if temporal_order:
                 # Update the temporal order in the database
-                manager.operations.update_scene_order(
-                    script_id, temporal_order, SceneOrderType.TEMPORAL
-                )
+                manager.operations.update_scene_order(script_id, temporal_order)
 
                 console.print(
                     f"  [green]✓[/green] Inferred temporal order for "

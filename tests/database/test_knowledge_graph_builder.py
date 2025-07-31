@@ -245,7 +245,10 @@ async def test_extract_character_interactions(
 
         # Should create interaction from John to Sarah (dialogue exchange)
         mock_interact.assert_called_once_with(
-            "char_node_john", "char_node_sarah", "scene_node_1", dialogue_count=1
+            "char_node_john",
+            "char_node_sarah",
+            "scene_node_1",
+            interaction_type="dialogue",
         )
 
 
@@ -294,7 +297,7 @@ async def test_build_temporal_graph(mock_connection):
         patch.object(
             builder.graph_ops,
             "create_scene_sequence",
-            return_value=["edge1", "edge2"],
+            return_value=2,
         ) as mock_seq,
     ):
         edges_created = await builder.build_temporal_graph("script_node_1")

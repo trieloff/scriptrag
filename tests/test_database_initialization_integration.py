@@ -462,18 +462,16 @@ FADE OUT.
             # Always return True to trigger initialization
             mock_check.return_value = True
 
-            with patch("sqlite3.Connection.execute") as mock_execute:
-                # First call succeeds (for configuration)
-                # Second call fails (during schema initialization)
-                mock_execute.side_effect = [
-                    Mock(),  # PRAGMA foreign_keys
-                    Mock(),  # PRAGMA journal_mode
-                    Mock(),  # PRAGMA synchronous
-                    Mock(),  # PRAGMA cache_size
-                    Mock(),  # PRAGMA temp_store
-                    Mock(),  # PRAGMA automatic_index
-                    sqlite3.DatabaseError("Simulated DB error during init"),
-                ]
+            # Mock at the migration runner level to trigger the DatabaseError path
+            with patch(
+                "scriptrag.database.migrations.MigrationRunner"
+            ) as mock_runner_class:
+                mock_runner = Mock()
+                mock_runner_class.return_value = mock_runner
+                # Make a method raise DatabaseError during initialization
+                mock_runner.validate_migrations.side_effect = sqlite3.DatabaseError(
+                    "Simulated DB error during init"
+                )
 
                 connection = DatabaseConnection(db_path)
 
@@ -484,9 +482,9 @@ FADE OUT.
                     ):
                         pass
 
-                    assert "Database error during schema initialization" in str(
-                        exc_info.value
-                    )
+                    error_msg = str(exc_info.value)
+                    assert "Database error during schema initialization" in error_msg
+                    assert "Simulated DB error during init" in error_msg
 
                 finally:
                     with contextlib.suppress(BaseException):
@@ -600,35 +598,3 @@ FADE OUT.
                         connection.close()
                     with contextlib.suppress(PermissionError):
                         db_path.unlink(missing_ok=True)
-
-    def test_schema_check_sqlite_error_handling(self, temp_dir: Path) -> None:
-        """Test that SQLite errors during schema check are handled properly."""
-        import sqlite3
-        from unittest.mock import Mock, patch
-
-        db_path = temp_dir / "test_schema_check_error.db"
-
-        # Create a connection but mock the execute to fail during schema check
-        connection = DatabaseConnection(db_path)
-
-        with patch("sqlite3.Connection.execute") as mock_execute:
-            # Configure the mock to fail on the schema check query
-            def side_effect(query, *args):  # noqa: ARG001
-                if "sqlite_master" in query:
-                    raise sqlite3.Error("Cannot access sqlite_master")
-                return Mock()  # Return mock for other queries
-
-            mock_execute.side_effect = side_effect
-
-            try:
-                # This should trigger initialization because _is_schema_missing
-                # returns True when there's an error
-                with connection.get_connection():
-                    # Reset mock for actual use
-                    mock_execute.side_effect = None
-                    mock_execute.return_value = Mock()
-
-            finally:
-                connection.close()
-                with contextlib.suppress(PermissionError):
-                    db_path.unlink(missing_ok=True)

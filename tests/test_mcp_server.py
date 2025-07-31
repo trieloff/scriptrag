@@ -8,6 +8,7 @@ import mcp.types as types
 import pytest
 
 from scriptrag.config import ScriptRAGSettings
+from scriptrag.mcp.exceptions import InvalidArgumentError
 from scriptrag.mcp.server import ScriptRAGMCPServer
 from scriptrag.models import Script
 
@@ -151,7 +152,7 @@ class TestScriptRAGMCPServer:
         mcp_server.scriptrag.parse_fountain = MagicMock(return_value=mock_script)
 
         args = {"path": str(test_file), "title": "Override Title"}
-        result = await mcp_server._tool_parse_script(args)
+        result = await mcp_server._script_tools.parse_fountain(args)
 
         assert result["title"] == "Override Title"
         assert result["source_file"] == str(test_file)
@@ -166,8 +167,8 @@ class TestScriptRAGMCPServer:
     @pytest.mark.asyncio
     async def test_tool_parse_script_no_path(self, mcp_server):
         """Test parse script tool without path."""
-        with pytest.raises(ValueError, match="path is required"):
-            await mcp_server._tool_parse_script({})
+        with pytest.raises(InvalidArgumentError, match="path is required"):
+            await mcp_server._script_tools.parse_fountain({})
 
     @pytest.mark.asyncio
     async def test_tool_search_scenes(self, mcp_server):
@@ -184,7 +185,7 @@ class TestScriptRAGMCPServer:
             "limit": 5,
         }
 
-        result = await mcp_server._tool_search_scenes(args)
+        result = await mcp_server._scene_tools.search_scenes(args)
 
         assert result["script_id"] == "script_0"
         assert result["results"] == []
@@ -197,7 +198,7 @@ class TestScriptRAGMCPServer:
     async def test_tool_search_scenes_no_script_id(self, mcp_server):
         """Test search scenes tool without script_id."""
         with pytest.raises(ValueError, match="script_id is required"):
-            await mcp_server._tool_search_scenes({})
+            await mcp_server._scene_tools.search_scenes({})
 
     @pytest.mark.asyncio
     async def test_tool_get_character_info(self, mcp_server):
@@ -208,7 +209,7 @@ class TestScriptRAGMCPServer:
 
         args = {"script_id": "script_0", "character_name": "JOHN"}
 
-        result = await mcp_server._tool_get_character_info(args)
+        result = await mcp_server._character_tools.get_character_info(args)
 
         assert result["script_id"] == "script_0"
         assert result["character_name"] == "JOHN"
@@ -225,7 +226,7 @@ class TestScriptRAGMCPServer:
 
         args = {"script_id": "script_0", "include_flashbacks": False}
 
-        result = await mcp_server._tool_analyze_timeline(args)
+        result = await mcp_server._analysis_tools.analyze_timeline(args)
 
         assert result["script_id"] == "script_0"
         assert result["timeline_type"] == "linear"
@@ -240,7 +241,7 @@ class TestScriptRAGMCPServer:
         script2 = Script(title="Script 2", source_file="script2.fountain")
         mcp_server._scripts_cache = {"script_0": script1, "script_1": script2}
 
-        result = await mcp_server._tool_list_scripts({})
+        result = await mcp_server._script_tools.list_scripts({})
 
         assert result["total"] == 2
         assert len(result["scripts"]) == 2
@@ -253,7 +254,9 @@ class TestScriptRAGMCPServer:
     async def test_handle_tool_call_success(self, mcp_server):
         """Test handling successful tool call."""
         # Mock parse_script tool
-        mcp_server._tool_parse_script = AsyncMock(return_value={"script_id": "test"})
+        mcp_server._script_tools.parse_fountain = AsyncMock(
+            return_value={"script_id": "test"}
+        )
 
         request = types.CallToolRequest(
             method="tools/call",
@@ -533,7 +536,7 @@ class TestScriptRAGMCPServer:
 
         # Test successful retrieval
         args = {"script_id": script_id, "scene_id": scene_id}
-        result = await mcp_server._tool_get_scene_details(args)
+        result = await mcp_server._scene_tools.get_scene_details(args)
 
         assert result["script_id"] == script_id
         assert result["scene_id"] == scene_id
@@ -590,7 +593,7 @@ class TestScriptRAGMCPServer:
         args = {"script_id": "script_0", "scene_id": "non_existent_scene"}
 
         with pytest.raises(ValueError, match="Scene not found"):
-            await mcp_server._tool_get_scene_details(args)
+            await mcp_server._scene_tools.get_scene_details(args)
 
     @pytest.mark.asyncio
     async def test_tool_get_scene_details_no_location(self, mcp_server):
@@ -620,7 +623,7 @@ class TestScriptRAGMCPServer:
             )
 
         args = {"script_id": script_id, "scene_id": scene_id}
-        result = await mcp_server._tool_get_scene_details(args)
+        result = await mcp_server._scene_tools.get_scene_details(args)
 
         assert result["location"] is None
         assert result["heading"] == "FADE IN:"
@@ -632,15 +635,15 @@ class TestScriptRAGMCPServer:
         """Test get scene details tool with missing parameters."""
         # Missing script_id
         with pytest.raises(ValueError, match="script_id and scene_id are required"):
-            await mcp_server._tool_get_scene_details({"scene_id": "scene_1"})
+            await mcp_server._scene_tools.get_scene_details({"scene_id": "scene_1"})
 
         # Missing scene_id
         with pytest.raises(ValueError, match="script_id and scene_id are required"):
-            await mcp_server._tool_get_scene_details({"script_id": "script_0"})
+            await mcp_server._scene_tools.get_scene_details({"script_id": "script_0"})
 
         # Both missing
         with pytest.raises(ValueError, match="script_id and scene_id are required"):
-            await mcp_server._tool_get_scene_details({})
+            await mcp_server._scene_tools.get_scene_details({})
 
     @pytest.mark.asyncio
     async def test_tool_get_scene_details_invalid_script(self, mcp_server):
@@ -648,7 +651,7 @@ class TestScriptRAGMCPServer:
         args = {"script_id": "non_existent_script", "scene_id": "scene_1"}
 
         with pytest.raises(ValueError, match="Script not found"):
-            await mcp_server._tool_get_scene_details(args)
+            await mcp_server._scene_tools.get_scene_details(args)
 
 
 class TestParseScriptTool:
@@ -665,7 +668,7 @@ class TestParseScriptTool:
         mock_script.characters = {"JOHN", "JANE"}
         mcp_server.scriptrag.parse_fountain = MagicMock(return_value=mock_script)
 
-        result = await mcp_server._tool_parse_script({"path": str(test_file)})
+        result = await mcp_server._script_tools.parse_fountain({"path": str(test_file)})
 
         assert result["title"] == "Test Script"
         assert result["source_file"] == str(test_file)
@@ -678,7 +681,9 @@ class TestParseScriptTool:
     async def test_parse_script_file_not_found(self, mcp_server):
         """Test parsing non-existent file."""
         with pytest.raises(ValueError, match="File not found"):
-            await mcp_server._tool_parse_script({"path": "/nonexistent/file.fountain"})
+            await mcp_server._script_tools.parse_fountain(
+                {"path": "/nonexistent/file.fountain"}
+            )
 
     @pytest.mark.asyncio
     async def test_parse_script_directory_path(self, mcp_server, tmp_path):
@@ -687,7 +692,7 @@ class TestParseScriptTool:
         test_dir.mkdir()
 
         with pytest.raises(ValueError, match="Path is not a file"):
-            await mcp_server._tool_parse_script({"path": str(test_dir)})
+            await mcp_server._script_tools.parse_fountain({"path": str(test_dir)})
 
     @pytest.mark.asyncio
     async def test_parse_script_invalid_extension(self, mcp_server, tmp_path):
@@ -696,7 +701,7 @@ class TestParseScriptTool:
         test_file.write_text("not a fountain file")
 
         with pytest.raises(ValueError, match="Invalid file type"):
-            await mcp_server._tool_parse_script({"path": str(test_file)})
+            await mcp_server._script_tools.parse_fountain({"path": str(test_file)})
 
     @pytest.mark.asyncio
     async def test_parse_script_valid_extensions(self, mcp_server, tmp_path):
@@ -708,7 +713,9 @@ class TestParseScriptTool:
             test_file = tmp_path / f"test{ext}"
             test_file.write_text("Title: Test")
 
-            result = await mcp_server._tool_parse_script({"path": str(test_file)})
+            result = await mcp_server._script_tools.parse_fountain(
+                {"path": str(test_file)}
+            )
             assert "script_id" in result
 
     @pytest.mark.asyncio
@@ -724,7 +731,9 @@ class TestParseScriptTool:
         # Add scripts until cache is full
         script_ids = []
         for _ in range(5):
-            result = await mcp_server._tool_parse_script({"path": str(test_file)})
+            result = await mcp_server._script_tools.parse_fountain(
+                {"path": str(test_file)}
+            )
             script_ids.append(result["script_id"])
 
         # Cache should only contain last 3 scripts
@@ -743,7 +752,7 @@ class TestSearchScenesTool:
     async def test_search_scenes_invalid_script_id(self, mcp_server):
         """Test searching with invalid script ID."""
         with pytest.raises(ValueError, match="Script not found"):
-            await mcp_server._tool_search_scenes({"script_id": "invalid_id"})
+            await mcp_server._scene_tools.search_scenes({"script_id": "invalid_id"})
 
     @pytest.mark.asyncio
     async def test_search_scenes_with_all_filters(self, mcp_server):
@@ -796,7 +805,7 @@ class TestSearchScenesTool:
             graph_ops.graph.add_edge(scene_node_id, location_node_id, "AT_LOCATION")
 
         # Test search with all filters
-        result = await mcp_server._tool_search_scenes(
+        result = await mcp_server._scene_tools.search_scenes(
             {
                 "script_id": script_id,
                 "query": "coffee",
@@ -821,7 +830,7 @@ class TestSearchScenesTool:
         script = Script(title="Test", source_file="test.fountain")
         mcp_server._scripts_cache["script_0"] = script
 
-        result = await mcp_server._tool_search_scenes(
+        result = await mcp_server._scene_tools.search_scenes(
             {"script_id": "script_0", "query": "nonexistent"}
         )
 
@@ -838,12 +847,14 @@ class TestGetCharacterInfoTool:
         with pytest.raises(
             ValueError, match="script_id and character_name are required"
         ):
-            await mcp_server._tool_get_character_info({"script_id": "test"})
+            await mcp_server._character_tools.get_character_info({"script_id": "test"})
 
         with pytest.raises(
             ValueError, match="script_id and character_name are required"
         ):
-            await mcp_server._tool_get_character_info({"character_name": "JOHN"})
+            await mcp_server._character_tools.get_character_info(
+                {"character_name": "JOHN"}
+            )
 
     @pytest.mark.asyncio
     async def test_get_character_info_not_found(self, mcp_server):
@@ -851,7 +862,7 @@ class TestGetCharacterInfoTool:
         script = Script(title="Test", source_file="test.fountain")
         mcp_server._scripts_cache["script_0"] = script
 
-        result = await mcp_server._tool_get_character_info(
+        result = await mcp_server._character_tools.get_character_info(
             {"script_id": "script_0", "character_name": "NONEXISTENT"}
         )
 
@@ -915,7 +926,7 @@ class TestGetCharacterInfoTool:
                 (str(uuid4()), str(scene.id), str(john.id)),
             )
 
-        result = await mcp_server._tool_get_character_info(
+        result = await mcp_server._character_tools.get_character_info(
             {"script_id": script_id, "character_name": "JOHN"}
         )
 
@@ -933,7 +944,7 @@ class TestAnalyzeTimelineTool:
     async def test_analyze_timeline_no_script_id(self, mcp_server):
         """Test without script_id."""
         with pytest.raises(ValueError, match="script_id is required"):
-            await mcp_server._tool_analyze_timeline({})
+            await mcp_server._analysis_tools.analyze_timeline({})
 
     @pytest.mark.asyncio
     async def test_analyze_timeline_non_linear(self, mcp_server):
@@ -984,7 +995,7 @@ class TestAnalyzeTimelineTool:
             for scene in scenes:
                 graph_ops.create_scene_node(scene, script_node_id)
 
-        result = await mcp_server._tool_analyze_timeline(
+        result = await mcp_server._analysis_tools.analyze_timeline(
             {"script_id": script_id, "include_flashbacks": True}
         )
 
@@ -1002,7 +1013,7 @@ class TestUpdateSceneTool:
     async def test_update_scene_missing_params(self, mcp_server):
         """Test with missing required parameters."""
         with pytest.raises(ValueError, match="script_id and scene_id are required"):
-            await mcp_server._tool_update_scene({"script_id": "test"})
+            await mcp_server._scene_tools.update_scene({"script_id": "test"})
 
     @pytest.mark.asyncio
     async def test_update_scene_not_found(self, mcp_server):
@@ -1011,7 +1022,7 @@ class TestUpdateSceneTool:
         mcp_server._scripts_cache["script_0"] = script
 
         with pytest.raises(ValueError, match="Scene .* not found in script"):
-            await mcp_server._tool_update_scene(
+            await mcp_server._scene_tools.update_scene(
                 {"script_id": "script_0", "scene_id": 999}
             )
 
@@ -1044,7 +1055,7 @@ class TestUpdateSceneTool:
             john = Character(id=uuid4(), name="JOHN", description="")
             graph_ops.create_character_node(john, script_node_id)
 
-        result = await mcp_server._tool_update_scene(
+        result = await mcp_server._scene_tools.update_scene(
             {
                 "script_id": script_id,
                 "scene_id": scene.id,
@@ -1098,7 +1109,7 @@ class TestDeleteSceneTool:
                 scenes.append(scene)
 
         # Delete middle scene
-        result = await mcp_server._tool_delete_scene(
+        result = await mcp_server._scene_tools.delete_scene(
             {"script_id": script_id, "scene_id": scenes[1].id}
         )
 
@@ -1124,7 +1135,7 @@ class TestInjectSceneTool:
             graph_ops.create_script_graph(script)
 
         with pytest.raises(ValueError, match="Invalid position"):
-            await mcp_server._tool_inject_scene(
+            await mcp_server._scene_tools.inject_scene(
                 {"script_id": script_id, "position": -1, "heading": "INT. ROOM - DAY"}
             )
 
@@ -1142,7 +1153,7 @@ class TestInjectSceneTool:
             graph_ops = GraphOperations(conn)
             graph_ops.create_script_graph(script)
 
-        result = await mcp_server._tool_inject_scene(
+        result = await mcp_server._scene_tools.inject_scene(
             {
                 "script_id": script_id,
                 "position": 0,
@@ -1166,13 +1177,13 @@ class TestExportDataTool:
     async def test_export_data_missing_params(self, mcp_server):
         """Test with missing required parameters."""
         with pytest.raises(ValueError, match="script_id and format are required"):
-            await mcp_server._tool_export_data({"script_id": "test"})
+            await mcp_server._script_tools.export_data({"script_id": "test"})
 
     @pytest.mark.asyncio
     async def test_export_data_formats(self, mcp_server):
         """Test different export formats."""
         for format_type in ["json", "csv", "graphml", "fountain"]:
-            result = await mcp_server._tool_export_data(
+            result = await mcp_server._script_tools.export_data(
                 {
                     "script_id": "script_0",
                     "format": format_type,
@@ -1194,7 +1205,7 @@ class TestBibleTools:
         with patch("scriptrag.database.bible.ScriptBibleOperations") as mock_bible:
             mock_bible.return_value.create_series_bible.return_value = "bible_123"
 
-            result = await mcp_server._tool_create_series_bible(
+            result = await mcp_server._bible_tools.create_series_bible(
                 {
                     "script_id": "script_0",
                     "title": "Test Series Bible",
@@ -1216,7 +1227,7 @@ class TestBibleTools:
             DatabaseConnection(str(mcp_server.config.get_database_path())),
             pytest.raises(ValueError, match="Character .* not found"),
         ):
-            await mcp_server._tool_add_character_knowledge(
+            await mcp_server._bible_tools.add_character_knowledge(
                 {
                     "script_id": "script_0",
                     "character_name": "NONEXISTENT",
@@ -1253,7 +1264,7 @@ class TestBibleTools:
             )
             mock_notes_method.return_value = ["note1", "note2"]
 
-            result = await mcp_server._tool_check_continuity(
+            result = await mcp_server._analysis_tools.check_continuity(
                 {"script_id": "script_0", "create_notes": True}
             )
 
@@ -1275,7 +1286,7 @@ class TestMentorTools:
                 {"name": "Snyder", "description": "Save the Cat methodology"},
             ]
 
-            result = await mcp_server._tool_list_mentors({})
+            result = await mcp_server._mentor_tools.list_mentors({})
 
             assert result["total_count"] == 2
             assert len(result["mentors"]) == 2
@@ -1288,7 +1299,7 @@ class TestMentorTools:
             mock_registry.return_value.__iter__.return_value = iter(["McKee", "Snyder"])
 
             with pytest.raises(ValueError, match="Mentor .* not found"):
-                await mcp_server._tool_analyze_script_with_mentor(
+                await mcp_server._mentor_tools.analyze_script_with_mentor(
                     {"script_id": "script_0", "mentor_name": "InvalidMentor"}
                 )
 
@@ -1314,7 +1325,7 @@ class TestMentorTools:
 
             mock_db.return_value.search_analyses.return_value = [mock_analysis]
 
-            result = await mcp_server._tool_search_mentor_analyses(
+            result = await mcp_server._mentor_tools.search_mentor_analyses(
                 {
                     "query": "test finding",
                     "mentor_name": "McKee",
@@ -1335,7 +1346,9 @@ class TestErrorHandling:
     async def test_tool_call_exception_handling(self, mcp_server):
         """Test that exceptions in tools are properly handled."""
         # Make parse_script raise an exception
-        mcp_server._tool_parse_script = AsyncMock(side_effect=Exception("Test error"))
+        mcp_server._script_tools.parse_fountain = AsyncMock(
+            side_effect=Exception("Test error")
+        )
 
         request = types.CallToolRequest(
             method="tools/call",

@@ -18,6 +18,14 @@ from scriptrag.config import (
 )
 from scriptrag.models import Script
 
+# Import custom exceptions
+from .exceptions import (
+    InvalidArgumentError,
+    PromptNotFoundError,
+    ResourceNotFoundError,
+    ScriptNotFoundError,
+)
+
 # Import tool modules
 from .tools_analysis import AnalysisTools
 from .tools_bible import BibleTools
@@ -141,10 +149,10 @@ class ScriptRAGMCPServer:
             Script object if found
 
         Raises:
-            ValueError: If script_id not found in cache
+            ScriptNotFoundError: If script_id not found in cache
         """
         if script_id not in self._scripts_cache:
-            raise ValueError(f"Script not found: {script_id}")
+            raise ScriptNotFoundError(f"Script not found: {script_id}")
         return self._scripts_cache[script_id]
 
     def get_available_tools(self) -> list[dict[str, Any]]:
@@ -153,7 +161,8 @@ class ScriptRAGMCPServer:
         Returns:
             List of tool definitions
         """
-        return [
+        all_tools = [
+            # Script tools
             {
                 "name": "parse_script",
                 "description": "Parse a screenplay file in Fountain format",
@@ -179,6 +188,516 @@ class ScriptRAGMCPServer:
                     "type": "object",
                     "properties": {},
                 },
+            },
+            {
+                "name": "export_data",
+                "description": "Export script data in various formats",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "ID of the script to export",
+                        },
+                        "format": {
+                            "type": "string",
+                            "enum": ["json", "csv", "markdown"],
+                            "description": "Export format",
+                        },
+                        "include_analysis": {
+                            "type": "boolean",
+                            "description": "Include analysis data",
+                            "default": False,
+                        },
+                    },
+                    "required": ["script_id", "format"],
+                },
+            },
+            # Scene tools
+            {
+                "name": "search_scenes",
+                "description": "Search for scenes in parsed scripts",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Optional script ID to search within",
+                        },
+                        "query": {
+                            "type": "string",
+                            "description": "Search query",
+                        },
+                        "location": {
+                            "type": "string",
+                            "description": "Filter by location",
+                        },
+                        "character": {
+                            "type": "string",
+                            "description": "Filter by character",
+                        },
+                        "time_of_day": {
+                            "type": "string",
+                            "description": "Filter by time of day",
+                        },
+                        "act": {
+                            "type": "integer",
+                            "description": "Filter by act number",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum results",
+                            "default": 10,
+                        },
+                    },
+                    "required": [],
+                },
+            },
+            {
+                "name": "get_scene_details",
+                "description": "Get detailed information about a specific scene",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                        "scene_number": {
+                            "type": "integer",
+                            "description": "Scene number",
+                        },
+                        "include_dialogue": {
+                            "type": "boolean",
+                            "description": "Include full dialogue",
+                            "default": True,
+                        },
+                        "include_actions": {
+                            "type": "boolean",
+                            "description": "Include action lines",
+                            "default": True,
+                        },
+                    },
+                    "required": ["script_id", "scene_number"],
+                },
+            },
+            {
+                "name": "update_scene",
+                "description": "Update scene information",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                        "scene_number": {
+                            "type": "integer",
+                            "description": "Scene number",
+                        },
+                        "updates": {
+                            "type": "object",
+                            "description": "Fields to update",
+                        },
+                    },
+                    "required": ["script_id", "scene_number", "updates"],
+                },
+            },
+            {
+                "name": "delete_scene",
+                "description": "Delete a scene from script",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                        "scene_number": {
+                            "type": "integer",
+                            "description": "Scene number",
+                        },
+                    },
+                    "required": ["script_id", "scene_number"],
+                },
+            },
+            {
+                "name": "inject_scene",
+                "description": "Inject a new scene into script",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                        "after_scene": {
+                            "type": "integer",
+                            "description": "Scene number to inject after",
+                        },
+                        "scene_data": {
+                            "type": "object",
+                            "description": "New scene data",
+                        },
+                    },
+                    "required": ["script_id", "after_scene", "scene_data"],
+                },
+            },
+            # Character tools
+            {
+                "name": "get_character_info",
+                "description": "Get information about a character",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                        "character_name": {
+                            "type": "string",
+                            "description": "Character name",
+                        },
+                        "include_scenes": {
+                            "type": "boolean",
+                            "description": "Include scene appearances",
+                            "default": True,
+                        },
+                        "include_dialogue": {
+                            "type": "boolean",
+                            "description": "Include dialogue samples",
+                            "default": True,
+                        },
+                        "include_relationships": {
+                            "type": "boolean",
+                            "description": "Include relationships",
+                            "default": True,
+                        },
+                    },
+                    "required": ["script_id", "character_name"],
+                },
+            },
+            {
+                "name": "get_character_relationships",
+                "description": "Analyze relationships between characters",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                        "character1": {
+                            "type": "string",
+                            "description": "First character",
+                        },
+                        "character2": {
+                            "type": "string",
+                            "description": "Second character (optional)",
+                        },
+                    },
+                    "required": ["script_id", "character1"],
+                },
+            },
+            # Analysis tools
+            {
+                "name": "analyze_timeline",
+                "description": "Analyze script timeline and temporal flow",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                    },
+                    "required": ["script_id"],
+                },
+            },
+            {
+                "name": "check_continuity",
+                "description": "Check script for continuity issues",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                        "check_temporal": {
+                            "type": "boolean",
+                            "description": "Check temporal continuity",
+                            "default": True,
+                        },
+                        "check_spatial": {
+                            "type": "boolean",
+                            "description": "Check spatial continuity",
+                            "default": True,
+                        },
+                        "check_character": {
+                            "type": "boolean",
+                            "description": "Check character continuity",
+                            "default": True,
+                        },
+                        "check_props": {
+                            "type": "boolean",
+                            "description": "Check prop continuity",
+                            "default": True,
+                        },
+                    },
+                    "required": ["script_id"],
+                },
+            },
+            {
+                "name": "get_continuity_report",
+                "description": "Get detailed continuity report",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                    },
+                    "required": ["script_id"],
+                },
+            },
+            # Bible tools
+            {
+                "name": "create_series_bible",
+                "description": "Create a series bible document",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_ids": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Script IDs to include",
+                        },
+                        "title": {
+                            "type": "string",
+                            "description": "Series title",
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "Series description",
+                        },
+                    },
+                    "required": ["script_ids", "title"],
+                },
+            },
+            {
+                "name": "create_character_profile",
+                "description": "Create detailed character profile",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                        "character_name": {
+                            "type": "string",
+                            "description": "Character name",
+                        },
+                        "profile_data": {
+                            "type": "object",
+                            "description": "Profile information",
+                        },
+                    },
+                    "required": ["script_id", "character_name"],
+                },
+            },
+            {
+                "name": "add_world_element",
+                "description": "Add world-building element to bible",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "bible_id": {
+                            "type": "string",
+                            "description": "Bible ID",
+                        },
+                        "element_type": {
+                            "type": "string",
+                            "enum": ["location", "prop", "rule", "history"],
+                            "description": "Type of world element",
+                        },
+                        "element_data": {
+                            "type": "object",
+                            "description": "Element details",
+                        },
+                    },
+                    "required": ["bible_id", "element_type", "element_data"],
+                },
+            },
+            {
+                "name": "create_timeline_event",
+                "description": "Add timeline event to bible",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "bible_id": {
+                            "type": "string",
+                            "description": "Bible ID",
+                        },
+                        "event_data": {
+                            "type": "object",
+                            "description": "Event details",
+                        },
+                    },
+                    "required": ["bible_id", "event_data"],
+                },
+            },
+            {
+                "name": "add_character_knowledge",
+                "description": "Track what characters know",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "bible_id": {
+                            "type": "string",
+                            "description": "Bible ID",
+                        },
+                        "character_name": {
+                            "type": "string",
+                            "description": "Character name",
+                        },
+                        "knowledge_item": {
+                            "type": "object",
+                            "description": "Knowledge details",
+                        },
+                    },
+                    "required": ["bible_id", "character_name", "knowledge_item"],
+                },
+            },
+            # Mentor tools
+            {
+                "name": "list_mentors",
+                "description": "List available screenplay mentors",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {},
+                },
+            },
+            {
+                "name": "analyze_script_with_mentor",
+                "description": "Analyze script with specific mentor perspective",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                        "mentor_id": {
+                            "type": "string",
+                            "description": "Mentor ID",
+                        },
+                        "focus_areas": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Areas to focus on",
+                        },
+                    },
+                    "required": ["script_id", "mentor_id"],
+                },
+            },
+            {
+                "name": "get_mentor_results",
+                "description": "Get mentor analysis results",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "analysis_id": {
+                            "type": "string",
+                            "description": "Analysis ID",
+                        },
+                    },
+                    "required": ["analysis_id"],
+                },
+            },
+            {
+                "name": "search_mentor_analyses",
+                "description": "Search through mentor analyses",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Filter by script",
+                        },
+                        "mentor_id": {
+                            "type": "string",
+                            "description": "Filter by mentor",
+                        },
+                        "query": {
+                            "type": "string",
+                            "description": "Search query",
+                        },
+                    },
+                    "required": [],
+                },
+            },
+            {
+                "name": "get_mentor_statistics",
+                "description": "Get statistics about mentor analyses",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "script_id": {
+                            "type": "string",
+                            "description": "Script ID",
+                        },
+                    },
+                    "required": [],
+                },
+            },
+        ]
+
+        # Apply filtering if not all tools are enabled
+        if not self.config.mcp.enable_all_tools:
+            enabled_tools = self.config.mcp.enabled_tools or []
+            all_tools = [tool for tool in all_tools if tool["name"] in enabled_tools]
+
+        return all_tools
+
+    def get_available_resources(self) -> list[dict[str, Any]]:
+        """Get list of available MCP resources.
+
+        Returns:
+            List of resource definitions
+        """
+        return [
+            {
+                "uri": "screenplay://list",
+                "name": "List Parsed Scripts",
+                "description": "List all parsed scripts",
+                "mimeType": "application/json",
+            },
+            {
+                "uri": "screenplay://{script_id}",
+                "name": "Script Details",
+                "description": "Get details about a specific script",
+                "mimeType": "application/json",
+            },
+            {
+                "uri": "scene://{script_id}/{scene_id}",
+                "name": "Scene Details",
+                "description": "Get details about a specific scene",
+                "mimeType": "application/json",
+            },
+            {
+                "uri": "character://{script_id}/{character_name}",
+                "name": "Character Details",
+                "description": "Get details about a specific character",
+                "mimeType": "application/json",
+            },
+            {
+                "uri": "timeline://{script_id}",
+                "name": "Script Timeline",
+                "description": "Get timeline information for a script",
+                "mimeType": "application/json",
             },
         ]
 
@@ -217,10 +736,40 @@ class ScriptRAGMCPServer:
                 # Script tools
                 "parse_script": self._script_tools.parse_fountain,
                 "list_scripts": self._script_tools.list_scripts,
+                "export_data": self._script_tools.export_data,
+                # Scene tools
+                "search_scenes": self._scene_tools.search_scenes,
+                "get_scene_details": self._scene_tools.get_scene_details,
+                "update_scene": self._scene_tools.update_scene,
+                "delete_scene": self._scene_tools.delete_scene,
+                "inject_scene": self._scene_tools.inject_scene,
+                # Character tools
+                "get_character_info": self._character_tools.get_character_info,
+                "get_character_relationships": (
+                    self._character_tools.get_character_relationships
+                ),
+                # Analysis tools
+                "analyze_timeline": self._analysis_tools.analyze_timeline,
+                "check_continuity": self._analysis_tools.check_continuity,
+                "get_continuity_report": self._analysis_tools.get_continuity_report,
+                # Bible tools
+                "create_series_bible": self._bible_tools.create_series_bible,
+                "create_character_profile": self._bible_tools.create_character_profile,
+                "add_world_element": self._bible_tools.add_world_element,
+                "create_timeline_event": self._bible_tools.create_timeline_event,
+                "add_character_knowledge": self._bible_tools.add_character_knowledge,
+                # Mentor tools
+                "list_mentors": self._mentor_tools.list_mentors,
+                "analyze_script_with_mentor": (
+                    self._mentor_tools.analyze_script_with_mentor
+                ),
+                "get_mentor_results": self._mentor_tools.get_mentor_results,
+                "search_mentor_analyses": self._mentor_tools.search_mentor_analyses,
+                "get_mentor_statistics": self._mentor_tools.get_mentor_statistics,
             }
 
             if tool_name not in tool_handlers:
-                raise ValueError(f"Unknown tool: {tool_name}")
+                raise InvalidArgumentError(f"Unknown tool: {tool_name}")
 
             result = await tool_handlers[tool_name](arguments)
 
@@ -288,19 +837,19 @@ class ScriptRAGMCPServer:
         uri = str(request.params.uri)
 
         if not uri.startswith("scriptrag://"):
-            raise ValueError(f"Unknown resource scheme: {uri}")
+            raise InvalidArgumentError(f"Unknown resource scheme: {uri}")
 
         parts = uri.replace("scriptrag://", "").split("/")
 
         if len(parts) < 2:
-            raise ValueError(f"Invalid resource URI: {uri}")
+            raise InvalidArgumentError(f"Invalid resource URI: {uri}")
 
         resource_type = parts[0]
         script_id = parts[1]
 
         if resource_type == "scripts":
             if script_id not in self._scripts_cache:
-                raise ValueError(f"Script not found: {script_id}")
+                raise ScriptNotFoundError(f"Script not found: {script_id}")
 
             script = self._scripts_cache[script_id]
 
@@ -322,7 +871,7 @@ class ScriptRAGMCPServer:
                 )
             )
 
-        raise ValueError(f"Unknown resource type: {resource_type}")
+        raise ResourceNotFoundError(f"Unknown resource type: {resource_type}")
 
     def get_available_prompts(self) -> list[dict[str, Any]]:
         """Get list of available MCP prompts.
@@ -379,7 +928,7 @@ class ScriptRAGMCPServer:
         if prompt_name == "analyze_structure":
             script_id = arguments.get("script_id")
             if not script_id or script_id not in self._scripts_cache:
-                raise ValueError(f"Script not found: {script_id}")
+                raise ScriptNotFoundError(f"Script not found: {script_id}")
 
             script = self._scripts_cache[script_id]
             prompt = f'Analyze the structure of the screenplay "{script.title}".'
@@ -398,4 +947,4 @@ class ScriptRAGMCPServer:
                 )
             )
 
-        raise ValueError(f"Unknown prompt: {prompt_name}")
+        raise PromptNotFoundError(f"Unknown prompt: {prompt_name}")

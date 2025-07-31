@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, Any
 
 from scriptrag.config import get_logger
 
+from .exceptions import InvalidArgumentError
+
 if TYPE_CHECKING:
     from scriptrag.mcp.server import ScriptRAGMCPServer
 
@@ -33,14 +35,21 @@ class ScriptTools:
         Returns:
             Parsed script information
         """
+        if "path" not in args:
+            raise InvalidArgumentError("path is required")
+
         path = Path(args["path"])
         if not path.exists():
-            raise ValueError(f"File not found: {path}")
+            raise InvalidArgumentError(f"File not found: {path}")
 
         script = self.scriptrag.parse_fountain(str(path))
 
+        # Override title if provided
+        if args.get("title"):
+            script.title = args["title"]
+
         # Cache the script
-        script_id = str(uuid.uuid4())
+        script_id = f"script_{uuid.uuid4().hex[:8]}"
         self.server._add_to_cache(script_id, script)
 
         self.logger.info("Script parsed", path=path, script_id=script_id)
@@ -49,6 +58,7 @@ class ScriptTools:
             "script_id": script_id,
             "title": script.title,
             "author": script.author,
+            "source_file": script.source_file,
             "scene_count": len(script.scenes),
             "character_count": len(script.characters),
             "location_count": 0,  # TODO: Load actual scenes from database
@@ -88,4 +98,4 @@ class ScriptTools:
                 "scenes": [],  # TODO: Load actual scenes from database
                 "characters": list(script.characters),
             }
-        raise ValueError(f"Unsupported export format: {format_type}")
+        raise InvalidArgumentError(f"Unsupported export format: {format_type}")

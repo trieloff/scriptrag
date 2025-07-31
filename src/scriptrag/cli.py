@@ -17,7 +17,6 @@ import requests
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Table
 
 # Local imports
 from . import ScriptRAG
@@ -403,8 +402,11 @@ def script_parse(
                 """
             ).fetchone()[0]
 
+        # Import Table locally to avoid scope issues in CI
+        from rich.table import Table as RichTable
+
         # Display summary table
-        table = Table(show_header=False, box=None)
+        table = RichTable(show_header=False, box=None)
         table.add_column("", style="dim")
         table.add_column("", style="bold")
 
@@ -594,7 +596,10 @@ def script_import(
         else:
             console.print("\n[bold]Import Results:[/bold]")
 
-        table = Table(show_header=True, header_style="bold blue")
+        # Import Table locally to avoid scope issues in CI
+        from rich.table import Table as RichTable
+
+        table = RichTable(show_header=True, header_style="bold blue")
         table.add_column("Metric", style="cyan")
         table.add_column("Count", justify="right")
 
@@ -913,8 +918,11 @@ def scene_list(
         if limit:
             scenes = scenes[:limit]
 
+        # Import Table locally to avoid scope issues in CI
+        from rich.table import Table as RichTable
+
         # Create table
-        table = Table(show_header=True, header_style="bold blue")
+        table = RichTable(show_header=True, header_style="bold blue")
         table.add_column("#", style="cyan", width=4)
         table.add_column("Scene", style="green")
         table.add_column("Location", style="yellow")
@@ -1605,7 +1613,10 @@ def _display_search_results(results: list, show_similarity: bool = False) -> Non
         console.print("[yellow]No results found.[/yellow]")
         return
 
-    table = Table(
+    # Import Table locally to avoid scope issues in CI
+    from rich.table import Table as RichTable
+
+    table = RichTable(
         title=f"Search Results ({len(results)} found)",
         show_header=True,
         header_style="bold blue",
@@ -1715,7 +1726,10 @@ def dev_status() -> None:
         ("Logs directory", Path("logs")),
     ]
 
-    table = Table(show_header=True, header_style="bold blue")
+    # Import Table locally to avoid scope issues in CI
+    from rich.table import Table as RichTable
+
+    table = RichTable(show_header=True, header_style="bold blue")
     table.add_column("Component")
     table.add_column("Status")
     table.add_column("Path")
@@ -1878,7 +1892,10 @@ def bible_list(
                 console.print("[yellow]No script bibles found.[/yellow]")
                 return
 
-            table = Table(title="Script Bibles")
+            # Import Table locally to avoid scope issues in CI
+            from rich.table import Table as RichTable
+
+            table = RichTable(title="Script Bibles")
             table.add_column("ID")
             table.add_column("Title")
             table.add_column("Type")
@@ -2264,7 +2281,10 @@ def bible_notes(
                 console.print("[yellow]No continuity notes found.[/yellow]")
                 return
 
-            table = Table(title="Continuity Notes")
+            # Import Table locally to avoid scope issues in CI
+            from rich.table import Table as RichTable
+
+            table = RichTable(title="Continuity Notes")
             table.add_column("ID")
             table.add_column("Type")
             table.add_column("Severity")
@@ -2470,7 +2490,10 @@ def mentor_list() -> None:
             console.print("[yellow]No mentors available.[/yellow]")
             return
 
-        table = Table(show_header=True, header_style="bold blue")
+        # Import Table locally to avoid scope issues in CI
+        from rich.table import Table as RichTable
+
+        table = RichTable(show_header=True, header_style="bold blue")
         table.add_column("Name", style="cyan")
         table.add_column("Type", style="green")
         table.add_column("Version", style="yellow")
@@ -2721,8 +2744,11 @@ def mentor_results(
             console.print("[yellow]No analysis results found.[/yellow]")
             return
 
+        # Import Table locally to avoid scope issues in CI
+        from rich.table import Table as RichTable
+
         # Display results table
-        table = Table(show_header=True, header_style="bold blue")
+        table = RichTable(show_header=True, header_style="bold blue")
         table.add_column("Date", style="cyan")
         table.add_column("Mentor", style="green")
         table.add_column("Score", style="yellow")

@@ -3,6 +3,9 @@
 This module contains comprehensive tests for the SceneManager class,
 including temporal order inference, scene dependency analysis, and
 scene reordering operations.
+
+Enhanced tests include prop tracking, technical requirements, location
+continuity, and dialogue reference analysis.
 """
 
 from datetime import time
@@ -239,9 +242,9 @@ class TestSceneDependencyAnalysis:
 
         # Mock scenes
         mock_scenes = [
-            Mock(id="scene1"),
-            Mock(id="scene2"),
-            Mock(id="scene3"),
+            Mock(id="scene1", properties={"elements": []}),
+            Mock(id="scene2", properties={"elements": []}),
+            Mock(id="scene3", properties={"elements": []}),
         ]
 
         scene_manager.operations.get_script_scenes = Mock(return_value=mock_scenes)
@@ -273,10 +276,10 @@ class TestSceneDependencyAnalysis:
         script_node_id = "test-script"
 
         mock_scenes = [
-            Mock(id="scene1"),
-            Mock(id="scene2"),
-            Mock(id="scene3"),
-            Mock(id="scene4"),
+            Mock(id="scene1", properties={"elements": []}),
+            Mock(id="scene2", properties={"elements": []}),
+            Mock(id="scene3", properties={"elements": []}),
+            Mock(id="scene4", properties={"elements": []}),
         ]
 
         scene_manager.operations.get_script_scenes = Mock(return_value=mock_scenes)
@@ -726,3 +729,298 @@ def sample_scenes():
             script_order=3,
         ),
     ]
+
+
+class TestEnhancedDependencyAnalysis:
+    """Test enhanced dependency analysis features."""
+
+    def test_extract_props_from_scene(self, scene_manager):
+        """Test prop extraction from action lines."""
+        mock_scene = Mock(
+            properties={
+                "elements": [
+                    {"type": "action", "text": "John picks up the GUN from the table."},
+                    {
+                        "type": "action",
+                        "text": "He loads the BULLETS into the chamber.",
+                    },
+                    {"type": "dialogue", "text": "This won't work without the KEY."},
+                    {
+                        "type": "action",
+                        "text": "Sarah grabs a knife and cuts the rope.",
+                    },
+                ]
+            }
+        )
+
+        props = scene_manager._extract_props_from_scene(mock_scene)
+
+        expected_props = {"GUN", "BULLETS", "KNIFE"}  # KEY is in dialogue, not action
+        assert props == expected_props
+
+    def test_extract_props_excludes_common_words(self, scene_manager):
+        """Test that prop extraction excludes common screenplay words."""
+        mock_scene = Mock(
+            properties={
+                "elements": [
+                    {"type": "action", "text": "INT. OFFICE - DAY"},
+                    {"type": "action", "text": "CUT TO: Sarah enters. FADE OUT."},
+                    {"type": "action", "text": "CLOSE ANGLE on the LAPTOP."},
+                ]
+            }
+        )
+
+        props = scene_manager._extract_props_from_scene(mock_scene)
+
+        # Should only extract LAPTOP, not INT, CUT, FADE, CLOSE, etc.
+        assert props == {"LAPTOP"}
+
+    def test_extract_technical_requirements_sound(self, scene_manager):
+        """Test extraction of sound cues."""
+        mock_scene = Mock(
+            properties={
+                "elements": [
+                    {
+                        "type": "action",
+                        "text": "SFX: Gunshot echoes through the alley.",
+                    },
+                    {"type": "action", "text": "MUSIC: Dramatic orchestral swell."},
+                    {"type": "action", "text": "We hear the sound of breaking glass."},
+                    {
+                        "type": "action",
+                        "text": "[Faint jazz music plays in background]",
+                    },
+                ]
+            }
+        )
+
+        tech_reqs = scene_manager._extract_technical_requirements(mock_scene)
+
+        assert "Gunshot echoes through the alley" in tech_reqs["sound"]
+        assert "Dramatic orchestral swell" in tech_reqs["sound"]
+        assert len(tech_reqs["sound"]) >= 3
+
+    def test_extract_technical_requirements_vfx(self, scene_manager):
+        """Test extraction of VFX requirements."""
+        mock_scene = Mock(
+            properties={
+                "elements": [
+                    {"type": "action", "text": "VFX: The car explodes in slow motion."},
+                    {"type": "action", "text": "[The ghost disappears into thin air]"},
+                    {
+                        "type": "action",
+                        "text": "CGI: Dragon breathes fire across the battlefield.",
+                    },
+                    {
+                        "type": "action",
+                        "text": "The magical portal opens with supernatural energy.",
+                    },
+                ]
+            }
+        )
+
+        tech_reqs = scene_manager._extract_technical_requirements(mock_scene)
+
+        assert "The car explodes in slow motion" in tech_reqs["vfx"]
+        assert "Dragon breathes fire across the battlefield" in tech_reqs["vfx"]
+        assert len(tech_reqs["vfx"]) >= 3
+
+    def test_extract_technical_requirements_costume(self, scene_manager):
+        """Test extraction of costume requirements."""
+        mock_scene = Mock(
+            properties={
+                "elements": [
+                    {
+                        "type": "action",
+                        "text": "Sarah enters wearing a red evening gown.",
+                    },
+                    {"type": "action", "text": "COSTUME: Period-accurate 1920s suit."},
+                    {"type": "action", "text": "He changes into his police uniform."},
+                    {"type": "action", "text": "The team puts on tactical gear."},
+                ]
+            }
+        )
+
+        tech_reqs = scene_manager._extract_technical_requirements(mock_scene)
+
+        assert len(tech_reqs["costume"]) >= 3
+        assert any("red evening gown" in c for c in tech_reqs["costume"])
+        assert any("Period-accurate 1920s suit" in c for c in tech_reqs["costume"])
+
+    def test_analyze_prop_dependencies(self, scene_manager):
+        """Test prop dependency analysis across scenes."""
+        mock_scenes = [
+            Mock(
+                id="scene1",
+                properties={
+                    "elements": [
+                        {"type": "action", "text": "John finds the BRIEFCASE."}
+                    ]
+                },
+            ),
+            Mock(
+                id="scene2",
+                properties={
+                    "elements": [
+                        {"type": "action", "text": "Sarah opens the door with the KEY."}
+                    ]
+                },
+            ),
+            Mock(
+                id="scene3",
+                properties={
+                    "elements": [
+                        {
+                            "type": "action",
+                            "text": "He opens the BRIEFCASE and takes the KEY.",
+                        }
+                    ]
+                },
+            ),
+        ]
+
+        dependencies = {"scene1": [], "scene2": [], "scene3": []}
+        scene_manager._analyze_prop_dependencies(mock_scenes, dependencies)
+
+        # Scene 3 should depend on scene 1 (BRIEFCASE) and scene 2 (KEY)
+        assert "scene1" in dependencies["scene3"]  # BRIEFCASE dependency
+        assert "scene2" in dependencies["scene3"]  # KEY dependency
+
+    def test_normalize_location(self, scene_manager):
+        """Test location normalization."""
+        test_cases = [
+            ("INT. OFFICE - DAY", "INT. OFFICE"),
+            ("EXT. STREET - NIGHT", "EXT. STREET"),
+            ("INT. APARTMENT - CONTINUOUS", "INT. APARTMENT"),
+            ("EXT. PARK - MORNING", "EXT. PARK"),
+            ("INT. CAR - LATER", "INT. CAR"),
+        ]
+
+        for input_location, expected in test_cases:
+            result = scene_manager._normalize_location(input_location)
+            assert result == expected
+
+    def test_analyze_location_continuity(self, scene_manager):
+        """Test location continuity analysis."""
+        mock_scenes = [
+            Mock(id="scene1", properties={"heading": "INT. OFFICE - DAY"}),
+            Mock(id="scene2", properties={"heading": "EXT. STREET - DAY"}),
+            Mock(id="scene3", properties={"heading": "INT. HOME - NIGHT"}),
+            Mock(
+                id="scene4", properties={"heading": "INT. OFFICE - NIGHT"}
+            ),  # Returns to office
+            Mock(
+                id="scene5", properties={"heading": "INT. OFFICE - CONTINUOUS"}
+            ),  # Consecutive
+        ]
+
+        dependencies = {
+            "scene1": [],
+            "scene2": [],
+            "scene3": [],
+            "scene4": [],
+            "scene5": [],
+        }
+        scene_manager._analyze_location_continuity(mock_scenes, dependencies)
+
+        # Scene 4 should depend on scene 1 (same location, non-consecutive)
+        assert "scene1" in dependencies["scene4"]
+        # Scene 5 should NOT depend on scene 4 (consecutive scenes at same location)
+        assert "scene4" not in dependencies["scene5"]
+
+    def test_analyze_dialogue_references(self, scene_manager):
+        """Test dialogue reference analysis."""
+        mock_scenes = [
+            Mock(
+                id="scene1",
+                properties={
+                    "elements": [
+                        {
+                            "type": "dialogue",
+                            "text": "I have the secret code.",
+                            "character": "JOHN",
+                        }
+                    ]
+                },
+            ),
+            Mock(
+                id="scene2",
+                properties={
+                    "elements": [
+                        {
+                            "type": "dialogue",
+                            "text": "What's the plan?",
+                            "character": "SARAH",
+                        }
+                    ]
+                },
+            ),
+            Mock(
+                id="scene3",
+                properties={
+                    "elements": [
+                        {
+                            "type": "dialogue",
+                            "text": "Remember when you mentioned the code?",
+                            "character": "SARAH",
+                        },
+                        {
+                            "type": "dialogue",
+                            "text": "As I said before, it's complicated.",
+                            "character": "JOHN",
+                        },
+                    ]
+                },
+            ),
+        ]
+
+        dependencies = {"scene1": [], "scene2": [], "scene3": []}
+        scene_manager._analyze_dialogue_references(mock_scenes, dependencies)
+
+        # Scene 3 should have dependencies due to dialogue references
+        assert len(dependencies["scene3"]) > 0
+
+    def test_get_scene_dependencies_detailed(self, scene_manager):
+        """Test getting detailed dependency information."""
+        scene_node_id = "test-scene"
+        script_node_id = "test-script"
+
+        # Mock the graph edges
+        mock_edge = Mock(from_node_id=script_node_id)
+        scene_manager.graph.find_edges = Mock(return_value=[mock_edge])
+
+        # Mock scene node with elements
+        mock_scene_node = Mock(
+            properties={
+                "heading": "INT. OFFICE - DAY",
+                "elements": [
+                    {"type": "action", "text": "John picks up the GUN."},
+                    {"type": "action", "text": "SFX: Door slams shut."},
+                    {"type": "action", "text": "He wears a black suit."},
+                ],
+            }
+        )
+        scene_manager.graph.get_node = Mock(return_value=mock_scene_node)
+
+        # Mock dependency analysis
+        scene_manager.analyze_scene_dependencies = Mock(
+            return_value={scene_node_id: ["dep-scene-1"]}
+        )
+
+        # Mock dependency node
+        dep_node = Mock(properties={"heading": "EXT. STREET - DAY"})
+        scene_manager.graph.get_node = Mock(
+            side_effect=lambda x: dep_node if x == "dep-scene-1" else mock_scene_node
+        )
+
+        result = scene_manager.get_scene_dependencies_detailed(scene_node_id)
+
+        # Check structure
+        assert "character_deps" in result
+        assert "props_in_scene" in result
+        assert "tech_requirements" in result
+
+        # Check extracted data
+        assert "GUN" in result["props_in_scene"]
+        assert len(result["tech_requirements"]["sound"]) > 0
+        assert len(result["character_deps"]) == 1

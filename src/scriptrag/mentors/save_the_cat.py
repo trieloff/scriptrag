@@ -13,7 +13,7 @@ The mentor analyzes:
 """
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -295,7 +295,7 @@ class SaveTheCatMentor(BaseMentor):
         Returns:
             Complete Save the Cat analysis result
         """
-        start_time = datetime.utcnow()
+        start_time = datetime.now(UTC)
         analyses: list[MentorAnalysis] = []
 
         try:
@@ -339,7 +339,7 @@ class SaveTheCatMentor(BaseMentor):
             summary = self._generate_summary(analyses, total_pages)
 
             execution_time = int(
-                (datetime.utcnow() - start_time).total_seconds() * 1000
+                (datetime.now(UTC) - start_time).total_seconds() * 1000
             )
 
             if progress_callback:
@@ -372,7 +372,7 @@ class SaveTheCatMentor(BaseMentor):
             )
 
             execution_time = int(
-                (datetime.utcnow() - start_time).total_seconds() * 1000
+                (datetime.now(UTC) - start_time).total_seconds() * 1000
             )
 
             return MentorResult(

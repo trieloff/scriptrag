@@ -688,7 +688,7 @@ def get_database_health_report(db_path: str | Path) -> dict[str, Any]:
     db_path = Path(db_path)
 
     report = {
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "database_path": str(db_path),
         "exists": db_path.exists(),
     }

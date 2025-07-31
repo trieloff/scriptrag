@@ -2,6 +2,7 @@
 
 import json
 import logging
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -181,6 +182,15 @@ class TestConfigureLogging:
         assert "logger_factory" in call_kwargs
         assert call_kwargs["cache_logger_on_first_use"] is True
 
+    @patch("pathlib.Path.mkdir")
+    def test_file_logging_permission_error(self, mock_mkdir):
+        """Test file logging when directory creation fails."""
+        mock_mkdir.side_effect = PermissionError("Permission denied")
+
+        # Should raise the permission error
+        with pytest.raises(PermissionError):
+            configure_logging(log_file=Path("/restricted/test.log"))
+
 
 class TestGetLogger:
     """Test the get_logger function."""
@@ -267,6 +277,22 @@ class TestThirdPartyLogging:
 
         logger = logging.getLogger("httpx._client")
         assert logger.level == logging.ERROR
+
+    def test_configure_sqlalchemy_logging_invalid_level(self):
+        """Test SQLAlchemy logging with invalid level defaults to WARNING."""
+        configure_sqlalchemy_logging("INVALID_LEVEL")
+
+        # Should default to WARNING when invalid level is provided
+        logger = logging.getLogger("sqlalchemy.engine")
+        assert logger.level == logging.WARNING
+
+    def test_configure_httpx_logging_invalid_level(self):
+        """Test HTTPX logging with invalid level defaults to WARNING."""
+        configure_httpx_logging("INVALID_LEVEL")
+
+        # Should default to WARNING when invalid level is provided
+        logger = logging.getLogger("httpx._client")
+        assert logger.level == logging.WARNING
 
 
 class TestLoggingConfigs:
@@ -441,6 +467,20 @@ class TestTemporaryLogLevel:
 
         # Should restore to INFO
         assert root_logger.level == logging.INFO
+
+    def test_temporary_log_level_none_original_level(self):
+        """Test TemporaryLogLevel when original_level is None (edge case)."""
+        # This tests the condition at line 253
+        temp_logger = TemporaryLogLevel("DEBUG")
+        # Manually set original_level to None to test the condition
+        temp_logger.original_level = None
+
+        # Should handle None gracefully in __exit__
+        temp_logger.__exit__(None, None, None)
+
+        # Logger should still be functional
+        root_logger = logging.getLogger()
+        assert root_logger is not None
 
 
 class TestLoggingIntegration:

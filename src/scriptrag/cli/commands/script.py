@@ -756,6 +756,7 @@ def script_info(
                 script_path=str(script_path),
                 error=str(e),
             )
+            raise typer.Exit(1) from e
         except Exception as e:
             console.print(f"[red]Unexpected error:[/red] {e}")
             logger.error(
@@ -763,10 +764,17 @@ def script_info(
                 script_path=str(script_path),
                 error=str(e),
             )
+            raise typer.Exit(1) from e
     else:
         # Show info about current database
-        settings = get_settings()
-        db_path = Path(settings.database.path)
+        try:
+            settings = get_settings()
+            db_path = Path(settings.database.path)
+        except Exception as e:
+            logger = get_logger(__name__)
+            logger.error("Error loading settings", error=str(e))
+            console.print(f"[red]Error loading settings: {e}[/red]")
+            raise typer.Exit(1) from e
 
         if db_path.exists():
             console.print(f"[bold blue]Database Info:[/bold blue] {db_path}")

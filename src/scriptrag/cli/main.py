@@ -72,29 +72,33 @@ def main(
     • Scene management and timeline analysis
     • MCP server for AI assistant integration
     """
-    # Set up logging level based on options
-    if quiet:
-        log_level = "ERROR"
-    elif verbose:
-        log_level = "DEBUG"
-    else:
-        log_level = "INFO"
+    try:
+        # Set up logging level based on options
+        if quiet:
+            log_level = "ERROR"
+        elif verbose:
+            log_level = "DEBUG"
+        else:
+            log_level = "INFO"
 
-    # Use config_file_opt if provided, otherwise use config_file
-    actual_config_file = config_file_opt or config_file
-    settings = (
-        load_settings(actual_config_file) if actual_config_file else get_settings()
-    )
+        # Use config_file_opt if provided, otherwise use config_file
+        actual_config_file = config_file_opt or config_file
+        settings = (
+            load_settings(actual_config_file) if actual_config_file else get_settings()
+        )
 
-    # Override environment if specified
-    settings.environment = environment
-    settings.logging.level = log_level
+        # Override environment if specified
+        settings.environment = environment
+        settings.logging.level = log_level
 
-    # Set up logging
-    setup_logging_for_environment(
-        environment=settings.environment,
-        log_file=settings.get_log_file_path(),
-    )
+        # Set up logging
+        setup_logging_for_environment(
+            environment=settings.environment,
+            log_file=settings.get_log_file_path(),
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}", err=True)
+        raise typer.Exit(1) from e
 
 
 # Add command groups

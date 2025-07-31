@@ -314,7 +314,7 @@ class TestConfigurationErrors:
         # Should fail with error code 1 or 2
         assert result.exit_code in [1, 2]
 
-    @patch("scriptrag.config.settings.get_settings")
+    @patch("scriptrag.cli.commands.script.get_settings")
     def test_missing_required_config(self, mock_get_settings, cli_runner):
         """Test commands when required configuration is missing."""
         mock_get_settings.side_effect = Exception("Missing required configuration")
@@ -436,7 +436,7 @@ class TestExitCodes:
         assert result.exit_code == 2
 
         # Runtime error (should return 1)
-        with patch("scriptrag.config.settings.get_settings") as mock_settings:
+        with patch("scriptrag.cli.commands.script.get_settings") as mock_settings:
             mock_settings.side_effect = Exception("Runtime error")
             result = cli_runner.invoke(app, ["script", "info"])
             assert result.exit_code == 1

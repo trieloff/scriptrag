@@ -685,13 +685,16 @@ def script_info(
                 stats_collector = DatabaseStatistics(conn)
                 stats = stats_collector.get_all_statistics()
 
+                # Import Table locally to avoid scope issues in tests
+                from rich.table import Table as RichTable
+
                 # Database Overview
                 db_metrics = stats["database"]
                 console.print(f"\nSize: {db_metrics['file_size']:,} bytes")
 
                 # Entity Summary Table
                 console.print("\n[bold cyan]Entity Summary[/bold cyan]")
-                entity_table = Table(show_header=True, header_style="bold")
+                entity_table = RichTable(show_header=True, header_style="bold")
                 entity_table.add_column("Entity Type", style="dim")
                 entity_table.add_column("Count", justify="right")
 
@@ -709,7 +712,7 @@ def script_info(
                 graph_stats = stats["graph"]
                 if graph_stats["total_nodes"] > 0:
                     console.print("\n[bold cyan]Graph Statistics[/bold cyan]")
-                    graph_table = Table(show_header=True, header_style="bold")
+                    graph_table = RichTable(show_header=True, header_style="bold")
                     graph_table.add_column("Metric", style="dim")
                     graph_table.add_column("Value", justify="right")
 
@@ -743,7 +746,7 @@ def script_info(
                 embed_stats = stats["embeddings"]
                 if embed_stats["total_embeddings"] > 0:
                     console.print("\n[bold cyan]Embedding Coverage[/bold cyan]")
-                    embed_table = Table(show_header=True, header_style="bold")
+                    embed_table = RichTable(show_header=True, header_style="bold")
                     embed_table.add_column("Metric", style="dim")
                     embed_table.add_column("Value", justify="right")
 
@@ -772,7 +775,7 @@ def script_info(
                 # Most connected characters
                 if usage["most_connected_characters"]:
                     console.print("\n[bold cyan]Most Connected Characters[/bold cyan]")
-                    char_table = Table(show_header=True, header_style="bold")
+                    char_table = RichTable(show_header=True, header_style="bold")
                     char_table.add_column("Character", style="bold")
                     char_table.add_column("Connections", justify="right")
 
@@ -783,7 +786,7 @@ def script_info(
                 # Longest scripts
                 if usage["longest_scripts"]:
                     console.print("\n[bold cyan]Longest Scripts[/bold cyan]")
-                    script_table = Table(show_header=True, header_style="bold")
+                    script_table = RichTable(show_header=True, header_style="bold")
                     script_table.add_column("Script", style="bold")
                     script_table.add_column("Scenes", justify="right")
 
@@ -794,7 +797,7 @@ def script_info(
                 # Busiest locations
                 if usage["busiest_locations"]:
                     console.print("\n[bold cyan]Busiest Locations[/bold cyan]")
-                    loc_table = Table(show_header=True, header_style="bold")
+                    loc_table = RichTable(show_header=True, header_style="bold")
                     loc_table.add_column("Location", style="bold")
                     loc_table.add_column("Type", style="dim")
                     loc_table.add_column("Scenes", justify="right")

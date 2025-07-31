@@ -227,6 +227,19 @@ if command -v gh &> /dev/null; then
     else
         log_info "gh-workflow-peek is already installed"
     fi
+
+    # Create symlink for gh-workflow-peek to make it available globally
+    GH_WORKFLOW_PEEK_PATH="$HOME/.local/share/gh/extensions/gh-workflow-peek/gh-workflow-peek"
+    if [ -f "$GH_WORKFLOW_PEEK_PATH" ]; then
+        log_info "Creating symlink for gh-workflow-peek..."
+        sudo ln -sf "$GH_WORKFLOW_PEEK_PATH" /usr/local/bin/gh-workflow-peek || {
+            log_warning "Failed to create symlink for gh-workflow-peek"
+        }
+        # Verify the symlink worked
+        if [ -L "/usr/local/bin/gh-workflow-peek" ]; then
+            log_success "gh-workflow-peek symlink created at /usr/local/bin/gh-workflow-peek"
+        fi
+    fi
 else
     log_warning "GitHub CLI (gh) not found, skipping gh-workflow-peek installation"
 fi

@@ -316,6 +316,19 @@ if ! command -v uv &> /dev/null; then
             exit 1
         fi
     fi
+else
+    log_info "uv is already available in PATH"
+
+    # Check if uv is in user's local bin but not symlinked to system-wide location
+    if [ -x "$HOME/.local/bin/uv" ] && [ ! -L "/usr/local/bin/uv" ]; then
+        log_info "Creating symlink for existing uv installation..."
+        sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv || {
+            log_warning "Failed to create symlink for uv"
+        }
+        if [ -L "/usr/local/bin/uv" ]; then
+            log_success "uv symlink created at /usr/local/bin/uv"
+        fi
+    fi
 fi
 
 mark_completed "uv_install"

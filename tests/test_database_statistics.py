@@ -168,6 +168,144 @@ class TestDatabaseStatistics:
             assert usage["busiest_locations"][0]["name"] == "Office"
             assert usage["common_times_of_day"]["DAY"] == 5
 
+    def test_continuous_inherits_previous_time_of_day(self, tmp_path):
+        """Test CONTINUOUS scenes inherit time from previous non-CONTINUOUS scene."""
+        db_path = tmp_path / "continuous_test.db"
+        initialize_database(db_path)
+
+        conn = DatabaseConnection(db_path)
+        with conn.transaction() as tx:
+            # Add test data
+            script_id = str(uuid4())
+            tx.execute(
+                """INSERT INTO scripts (id, title, author, description)
+                   VALUES (?, ?, ?, ?)""",
+                (script_id, "Test Script", "Test Author", "A test script"),
+            )
+
+            # Add location
+            location_id = str(uuid4())
+            tx.execute(
+                """INSERT INTO locations
+                   (id, script_id, interior, name, time_of_day, raw_text)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (location_id, script_id, True, "Office", "DAY", "INT. OFFICE - DAY"),
+            )
+
+            # Add scenes with different times of day
+            # Pattern: DAY, NIGHT, CONTINUOUS (x2), MORNING, CONTINUOUS
+            # Expected count: DAY=1, NIGHT=3, MORNING=2
+            times_of_day = [
+                "DAY",
+                "NIGHT",
+                "CONTINUOUS",  # Should count as NIGHT
+                "CONTINUOUS",  # Should count as NIGHT
+                "MORNING",
+                "CONTINUOUS",  # Should count as MORNING
+            ]
+            for i, time_of_day in enumerate(times_of_day):
+                scene_id = str(uuid4())
+                tx.execute(
+                    """INSERT INTO scenes
+                       (id, script_id, location_id, heading, script_order, time_of_day)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (
+                        scene_id,
+                        script_id,
+                        location_id,
+                        f"INT. OFFICE - {time_of_day}",
+                        i,
+                        time_of_day,
+                    ),
+                )
+
+        # Test statistics
+        with DatabaseConnection(db_path) as conn:
+            stats = DatabaseStatistics(conn)
+            usage = stats.get_usage_patterns()
+
+            # CONTINUOUS should not appear in common_times_of_day
+            assert "CONTINUOUS" not in usage["common_times_of_day"]
+
+            # Times should be counted with CONTINUOUS scenes inheriting previous times
+            assert usage["common_times_of_day"]["DAY"] == 1
+            assert usage["common_times_of_day"]["NIGHT"] == 3  # 1 NIGHT + 2 CONTINUOUS
+            assert (
+                usage["common_times_of_day"]["MORNING"] == 2
+            )  # 1 MORNING + 1 CONTINUOUS
+
+            # Total should be 6 (all scenes counted with inherited times)
+            assert sum(usage["common_times_of_day"].values()) == 6
+
+    def test_continuous_at_start_has_no_time(self, tmp_path):
+        """Test that CONTINUOUS scene at the start has no time assigned."""
+        db_path = tmp_path / "continuous_start_test.db"
+        initialize_database(db_path)
+
+        conn = DatabaseConnection(db_path)
+        with conn.transaction() as tx:
+            # Add test data
+            script_id = str(uuid4())
+            tx.execute(
+                """INSERT INTO scripts (id, title, author, description)
+                   VALUES (?, ?, ?, ?)""",
+                (script_id, "Test Script", "Test Author", "A test script"),
+            )
+
+            # Add location
+            location_id = str(uuid4())
+            tx.execute(
+                """INSERT INTO locations
+                   (id, script_id, interior, name, time_of_day, raw_text)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (
+                    location_id,
+                    script_id,
+                    True,
+                    "Office",
+                    "CONTINUOUS",
+                    "INT. OFFICE - CONTINUOUS",
+                ),
+            )
+
+            # Add scenes starting with CONTINUOUS
+            times_of_day = [
+                "CONTINUOUS",  # No previous scene to inherit from
+                "DAY",
+                "CONTINUOUS",  # Should count as DAY
+            ]
+            for i, time_of_day in enumerate(times_of_day):
+                scene_id = str(uuid4())
+                tx.execute(
+                    """INSERT INTO scenes
+                       (id, script_id, location_id, heading, script_order, time_of_day)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (
+                        scene_id,
+                        script_id,
+                        location_id,
+                        f"INT. OFFICE - {time_of_day}",
+                        i,
+                        time_of_day,
+                    ),
+                )
+
+        # Test statistics
+        with DatabaseConnection(db_path) as conn:
+            stats = DatabaseStatistics(conn)
+            usage = stats.get_usage_patterns()
+
+            # CONTINUOUS should not appear in common_times_of_day
+            assert "CONTINUOUS" not in usage["common_times_of_day"]
+
+            # Only scenes with definite times should be counted
+            assert (
+                usage["common_times_of_day"]["DAY"] == 2
+            )  # 1 DAY + 1 CONTINUOUS after DAY
+
+            # Total should be 2 (first CONTINUOUS is not counted)
+            assert sum(usage["common_times_of_day"].values()) == 2
+
     def test_all_statistics(self, tmp_path):
         """Test get_all_statistics aggregation."""
         db_path = tmp_path / "all_stats.db"

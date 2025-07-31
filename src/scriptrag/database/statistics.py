@@ -308,11 +308,45 @@ class DatabaseStatistics:
         """).fetchall()
 
         # Common times of day
+        # For CONTINUOUS scenes, inherit the time from the previous non-CONTINUOUS scene
         times = self.connection.execute("""
-            SELECT time_of_day, COUNT(*) as count
-            FROM scenes
-            WHERE time_of_day IS NOT NULL
-            GROUP BY time_of_day
+            WITH scene_times AS (
+                SELECT
+                    script_id,
+                    script_order,
+                    time_of_day,
+                    -- LAG with IGNORE NULLS would be ideal (not in SQLite)
+                    -- So we use a different approach
+                    CASE
+                        WHEN UPPER(time_of_day) = 'CONTINUOUS' THEN NULL
+                        ELSE time_of_day
+                    END as actual_time
+                FROM scenes
+                WHERE time_of_day IS NOT NULL
+                ORDER BY script_id, script_order
+            ),
+            propagated_times AS (
+                SELECT
+                    s1.script_id,
+                    s1.script_order,
+                    s1.time_of_day,
+                    COALESCE(
+                        s1.actual_time,
+                        -- Find the most recent non-CONTINUOUS time
+                        (SELECT s2.actual_time
+                         FROM scene_times s2
+                         WHERE s2.script_id = s1.script_id
+                           AND s2.script_order < s1.script_order
+                           AND s2.actual_time IS NOT NULL
+                         ORDER BY s2.script_order DESC
+                         LIMIT 1)
+                    ) as effective_time
+                FROM scene_times s1
+            )
+            SELECT effective_time as time_of_day, COUNT(*) as count
+            FROM propagated_times
+            WHERE effective_time IS NOT NULL
+            GROUP BY effective_time
             ORDER BY count DESC
         """).fetchall()
 

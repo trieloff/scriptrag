@@ -2,6 +2,8 @@
 
 This guide explains how to refactor large Python files in ScriptRAG to comply with the file size limits established for MCP tool compatibility.
 
+**Note**: This guide provides examples and patterns for refactoring. The actual refactoring of large files should be done as separate, focused PRs to ensure proper testing and review.
+
 ## File Size Limits
 
 - **Regular Python files**: 1000 lines (soft), 1500 lines (hard)

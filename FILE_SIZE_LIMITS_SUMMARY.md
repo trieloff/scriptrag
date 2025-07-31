@@ -25,17 +25,14 @@
   - Refactoring guidance
 - **docs/refactoring-guide.md**: Detailed guide for refactoring large files
 
-### 4. Demonstrated Refactoring Pattern
+### 4. Documented Refactoring Patterns
 
-Created example CLI package structure showing how to split `cli.py`:
+Created comprehensive refactoring guide (`docs/refactoring-guide.md`) showing:
 
-```text
-src/scriptrag/cli/
-├── __init__.py      # Package exports
-├── main.py          # Main app entry point
-├── config.py        # Config commands (extracted)
-└── [other command groups...]
-```
+- How to split large files into modules
+- Example patterns for CLI, MCP server, and database operations
+- Step-by-step refactoring process
+- Benefits and testing considerations
 
 ## Current Violations to Address
 

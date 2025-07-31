@@ -448,3 +448,187 @@ FADE OUT.
             connection.close()
             with contextlib.suppress(PermissionError):
                 db_path.unlink(missing_ok=True)
+
+    def test_database_error_during_initialization(self, temp_dir: Path) -> None:
+        """Test handling of database errors during schema initialization."""
+        import sqlite3
+        from unittest.mock import Mock, patch
+
+        db_path = temp_dir / "test_db_init_error.db"
+
+        with patch(
+            "scriptrag.database.connection.DatabaseConnection._is_schema_missing"
+        ) as mock_check:
+            # Always return True to trigger initialization
+            mock_check.return_value = True
+
+            with patch("sqlite3.Connection.execute") as mock_execute:
+                # First call succeeds (for configuration)
+                # Second call fails (during schema initialization)
+                mock_execute.side_effect = [
+                    Mock(),  # PRAGMA foreign_keys
+                    Mock(),  # PRAGMA journal_mode
+                    Mock(),  # PRAGMA synchronous
+                    Mock(),  # PRAGMA cache_size
+                    Mock(),  # PRAGMA temp_store
+                    Mock(),  # PRAGMA automatic_index
+                    sqlite3.DatabaseError("Simulated DB error during init"),
+                ]
+
+                connection = DatabaseConnection(db_path)
+
+                try:
+                    with (
+                        pytest.raises(RuntimeError) as exc_info,
+                        connection.get_connection(),
+                    ):
+                        pass
+
+                    assert "Database error during schema initialization" in str(
+                        exc_info.value
+                    )
+
+                finally:
+                    with contextlib.suppress(BaseException):
+                        connection.close()
+                    with contextlib.suppress(PermissionError):
+                        db_path.unlink(missing_ok=True)
+
+    def test_migration_validation_failure(self, temp_dir: Path) -> None:
+        """Test handling when migration validation fails."""
+        from unittest.mock import patch
+
+        db_path = temp_dir / "test_validation_fail.db"
+
+        with patch(
+            "scriptrag.database.connection.DatabaseConnection._is_schema_missing"
+        ) as mock_check:
+            mock_check.return_value = True
+
+            with patch(
+                "scriptrag.database.migrations.MigrationRunner.validate_migrations"
+            ) as mock_validate:
+                mock_validate.return_value = False
+
+                connection = DatabaseConnection(db_path)
+
+                try:
+                    with (
+                        pytest.raises(RuntimeError) as exc_info,
+                        connection.get_connection(),
+                    ):
+                        pass
+
+                    assert "Migration validation failed" in str(exc_info.value)
+
+                finally:
+                    with contextlib.suppress(BaseException):
+                        connection.close()
+                    with contextlib.suppress(PermissionError):
+                        db_path.unlink(missing_ok=True)
+
+    def test_unexpected_error_during_initialization(self, temp_dir: Path) -> None:
+        """Test handling of unexpected errors during schema initialization."""
+        from unittest.mock import patch
+
+        db_path = temp_dir / "test_unexpected_error.db"
+
+        with patch(
+            "scriptrag.database.connection.DatabaseConnection._is_schema_missing"
+        ) as mock_check:
+            mock_check.return_value = True
+
+            with patch("scriptrag.database.migrations.MigrationRunner") as mock_runner:
+                # Raise an unexpected error type
+                mock_runner.side_effect = ValueError("Unexpected error type")
+
+                connection = DatabaseConnection(db_path)
+
+                try:
+                    with (
+                        pytest.raises(RuntimeError) as exc_info,
+                        connection.get_connection(),
+                    ):
+                        pass
+
+                    error_msg = str(exc_info.value)
+                    assert "Unexpected error during schema initialization" in error_msg
+                    assert "ValueError: Unexpected error type" in error_msg
+
+                finally:
+                    with contextlib.suppress(BaseException):
+                        connection.close()
+                    with contextlib.suppress(PermissionError):
+                        db_path.unlink(missing_ok=True)
+
+    def test_runtime_error_during_migration(self, temp_dir: Path) -> None:
+        """Test handling of RuntimeError during migration execution."""
+        from unittest.mock import Mock, patch
+
+        db_path = temp_dir / "test_runtime_error.db"
+
+        with patch(
+            "scriptrag.database.connection.DatabaseConnection._is_schema_missing"
+        ) as mock_check:
+            mock_check.return_value = True
+
+            with patch(
+                "scriptrag.database.migrations.MigrationRunner"
+            ) as mock_runner_class:
+                mock_runner = Mock()
+                mock_runner_class.return_value = mock_runner
+                mock_runner.validate_migrations.return_value = True
+                mock_runner.needs_migration.side_effect = RuntimeError(
+                    "Migration check failed"
+                )
+
+                connection = DatabaseConnection(db_path)
+
+                try:
+                    with (
+                        pytest.raises(RuntimeError) as exc_info,
+                        connection.get_connection(),
+                    ):
+                        pass
+
+                    error_msg = str(exc_info.value)
+                    assert "Migration runtime error" in error_msg
+                    assert "Migration check failed" in error_msg
+
+                finally:
+                    with contextlib.suppress(BaseException):
+                        connection.close()
+                    with contextlib.suppress(PermissionError):
+                        db_path.unlink(missing_ok=True)
+
+    def test_schema_check_sqlite_error_handling(self, temp_dir: Path) -> None:
+        """Test that SQLite errors during schema check are handled properly."""
+        import sqlite3
+        from unittest.mock import Mock, patch
+
+        db_path = temp_dir / "test_schema_check_error.db"
+
+        # Create a connection but mock the execute to fail during schema check
+        connection = DatabaseConnection(db_path)
+
+        with patch("sqlite3.Connection.execute") as mock_execute:
+            # Configure the mock to fail on the schema check query
+            def side_effect(query, *args):  # noqa: ARG001
+                if "sqlite_master" in query:
+                    raise sqlite3.Error("Cannot access sqlite_master")
+                return Mock()  # Return mock for other queries
+
+            mock_execute.side_effect = side_effect
+
+            try:
+                # This should trigger initialization because _is_schema_missing
+                # returns True when there's an error
+                with connection.get_connection():
+                    # Reset mock for actual use
+                    mock_execute.side_effect = None
+                    mock_execute.return_value = Mock()
+
+            finally:
+                connection.close()
+                with contextlib.suppress(PermissionError):
+                    db_path.unlink(missing_ok=True)

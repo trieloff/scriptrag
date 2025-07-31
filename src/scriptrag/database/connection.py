@@ -76,6 +76,7 @@ class DatabaseConnection:
             "isolation_level": kwargs.get("isolation_level"),  # Autocommit mode
         }
         self._local = threading.local()
+        self._init_lock = threading.Lock()  # Lock for schema initialization
 
     def _validate_and_normalize_path(self, db_path: str | Path) -> Path:
         """Validate and normalize a database path for security.
@@ -298,6 +299,11 @@ class DatabaseConnection:
             # Configure connection for optimal performance and safety
             self._configure_connection(conn)
 
+            # Check if database needs initialization (with thread safety)
+            with self._init_lock:
+                if self._needs_schema_initialization():
+                    self._initialize_schema(conn)
+
             self._local.connection = conn
 
         return cast(sqlite3.Connection, self._local.connection)
@@ -330,6 +336,72 @@ class DatabaseConnection:
 
         # Set row factory for named column access
         conn.row_factory = sqlite3.Row
+
+    def _needs_schema_initialization(self) -> bool:
+        """Check if the database needs schema initialization.
+
+        Returns:
+            True if schema initialization is needed
+        """
+        try:
+            with sqlite3.connect(str(self.db_path)) as conn:
+                # Check if the core tables exist
+                cursor = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes'"
+                )
+                return cursor.fetchone() is None
+        except sqlite3.Error:
+            # If there's any error accessing the database, assume it needs init
+            return True
+
+    def _initialize_schema(self, conn: sqlite3.Connection) -> None:
+        """Initialize the database schema.
+
+        Args:
+            conn: Database connection to initialize
+        """
+        from .migrations import MigrationRunner
+
+        logger.info(f"Initializing database schema at {self.db_path}")
+
+        try:
+            # Use the migration runner directly with the current connection
+            runner = MigrationRunner(self.db_path)
+
+            # Validate migrations first
+            if not runner.validate_migrations():
+                raise RuntimeError("Migration validation failed")
+
+            # Apply migrations using the existing connection
+            if runner.needs_migration():
+                pending = runner.get_pending_migrations()
+                logger.info(f"Applying {len(pending)} pending migrations")
+
+                for version in pending:
+                    migration_class = runner.migrations[version]
+                    migration = migration_class()
+
+                    logger.info(f"Applying {migration}")
+
+                    # Apply migration using the current connection
+                    migration.up(conn)
+
+                    # Record migration
+                    conn.execute(
+                        "INSERT INTO schema_info (version, description) VALUES (?, ?)",
+                        (version, migration.description),
+                    )
+
+                conn.commit()
+                logger.info("Database migration completed successfully")
+
+            logger.info("Database schema initialized successfully")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize database schema: {e}")
+            raise RuntimeError(
+                f"Failed to initialize database schema at {self.db_path}"
+            ) from e
 
     @contextmanager
     def get_connection(self) -> Generator[sqlite3.Connection, None, None]:

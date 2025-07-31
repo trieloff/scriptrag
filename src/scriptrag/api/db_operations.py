@@ -153,8 +153,23 @@ class DatabaseOperations:
                 "has_embedding": bool(result.get("has_embedding", 0)),
             }
 
-        # TODO: Implement using scriptrag instance
-        raise NotImplementedError("get_scene not implemented")
+        # Use ScriptRAG to get scene
+        scene = await self.scriptrag.get_scene(scene_id)
+        if not scene:
+            return None
+
+        return {
+            "id": str(scene.id),
+            "script_id": str(scene.script_id),
+            "scene_number": scene.script_order,
+            "heading": scene.heading or "",
+            "content": getattr(scene, "content", "") or "",
+            "character_count": len(getattr(scene, "characters", [])),
+            "word_count": len((getattr(scene, "content", "") or "").split()),
+            "page_start": getattr(scene, "page_start", None),
+            "page_end": getattr(scene, "page_end", None),
+            "has_embedding": getattr(scene, "embedding", None) is not None,
+        }
 
     async def create_scene(
         self,

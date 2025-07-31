@@ -153,15 +153,22 @@ async def get_script(
         if not script:
             raise HTTPException(status_code=404, detail="Script not found")
 
+        # Get scenes separately to ensure they're populated
+        scenes = await db_ops.list_scenes(script_id)
+
         return ScriptDetailResponse(
             id=script.id or "",
             title=script.title,
             author=script.author,
             created_at=script.created_at or datetime.now(UTC),
             updated_at=script.updated_at or datetime.now(UTC),
-            scene_count=len(script.scenes),
-            character_count=len(script.characters),
-            has_embeddings=any(scene.embedding is not None for scene in script.scenes),
+            scene_count=len(scenes),
+            character_count=(
+                len(script.characters) if hasattr(script, "characters") else 0
+            ),
+            has_embeddings=any(
+                getattr(scene, "embedding", None) is not None for scene in scenes
+            ),
             scenes=[
                 SceneResponse(
                     id=scene.id or "",
@@ -169,16 +176,16 @@ async def get_script(
                     scene_number=scene.scene_number,
                     heading=scene.heading,
                     content=scene.content,
-                    character_count=len(scene.characters),
-                    word_count=len(scene.content.split()),
-                    page_start=scene.page_start,
-                    page_end=scene.page_end,
-                    has_embedding=scene.embedding is not None,
+                    character_count=len(getattr(scene, "characters", [])),
+                    word_count=len(scene.content.split()) if scene.content else 0,
+                    page_start=getattr(scene, "page_start", None),
+                    page_end=getattr(scene, "page_end", None),
+                    has_embedding=getattr(scene, "embedding", None) is not None,
                 )
-                for scene in script.scenes
+                for scene in scenes
             ],
-            characters=list(script.characters),
-            metadata=script.metadata or {},
+            characters=list(getattr(script, "characters", [])),
+            metadata=getattr(script, "metadata", {}) or {},
         )
 
     except HTTPException:

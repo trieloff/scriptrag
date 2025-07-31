@@ -258,12 +258,29 @@ class ScriptRAG:
     async def initialize(self) -> None:
         """Initialize database connections and components."""
         self.logger.info("Initializing ScriptRAG components")
-        # TODO: Initialize database, graph operations, etc.
+
+        # Initialize database and graph operations
+        from .database import get_connection
+        from .database.operations import GraphOperations
+
+        # Get database connection
+        connection = get_connection(self.config.get_database_path())
+
+        # Initialize graph operations
+        self._graph_ops = GraphOperations(connection)
+
+        self.logger.debug("ScriptRAG components initialized successfully")
 
     async def cleanup(self) -> None:
         """Clean up database connections and resources."""
         self.logger.info("Cleaning up ScriptRAG components")
-        # TODO: Cleanup database connections, etc.
+
+        # Close graph operations and database connection
+        if self._graph_ops and hasattr(self._graph_ops, "connection"):
+            self._graph_ops.connection.close()
+            self._graph_ops = None
+
+        self.logger.debug("ScriptRAG components cleaned up successfully")
 
     # Script operations
     async def list_scripts(self) -> list[Any]:  # Will return ScriptModel via API layer
@@ -363,21 +380,68 @@ class ScriptRAG:
     async def list_scenes(self, script_id: str) -> list[Scene]:
         """List scenes for a script."""
         self.logger.debug("Listing scenes", script_id=script_id)
-        raise NotImplementedError("list_scenes not yet implemented")
+
+        if not self._graph_ops:
+            return []
+
+        # Use graph operations to get scenes
+        from .database import get_connection
+
+        with get_connection(self.config.get_database_path()) as conn:
+            cursor = conn.execute(
+                """
+                SELECT id, script_id, script_order, heading, description
+                FROM scenes
+                WHERE script_id = ?
+                ORDER BY script_order
+                """,
+                (script_id,),
+            )
+
+            scenes = []
+            for row in cursor.fetchall():
+                scene = Scene(
+                    id=row["id"],
+                    script_id=row["script_id"],
+                    script_order=row["script_order"],
+                    heading=row["heading"] or "",
+                    description=row["description"] or "",
+                )
+                scenes.append(scene)
+
+        return scenes
 
     async def get_scene(self, scene_id: str) -> Scene | None:
         """Get a scene by ID."""
         self.logger.debug("Getting scene", scene_id=scene_id)
-        # Mock implementation for test compatibility
-        from uuid import uuid4
 
-        return Scene(
-            id=UUID(scene_id) if scene_id else uuid4(),
-            script_id=uuid4(),
-            heading="Mock Scene",
-            script_order=1,
-            description="Mock scene content",
-        )
+        if not self._graph_ops:
+            return None
+
+        # Use database to get scene
+        from .database import get_connection
+
+        with get_connection(self.config.get_database_path()) as conn:
+            cursor = conn.execute(
+                """
+                SELECT id, script_id, script_order, heading, description
+                FROM scenes
+                WHERE id = ?
+                """,
+                (scene_id,),
+            )
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            return Scene(
+                id=row["id"],
+                script_id=row["script_id"],
+                script_order=row["script_order"],
+                heading=row["heading"] or "",
+                description=row["description"] or "",
+            )
 
     async def create_scene(
         self,

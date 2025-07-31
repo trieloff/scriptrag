@@ -227,19 +227,6 @@ if command -v gh &> /dev/null; then
     else
         log_info "gh-workflow-peek is already installed"
     fi
-
-    # Create symlink for gh-workflow-peek to make it available globally
-    GH_WORKFLOW_PEEK_PATH="$HOME/.local/share/gh/extensions/gh-workflow-peek/gh-workflow-peek"
-    if [ -f "$GH_WORKFLOW_PEEK_PATH" ]; then
-        log_info "Creating symlink for gh-workflow-peek..."
-        sudo ln -sf "$GH_WORKFLOW_PEEK_PATH" /usr/local/bin/gh-workflow-peek || {
-            log_warning "Failed to create symlink for gh-workflow-peek"
-        }
-        # Verify the symlink worked
-        if [ -L "/usr/local/bin/gh-workflow-peek" ]; then
-            log_success "gh-workflow-peek symlink created at /usr/local/bin/gh-workflow-peek"
-        fi
-    fi
 else
     log_warning "GitHub CLI (gh) not found, skipping gh-workflow-peek installation"
 fi
@@ -327,6 +314,19 @@ if ! command -v uv &> /dev/null; then
         else
             log_error "Cannot find uv executable after installation"
             exit 1
+        fi
+    fi
+else
+    log_info "uv is already available in PATH"
+
+    # Check if uv is in user's local bin but not symlinked to system-wide location
+    if [ -x "$HOME/.local/bin/uv" ] && [ ! -L "/usr/local/bin/uv" ]; then
+        log_info "Creating symlink for existing uv installation..."
+        sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv || {
+            log_warning "Failed to create symlink for uv"
+        }
+        if [ -L "/usr/local/bin/uv" ]; then
+            log_success "uv symlink created at /usr/local/bin/uv"
         fi
     fi
 fi

@@ -424,60 +424,47 @@ if ! command -v uv &> /dev/null; then
         log_info "No uv environment script found at $HOME/.local/bin/env"
     fi
 
-    # Verify uv is now available
-    if ! command -v uv &> /dev/null; then
-        log_info "uv not found in PATH after installation, checking explicit location..."
-        log_info "Checking for uv at: $HOME/.local/bin/uv"
+    # Check if uv was installed to ~/.local/bin
+    if [ -x "$HOME/.local/bin/uv" ]; then
+        log_info "Found uv executable at $HOME/.local/bin/uv"
+        log_info "File details: $(ls -la $HOME/.local/bin/uv)"
 
-        if [ -x "$HOME/.local/bin/uv" ]; then
-            log_info "Found uv executable at $HOME/.local/bin/uv"
-            log_info "File details: $(ls -la $HOME/.local/bin/uv)"
-
-            # Create symlink to make uv available system-wide
-            log_info "Creating symlink to make uv available in PATH..."
+        # Always try to create symlink for system-wide availability
+        if [ ! -L "/usr/local/bin/uv" ]; then
+            log_info "Creating symlink to make uv available system-wide..."
             log_info "Attempting to create symlink: /usr/local/bin/uv -> $HOME/.local/bin/uv"
-            if ! create_symlink "$HOME/.local/bin/uv" "/usr/local/bin/uv"; then
-                log_warning "Will use explicit path: $HOME/.local/bin/uv"
-                UV_CMD="$HOME/.local/bin/uv"
-            fi
+            create_symlink "$HOME/.local/bin/uv" "/usr/local/bin/uv"
+        fi
 
-            # Check if symlink worked
-            if command -v uv &> /dev/null; then
-                log_success "uv is now available in PATH at: $(which uv)"
-                log_info "uv version: $(uv --version 2>&1)"
-            else
-                log_info "uv still not in PATH, using explicit path"
-                UV_CMD="$HOME/.local/bin/uv"
-                log_info "Testing uv at explicit path: $($UV_CMD --version 2>&1)"
-            fi
+        # Verify uv is available
+        if command -v uv &> /dev/null; then
+            log_success "uv is available at: $(which uv)"
+            log_info "uv version: $(uv --version 2>&1)"
         else
-            log_error "Cannot find uv executable at $HOME/.local/bin/uv after installation"
-            log_info "Contents of $HOME/.local/bin:"
-            ls -la "$HOME/.local/bin/" 2>&1 | tee -a "$LOG_FILE" || log_warning "Cannot list $HOME/.local/bin"
-            exit 1
+            log_warning "uv not in PATH, will use explicit path: $HOME/.local/bin/uv"
+            UV_CMD="$HOME/.local/bin/uv"
+            log_info "Testing uv at explicit path: $($UV_CMD --version 2>&1)"
         fi
     else
-        log_success "uv successfully installed and available at: $(which uv)"
-        log_info "uv version: $(uv --version 2>&1)"
+        log_error "Cannot find uv executable at $HOME/.local/bin/uv after installation"
+        log_info "Contents of $HOME/.local/bin:"
+        ls -la "$HOME/.local/bin/" 2>&1 | tee -a "$LOG_FILE" || log_warning "Cannot list $HOME/.local/bin"
+        exit 1
     fi
 else
     log_info "uv is already available at: $(which uv)"
     log_info "uv version: $(uv --version 2>&1)"
+fi
 
-    # Check if uv is in user's local bin but not symlinked to system-wide location
-    if [ -x "$HOME/.local/bin/uv" ] && [ ! -L "/usr/local/bin/uv" ]; then
-        log_info "Found uv at $HOME/.local/bin/uv but no system-wide symlink exists"
-        log_info "Creating symlink for existing uv installation..."
-        log_info "Attempting to create symlink: /usr/local/bin/uv -> $HOME/.local/bin/uv"
-        create_symlink "$HOME/.local/bin/uv" "/usr/local/bin/uv"
-        if [ -L "/usr/local/bin/uv" ]; then
-            log_success "uv symlink created at /usr/local/bin/uv"
-            log_info "Symlink details: $(ls -la /usr/local/bin/uv)"
-        fi
-    elif [ -L "/usr/local/bin/uv" ]; then
-        log_info "System-wide uv symlink already exists at /usr/local/bin/uv"
-        log_info "Symlink details: $(ls -la /usr/local/bin/uv)"
-    fi
+# Always ensure symlink exists if uv is in ~/.local/bin
+if [ -x "$HOME/.local/bin/uv" ] && [ ! -L "/usr/local/bin/uv" ]; then
+    log_info "Found uv at $HOME/.local/bin/uv but no system-wide symlink exists"
+    log_info "Creating symlink for existing uv installation..."
+    log_info "Attempting to create symlink: /usr/local/bin/uv -> $HOME/.local/bin/uv"
+    create_symlink "$HOME/.local/bin/uv" "/usr/local/bin/uv"
+elif [ -L "/usr/local/bin/uv" ]; then
+    log_info "System-wide uv symlink already exists at /usr/local/bin/uv"
+    log_info "Symlink details: $(ls -la /usr/local/bin/uv)"
 fi
 
 mark_completed "uv_install"

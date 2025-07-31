@@ -262,6 +262,7 @@ class TestScriptOperations:
                 "updated_at": datetime.now().isoformat(),
                 "scene_count": 10,
                 "character_count": 3,
+                "has_embeddings": 1,  # SQLite returns 0/1 for boolean
             },
             {
                 "id": str(uuid4()),
@@ -271,6 +272,7 @@ class TestScriptOperations:
                 "updated_at": datetime.now().isoformat(),
                 "scene_count": 5,
                 "character_count": 2,
+                "has_embeddings": 0,  # SQLite returns 0/1 for boolean
             },
         ]
 
@@ -282,9 +284,11 @@ class TestScriptOperations:
         assert result[0]["title"] == "Script 1"
         assert result[0]["scene_count"] == 10
         assert result[0]["character_count"] == 3
+        assert result[0]["has_embeddings"] is True
         assert result[1]["title"] == "Script 2"
         assert result[1]["scene_count"] == 5
         assert result[1]["character_count"] == 2
+        assert result[1]["has_embeddings"] is False
 
     @pytest.mark.asyncio
     async def test_list_scripts_empty(self, db_ops, mock_connection):
@@ -441,6 +445,7 @@ class TestSceneOperations:
             "script_order": 1,
             "heading": "INT. OFFICE - DAY",
             "description": "The office is busy.",
+            "has_embedding": 1,  # SQLite returns 0/1 for boolean
         }
 
         mock_connection.execute.return_value.fetchone.return_value = scene_data
@@ -456,7 +461,7 @@ class TestSceneOperations:
         assert result["word_count"] == 4  # "The office is busy."
         assert result["page_start"] is None  # Hardcoded in implementation
         assert result["page_end"] is None  # Hardcoded in implementation
-        assert result["has_embedding"] is False  # Hardcoded in implementation
+        assert result["has_embedding"] is True  # Now actually checks embeddings
 
     @pytest.mark.asyncio
     async def test_create_scene_success(self, db_ops, mock_connection):
@@ -522,4 +527,223 @@ class TestSceneOperations:
         assert "UPDATE scenes" in sql_text
         assert "SET script_order" in sql_text
         assert script_id in call_args[1]
-        assert 5 in call_args[1]
+
+
+class TestSearchOperations:
+    """Test search operations."""
+
+    @pytest.mark.asyncio
+    async def test_search_scenes_with_embeddings(self, db_ops, mock_connection):
+        """Test search scenes with has_embedding flag."""
+        db_ops._connection = mock_connection
+
+        # Mock search results
+        search_results = [
+            {
+                "id": str(uuid4()),
+                "script_id": str(uuid4()),
+                "script_order": 1,
+                "heading": "INT. OFFICE - DAY",
+                "description": "John enters the office.",
+                "title": "Test Script",
+                "has_embedding": 1,  # Has embedding
+            },
+            {
+                "id": str(uuid4()),
+                "script_id": str(uuid4()),
+                "script_order": 2,
+                "heading": "EXT. STREET - NIGHT",
+                "description": "Sarah walks alone.",
+                "title": "Test Script",
+                "has_embedding": 0,  # No embedding
+            },
+        ]
+
+        # Mock count query
+        mock_connection.execute.return_value.fetchone.return_value = [2]
+        # Mock results query
+        mock_connection.execute.return_value.fetchall.return_value = search_results
+
+        result = await db_ops.search_scenes(query="office", limit=10, offset=0)
+
+        assert result["total"] == 2
+        assert len(result["results"]) == 2
+        assert result["results"][0]["scene"]["has_embedding"] is True
+        assert result["results"][1]["scene"]["has_embedding"] is False
+
+    @pytest.mark.asyncio
+    async def test_search_scenes_by_script_id(self, db_ops, mock_connection):
+        """Test search scenes filtered by script ID."""
+        db_ops._connection = mock_connection
+
+        script_id = str(uuid4())
+        scene_data = {
+            "id": str(uuid4()),
+            "script_id": script_id,
+            "script_order": 1,
+            "heading": "INT. ROOM - DAY",
+            "description": "A scene description.",
+            "title": "Test Script",
+            "has_embedding": 1,
+        }
+
+        mock_connection.execute.return_value.fetchone.return_value = [1]
+        mock_connection.execute.return_value.fetchall.return_value = [scene_data]
+
+        result = await db_ops.search_scenes(script_id=script_id, limit=10, offset=0)
+
+        assert result["total"] == 1
+        assert len(result["results"]) == 1
+        assert result["results"][0]["scene"]["script_id"] == script_id
+
+    @pytest.mark.asyncio
+    async def test_search_scenes_no_results(self, db_ops, mock_connection):
+        """Test search scenes with no results."""
+        db_ops._connection = mock_connection
+
+        mock_connection.execute.return_value.fetchone.return_value = [0]
+        mock_connection.execute.return_value.fetchall.return_value = []
+
+        result = await db_ops.search_scenes(query="nonexistent", limit=10, offset=0)
+
+        assert result["total"] == 0
+        assert result["results"] == []
+
+    @pytest.mark.asyncio
+    async def test_search_scenes_pagination(self, db_ops, mock_connection):
+        """Test search scenes with pagination."""
+        db_ops._connection = mock_connection
+
+        # Create mock data for testing pagination
+        total_scenes = 25
+        page_size = 10
+        offset = 10
+
+        # Mock limited results
+        scene_results = []
+        for i in range(page_size):
+            scene_results.append(
+                {
+                    "id": str(uuid4()),
+                    "script_id": str(uuid4()),
+                    "script_order": offset + i + 1,
+                    "heading": f"Scene {offset + i + 1}",
+                    "description": f"Description {offset + i + 1}",
+                    "title": "Test Script",
+                    "has_embedding": i % 2,  # Alternate between 0 and 1
+                }
+            )
+
+        mock_connection.execute.return_value.fetchone.return_value = [total_scenes]
+        mock_connection.execute.return_value.fetchall.return_value = scene_results
+
+        result = await db_ops.search_scenes(limit=page_size, offset=offset)
+
+        assert result["total"] == total_scenes
+        assert result["limit"] == page_size
+        assert result["offset"] == offset
+        assert len(result["results"]) == page_size
+
+
+class TestEmbeddingsCoverage:
+    """Test embeddings coverage operations."""
+
+    @pytest.mark.asyncio
+    async def test_get_embeddings_coverage_full(self, db_ops, mock_connection):
+        """Test getting embeddings coverage for fully embedded script."""
+        db_ops._connection = mock_connection
+
+        script_id = str(uuid4())
+
+        # Mock full coverage: 10 scenes, all embedded
+        mock_connection.execute.return_value.fetchone.return_value = {
+            "total_scenes": 10,
+            "embedded_scenes": 10,
+        }
+
+        result = await db_ops.get_embeddings_coverage(script_id)
+
+        assert result["script_id"] == script_id
+        assert result["total_scenes"] == 10
+        assert result["embedded_scenes"] == 10
+        assert result["coverage_percentage"] == 100.0
+        assert result["has_full_coverage"] is True
+
+    @pytest.mark.asyncio
+    async def test_get_embeddings_coverage_partial(self, db_ops, mock_connection):
+        """Test getting embeddings coverage for partially embedded script."""
+        db_ops._connection = mock_connection
+
+        script_id = str(uuid4())
+
+        # Mock partial coverage: 10 scenes, 3 embedded
+        mock_connection.execute.return_value.fetchone.return_value = {
+            "total_scenes": 10,
+            "embedded_scenes": 3,
+        }
+
+        result = await db_ops.get_embeddings_coverage(script_id)
+
+        assert result["script_id"] == script_id
+        assert result["total_scenes"] == 10
+        assert result["embedded_scenes"] == 3
+        assert result["coverage_percentage"] == 30.0
+        assert result["has_full_coverage"] is False
+
+    @pytest.mark.asyncio
+    async def test_get_embeddings_coverage_none(self, db_ops, mock_connection):
+        """Test getting embeddings coverage for script with no embeddings."""
+        db_ops._connection = mock_connection
+
+        script_id = str(uuid4())
+
+        # Mock no coverage: 5 scenes, 0 embedded
+        mock_connection.execute.return_value.fetchone.return_value = {
+            "total_scenes": 5,
+            "embedded_scenes": 0,
+        }
+
+        result = await db_ops.get_embeddings_coverage(script_id)
+
+        assert result["script_id"] == script_id
+        assert result["total_scenes"] == 5
+        assert result["embedded_scenes"] == 0
+        assert result["coverage_percentage"] == 0.0
+        assert result["has_full_coverage"] is False
+
+    @pytest.mark.asyncio
+    async def test_get_embeddings_coverage_no_scenes(self, db_ops, mock_connection):
+        """Test getting embeddings coverage for script with no scenes."""
+        db_ops._connection = mock_connection
+
+        script_id = str(uuid4())
+
+        # Mock empty script: 0 scenes
+        mock_connection.execute.return_value.fetchone.return_value = {
+            "total_scenes": 0,
+            "embedded_scenes": 0,
+        }
+
+        result = await db_ops.get_embeddings_coverage(script_id)
+
+        assert result["script_id"] == script_id
+        assert result["total_scenes"] == 0
+        assert result["embedded_scenes"] == 0
+        assert result["coverage_percentage"] == 0.0
+        assert result["has_full_coverage"] is False
+
+    @pytest.mark.asyncio
+    async def test_search_scenes_uninitialized_db(self, db_ops):
+        """Test search scenes with uninitialized database."""
+        db_ops._connection = None
+
+        with pytest.raises(RuntimeError, match="Database not initialized"):
+            await db_ops.search_scenes(query="test")
+
+    @pytest.mark.asyncio
+    async def test_get_embeddings_coverage_uninitialized_db(self, db_ops):
+        """Test getting embeddings coverage with uninitialized database."""
+        db_ops._connection = None
+
+        with pytest.raises(RuntimeError, match="Database not initialized"):
+            await db_ops.get_embeddings_coverage(str(uuid4()))

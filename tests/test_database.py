@@ -971,7 +971,7 @@ class TestMigrationRunner:
         runner = MigrationRunner(temp_db_path)
 
         assert runner.get_current_version() == 0
-        assert runner.get_target_version() == 5
+        assert runner.get_target_version() == 6
         assert runner.needs_migration()
 
     def test_apply_initial_migration(self, temp_db_path):

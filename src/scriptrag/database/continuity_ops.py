@@ -11,6 +11,7 @@ from scriptrag.models import SceneDependency
 
 from .connection import DatabaseConnection
 from .graph import GraphDatabase
+from .scene_ordering import SceneOrderingOperations
 
 # Constants
 TIME_ORDER = [
@@ -38,6 +39,7 @@ class ContinuityOperations:
         """
         self.connection = connection
         self.graph = graph
+        self.scene_ordering = SceneOrderingOperations(connection)
 
     def infer_temporal_order(self, _script_id: str) -> dict[str, int]:
         """Infer temporal order of scenes based on time of day.
@@ -65,7 +67,7 @@ class ContinuityOperations:
         # to determine scene dependencies
         return []
 
-    def calculate_logical_order(self, _script_id: str) -> list[str]:
+    def calculate_logical_order(self, script_id: str) -> list[str]:
         """Calculate logical order of scenes based on dependencies.
 
         Args:
@@ -74,9 +76,7 @@ class ContinuityOperations:
         Returns:
             List of scene IDs in logical order
         """
-        # Implementation would use topological sort
-        # based on scene dependencies
-        return []
+        return self.scene_ordering.get_logical_order(script_id)
 
     def validate_scene_ordering(self, _script_id: str) -> dict[str, Any]:
         """Validate the current scene ordering for consistency.
@@ -97,6 +97,7 @@ class ContinuityOperations:
             "is_valid": True,
             "errors": [],
             "warnings": [],
+            "conflicts": [],
             "suggestions": [],
         }
 

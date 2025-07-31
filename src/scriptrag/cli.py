@@ -916,6 +916,9 @@ def scene_list(
         scenes = manager.operations.get_script_scenes(script_id, order_type)
 
         if limit:
+            if limit < 1:
+                console.print("[red]Error: Limit must be a positive number[/red]")
+                raise typer.Exit(1)
             scenes = scenes[:limit]
 
         # Import Table locally to avoid scope issues in CI

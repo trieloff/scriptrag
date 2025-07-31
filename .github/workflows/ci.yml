@@ -433,9 +433,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, lint, type-check, security, test-unix, test-windows, docs, build, pre-commit]
     if: |
-      always() &&
+      failure() &&
       github.event_name == 'pull_request' &&
-      contains(needs.*.result, 'failure') &&
       contains(github.event.pull_request.body, 'terragonlabs.com/task') &&
       needs.changes.outputs.python == 'true'
     permissions:

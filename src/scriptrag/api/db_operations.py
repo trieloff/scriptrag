@@ -5,9 +5,10 @@ from typing import Any
 from uuid import UUID
 
 from scriptrag import ScriptRAG
-from scriptrag.config import ScriptRAGSettings, get_settings
+from scriptrag.api.models import SceneModel, ScriptModel
+from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 from scriptrag.database.operations import GraphOperations, SceneOrderType
-from scriptrag.models import Scene, Script
+from scriptrag.models import Scene
 
 
 class DatabaseOperations:
@@ -31,12 +32,14 @@ class DatabaseOperations:
         await self.scriptrag.cleanup()
 
     # Script operations
-    async def list_scripts(self) -> list[Script]:
+    async def list_scripts(self) -> list[ScriptModel]:
         """List all scripts."""
+        # TODO: Convert from core Script models to API ScriptModel
         return await self.scriptrag.list_scripts()
 
-    async def get_script(self, script_id: str) -> Script | None:
+    async def get_script(self, script_id: str) -> ScriptModel | None:
         """Get a script by ID."""
+        # TODO: Convert from core Script model to API ScriptModel
         return await self.scriptrag.get_script(script_id)
 
     async def create_script(
@@ -45,9 +48,16 @@ class DatabaseOperations:
         author: str | None = None,
         description: str | None = None,
         genre: str | None = None,
-    ) -> Script:
+    ) -> ScriptModel:
         """Create a new script."""
-        return await self.scriptrag.create_script(title, author, description, genre)
+        # Create script through core API
+        script = await self.scriptrag.create_script(title, author, description, genre)
+        # Convert to API model
+        return ScriptModel(
+            id=str(script.id) if hasattr(script, "id") else None,
+            title=title,
+            author=author,
+        )
 
     async def update_script(
         self,
@@ -58,18 +68,20 @@ class DatabaseOperations:
         genre: str | None = None,
     ) -> bool:
         """Update script metadata."""
-        script = await self.get_script(script_id)
+        # Get the core Script object directly
+        script = await self.scriptrag.get_script(script_id)
         if not script:
             return False
 
-        # Update fields
+        # Update fields on the core model
         if title is not None:
             script.title = title
         if author is not None:
             script.author = author
-        if description is not None:
+        # Note: description and genre may not exist on core model
+        if description is not None and hasattr(script, "description"):
             script.description = description
-        if genre is not None:
+        if genre is not None and hasattr(script, "genre"):
             script.genre = genre
 
         # Save changes
@@ -79,14 +91,45 @@ class DatabaseOperations:
         """Delete a script."""
         return await self.scriptrag.delete_script(script_id)
 
-    # Scene operations
-    async def list_scenes(self, script_id: str) -> list[Scene]:
-        """List scenes for a script."""
-        return await self.scriptrag.list_scenes(script_id)
+    async def store_script(self, script_model: ScriptModel) -> str:
+        """Store a parsed script model."""
+        # Store the script model and return ID
+        result = await self.scriptrag.store_script(script_model)
+        return str(result) if result else ""
 
-    async def get_scene(self, scene_id: str) -> Scene | None:
+    # Scene operations
+    async def list_scenes(self, script_id: str) -> list[SceneModel]:
+        """List scenes for a script."""
+        scenes = await self.scriptrag.list_scenes(script_id)
+        # Convert core Scene models to API SceneModel
+        return [
+            SceneModel(
+                id=str(scene.id) if hasattr(scene, "id") else None,
+                script_id=script_id,
+                scene_number=scene.script_order,
+                heading=scene.heading or "",
+                content=getattr(scene, "content", ""),
+                characters=[str(c) for c in scene.characters]
+                if scene.characters
+                else [],
+            )
+            for scene in scenes
+        ]
+
+    async def get_scene(self, scene_id: str) -> SceneModel | None:
         """Get a scene by ID."""
-        return await self.scriptrag.get_scene(scene_id)
+        scene = await self.scriptrag.get_scene(scene_id)
+        if not scene:
+            return None
+        # Convert core Scene to API SceneModel
+        return SceneModel(
+            id=scene_id,
+            script_id=str(scene.script_id) if hasattr(scene, "script_id") else None,
+            scene_number=scene.script_order,
+            heading=scene.heading or "",
+            content=getattr(scene, "content", ""),
+            characters=[str(c) for c in scene.characters] if scene.characters else [],
+        )
 
     async def create_scene(
         self,
@@ -94,11 +137,13 @@ class DatabaseOperations:
         scene_number: int,
         heading: str,
         content: str | None = None,
-    ) -> Scene:
+    ) -> str:
         """Create a new scene."""
-        return await self.scriptrag.create_scene(
+        # TODO: Create scene and return scene ID
+        scene = await self.scriptrag.create_scene(
             script_id, scene_number, heading, content
         )
+        return str(scene.id)
 
     async def update_scene(
         self,
@@ -108,19 +153,21 @@ class DatabaseOperations:
         content: str | None = None,
     ) -> bool:
         """Update scene information."""
-        scene = await self.get_scene(scene_id)
+        # Get the core Scene object directly
+        scene = await self.scriptrag.get_scene(scene_id)
         if not scene:
             return False
 
-        # Update fields
+        # Update fields on core model
         if scene_number is not None:
             scene.script_order = scene_number
         if heading is not None:
             scene.heading = heading
-        if content is not None:
+        if content is not None and hasattr(scene, "description"):
+            # Core model uses description field for content
             scene.description = content
 
-        # Save changes
+        # Save changes - pass the updated scene object
         return await self.scriptrag.update_scene(scene)
 
     async def delete_scene(self, scene_id: str) -> bool:
@@ -128,12 +175,12 @@ class DatabaseOperations:
         return await self.scriptrag.delete_scene(scene_id)
 
     # Character operations
-    async def list_characters(self, script_id: str) -> list[Any]  # noqa: ARG002:
+    async def list_characters(self, script_id: str) -> list[Any]:  # noqa: ARG002
         """List characters in a script."""
         # This would need implementation in ScriptRAG
         return []
 
-    async def get_character(self, character_id: str) -> Any  # noqa: ARG002 | None:
+    async def get_character(self, character_id: str) -> Any | None:  # noqa: ARG002
         """Get a character by ID."""
         # This would need implementation in ScriptRAG
         return None
@@ -145,33 +192,59 @@ class DatabaseOperations:
         query: str,
         search_type: str = "content",
         limit: int = 10,
-    ) -> list[Scene]:
+        character: str | None = None,
+        offset: int = 0,
+    ) -> dict[str, Any]:
         """Search scenes in a script."""
-        # This would need proper implementation
-        all_scenes = await self.list_scenes(script_id)
+        # Get core Scene objects directly
+        all_scenes = await self.scriptrag.list_scenes(script_id)
         query_lower = query.lower()
 
         results = []
         for scene in all_scenes:
+            # Apply character filter if specified
+            if character and character not in getattr(scene, "characters", []):
+                continue
+
             if search_type == "content":
-                if scene.description and query_lower in scene.description.lower():
+                # Check both description and content fields
+                content = getattr(scene, "description", "") or getattr(
+                    scene, "content", ""
+                )
+                if content and query_lower in content.lower():
                     results.append(scene)
             elif search_type == "heading":
-                if query_lower in scene.heading.lower():
+                if scene.heading and query_lower in scene.heading.lower():
                     results.append(scene)
-            elif search_type == "all":
-                if query_lower in scene.heading.lower() or (
-                    scene.description and query_lower in scene.description.lower()
-                ):
-                    results.append(scene)
+            elif search_type == "all" and (
+                (scene.heading and query_lower in scene.heading.lower())
+                or (
+                    (getattr(scene, "description", "") or getattr(scene, "content", ""))
+                    and query_lower
+                    in (
+                        getattr(scene, "description", "")
+                        or getattr(scene, "content", "")
+                    ).lower()
+                )
+            ):
+                results.append(scene)
 
             if len(results) >= limit:
                 break
 
-        return results
+        # Apply offset and limit
+        paginated_results = results[offset : offset + limit]
+
+        # Convert to API format
+        return {
+            "results": [{"scene": scene} for scene in paginated_results],
+            "total": len(results),
+            "limit": limit,
+            "offset": offset,
+        }
 
     # Graph operations
-    async def build_knowledge_graph(self, script_id: str) -> dict[str, Any]:
+    async def build_knowledge_graph(self, script_id: str) -> dict[str, Any]:  # noqa: ARG002
         """Build knowledge graph for a script."""
         if not self._graph_ops:
             raise RuntimeError("Graph operations not available")
@@ -179,7 +252,13 @@ class DatabaseOperations:
         # This would need proper implementation
         return {"status": "success", "nodes": 0, "edges": 0}
 
-    async def get_character_graph(self, script_id: str) -> dict[str, Any]:
+    async def get_character_graph(
+        self,
+        script_id: str,  # noqa: ARG002
+        character_name: str | None = None,  # noqa: ARG002
+        depth: int = 2,  # noqa: ARG002
+        min_interaction_count: int = 1,  # noqa: ARG002
+    ) -> dict[str, Any]:
         """Get character relationship graph."""
         if not self._graph_ops:
             raise RuntimeError("Graph operations not available")
@@ -187,7 +266,7 @@ class DatabaseOperations:
         # This would need proper implementation
         return {"nodes": [], "edges": []}
 
-    async def get_scene_graph(self, script_id: str) -> dict[str, Any]:
+    async def get_scene_graph(self, script_id: str) -> dict[str, Any]:  # noqa: ARG002
         """Get scene dependency graph."""
         if not self._graph_ops:
             raise RuntimeError("Graph operations not available")
@@ -196,39 +275,41 @@ class DatabaseOperations:
         return {"nodes": [], "edges": []}
 
     # Analysis operations
-    async def analyze_character_arcs(self, script_id: str) -> dict[str, Any]:
+    async def analyze_character_arcs(self, script_id: str) -> dict[str, Any]:  # noqa: ARG002
         """Analyze character arcs in the script."""
         # This would need proper implementation
         return {"characters": {}}
 
     async def get_scene_timeline(self, script_id: str) -> list[dict[str, Any]]:
         """Get temporal ordering of scenes."""
-        scenes = await self.list_scenes(script_id)
+        # Get core Scene objects directly for ordering info
+        scenes = await self.scriptrag.list_scenes(script_id)
         return [
             {
-                "scene_id": str(scene.id),
-                "heading": scene.heading,
+                "scene_id": str(scene.id) if hasattr(scene, "id") else None,
+                "heading": scene.heading or "",
                 "order": scene.script_order,
-                "temporal_order": scene.temporal_order,
+                "temporal_order": getattr(scene, "temporal_order", None),
             }
             for scene in scenes
         ]
 
     # Mentor operations
     async def get_mentor_feedback(
-        self, script_id: str, mentor_type: str
+        self,
+        script_id: str,  # noqa: ARG002
+        mentor_type: str,
     ) -> dict[str, Any]:
         """Get feedback from a specific mentor."""
         # This would need proper implementation
         return {"mentor": mentor_type, "feedback": []}
 
     # Import/Export operations
-    async def import_fountain(self, content: str, title: str) -> Script:
+    async def import_fountain(self, content: str, title: str) -> ScriptModel:  # noqa: ARG002
         """Import a script from Fountain format."""
         # This would need proper implementation
-        script = await self.create_script(title)
         # Parse fountain and create scenes...
-        return script
+        return await self.create_script(title)
 
     async def export_fountain(self, script_id: str) -> str:
         """Export a script to Fountain format."""
@@ -244,15 +325,15 @@ class DatabaseOperations:
             fountain += f"Author: {script.author}\n"
         fountain += "\n"
 
-        for scene in sorted(scenes, key=lambda s: s.script_order):
+        for scene in sorted(scenes, key=lambda s: s.scene_number):
             fountain += f"\n{scene.heading}\n\n"
-            if scene.description:
-                fountain += f"{scene.description}\n"
+            if scene.content:
+                fountain += f"{scene.content}\n"
 
         return fountain
 
     # Embedding operations
-    async def generate_scene_embeddings(self, script_id: str) -> int:
+    async def generate_scene_embeddings(self, script_id: str) -> int:  # noqa: ARG002
         """Generate embeddings for all scenes in a script."""
         if not self._graph_ops:
             raise RuntimeError("Graph operations not available")
@@ -261,7 +342,9 @@ class DatabaseOperations:
         return 0
 
     async def find_similar_scenes(
-        self, scene_id: str, limit: int = 5
+        self,
+        scene_id: str,  # noqa: ARG002
+        limit: int = 5,  # noqa: ARG002
     ) -> list[tuple[Scene, float]]:
         """Find scenes similar to a given scene."""
         if not self._graph_ops:
@@ -271,7 +354,7 @@ class DatabaseOperations:
         return []
 
     # Bible operations
-    async def get_script_bible(self, script_id: str) -> dict[str, Any]:
+    async def get_script_bible(self, script_id: str) -> dict[str, Any]:  # noqa: ARG002
         """Get the script bible."""
         # This would need proper implementation
         return {
@@ -282,19 +365,21 @@ class DatabaseOperations:
         }
 
     async def update_script_bible(
-        self, script_id: str, bible_data: dict[str, Any]
+        self,
+        script_id: str,  # noqa: ARG002
+        bible_data: dict[str, Any],  # noqa: ARG002
     ) -> bool:
         """Update the script bible."""
         # This would need proper implementation
         return True
 
     # Validation operations
-    async def validate_continuity(self, script_id: str) -> dict[str, Any]:
+    async def validate_continuity(self, script_id: str) -> dict[str, Any]:  # noqa: ARG002
         """Validate script continuity."""
         # This would need proper implementation
         return {"issues": [], "warnings": []}
 
-    async def check_formatting(self, script_id: str) -> dict[str, Any]:
+    async def check_formatting(self, script_id: str) -> dict[str, Any]:  # noqa: ARG002
         """Check script formatting."""
         # This would need proper implementation
         return {"errors": [], "warnings": []}
@@ -316,7 +401,7 @@ class DatabaseOperations:
             order_type_enum = SceneOrderType(order_type)
         except ValueError:
             # Log error - invalid order type
-            logger.error(f"Invalid order type: {order_type}")
+            get_logger(__name__).error(f"Invalid order type: {order_type}")
             return False
 
         return self._graph_ops.reorder_scenes(script_id, order_type_enum, scene_ids)
@@ -329,8 +414,8 @@ class DatabaseOperations:
         # This would use the graph operations to analyze scene content
         # and infer temporal relationships
         scenes = await self.list_scenes(script_id)
-        # For now, return script order as temporal order
-        return {str(scene.id): scene.script_order for scene in scenes}
+        # For now, return scene_number as temporal order
+        return {str(scene.id): scene.scene_number for scene in scenes}
 
     async def get_scene_dependencies(
         self,
@@ -371,10 +456,10 @@ class DatabaseOperations:
     ) -> bool:
         """Update scene with enhanced graph propagation."""
         # First update basic fields using existing method
-        if scene_number is not None or heading is not None or content is not None:
-            success = await self.update_scene(scene_id, scene_number, heading, content)
-            if not success:
-                return False
+        if (
+            scene_number is not None or heading is not None or content is not None
+        ) and not await self.update_scene(scene_id, scene_number, heading, content):
+            return False
 
         # Graph operations are optional - if they fail, we still consider
         # the update successful since the database was updated
@@ -396,6 +481,52 @@ class DatabaseOperations:
 
         # Always return True if we got this far - the database update succeeded
         return True
+
+    # Additional methods needed by endpoints
+    async def analyze_scene_dependencies(self, script_id: str) -> list[Any]:  # noqa: ARG002
+        """Analyze scene dependencies."""
+        # For compatibility with endpoints - return empty list
+        return []
+
+    async def semantic_search(
+        self,
+        script_id: str,  # noqa: ARG002
+        query: str,  # noqa: ARG002
+        threshold: float = 0.7,  # noqa: ARG002
+        limit: int = 10,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """Perform semantic search on scenes."""
+        # TODO: Implement semantic search
+        return {"results": [], "total": 0, "limit": limit, "offset": offset}
+
+    async def generate_embeddings(
+        self,
+        script_id: str,  # noqa: ARG002
+        regenerate: bool = False,  # noqa: ARG002
+    ) -> dict[str, Any]:
+        """Generate embeddings for script scenes."""
+        # TODO: Implement embedding generation
+        return {"scenes_processed": 0, "scenes_skipped": 0, "processing_time": 0.0}
+
+    async def get_timeline_graph(
+        self,
+        script_id: str,  # noqa: ARG002
+        group_by: str = "scene",  # noqa: ARG002
+        include_characters: bool = True,  # noqa: ARG002
+    ) -> dict[str, Any]:
+        """Get timeline graph for script."""
+        # TODO: Implement timeline graph
+        return {"nodes": [], "edges": []}
+
+    async def get_location_graph(self, script_id: str) -> dict[str, Any]:  # noqa: ARG002
+        """Get location graph for script."""
+        # TODO: Implement location graph
+        return {"nodes": [], "edges": []}
+
+    async def close(self) -> None:
+        """Close database connections."""
+        await self.cleanup()
 
     async def delete_scene_with_references(self, scene_id: str) -> bool:
         """Delete scene with reference maintenance."""
@@ -500,7 +631,5 @@ async def cleanup_db_ops() -> None:
         _db_ops = None
 
 
-# Import logger after DatabaseOperations is defined to avoid circular imports
-from scriptrag.config import get_logger
-
+# Logger imported at top of file
 logger = get_logger(__name__)

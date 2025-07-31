@@ -123,14 +123,16 @@ async def list_scripts(
 
         return [
             ScriptResponse(
-                id=script["id"],
-                title=script["title"],
-                author=script["author"],
-                created_at=script["created_at"] or datetime.now(UTC),
-                updated_at=script["updated_at"] or datetime.now(UTC),
-                scene_count=script["scene_count"],
-                character_count=script["character_count"],
-                has_embeddings=script["has_embeddings"],
+                id=str(script.id) if script.id else "",
+                title=script.title,
+                author=script.author,
+                created_at=script.created_at or datetime.now(UTC),
+                updated_at=script.updated_at or datetime.now(UTC),
+                scene_count=len(script.scenes) if hasattr(script, "scenes") else 0,
+                character_count=(
+                    len(script.characters) if hasattr(script, "characters") else 0
+                ),
+                has_embeddings=False,  # TODO: Implement embedding check
             )
             for script in scripts
         ]

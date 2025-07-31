@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     settings = get_settings()
 
     # Initialize database on startup
-    db_ops = DatabaseOperations(str(settings.database_url))
+    db_ops = DatabaseOperations(settings)
     await db_ops.initialize()
 
     # Store database operations in app state

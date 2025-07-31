@@ -23,7 +23,7 @@ from .llm import LLMClient as ActualLLMClient
 from .llm import create_llm_client
 
 # Model imports
-from .models import Script
+from .models import Scene, Script
 
 __version__ = "0.1.0"
 __author__ = "Your Name"
@@ -99,6 +99,7 @@ class ScriptRAG:
         self._fountain_parser: FountainParser | None = None
         self._graph_db: GraphDatabase | None = None
         self._llm_client: ActualLLMClient | None = None
+        self._graph_ops: Any | None = None  # GraphOperations instance
 
     def parse_fountain(self, path: str) -> Script:
         """Parse a screenplay in Fountain format.
@@ -247,10 +248,103 @@ class ScriptRAG:
         self.logger.debug("Searching scenes", criteria=kwargs)
         raise NotImplementedError("Search not yet implemented")
 
-    def update_scene(self, scene_id: int, **kwargs: Any) -> None:
-        """Update a scene with new information."""
+    def update_scene_sync(self, scene_id: int, **kwargs: Any) -> None:
+        """Update a scene with new information (sync version)."""
         self.logger.info("Updating scene", scene_id=scene_id, changes=kwargs)
         raise NotImplementedError("Scene update not yet implemented")
+
+    # Async API methods for DatabaseOperations compatibility
+    async def initialize(self) -> None:
+        """Initialize database connections and components."""
+        self.logger.info("Initializing ScriptRAG components")
+        # TODO: Initialize database, graph operations, etc.
+
+    async def cleanup(self) -> None:
+        """Clean up database connections and resources."""
+        self.logger.info("Cleaning up ScriptRAG components")
+        # TODO: Cleanup database connections, etc.
+
+    # Script operations
+    async def list_scripts(self) -> list[Any]:  # Will return ScriptModel via API layer
+        """List all scripts."""
+        self.logger.debug("Listing all scripts")
+        raise NotImplementedError("list_scripts not yet implemented")
+
+    async def get_script(
+        self, script_id: str
+    ) -> Any | None:  # Will return ScriptModel via API layer
+        """Get a script by ID."""
+        self.logger.debug("Getting script", script_id=script_id)
+        raise NotImplementedError("get_script not yet implemented")
+
+    async def create_script(
+        self,
+        title: str,
+        author: str | None = None,
+        description: str | None = None,  # noqa: ARG002
+        genre: str | None = None,  # noqa: ARG002
+    ) -> Any:  # Will return ScriptModel via API layer
+        """Create a new script."""
+        self.logger.info("Creating script", title=title, author=author)
+        raise NotImplementedError("create_script not yet implemented")
+
+    async def update_script(self, script: Script) -> bool:
+        """Update script metadata."""
+        self.logger.info("Updating script", script_id=str(script.id))
+        raise NotImplementedError("update_script not yet implemented")
+
+    async def delete_script(self, script_id: str) -> bool:
+        """Delete a script."""
+        self.logger.info("Deleting script", script_id=script_id)
+        raise NotImplementedError("delete_script not yet implemented")
+
+    # Scene operations
+    async def list_scenes(self, script_id: str) -> list[Scene]:
+        """List scenes for a script."""
+        self.logger.debug("Listing scenes", script_id=script_id)
+        raise NotImplementedError("list_scenes not yet implemented")
+
+    async def get_scene(self, scene_id: str) -> Scene | None:
+        """Get a scene by ID."""
+        self.logger.debug("Getting scene", scene_id=scene_id)
+        raise NotImplementedError("get_scene not yet implemented")
+
+    async def create_scene(
+        self,
+        script_id: str,
+        scene_number: int,
+        heading: str,  # noqa: ARG002
+        content: str | None = None,  # noqa: ARG002
+    ) -> Scene:
+        """Create a new scene."""
+        self.logger.info(
+            "Creating scene", script_id=script_id, scene_number=scene_number
+        )
+        raise NotImplementedError("create_scene not yet implemented")
+
+    async def update_scene(self, scene: Scene) -> bool:
+        """Update scene information."""
+        self.logger.info("Updating scene", scene_id=str(scene.id))
+        raise NotImplementedError("update_scene not yet implemented")
+
+    async def delete_scene(self, scene_id: str) -> bool:
+        """Delete a scene."""
+        self.logger.info("Deleting scene", scene_id=scene_id)
+        raise NotImplementedError("delete_scene not yet implemented")
+
+    # Additional API methods that are called
+    async def store_script(self, script_model: Any) -> str:
+        """Store a parsed script model."""
+        self.logger.info(
+            "Storing script", title=getattr(script_model, "title", "unknown")
+        )
+        # TODO: Store the script and return the ID
+        raise NotImplementedError("store_script not yet implemented")
+
+    async def analyze_scene_dependencies(self, script_id: str) -> list[Any]:
+        """Analyze scene dependencies."""
+        self.logger.debug("Analyzing scene dependencies", script_id=script_id)
+        raise NotImplementedError("analyze_scene_dependencies not yet implemented")
 
     @property
     def fountain_parser(self) -> "FountainParser":

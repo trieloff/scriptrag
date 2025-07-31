@@ -29,6 +29,12 @@ async def search_scenes(
 ) -> SearchResponse:
     """Search scenes with text and filters."""
     try:
+        # Validate required parameters
+        if not search_request.query:
+            raise HTTPException(status_code=400, detail="Query is required")
+        if not search_request.script_id:
+            raise HTTPException(status_code=400, detail="Script ID is required")
+
         result = await db_ops.search_scenes(
             query=search_request.query,
             script_id=search_request.script_id,
@@ -60,6 +66,12 @@ async def semantic_search(
 ) -> SearchResponse:
     """Search scenes by semantic similarity."""
     try:
+        # Validate required parameters
+        if not search_request.query:
+            raise HTTPException(status_code=400, detail="Query is required")
+        if not search_request.script_id:
+            raise HTTPException(status_code=400, detail="Script ID is required")
+
         result = await db_ops.semantic_search(
             query=search_request.query,
             script_id=search_request.script_id,
@@ -99,7 +111,12 @@ async def search_by_character(
 ) -> SearchResponse:
     """Search scenes containing a specific character."""
     try:
+        # Validate required parameters
+        if not script_id:
+            raise HTTPException(status_code=400, detail="Script ID is required")
+
         result = await db_ops.search_scenes(
+            query="",  # Empty query for character-only search
             character=character_name,
             script_id=script_id,
             limit=limit,

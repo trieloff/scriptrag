@@ -31,6 +31,10 @@ async def get_character_graph(
 ) -> GraphResponse:
     """Get character relationship graph."""
     try:
+        # Validate required parameters
+        if not request.script_id:
+            raise HTTPException(status_code=400, detail="Script ID is required")
+
         graph_data = await db_ops.get_character_graph(
             character_name=request.character_name,
             script_id=request.script_id,

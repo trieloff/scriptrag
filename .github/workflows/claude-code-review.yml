@@ -31,6 +31,7 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
+        continue-on-error: true
         uses: anthropics/claude-code-action@beta
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -52,6 +53,42 @@ jobs:
 
             IMPORTANT: If you identify any issues that need to be addressed or improvements that should be made,
             please tag @terragon-labs in your review comment to ensure they are notified.
+
+      - name: Report Claude Code Review Status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
+          script: |
+            const reviewOutcome = '${{ steps.claude-review.outcome }}';
+
+            if (reviewOutcome === 'failure') {
+              const comment = [
+                '🤖 **Claude Code Review Notice**',
+                '',
+                '⚠️ The Claude Code review could not be completed due to a known issue.',
+                '',
+                'This is related to: https://github.com/anthropics/claude-code-action/issues/351',
+                '',
+                'The review failure does not indicate any problems with your code. This workflow step will continue to fail until the upstream issue is resolved.',
+                '',
+                '---',
+                '_This is an automated message. You can safely ignore this notice._'
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+
+              console.log('Claude Code Review failed - known upstream issue');
+            } else if (reviewOutcome === 'success') {
+              console.log('Claude Code Review completed successfully');
+            } else {
+              console.log(`Claude Code Review outcome: ${reviewOutcome}`);
+            }
 
           # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
           # use_sticky_comment: true

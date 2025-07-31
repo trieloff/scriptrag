@@ -93,31 +93,54 @@ fi
 # Check the final status
 echo ""
 echo "📊 Checking CI results..."
+
+# Get the latest run information
 LATEST_RUN=$(gh run list --repo="$REPO" --branch="$BRANCH" --limit=1 --json databaseId,status,conclusion,displayTitle)
+
+# Extract conclusion safely
 CONCLUSION=$(echo "$LATEST_RUN" | jq -r '.[0].conclusion // "unknown"')
 
+# Display run details
+echo "Latest run details:"
+echo "$LATEST_RUN" | jq -r '.[0] | "Run #\(.databaseId): \(.displayTitle)\nStatus: \(.status)\nConclusion: \(.conclusion)"'
+
+# Check if CI passed
 if [ "$CONCLUSION" = "success" ]; then
     echo "✅ CI passed successfully!"
     exit 0
 fi
 
-echo "❌ CI failed or is still running. Current status:"
-echo "$LATEST_RUN" | jq -r '.[0] | "Run #\(.databaseId): \(.displayTitle)\nStatus: \(.status)\nConclusion: \(.conclusion)"'
+echo "❌ CI failed or is still running."
 ```
 
 ### Phase 5: Investigate and fix failures
 
-If CI has failed, use the ci-mulder agent to investigate (with explicit instruction not to recursively call /ci-cycle):
+If CI has failed, analyze the failures using gh workflow-peek:
 
 ```bash
 echo ""
-echo "🔍 Delegating to ci-mulder for failure analysis..."
+echo "🔍 Analyzing CI failures with gh workflow-peek..."
+
+# Use gh workflow-peek to intelligently analyze the failed run
+if [ -n "$RUN_ID" ]; then
+    gh workflow-peek "$RUN_ID" --repo="$REPO" --max 200
+else
+    # Let workflow-peek auto-detect the failed run
+    gh workflow-peek --repo="$REPO" --max 200
+fi
+```
+
+After analyzing the failures, use the ci-mulder agent to investigate and fix:
+
+```bash
+echo ""
+echo "🔍 Delegating to ci-mulder for failure fixes..."
 ```
 
 Use the Task tool to invoke ci-mulder:
 
 - Agent type: ci-mulder
-- Instructions: "Analyze the CI failures for the current branch and provide fixes. DO NOT call /ci-cycle command as we are already in that flow. Note: Default log extraction shows first/last 50 lines - increase these limits if critical errors are missing."
+- Instructions: "Based on the workflow-peek output above, analyze and fix the CI failures. DO NOT call /ci-cycle command as we are already in that flow."
 
 ### Phase 6: Apply fixes and commit
 

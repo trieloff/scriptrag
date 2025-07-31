@@ -62,6 +62,7 @@ log_error() {
 # Log command output
 log_command() {
     local cmd="$1"
+    local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
     echo "[$timestamp] [COMMAND] Running: $cmd" >> "$LOG_FILE"
     eval "$cmd" 2>&1 | tee -a "$LOG_FILE"
     local exit_code=${PIPESTATUS[0]}
@@ -279,27 +280,54 @@ if command -v gh &> /dev/null; then
         log_info "Column utility already available at: $(which column)"
     fi
 
-    # Check if gh-workflow-peek is already installed
-    log_info "Checking installed gh extensions..."
-    gh extension list 2>&1 | tee -a "$LOG_FILE"
+    # Install gh-workflow-peek manually to avoid authentication requirement
+    log_info "Installing gh-workflow-peek extension manually..."
 
-    if ! gh extension list 2>/dev/null | grep -q "trieloff/gh-workflow-peek"; then
-        log_info "Installing gh-workflow-peek for CI/CD analysis..."
-        log_info "Running: gh extension install trieloff/gh-workflow-peek"
-        gh extension install trieloff/gh-workflow-peek 2>&1 | tee -a "$LOG_FILE" || {
-            local exit_code=$?
-            log_error "Failed to install gh-workflow-peek, exit code: $exit_code"
+    # GitHub CLI extensions are stored in ~/.local/share/gh/extensions/
+    GH_EXT_DIR="$HOME/.local/share/gh/extensions"
+    GH_WORKFLOW_PEEK_DIR="$GH_EXT_DIR/gh-workflow-peek"
+
+    # Create extensions directory if it doesn't exist
+    log_info "Creating GitHub CLI extensions directory: $GH_EXT_DIR"
+    mkdir -p "$GH_EXT_DIR"
+
+    # Check if gh-workflow-peek is already installed
+    if [ -d "$GH_WORKFLOW_PEEK_DIR" ]; then
+        log_info "gh-workflow-peek directory already exists at $GH_WORKFLOW_PEEK_DIR"
+
+        # Check if it's a valid git repository
+        if [ -d "$GH_WORKFLOW_PEEK_DIR/.git" ]; then
+            log_info "Updating existing gh-workflow-peek installation..."
+            cd "$GH_WORKFLOW_PEEK_DIR"
+            git pull 2>&1 | tee -a "$LOG_FILE" || {
+                log_warning "Failed to update gh-workflow-peek, using existing version"
+            }
+            cd - >/dev/null
+        else
+            log_warning "gh-workflow-peek directory exists but is not a git repository"
+            log_info "Removing and re-installing..."
+            rm -rf "$GH_WORKFLOW_PEEK_DIR"
+        fi
+    fi
+
+    # Install if not present
+    if [ ! -d "$GH_WORKFLOW_PEEK_DIR" ]; then
+        log_info "Cloning gh-workflow-peek repository..."
+        log_info "Running: git clone https://github.com/trieloff/gh-workflow-peek.git $GH_WORKFLOW_PEEK_DIR"
+        git clone https://github.com/trieloff/gh-workflow-peek.git "$GH_WORKFLOW_PEEK_DIR" 2>&1 | tee -a "$LOG_FILE" || {
+            exit_code=$?
+            log_error "Failed to clone gh-workflow-peek, exit code: $exit_code"
             log_warning "Continuing with setup despite gh-workflow-peek installation failure..."
         }
+    fi
 
-        # Verify installation
-        if gh extension list 2>/dev/null | grep -q "trieloff/gh-workflow-peek"; then
-            log_success "gh-workflow-peek installed successfully"
-        else
-            log_error "gh-workflow-peek not found after installation attempt"
-        fi
+    # Verify installation
+    if [ -f "$GH_WORKFLOW_PEEK_DIR/gh-workflow-peek" ]; then
+        log_success "gh-workflow-peek installed successfully at $GH_WORKFLOW_PEEK_DIR"
+        log_info "Extension will be available after GitHub CLI authentication"
+        log_info "To authenticate: gh auth login"
     else
-        log_info "gh-workflow-peek is already installed"
+        log_error "gh-workflow-peek executable not found after installation"
     fi
 else
     log_warning "GitHub CLI (gh) not found at expected locations"
@@ -363,7 +391,7 @@ if ! command -v uv &> /dev/null; then
     log_info "uv not found in PATH, attempting installation..."
     log_info "Running: curl -LsSf https://astral.sh/uv/install.sh | sh"
     curl -LsSf https://astral.sh/uv/install.sh 2>&1 | tee -a "$LOG_FILE" | sh 2>&1 | tee -a "$LOG_FILE" || {
-        local exit_code=$?
+        exit_code=$?
         log_error "Failed to install uv, exit code: $exit_code"
         exit 1
     }
@@ -391,7 +419,7 @@ if ! command -v uv &> /dev/null; then
             log_info "Creating symlink to make uv available in PATH..."
             log_info "Running: sudo ln -sf $HOME/.local/bin/uv /usr/local/bin/uv"
             sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv 2>&1 | tee -a "$LOG_FILE" || {
-                local exit_code=$?
+                exit_code=$?
                 log_warning "Failed to create symlink, exit code: $exit_code"
                 log_warning "Will use explicit path: $HOME/.local/bin/uv"
                 UV_CMD="$HOME/.local/bin/uv"
@@ -426,7 +454,7 @@ else
         log_info "Creating symlink for existing uv installation..."
         log_info "Running: sudo ln -sf $HOME/.local/bin/uv /usr/local/bin/uv"
         sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv 2>&1 | tee -a "$LOG_FILE" || {
-            local exit_code=$?
+            exit_code=$?
             log_warning "Failed to create symlink for uv, exit code: $exit_code"
         }
         if [ -L "/usr/local/bin/uv" ]; then

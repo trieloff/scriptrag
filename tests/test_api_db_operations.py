@@ -58,27 +58,11 @@ class TestDatabaseOperationsInitialization:
     @pytest.mark.asyncio
     async def test_initialize_success(self, db_ops):
         """Test successful database initialization."""
-        with (
-            patch("scriptrag.api.db_operations.initialize_database") as mock_init_db,
-            patch("scriptrag.api.db_operations.DatabaseConnection") as mock_conn_class,
-            patch("scriptrag.api.db_operations.GraphOperations") as mock_graph_class,
-            patch("scriptrag.api.db_operations.EmbeddingPipeline") as mock_embed_class,
-        ):
-            # Setup mocks
-            mock_connection = MagicMock()
-            mock_conn_class.return_value = mock_connection
+        # Test that initialization doesn't raise an error
+        await db_ops.initialize()
 
-            await db_ops.initialize()
-
-            # Verify initialization
-            mock_init_db.assert_called_once_with("test.db")
-            mock_conn_class.assert_called_once_with("test.db")
-            mock_graph_class.assert_called_once_with(mock_connection)
-            mock_embed_class.assert_called_once_with(mock_connection)
-
-            assert db_ops._connection is not None
-            assert db_ops._graph_ops is not None
-            assert db_ops._embedding_pipeline is not None
+        # Verify that ScriptRAG was initialized
+        assert db_ops.scriptrag is not None
 
     @pytest.mark.asyncio
     async def test_close_connection(self, db_ops):
@@ -535,133 +519,132 @@ class TestSearchOperations:
     """Test search operations."""
 
     @pytest.mark.asyncio
-    async def test_search_scenes_with_embeddings(self, db_ops, mock_connection):
+    async def test_search_scenes_with_embeddings(self, db_ops):
         """Test search scenes with has_embedding flag."""
-        db_ops._connection = mock_connection
+        from unittest.mock import AsyncMock, MagicMock
 
-        # Mock search results
-        search_results = [
-            {
-                "id": str(uuid4()),
-                "script_id": str(uuid4()),
-                "script_order": 1,
-                "heading": "INT. OFFICE - DAY",
-                "description": "John enters the office.",
-                "title": "Test Script",
-                "has_embedding": 1,  # Has embedding
-            },
-            {
-                "id": str(uuid4()),
-                "script_id": str(uuid4()),
-                "script_order": 2,
-                "heading": "EXT. STREET - NIGHT",
-                "description": "Sarah walks alone.",
-                "title": "Test Script",
-                "has_embedding": 0,  # No embedding
-            },
-        ]
+        # Mock scenes with proper attributes
+        mock_scene1 = MagicMock()
+        mock_scene1.heading = "INT. OFFICE - DAY"
+        mock_scene1.description = "John enters the office."
+        mock_scene1.script_order = 1
+        mock_scene1.id = "scene1"
+        mock_scene1.embedding = "mock_embedding"  # Has embedding
 
-        # Mock count query
-        mock_connection.execute.return_value.fetchone.return_value = [2]
-        # Mock results query
-        mock_connection.execute.return_value.fetchall.return_value = search_results
+        mock_scene2 = MagicMock()
+        mock_scene2.heading = "EXT. STREET - NIGHT"
+        mock_scene2.description = "Sarah walks alone."
+        mock_scene2.script_order = 2
+        mock_scene2.id = "scene2"
+        mock_scene2.embedding = None  # No embedding
 
-        result = await db_ops.search_scenes(query="office", limit=10, offset=0)
+        db_ops.scriptrag = MagicMock()
+        db_ops.scriptrag.list_scenes = AsyncMock(
+            return_value=[mock_scene1, mock_scene2]
+        )
 
-        assert result["total"] == 2
-        assert len(result["results"]) == 2
-        assert result["results"][0]["scene"]["has_embedding"] is True
-        assert result["results"][1]["scene"]["has_embedding"] is False
+        result = await db_ops.search_scenes(
+            script_id="test-script", query="office", limit=10, offset=0
+        )
+
+        assert result["total"] == 1  # Only scene1 matches "office"
+        assert len(result["results"]) == 1
+        assert "office" in result["results"][0]["scene"].heading.lower()
 
     @pytest.mark.asyncio
-    async def test_search_scenes_by_script_id(self, db_ops, mock_connection):
+    async def test_search_scenes_by_script_id(self, db_ops):
         """Test search scenes filtered by script ID."""
-        db_ops._connection = mock_connection
+        from unittest.mock import AsyncMock, MagicMock
 
         script_id = str(uuid4())
-        scene_data = {
-            "id": str(uuid4()),
-            "script_id": script_id,
-            "script_order": 1,
-            "heading": "INT. ROOM - DAY",
-            "description": "A scene description.",
-            "title": "Test Script",
-            "has_embedding": 1,
-        }
 
-        mock_connection.execute.return_value.fetchone.return_value = [1]
-        mock_connection.execute.return_value.fetchall.return_value = [scene_data]
+        # Mock scene
+        mock_scene = MagicMock()
+        mock_scene.heading = "INT. ROOM - DAY"
+        mock_scene.description = "A scene description."
+        mock_scene.script_order = 1
+        mock_scene.id = "scene1"
+        mock_scene.embedding = "mock_embedding"
 
-        result = await db_ops.search_scenes(script_id=script_id, limit=10, offset=0)
+        db_ops.scriptrag = MagicMock()
+        db_ops.scriptrag.list_scenes = AsyncMock(return_value=[mock_scene])
+
+        result = await db_ops.search_scenes(
+            script_id=script_id, query="", limit=10, offset=0
+        )
 
         assert result["total"] == 1
         assert len(result["results"]) == 1
-        assert result["results"][0]["scene"]["script_id"] == script_id
+        assert result["results"][0]["scene"].heading == "INT. ROOM - DAY"
 
     @pytest.mark.asyncio
-    async def test_search_scenes_no_results(self, db_ops, mock_connection):
+    async def test_search_scenes_no_results(self, db_ops):
         """Test search scenes with no results."""
-        db_ops._connection = mock_connection
+        from unittest.mock import AsyncMock, MagicMock
 
-        mock_connection.execute.return_value.fetchone.return_value = [0]
-        mock_connection.execute.return_value.fetchall.return_value = []
+        # Mock scene that won't match the query
+        mock_scene = MagicMock()
+        mock_scene.heading = "INT. ROOM - DAY"
+        mock_scene.description = "A scene description."
+        mock_scene.script_order = 1
+        mock_scene.id = "scene1"
 
-        result = await db_ops.search_scenes(query="nonexistent", limit=10, offset=0)
+        db_ops.scriptrag = MagicMock()
+        db_ops.scriptrag.list_scenes = AsyncMock(return_value=[mock_scene])
+
+        result = await db_ops.search_scenes(
+            script_id="test-script", query="nonexistent", limit=10, offset=0
+        )
 
         assert result["total"] == 0
         assert result["results"] == []
 
     @pytest.mark.asyncio
-    async def test_search_scenes_pagination(self, db_ops, mock_connection):
+    async def test_search_scenes_pagination(self, db_ops):
         """Test search scenes with pagination."""
-        db_ops._connection = mock_connection
+        from unittest.mock import AsyncMock, MagicMock
 
-        # Create mock data for testing pagination
-        total_scenes = 25
-        page_size = 10
-        offset = 10
+        # Create 25 mock scenes
+        mock_scenes = []
+        for i in range(25):
+            scene = MagicMock()
+            scene.heading = f"Scene {i + 1}"
+            scene.description = f"Description {i + 1}"
+            scene.script_order = i + 1
+            scene.id = f"scene{i + 1}"
+            mock_scenes.append(scene)
 
-        # Mock limited results
-        scene_results = []
-        for i in range(page_size):
-            scene_results.append(
-                {
-                    "id": str(uuid4()),
-                    "script_id": str(uuid4()),
-                    "script_order": offset + i + 1,
-                    "heading": f"Scene {offset + i + 1}",
-                    "description": f"Description {offset + i + 1}",
-                    "title": "Test Script",
-                    "has_embedding": i % 2,  # Alternate between 0 and 1
-                }
-            )
+        db_ops.scriptrag = MagicMock()
+        db_ops.scriptrag.list_scenes = AsyncMock(return_value=mock_scenes)
 
-        mock_connection.execute.return_value.fetchone.return_value = [total_scenes]
-        mock_connection.execute.return_value.fetchall.return_value = scene_results
+        result = await db_ops.search_scenes(
+            script_id="test-script", query="", limit=10, offset=10
+        )
 
-        result = await db_ops.search_scenes(limit=page_size, offset=offset)
-
-        assert result["total"] == total_scenes
-        assert result["limit"] == page_size
-        assert result["offset"] == offset
-        assert len(result["results"]) == page_size
+        assert result["total"] == 25
+        assert result["limit"] == 10
+        assert result["offset"] == 10
+        assert len(result["results"]) == 10
 
 
 class TestEmbeddingsCoverage:
     """Test embeddings coverage operations."""
 
     @pytest.mark.asyncio
-    async def test_get_embeddings_coverage_full(self, db_ops, mock_connection):
+    async def test_get_embeddings_coverage_full(self, db_ops):
         """Test getting embeddings coverage for fully embedded script."""
-        db_ops._connection = mock_connection
+        from unittest.mock import AsyncMock, MagicMock
 
         script_id = str(uuid4())
 
-        # Mock full coverage: 10 scenes, all embedded
-        mock_connection.execute.return_value.fetchone.return_value = {
-            "total_scenes": 10,
-            "embedded_scenes": 10,
-        }
+        # Create 10 mock scenes with embeddings
+        mock_scenes = []
+        for i in range(10):
+            scene = MagicMock()
+            scene.embedding = f"mock_embedding_{i}"
+            mock_scenes.append(scene)
+
+        db_ops.list_scenes = AsyncMock(return_value=mock_scenes)
 
         result = await db_ops.get_embeddings_coverage(script_id)
 
@@ -672,17 +655,20 @@ class TestEmbeddingsCoverage:
         assert result["has_full_coverage"] is True
 
     @pytest.mark.asyncio
-    async def test_get_embeddings_coverage_partial(self, db_ops, mock_connection):
+    async def test_get_embeddings_coverage_partial(self, db_ops):
         """Test getting embeddings coverage for partially embedded script."""
-        db_ops._connection = mock_connection
+        from unittest.mock import AsyncMock, MagicMock
 
         script_id = str(uuid4())
 
-        # Mock partial coverage: 10 scenes, 3 embedded
-        mock_connection.execute.return_value.fetchone.return_value = {
-            "total_scenes": 10,
-            "embedded_scenes": 3,
-        }
+        # Create 10 mock scenes, only 3 with embeddings
+        mock_scenes = []
+        for i in range(10):
+            scene = MagicMock()
+            scene.embedding = f"mock_embedding_{i}" if i < 3 else None
+            mock_scenes.append(scene)
+
+        db_ops.list_scenes = AsyncMock(return_value=mock_scenes)
 
         result = await db_ops.get_embeddings_coverage(script_id)
 
@@ -693,17 +679,21 @@ class TestEmbeddingsCoverage:
         assert result["has_full_coverage"] is False
 
     @pytest.mark.asyncio
-    async def test_get_embeddings_coverage_none(self, db_ops, mock_connection):
+    async def test_get_embeddings_coverage_none(self, db_ops):
         """Test getting embeddings coverage for script with no embeddings."""
-        db_ops._connection = mock_connection
+        # Mock list_scenes to return 5 scenes with no embeddings
+        from unittest.mock import AsyncMock, MagicMock
 
         script_id = str(uuid4())
 
-        # Mock no coverage: 5 scenes, 0 embedded
-        mock_connection.execute.return_value.fetchone.return_value = {
-            "total_scenes": 5,
-            "embedded_scenes": 0,
-        }
+        # Create mock scenes without embeddings
+        mock_scenes = []
+        for _ in range(5):
+            scene = MagicMock()
+            scene.embedding = None
+            mock_scenes.append(scene)
+
+        db_ops.list_scenes = AsyncMock(return_value=mock_scenes)
 
         result = await db_ops.get_embeddings_coverage(script_id)
 
@@ -714,17 +704,14 @@ class TestEmbeddingsCoverage:
         assert result["has_full_coverage"] is False
 
     @pytest.mark.asyncio
-    async def test_get_embeddings_coverage_no_scenes(self, db_ops, mock_connection):
+    async def test_get_embeddings_coverage_no_scenes(self, db_ops):
         """Test getting embeddings coverage for script with no scenes."""
-        db_ops._connection = mock_connection
+        from unittest.mock import AsyncMock
 
         script_id = str(uuid4())
 
         # Mock empty script: 0 scenes
-        mock_connection.execute.return_value.fetchone.return_value = {
-            "total_scenes": 0,
-            "embedded_scenes": 0,
-        }
+        db_ops.list_scenes = AsyncMock(return_value=[])
 
         result = await db_ops.get_embeddings_coverage(script_id)
 
@@ -737,15 +724,15 @@ class TestEmbeddingsCoverage:
     @pytest.mark.asyncio
     async def test_search_scenes_uninitialized_db(self, db_ops):
         """Test search scenes with uninitialized database."""
-        db_ops._connection = None
+        db_ops.scriptrag = None
 
         with pytest.raises(RuntimeError, match="Database not initialized"):
-            await db_ops.search_scenes(query="test")
+            await db_ops.search_scenes(script_id="test-script-id", query="test")
 
     @pytest.mark.asyncio
     async def test_get_embeddings_coverage_uninitialized_db(self, db_ops):
         """Test getting embeddings coverage with uninitialized database."""
-        db_ops._connection = None
+        db_ops.scriptrag = None
 
         with pytest.raises(RuntimeError, match="Database not initialized"):
             await db_ops.get_embeddings_coverage(str(uuid4()))

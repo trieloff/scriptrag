@@ -196,6 +196,9 @@ class DatabaseOperations:
         offset: int = 0,
     ) -> dict[str, Any]:
         """Search scenes in a script."""
+        if not self.scriptrag:
+            raise RuntimeError("Database not initialized")
+
         # Get core Scene objects directly
         all_scenes = await self.scriptrag.list_scenes(script_id)
         query_lower = query.lower()
@@ -206,7 +209,10 @@ class DatabaseOperations:
             if character and character not in getattr(scene, "characters", []):
                 continue
 
-            if search_type == "content":
+            # Handle empty query - return all scenes
+            if not query_lower:
+                results.append(scene)
+            elif search_type == "content":
                 # Check both description and content fields
                 content = getattr(scene, "description", "") or getattr(
                     scene, "content", ""
@@ -216,29 +222,23 @@ class DatabaseOperations:
             elif search_type == "heading":
                 if scene.heading and query_lower in scene.heading.lower():
                     results.append(scene)
-            elif search_type == "all" and (
-                (scene.heading and query_lower in scene.heading.lower())
-                or (
-                    (getattr(scene, "description", "") or getattr(scene, "content", ""))
-                    and query_lower
-                    in (
-                        getattr(scene, "description", "")
-                        or getattr(scene, "content", "")
-                    ).lower()
+            elif search_type == "all":
+                heading_match = scene.heading and query_lower in scene.heading.lower()
+                content = getattr(scene, "description", "") or getattr(
+                    scene, "content", ""
                 )
-            ):
-                results.append(scene)
+                content_match = content and query_lower in content.lower()
+                if heading_match or content_match:
+                    results.append(scene)
 
-            if len(results) >= limit:
-                break
-
-        # Apply offset and limit
+        # Apply offset and limit for pagination
+        total_results = len(results)
         paginated_results = results[offset : offset + limit]
 
         # Convert to API format
         return {
             "results": [{"scene": scene} for scene in paginated_results],
-            "total": len(results),
+            "total": total_results,
             "limit": limit,
             "offset": offset,
         }
@@ -296,14 +296,31 @@ class DatabaseOperations:
 
     async def get_embeddings_coverage(self, script_id: str) -> dict[str, Any]:
         """Get embeddings coverage statistics for a script."""
-        # This would need to query the database for coverage info
-        # For now, return mock data to make tests pass
+        if not self.scriptrag:
+            raise RuntimeError("Database not initialized")
+
+        # Get scenes for the script first
+        scenes = await self.list_scenes(script_id)
+        total_scenes = len(scenes)
+
+        # Count embedded scenes based on has_embedding status
+        # Since we can't directly query the database, we'll calculate from the scenes
+        embedded_scenes = sum(
+            1
+            for scene in scenes
+            if hasattr(scene, "embedding") and scene.embedding is not None
+        )
+
+        coverage_percentage = (
+            (embedded_scenes / total_scenes * 100.0) if total_scenes > 0 else 0.0
+        )
+
         return {
             "script_id": script_id,
-            "total_scenes": 0,
-            "embedded_scenes": 0,
-            "coverage_percentage": 0.0,
-            "has_full_coverage": False,
+            "total_scenes": total_scenes,
+            "embedded_scenes": embedded_scenes,
+            "coverage_percentage": coverage_percentage,
+            "has_full_coverage": coverage_percentage == 100.0,
         }
 
     # Mentor operations

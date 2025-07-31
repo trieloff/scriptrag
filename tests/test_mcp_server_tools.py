@@ -34,7 +34,7 @@ def mcp_server_with_db(tmp_path):
     initialize_database(test_db_path)
 
     # Create server
-    with patch("scriptrag.mcp_server.ScriptRAG"):
+    with patch("scriptrag.ScriptRAG"):
         return ScriptRAGMCPServer(settings)
 
 

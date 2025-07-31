@@ -4,7 +4,7 @@ This module provides automated continuity checking for character knowledge,
 timeline consistency, plot thread resolution, and cross-episode validation.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from scriptrag.config import get_logger
@@ -801,7 +801,7 @@ class ContinuityValidator:
             "script_id": script_id,
             "script_title": script_row["title"] if script_row else "Unknown",
             "is_series": bool(script_row["is_series"]) if script_row else False,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "validation_results": {
                 "issues_found": issues,
                 "issue_statistics": issue_stats,

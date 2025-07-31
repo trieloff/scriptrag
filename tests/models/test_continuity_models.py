@@ -1,6 +1,6 @@
 """Tests for continuity management models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -453,7 +453,7 @@ class TestContinuityNote:
         )
 
         # Resolve the note
-        resolution_time = datetime.utcnow()
+        resolution_time = datetime.now(UTC).replace(tzinfo=None)
         note.status = NoteStatus.RESOLVED
         note.resolution_notes = "Reordered scenes to fix timeline"
         note.resolved_at = resolution_time

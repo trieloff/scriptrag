@@ -1,6 +1,6 @@
 """Tests for Script Bible and continuity management functionality."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -38,8 +38,8 @@ def sample_script_data(bible_connection):
             script_id,
             "Test Series",
             True,
-            datetime.utcnow().isoformat(),
-            datetime.utcnow().isoformat(),
+            datetime.now(UTC).isoformat(),
+            datetime.now(UTC).isoformat(),
         ),
     )
 
@@ -53,8 +53,8 @@ def sample_script_data(bible_connection):
             character_id,
             script_id,
             "JOHN",
-            datetime.utcnow().isoformat(),
-            datetime.utcnow().isoformat(),
+            datetime.now(UTC).isoformat(),
+            datetime.now(UTC).isoformat(),
         ),
     )
 
@@ -69,8 +69,8 @@ def sample_script_data(bible_connection):
             script_id,
             1,
             "Pilot",
-            datetime.utcnow().isoformat(),
-            datetime.utcnow().isoformat(),
+            datetime.now(UTC).isoformat(),
+            datetime.now(UTC).isoformat(),
         ),
     )
 
@@ -87,8 +87,8 @@ def sample_script_data(bible_connection):
             episode_id,
             "INT. OFFICE - DAY",
             1,
-            datetime.utcnow().isoformat(),
-            datetime.utcnow().isoformat(),
+            datetime.now(UTC).isoformat(),
+            datetime.now(UTC).isoformat(),
         ),
     )
 
@@ -441,8 +441,8 @@ class TestContinuityValidator:
                 sample_script_data["script_id"],
                 2,
                 "Episode 2",
-                datetime.utcnow().isoformat(),
-                datetime.utcnow().isoformat(),
+                datetime.now(UTC).isoformat(),
+                datetime.now(UTC).isoformat(),
             ),
         )
 

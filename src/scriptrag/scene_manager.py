@@ -31,6 +31,116 @@ class SceneManager:
     MINUTES_PER_MONTH: ClassVar[int] = 43200  # Approx 30 days
     MINUTES_PER_YEAR: ClassVar[int] = 525600
 
+    # Regex patterns for prop extraction
+    PROP_PATTERNS: ClassVar[list[tuple[str, str]]] = [
+        # Pattern for "the GUN", "a BRIEFCASE" - capture only the prop name
+        (r"\b(?:the|a|an)\s+([A-Z]+(?:\s+[A-Z]+)*)\b", "article_caps"),
+        # Standalone all-caps words that are complete words
+        (
+            r"\b([A-Z]{2,})(?:\s+(?:from|into|and|to|in|on|at|of|with)\b|[.,;!?]|\s*$)",
+            "standalone_caps",
+        ),
+        # Action verbs with lowercase objects
+        (
+            r"\b(?:picks up|grabs|holds|takes|drops|throws|uses|carries|"
+            r"opens|closes)\s+(?:the\s+|a\s+)?([a-z]+)\b",
+            "verb_object",
+        ),
+    ]
+
+    # Common screenplay words to exclude from prop detection
+    SCREENPLAY_EXCLUDE_WORDS: ClassVar[set[str]] = {
+        # Location indicators
+        "INT",
+        "EXT",
+        # Transitions
+        "CUT",
+        "FADE",
+        "DISSOLVE",
+        "CUT TO",
+        "FADE OUT",
+        # Time indicators
+        "CONTINUOUS",
+        "DAY",
+        "NIGHT",
+        "MORNING",
+        "EVENING",
+        "LATER",
+        "MOMENTS",
+        # Camera directions
+        "CLOSE",
+        "WIDE",
+        "ANGLE",
+        "SHOT",
+        "VIEW",
+        # Common action words
+        "BACK",
+        "YES",
+        "NO",
+        "OKAY",
+        "BEAT",
+        "PAUSE",
+        "SILENCE",
+        # Prepositions and articles
+        "TO",
+        "FROM",
+        "THE",
+        "AND",
+        "OR",
+        "IN",
+        "ON",
+        "AT",
+        "INTO",
+        "UP",
+        "DOWN",
+        "OVER",
+        "UNDER",
+        "THROUGH",
+        "OUT",
+        # Pronouns
+        "HE",
+        "SHE",
+        "THEY",
+        "WE",
+        "IT",
+        # Common character names (to be extended based on script)
+        "SARAH",
+        "JOHN",
+        # Common locations
+        "OFFICE",
+        "STREET",
+        "HOME",
+        # Common verbs
+        "ENTERS",
+        "EXITS",
+        "WALKS",
+        "RUNS",
+        "STANDS",
+        "SITS",
+    }
+
+    # Maximum length for costume descriptions
+    MAX_COSTUME_DESCRIPTION_LENGTH: ClassVar[int] = 200  # Increased from 100
+
+    # Patterns for technical requirement extraction
+    SOUND_PATTERNS: ClassVar[list[str]] = [
+        r"(?:SFX|SOUND|MUSIC):\s*(.+?)(?:\.|$)",
+        r"\b(?:plays|hear|sounds? of|sound of)\s+(.+?)(?:\.|,|$)",
+        r"\[([^\]]+(?:music|sound|song)[^\]]*)\]",
+    ]
+
+    VFX_PATTERNS: ClassVar[list[str]] = [
+        r"(?:VFX|CGI|SPECIAL EFFECT|VISUAL EFFECT):\s*(.+?)(?:\.|$)",
+        r"\[([^\]]+(?:morphs?|transforms?|disappears?|appears?|explodes?)[^\]]*)\]",
+        r"\b(?:magical|supernatural|impossible)\s+(.+?)(?:\.|,|$)",
+    ]
+
+    COSTUME_PATTERNS: ClassVar[list[str]] = [
+        r"(?:wearing|dressed in|changes into|puts on)\s+(.+?)(?:\.|,|$)",
+        r"(?:COSTUME|WARDROBE):\s*(.+?)(?:\.|$)",
+        r"\b(?:uniform|costume|outfit|clothes?)\s+(?:of\s+)?(.+?)(?:\.|,|$)",
+    ]
+
     def __init__(self, connection: DatabaseConnection) -> None:
         """Initialize scene manager.
 
@@ -131,11 +241,20 @@ class SceneManager:
                 if "AM" in pattern or "PM" in pattern:
                     hour = int(match.group(1))
                     minute = int(match.group(2))
-                    is_pm = match.group(3) == "PM"
-                    if is_pm and hour != 12:
-                        hour += 12
-                    elif not is_pm and hour == 12:
-                        hour = 0
+                    period = match.group(3)
+
+                    # Convert to 24-hour format with clear 12 AM/PM handling
+                    # 12:00 AM = 00:00 (midnight)
+                    # 12:00 PM = 12:00 (noon)
+                    # 1:00 AM - 11:00 AM = 01:00 - 11:00
+                    # 1:00 PM - 11:00 PM = 13:00 - 23:00
+                    if period == "PM":
+                        if hour != 12:
+                            hour += 12  # 1-11 PM becomes 13-23
+                    else:  # AM
+                        if hour == 12:
+                            hour = 0  # 12 AM is midnight
+
                     return time(hour, minute)
 
         return None
@@ -264,111 +383,60 @@ class SceneManager:
             Set of prop names found in the scene
         """
         props = set()
-
-        # Get scene elements (action lines, dialogue, etc.)
         elements = scene_node.properties.get("elements", [])
 
-        # Pattern to find likely props
-        # Matches: THE/A/AN followed by capitalized word(s)
-        # Or standalone capitalized words that are likely objects
-        prop_patterns = [
-            # "the GUN", "a BRIEFCASE" - capture only the prop name
-            r"\b(?:the|a|an)\s+([A-Z]+(?:\s+[A-Z]+)*)\b",
-            # Standalone all-caps words that are complete words
-            r"\b([A-Z]{2,})(?:\s+(?:from|into|and|to|in|on|at|of|with)\b|[.,;!?]|\s*$)",
-            # Action verbs with lowercase objects
-            r"\b(?:picks up|grabs|holds|takes|drops|throws|uses|carries|"
-            r"opens|closes)\s+(?:the\s+|a\s+)?([a-z]+)\b",
-        ]
-
-        # Common prop words to exclude (character names, locations, etc.)
-        exclude_words = {
-            "INT",
-            "EXT",
-            "CUT",
-            "FADE",
-            "DISSOLVE",
-            "CONTINUOUS",
-            "DAY",
-            "NIGHT",
-            "MORNING",
-            "EVENING",
-            "LATER",
-            "MOMENTS",
-            "CLOSE",
-            "WIDE",
-            "ANGLE",
-            "SHOT",
-            "VIEW",
-            "BACK",
-            "YES",
-            "NO",
-            "OKAY",
-            "BEAT",
-            "PAUSE",
-            "SILENCE",
-            "TO",
-            "FROM",
-            "THE",
-            "AND",
-            "OR",
-            "IN",
-            "ON",
-            "AT",
-            "HE",
-            "SHE",
-            "THEY",
-            "WE",
-            "IT",
-            "SARAH",
-            "JOHN",
-            "INTO",
-            "UP",
-            "DOWN",
-            "OVER",
-            "UNDER",
-            "THROUGH",
-            "FADE OUT",
-            "CUT TO",
-            "OFFICE",
-            "STREET",
-            "HOME",
-            "ENTERS",
-            "EXITS",
-            "WALKS",
-            "RUNS",
-            "STANDS",
-            "SITS",
-            "OUT",
-        }
-
         for element in elements:
-            if isinstance(element, dict):
-                element_type = element.get("type", "")
+            if isinstance(element, dict) and element.get("type") == "action":
                 text = element.get("text", "")
-
-                # Only analyze action lines
-                if element_type == "action" and text:
-                    # Apply each pattern
-                    for i, pattern in enumerate(prop_patterns):
-                        # Use case-sensitive matching for all-caps patterns
-                        flags = 0 if i < 2 else re.IGNORECASE
-                        matches = re.finditer(pattern, text, flags)
-                        for match in matches:
-                            prop = match.group(1).strip().upper()
-                            # Filter out common non-prop words
-                            if prop and prop not in exclude_words and len(prop) > 1:
-                                # Additional filtering for multi-word props
-                                # Avoid partial phrases like "GUN FROM" or "KNIFE AND"
-                                if " " in prop:
-                                    # Only keep multi-word props that make sense
-                                    words = prop.split()
-                                    if all(w not in exclude_words for w in words):
-                                        props.add(prop)
-                                else:
-                                    props.add(prop)
+                if text:
+                    props.update(self._extract_props_from_text(text))
 
         return props
+
+    def _extract_props_from_text(self, text: str) -> set[str]:
+        """Extract props from a single text element.
+
+        Args:
+            text: Action line text to analyze
+
+        Returns:
+            Set of prop names found in the text
+        """
+        props = set()
+
+        for pattern, pattern_name in self.PROP_PATTERNS:
+            flags = (
+                0
+                if pattern_name in ["article_caps", "standalone_caps"]
+                else re.IGNORECASE
+            )
+            matches = re.finditer(pattern, text, flags)
+
+            for match in matches:
+                prop = match.group(1).strip().upper()
+                if self._is_valid_prop(prop):
+                    props.add(prop)
+
+        return props
+
+    def _is_valid_prop(self, prop: str) -> bool:
+        """Check if a extracted prop name is valid.
+
+        Args:
+            prop: Extracted prop name
+
+        Returns:
+            True if the prop is valid
+        """
+        if not prop or prop in self.SCREENPLAY_EXCLUDE_WORDS or len(prop) <= 1:
+            return False
+
+        # Additional filtering for multi-word props
+        if " " in prop:
+            words = prop.split()
+            return all(w not in self.SCREENPLAY_EXCLUDE_WORDS for w in words)
+
+        return True
 
     def _analyze_technical_dependencies(
         self, scenes: list[GraphNode], dependencies: dict[str, list[str]]
@@ -431,56 +499,57 @@ class SceneManager:
 
         elements = scene_node.properties.get("elements", [])
 
-        # Patterns for technical requirements
-        sound_patterns = [
-            r"(?:SFX|SOUND|MUSIC):\s*(.+?)(?:\.|$)",
-            r"\b(?:plays|hear|sounds? of|sound of)\s+(.+?)(?:\.|,|$)",
-            r"\[([^\]]+(?:music|sound|song)[^\]]*)\]",
-        ]
-
-        vfx_patterns = [
-            r"(?:VFX|CGI|SPECIAL EFFECT|VISUAL EFFECT):\s*(.+?)(?:\.|$)",
-            r"\[([^\]]+(?:morphs?|transforms?|disappears?|appears?|explodes?)[^\]]*)\]",
-            r"\b(?:magical|supernatural|impossible)\s+(.+?)(?:\.|,|$)",
-        ]
-
-        costume_patterns = [
-            r"(?:wearing|dressed in|changes into|puts on)\s+(.+?)(?:\.|,|$)",
-            r"(?:COSTUME|WARDROBE):\s*(.+?)(?:\.|$)",
-            r"\b(?:uniform|costume|outfit|clothes?)\s+(?:of\s+)?(.+?)(?:\.|,|$)",
-        ]
-
         for element in elements:
             if isinstance(element, dict):
                 text = element.get("text", "")
-                if not text:
-                    continue
-
-                # Extract sound requirements
-                for pattern in sound_patterns:
-                    matches = re.finditer(pattern, text, re.IGNORECASE)
-                    for match in matches:
-                        sound = match.group(1).strip()
-                        if sound:
-                            requirements["sound"].add(sound)
-
-                # Extract VFX requirements
-                for pattern in vfx_patterns:
-                    matches = re.finditer(pattern, text, re.IGNORECASE)
-                    for match in matches:
-                        vfx = match.group(1).strip()
-                        if vfx:
-                            requirements["vfx"].add(vfx)
-
-                # Extract costume requirements
-                for pattern in costume_patterns:
-                    matches = re.finditer(pattern, text, re.IGNORECASE)
-                    for match in matches:
-                        costume = match.group(1).strip()
-                        if costume and len(costume) < 100:  # Avoid overly long matches
-                            requirements["costume"].add(costume)
+                if text:
+                    self._extract_sound_requirements(text, requirements["sound"])
+                    self._extract_vfx_requirements(text, requirements["vfx"])
+                    self._extract_costume_requirements(text, requirements["costume"])
 
         return requirements
+
+    def _extract_sound_requirements(self, text: str, sound_reqs: set[str]) -> None:
+        """Extract sound requirements from text.
+
+        Args:
+            text: Text to analyze
+            sound_reqs: Set to add sound requirements to
+        """
+        for pattern in self.SOUND_PATTERNS:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                sound = match.group(1).strip()
+                if sound:
+                    sound_reqs.add(sound)
+
+    def _extract_vfx_requirements(self, text: str, vfx_reqs: set[str]) -> None:
+        """Extract VFX requirements from text.
+
+        Args:
+            text: Text to analyze
+            vfx_reqs: Set to add VFX requirements to
+        """
+        for pattern in self.VFX_PATTERNS:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                vfx = match.group(1).strip()
+                if vfx:
+                    vfx_reqs.add(vfx)
+
+    def _extract_costume_requirements(self, text: str, costume_reqs: set[str]) -> None:
+        """Extract costume requirements from text.
+
+        Args:
+            text: Text to analyze
+            costume_reqs: Set to add costume requirements to
+        """
+        for pattern in self.COSTUME_PATTERNS:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                costume = match.group(1).strip()
+                if costume and len(costume) < self.MAX_COSTUME_DESCRIPTION_LENGTH:
+                    costume_reqs.add(costume)
 
     def _analyze_location_continuity(
         self, scenes: list[GraphNode], dependencies: dict[str, list[str]]

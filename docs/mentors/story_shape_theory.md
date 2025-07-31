@@ -39,7 +39,7 @@ Stories can be represented as emotional trajectories over time:
 
 In screenplay context, each scene contributes to the overall emotional arc:
 
-```
+```text
 Scene Valence = Σ(character_fortune + plot_advancement + emotional_tone)
 ```
 
@@ -110,7 +110,7 @@ Different genres favor specific story shapes:
 
 ### 4.1 Basic Story Shapes
 
-```
+```text
 1. Rags to Riches (Rise)
 
    Good |     _____
@@ -168,7 +168,7 @@ Different genres favor specific story shapes:
 
 ### 4.2 Complex Patterns
 
-```
+```text
 Double Man in Hole (Popular Pattern)
 
    Good |_  _  _  _

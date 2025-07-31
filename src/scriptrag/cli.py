@@ -1371,6 +1371,10 @@ def search_all(
 ) -> None:
     """Search across all content types."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         console.print(f"[blue]Searching for:[/blue] {query}")
 
         async def run_search() -> Any:
@@ -1407,6 +1411,10 @@ def search_dialogue(
 ) -> None:
     """Search dialogue content."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         console.print(f"[blue]Searching dialogue for:[/blue] {query}")
         if character:
             console.print(f"[blue]Character filter:[/blue] {character}")
@@ -1448,6 +1456,10 @@ def search_scenes(
 ) -> None:
     """Search scenes by content or filters."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         console.print(f"[blue]Searching scenes for:[/blue] {query}")
         if character:
             console.print(f"[blue]Character filter:[/blue] {character}")
@@ -1497,6 +1509,10 @@ def search_similar(
 ) -> None:
     """Find scenes similar to a given scene using embeddings."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         console.print(f"[blue]Finding scenes similar to:[/blue] {scene_id}")
 
         async def run_search() -> Any:
@@ -1533,6 +1549,10 @@ def search_theme(
 ) -> None:
     """Search for content matching a theme or mood using semantic search."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         console.print(f"[blue]Searching for theme:[/blue] {theme}")
         if entity_type:
             console.print(f"[blue]Entity type filter:[/blue] {entity_type}")
@@ -1576,6 +1596,10 @@ def search_temporal(
 ) -> None:
     """Search based on temporal criteria."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         if day_night:
             console.print(f"[blue]Time of day:[/blue] {day_night}")
         if start_time or end_time:
@@ -2714,6 +2738,10 @@ def mentor_results(
 ) -> None:
     """Show previous mentor analysis results."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         from .database.connection import DatabaseConnection
         from .mentors import MentorDatabaseOperations
 
@@ -2804,6 +2832,9 @@ def mentor_search(
 ) -> None:
     """Search mentor analysis findings."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
         from .database.connection import DatabaseConnection
         from .mentors import AnalysisSeverity, MentorDatabaseOperations
 

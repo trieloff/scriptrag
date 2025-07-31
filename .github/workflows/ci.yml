@@ -175,6 +175,16 @@ jobs:
       - name: Run tests with pytest
         run: make test
 
+      - name: Surface failing tests
+        uses: pmeier/pytest-results-action@main
+        if: always()
+        with:
+          path: junit.xml
+          summary: true
+          display-options: fEsX
+          fail-on-empty: true
+          title: "Test Results (${{ matrix.os }}, Python ${{ matrix.python-version }})"
+
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -254,6 +264,16 @@ jobs:
           echo "Runner: ${{ runner.os }}"
           make test
           echo "Finished pytest at $(date)"
+
+      - name: Surface failing tests
+        uses: pmeier/pytest-results-action@main
+        if: always()
+        with:
+          path: junit.xml
+          summary: true
+          display-options: fEsX
+          fail-on-empty: true
+          title: "Test Results (Windows, Python ${{ matrix.python-version }})"
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -375,6 +395,16 @@ jobs:
           SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}
           SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
           SCRIPTRAG_ENVIRONMENT: testing
+
+      - name: Surface failing integration tests
+        uses: pmeier/pytest-results-action@main
+        if: always()
+        with:
+          path: junit.xml
+          summary: true
+          display-options: fEsX
+          fail-on-empty: true
+          title: "Integration Test Results"
 
   all-checks:
     name: All Checks Passed

@@ -200,6 +200,24 @@ check_timeout
 # Install gh-workflow-peek GitHub CLI extension
 log_info "Checking for gh-workflow-peek extension..."
 if command -v gh &> /dev/null; then
+    # First ensure column utility is installed (required by gh-workflow-peek)
+    if ! command -v column &> /dev/null; then
+        log_info "Installing column utility (required by gh-workflow-peek)..."
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get install -y bsdmainutils || sudo apt-get install -y util-linux || {
+                log_warning "Failed to install column utility via apt-get"
+            }
+        elif command -v yum &> /dev/null; then
+            sudo yum install -y util-linux || {
+                log_warning "Failed to install column utility via yum"
+            }
+        elif command -v brew &> /dev/null; then
+            brew install util-linux || {
+                log_warning "Failed to install column utility via brew"
+            }
+        fi
+    fi
+
     # Check if gh-workflow-peek is already installed
     if ! gh extension list | grep -q "trieloff/gh-workflow-peek"; then
         log_info "Installing gh-workflow-peek for CI/CD analysis..."
@@ -296,6 +314,19 @@ if ! command -v uv &> /dev/null; then
         else
             log_error "Cannot find uv executable after installation"
             exit 1
+        fi
+    fi
+else
+    log_info "uv is already available in PATH"
+
+    # Check if uv is in user's local bin but not symlinked to system-wide location
+    if [ -x "$HOME/.local/bin/uv" ] && [ ! -L "/usr/local/bin/uv" ]; then
+        log_info "Creating symlink for existing uv installation..."
+        sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv || {
+            log_warning "Failed to create symlink for uv"
+        }
+        if [ -L "/usr/local/bin/uv" ]; then
+            log_success "uv symlink created at /usr/local/bin/uv"
         fi
     fi
 fi

@@ -314,6 +314,159 @@ def config_validate(
         raise typer.Exit(1) from e
 
 
+# Database management commands
+db_app = typer.Typer(
+    name="db",
+    help="Database management commands",
+    rich_markup_mode="rich",
+)
+app.add_typer(db_app)
+
+
+@db_app.command("init")
+def db_init(
+    db_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--path",
+            "-p",
+            help="Database path (default: from config)",
+        ),
+    ] = None,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            "-f",
+            help="Force creation even if database exists",
+        ),
+    ] = False,
+) -> None:
+    """Initialize a new database with the latest schema."""
+    from scriptrag.database.migrations import initialize_database
+
+    logger = get_logger(__name__)
+    settings = get_settings()
+
+    # Use provided path or default from config
+    database_path = db_path or Path(settings.database.path)
+
+    # Check if database already exists
+    if database_path.exists() and not force:
+        console.print(f"[red]Database already exists: {database_path}[/red]")
+        console.print(
+            "[yellow]Use --force to reinitialize (this will not delete data)[/yellow]"
+        )
+        raise typer.Exit(1)
+
+    try:
+        # Ensure parent directory exists
+        database_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Initialize database
+        console.print(f"[blue]Initializing database at {database_path}...[/blue]")
+        success = initialize_database(database_path)
+
+        if success:
+            console.print(
+                f"[green]✓[/green] Database initialized successfully: {database_path}"
+            )
+            logger.info("Database initialized", path=str(database_path))
+        else:
+            console.print("[red]✗ Database initialization failed[/red]")
+            logger.error("Database initialization failed", path=str(database_path))
+            raise typer.Exit(1)
+
+    except Exception as e:
+        logger.error("Error initializing database", error=str(e))
+        console.print(f"[red]Error initializing database: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
+@db_app.command("wipe")
+def db_wipe(
+    db_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--path",
+            "-p",
+            help="Database path (default: from config)",
+        ),
+    ] = None,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            "-f",
+            help="Skip confirmation prompt",
+        ),
+    ] = False,
+) -> None:
+    """Drop all data from the database (requires confirmation)."""
+    import sqlite3
+
+    logger = get_logger(__name__)
+    settings = get_settings()
+
+    # Use provided path or default from config
+    database_path = db_path or Path(settings.database.path)
+
+    # Check if database exists
+    if not database_path.exists():
+        console.print(f"[red]Database does not exist: {database_path}[/red]")
+        raise typer.Exit(1)
+
+    # Confirm with user unless --force is used
+    if not force:
+        console.print(
+            f"[yellow]⚠️  WARNING: This will delete ALL data from "
+            f"{database_path}[/yellow]"
+        )
+        console.print("[yellow]This action cannot be undone![/yellow]")
+        confirm = typer.confirm("Are you sure you want to continue?", default=False)
+        if not confirm:
+            console.print("[blue]Operation cancelled[/blue]")
+            raise typer.Exit(0)
+
+    try:
+        # Get list of tables to drop (excluding sqlite system tables)
+        with sqlite3.connect(database_path) as conn:
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name NOT LIKE 'sqlite_%'"
+            )
+            tables = [row[0] for row in cursor.fetchall()]
+
+            if not tables:
+                console.print("[yellow]Database is already empty[/yellow]")
+                return
+
+            console.print(f"[blue]Dropping {len(tables)} tables...[/blue]")
+
+            # Disable foreign key constraints temporarily
+            conn.execute("PRAGMA foreign_keys = OFF")
+
+            # Drop each table
+            for table in tables:
+                conn.execute(f"DROP TABLE IF EXISTS {table}")
+                console.print(f"  [dim]Dropped table: {table}[/dim]")
+
+            # Re-enable foreign key constraints
+            conn.execute("PRAGMA foreign_keys = ON")
+
+            conn.commit()
+
+        console.print(f"[green]✓[/green] Database wiped successfully: {database_path}")
+        logger.info(
+            "Database wiped", path=str(database_path), tables_dropped=len(tables)
+        )
+
+    except Exception as e:
+        logger.error("Error wiping database", error=str(e))
+        console.print(f"[red]Error wiping database: {e}[/red]")
+        raise typer.Exit(1) from e
+
+
 # Script management commands
 script_app = typer.Typer(
     name="script",

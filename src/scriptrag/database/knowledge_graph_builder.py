@@ -143,7 +143,7 @@ class KnowledgeGraphBuilder:
                 edges = self.graph_ops.create_scene_sequence(
                     scene_node_ids, SceneOrderType.SCRIPT
                 )
-                stats["total_edges"] += len(edges)
+                stats["total_edges"] += edges
 
             # Enrich with LLM if requested
             if enrich_with_llm and self.llm_client:
@@ -235,8 +235,7 @@ class KnowledgeGraphBuilder:
                 self.graph_ops.connect_character_to_scene(
                     self._character_nodes[char_id],
                     scene_node_id,
-                    speaking_lines=stats["dialogues"],
-                    action_mentions=stats["mentions"],
+                    dialogue_count=stats["dialogues"],
                 )
 
         # Extract character interactions
@@ -346,7 +345,7 @@ class KnowledgeGraphBuilder:
                     self._character_nodes[current_dialogue.character_id],
                     self._character_nodes[next_dialogue.character_id],
                     scene_node_id,
-                    dialogue_count=1,
+                    interaction_type="dialogue",
                 )
 
     async def _enrich_with_llm(
@@ -617,8 +616,8 @@ Arc: [potential character development]"""
             edges = self.graph_ops.create_scene_sequence(
                 temporal_order, SceneOrderType.TEMPORAL
             )
-            self.logger.info(f"Created {len(edges)} temporal relationships")
-            return len(edges)
+            self.logger.info(f"Created {edges} temporal relationships")
+            return edges
 
         return 0
 

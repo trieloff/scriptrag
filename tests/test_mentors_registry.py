@@ -155,8 +155,13 @@ class TestMentorRegistry:
         with pytest.raises(MentorRegistryError, match="Failed to instantiate mentor"):
             self.registry.register(BrokenMentor)
 
-    def test_register_override_warning(self, caplog):
+    def test_register_override_warning(self, capsys):
         """Test registering a mentor with the same name."""
+        # Initialize logging for test environment to capture structured logs
+        from scriptrag.config.logging import configure_logging
+
+        configure_logging(log_level="WARNING", dev_mode=True, json_logs=False)
+
         self.registry.register(TestMentor1)
 
         # Register another mentor with same name
@@ -181,7 +186,14 @@ class TestMentorRegistry:
         self.registry.register(AnotherTestMentor)
 
         assert len(self.registry) == 1  # Still only one mentor
-        assert "Overriding existing mentor" in caplog.text
+
+        # Since structlog outputs directly to stdout/stderr, capture that instead
+        captured = capsys.readouterr()
+        # The warning should appear in the captured output
+        assert (
+            "Overriding existing mentor" in captured.out
+            or "Overriding existing mentor" in captured.err
+        )
 
     def test_unregister_mentor(self):
         """Test unregistering a mentor."""

@@ -181,10 +181,23 @@ config/local.yaml
 # Terragon setup markers
 .terragon-setup-complete
 
-# Mock files created during tests
+# Test artifacts and mock files
 *Mock*name=*
 <Mock*
 *<Mock*
 *id='*'*
 MagicMock/
 **/MagicMock/
+.test-artifacts/
+test-results/
+
+# Python compiled files
+*.pyd
+
+# Coverage report formats
+.coverage.*
+*.cover
+.hypothesis/
+prof/
+*.prof
+.dmypy.json

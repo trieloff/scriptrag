@@ -155,8 +155,20 @@ class TestMentorRegistry:
         with pytest.raises(MentorRegistryError, match="Failed to instantiate mentor"):
             self.registry.register(BrokenMentor)
 
-    def test_register_override_warning(self, caplog):
+    def test_register_override_warning(self, monkeypatch):
         """Test registering a mentor with the same name."""
+        # Track warning messages
+        warning_messages = []
+
+        def mock_warning(msg):
+            warning_messages.append(msg)
+
+        # Import the module to get access to the logger
+        from scriptrag.mentors import registry
+
+        # Patch the logger.warning method
+        monkeypatch.setattr(registry.logger, "warning", mock_warning)
+
         self.registry.register(TestMentor1)
 
         # Register another mentor with same name
@@ -181,7 +193,10 @@ class TestMentorRegistry:
         self.registry.register(AnotherTestMentor)
 
         assert len(self.registry) == 1  # Still only one mentor
-        assert "Overriding existing mentor" in caplog.text
+
+        # Check that warning was logged
+        assert len(warning_messages) == 1
+        assert "Overriding existing mentor" in warning_messages[0]
 
     def test_unregister_mentor(self):
         """Test unregistering a mentor."""

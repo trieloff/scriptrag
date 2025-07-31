@@ -5,12 +5,12 @@ The registry allows for dynamic discovery, registration, and retrieval
 of mentors, supporting both built-in and custom mentors.
 """
 
-import logging
 from collections.abc import Iterator
 
+from scriptrag.config import get_logger
 from scriptrag.mentors.base import BaseMentor, MentorType
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class MentorRegistryError(Exception):

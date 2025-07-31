@@ -97,7 +97,7 @@ def main(
             log_file=settings.get_log_file_path(),
         )
     except Exception as e:
-        console.print(f"[red]Error:[/red] {e}", err=True)
+        console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
 
 

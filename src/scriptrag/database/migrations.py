@@ -17,6 +17,7 @@ from .migration_versions.v002_vector_storage import VectorStorageMigration
 from .migration_versions.v003_fix_fts_columns import FixFTSColumnsMigration
 from .migration_versions.v004_scene_dependencies import SceneDependenciesMigration
 from .migration_versions.v005_script_bible import ScriptBibleMigration
+from .migration_versions.v006_add_missing_columns import AddMissingColumnsMigration
 
 logger = get_logger(__name__)
 
@@ -37,6 +38,7 @@ class MigrationRunner:
             3: FixFTSColumnsMigration,
             4: SceneDependenciesMigration,
             5: ScriptBibleMigration,
+            6: AddMissingColumnsMigration,
         }
 
     def get_current_version(self) -> int:

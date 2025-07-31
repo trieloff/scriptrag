@@ -24,6 +24,10 @@ logger = get_logger(__name__)
 class DatabaseConnection:
     """Manages SQLite database connections for ScriptRAG."""
 
+    # Class-level cache for initialized databases
+    _initialized_databases: ClassVar[set[Path]] = set()
+    _initialized_lock: ClassVar[threading.Lock] = threading.Lock()
+
     # Windows reserved device names
     WINDOWS_RESERVED_NAMES: ClassVar[set[str]] = {
         "CON",
@@ -288,25 +292,52 @@ class DatabaseConnection:
             SQLite connection object
         """
         if not hasattr(self._local, "connection") or self._local.connection is None:
-            # Creating new database connection
-
-            # Ensure database file's parent directory exists
-            self.db_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Create connection with optimized settings
-            conn = sqlite3.connect(str(self.db_path), **self.connection_params)
-
-            # Configure connection for optimal performance and safety
-            self._configure_connection(conn)
-
-            # Check if database needs initialization (with thread safety)
-            with self._init_lock:
-                if self._needs_schema_initialization():
-                    self._initialize_schema(conn)
-
+            # Create new database connection
+            conn = self._create_and_initialize_connection()
             self._local.connection = conn
 
         return cast(sqlite3.Connection, self._local.connection)
+
+    def _create_and_initialize_connection(self) -> sqlite3.Connection:
+        """Create a new database connection and initialize schema if needed.
+
+        Returns:
+            Configured SQLite connection
+
+        Raises:
+            RuntimeError: If unable to create connection or initialize schema
+        """
+        # Ensure database file's parent directory exists
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create connection with optimized settings
+        conn = sqlite3.connect(str(self.db_path), **self.connection_params)
+
+        # Configure connection for optimal performance and safety
+        self._configure_connection(conn)
+
+        # Check if database needs initialization (with thread safety)
+        # First check class-level cache to avoid repeated schema checks
+        needs_init = False
+        with self._initialized_lock:
+            if self.db_path not in self._initialized_databases:
+                # Only check schema if not in cache
+                needs_init = self._is_schema_missing(conn)
+                if not needs_init:
+                    # Schema exists, add to cache
+                    self._initialized_databases.add(self.db_path)
+
+        # Initialize schema if needed (outside of class lock)
+        if needs_init:
+            with self._init_lock:
+                # Double-check in case another thread initialized while we were waiting
+                if self._is_schema_missing(conn):
+                    self._initialize_schema(conn)
+                    # Add to cache after successful initialization
+                    with self._initialized_lock:
+                        self._initialized_databases.add(self.db_path)
+
+        return cast(sqlite3.Connection, conn)
 
     def _configure_connection(self, conn: sqlite3.Connection) -> None:
         """Configure SQLite connection with optimal settings.
@@ -337,19 +368,21 @@ class DatabaseConnection:
         # Set row factory for named column access
         conn.row_factory = sqlite3.Row
 
-    def _needs_schema_initialization(self) -> bool:
-        """Check if the database needs schema initialization.
+    def _is_schema_missing(self, conn: sqlite3.Connection) -> bool:
+        """Check if the database schema is missing.
+
+        Args:
+            conn: Database connection to use for checking
 
         Returns:
-            True if schema initialization is needed
+            True if schema is missing and needs initialization
         """
         try:
-            with sqlite3.connect(str(self.db_path)) as conn:
-                # Check if the core tables exist
-                cursor = conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes'"
-                )
-                return cursor.fetchone() is None
+            # Check if the core tables exist using the provided connection
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='nodes'"
+            )
+            return cursor.fetchone() is None
         except sqlite3.Error:
             # If there's any error accessing the database, assume it needs init
             return True
@@ -397,10 +430,26 @@ class DatabaseConnection:
 
             logger.info("Database schema initialized successfully")
 
-        except Exception as e:
-            logger.error(f"Failed to initialize database schema: {e}")
+        except ImportError as e:
+            logger.error(f"Failed to import migration module: {e}")
             raise RuntimeError(
-                f"Failed to initialize database schema at {self.db_path}"
+                f"Failed to import migration module for {self.db_path}: {e}"
+            ) from e
+        except sqlite3.DatabaseError as e:
+            logger.error(f"Database error during schema initialization: {e}")
+            raise RuntimeError(
+                f"Database error during schema initialization at {self.db_path}: {e}"
+            ) from e
+        except RuntimeError as e:
+            # Re-raise RuntimeError with more context
+            logger.error(f"Migration runtime error: {e}")
+            raise RuntimeError(f"Migration runtime error at {self.db_path}: {e}") from e
+        except Exception as e:
+            # Catch any other unexpected errors
+            logger.error(f"Unexpected error during schema initialization: {e}")
+            raise RuntimeError(
+                f"Unexpected error during schema initialization at {self.db_path}: "
+                f"{type(e).__name__}: {e}"
             ) from e
 
     @contextmanager

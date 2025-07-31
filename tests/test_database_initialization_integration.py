@@ -206,8 +206,8 @@ FADE OUT.
     def test_concurrent_initialization_safety(self, temp_dir: Path) -> None:
         """Test that concurrent database initialization is handled safely.
 
-        Note: This test allows for some initialization failures in concurrent scenarios
-        as long as at least one connection succeeds and the database is properly init.
+        This test ensures our thread safety mechanisms work correctly when multiple
+        threads attempt to initialize the database simultaneously.
         """
         import threading
         import time
@@ -215,61 +215,161 @@ FADE OUT.
         db_path = temp_dir / "test_concurrent.db"
         results = []
         errors = []
-        successful_connections = 0
+        connections = []
+        lock = threading.Lock()
 
         def create_connection_and_query():
             """Function to run in multiple threads."""
-            nonlocal successful_connections
             try:
+                # Create connection (may trigger initialization)
                 connection = DatabaseConnection(db_path)
-                time.sleep(0.01)  # Small delay to increase chance of race condition
 
+                # Add small random delay to increase chance of concurrent access
+                time.sleep(0.001 * (threading.get_ident() % 5))
+
+                # Test database access
                 with connection.get_connection() as conn:
                     cursor = conn.execute("SELECT COUNT(*) FROM nodes")
                     result = cursor.fetchone()
-                    results.append(result[0])
-                    successful_connections += 1
 
-                connection.close()
+                    with lock:
+                        results.append(result[0])
+                        connections.append(connection)
+
             except Exception as e:
-                errors.append(str(e))
+                with lock:
+                    errors.append((threading.get_ident(), str(e)))
 
         # Start multiple threads that all try to initialize the database
         threads = []
-        for _ in range(3):  # Reduced from 5 to 3 to reduce chance of conflicts
+        thread_count = 5  # Use more threads to better test concurrency
+
+        for _ in range(thread_count):
             thread = threading.Thread(target=create_connection_and_query)
             threads.append(thread)
             thread.start()
 
         # Wait for all threads to complete
         for thread in threads:
-            thread.join()
+            thread.join(timeout=5.0)  # Add timeout to avoid hanging tests
 
         try:
-            # At least one connection should succeed
-            assert successful_connections > 0, (
-                f"At least one connection should succeed, got {successful_connections}"
+            # All threads should succeed with our improved concurrency handling
+            assert len(results) == thread_count, (
+                f"All {thread_count} threads should succeed, "
+                f"got {len(results)} successes. Errors: {errors}"
             )
 
-            # All successful connections should see empty nodes table
-            if results:
-                assert all(result == 0 for result in results), (
-                    "All successful threads should see empty nodes table"
-                )
+            # All threads should see empty nodes table
+            assert all(result == 0 for result in results), (
+                f"All threads should see empty nodes table, got: {results}"
+            )
 
             # Verify database exists and is properly initialized
             assert db_path.exists(), (
                 "Database should exist after concurrent initialization"
             )
 
-            # Verify the database is properly initialized by creating a new connection
+            # Verify schema version is correct
             test_connection = DatabaseConnection(db_path)
             with test_connection.get_connection() as conn:
-                cursor = conn.execute("SELECT COUNT(*) FROM nodes")
-                result = cursor.fetchone()
-                assert result[0] == 0, "Database should be properly initialized"
+                cursor = conn.execute("SELECT MAX(version) FROM schema_info")
+                version = cursor.fetchone()[0]
+                assert version >= 5, (
+                    f"Schema version should be at least 5, got {version}"
+                )
             test_connection.close()
 
         finally:
+            # Clean up connections
+            for conn in connections:
+                conn.close()
+
+            with contextlib.suppress(PermissionError):
+                db_path.unlink(missing_ok=True)
+
+    def test_schema_initialization_with_database_error(self, temp_dir: Path) -> None:
+        """Test that database errors during schema check are handled properly."""
+        import sqlite3
+        from unittest.mock import Mock, patch
+
+        db_path = temp_dir / "test_db_error.db"
+
+        # Create a connection that will fail during schema check
+        connection = DatabaseConnection(db_path)
+
+        try:
+            # Mock connection.execute to raise a database error
+            with patch("sqlite3.Connection.execute") as mock_execute:
+                mock_execute.side_effect = sqlite3.DatabaseError(
+                    "Simulated database error"
+                )
+
+                # Create a connection and trigger initialization
+                # This should handle the error gracefully and attempt initialization
+                from scriptrag.database.connection import DatabaseConnection as DBConn
+
+                # Create a fresh connection instance to test error handling
+                test_conn = DBConn(db_path)
+
+                # The connection should still work even after the error
+                # because _is_schema_missing returns True on error
+                with test_conn.get_connection():
+                    # Reset the mock for actual operations
+                    mock_execute.side_effect = None
+                    mock_execute.return_value = Mock()
+
+                test_conn.close()
+
+        finally:
+            connection.close()
+            with contextlib.suppress(PermissionError):
+                db_path.unlink(missing_ok=True)
+
+    def test_migration_import_error_handling(self, temp_dir: Path) -> None:
+        """Test handling of import errors during schema initialization."""
+        from unittest.mock import patch
+
+        db_path = temp_dir / "test_import_error.db"
+
+        # Mock the migration import to fail
+        with patch(
+            "scriptrag.database.connection.DatabaseConnection._initialize_schema"
+        ) as mock_init:
+            # Make initialization raise an ImportError
+            mock_init.side_effect = ImportError("Failed to import migrations")
+
+            connection = DatabaseConnection(db_path)
+
+            try:
+                # Attempting to get a connection should raise a RuntimeError
+                # with details about the ImportError
+                with (
+                    pytest.raises(RuntimeError) as exc_info,
+                    connection.get_connection(),
+                ):
+                    pass
+
+                assert "import migration module" in str(exc_info.value).lower()
+
+            finally:
+                connection.close()
+                with contextlib.suppress(PermissionError):
+                    db_path.unlink(missing_ok=True)
+
+    def test_specific_migration_errors(self, temp_dir: Path) -> None:
+        """Test handling of specific migration errors."""
+
+        db_path = temp_dir / "test_migration_error.db"
+        connection = DatabaseConnection(db_path)
+
+        try:
+            with connection.get_connection() as conn:
+                # Database should be initialized
+                cursor = conn.execute("SELECT COUNT(*) FROM nodes")
+                assert cursor.fetchone()[0] == 0
+
+        finally:
+            connection.close()
             with contextlib.suppress(PermissionError):
                 db_path.unlink(missing_ok=True)

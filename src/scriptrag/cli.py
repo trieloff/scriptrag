@@ -1363,15 +1363,29 @@ def script_info(
 
                     # Node types breakdown
                     if graph_stats["node_types"]:
-                        console.print("\n[bold]Node Types:[/bold]")
+                        console.print("\n[bold cyan]Node Types[/bold cyan]")
+                        node_types_table = RichTable(
+                            show_header=True, header_style="bold"
+                        )
+                        node_types_table.add_column("Type", style="dim")
+                        node_types_table.add_column("Count", justify="right")
+
                         for node_type, count in graph_stats["node_types"].items():
-                            console.print(f"  • {node_type}: {count:,}")
+                            node_types_table.add_row(node_type, f"{count:,}")
+                        console.print(node_types_table)
 
                     # Edge types breakdown
                     if graph_stats["edge_types"]:
-                        console.print("\n[bold]Edge Types:[/bold]")
+                        console.print("\n[bold cyan]Edge Types[/bold cyan]")
+                        edge_types_table = RichTable(
+                            show_header=True, header_style="bold"
+                        )
+                        edge_types_table.add_column("Type", style="dim")
+                        edge_types_table.add_column("Count", justify="right")
+
                         for edge_type, count in graph_stats["edge_types"].items():
-                            console.print(f"  • {edge_type}: {count:,}")
+                            edge_types_table.add_row(edge_type, f"{count:,}")
+                        console.print(edge_types_table)
 
                 # Embedding Statistics
                 embed_stats: dict[str, Any] = db_stats["embeddings"]
@@ -1441,8 +1455,13 @@ def script_info(
                 # Time of day distribution
                 if usage["common_times_of_day"]:
                     console.print("\n[bold cyan]Scene Times of Day[/bold cyan]")
+                    time_table = RichTable(show_header=True, header_style="bold")
+                    time_table.add_column("Time of Day", style="dim")
+                    time_table.add_column("Scenes", justify="right")
+
                     for time, count in list(usage["common_times_of_day"].items())[:5]:
-                        console.print(f"  • {time}: {count} scenes")
+                        time_table.add_row(time, str(count))
+                    console.print(time_table)
         else:
             console.print(
                 "[yellow]No database found. Use 'scriptrag script parse' "

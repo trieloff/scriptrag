@@ -295,6 +295,14 @@ def initialize_database(db_path: str | Path) -> bool:
     Returns:
         True if successful
     """
+    # Validate path to prevent MagicMock test artifacts
+    db_path_str = str(db_path)
+    if "MagicMock" in db_path_str or ("Mock" in db_path_str and "id=" in db_path_str):
+        raise ValueError(
+            f"Invalid database path: {db_path_str}. "
+            "MagicMock objects should not be used as database paths."
+        )
+
     runner = MigrationRunner(db_path)
 
     # Validate migrations first

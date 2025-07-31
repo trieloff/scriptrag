@@ -308,7 +308,9 @@ class DatabaseStatistics:
         """).fetchall()
 
         # Common times of day
-        # For CONTINUOUS scenes, inherit the time from the previous non-CONTINUOUS scene
+        # CONTINUOUS is a screenplay convention, not a temporal marker - it means
+        # the scene continues from the previous scene without a time break.
+        # For statistics, CONTINUOUS scenes inherit time from previous scenes
         times = self.connection.execute("""
             WITH scene_times AS (
                 SELECT
@@ -318,6 +320,7 @@ class DatabaseStatistics:
                     -- LAG with IGNORE NULLS would be ideal (not in SQLite)
                     -- So we use a different approach
                     CASE
+                        -- Mark CONTINUOUS as NULL to be filled later
                         WHEN UPPER(time_of_day) = 'CONTINUOUS' THEN NULL
                         ELSE time_of_day
                     END as actual_time
@@ -326,13 +329,14 @@ class DatabaseStatistics:
                 ORDER BY script_id, script_order
             ),
             propagated_times AS (
+                -- Propagate time values to CONTINUOUS scenes from their predecessors
                 SELECT
                     s1.script_id,
                     s1.script_order,
                     s1.time_of_day,
                     COALESCE(
                         s1.actual_time,
-                        -- Find the most recent non-CONTINUOUS time
+                        -- Find the most recent non-CONTINUOUS time for inheritance
                         (SELECT s2.actual_time
                          FROM scene_times s2
                          WHERE s2.script_id = s1.script_id

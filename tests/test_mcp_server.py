@@ -878,7 +878,7 @@ class TestGetCharacterInfoTool:
             # Add dialogue
             conn.execute(
                 """
-                INSERT INTO dialogue (id, element_type, text, raw_text, scene_id,
+                INSERT INTO scene_elements (id, element_type, text, raw_text, scene_id,
                                     order_in_scene, character_id, character_name,
                                     created_at, updated_at)
                 VALUES (?, 'dialogue', 'Hello Jane', 'Hello Jane', ?, 0, ?, 'JOHN',

@@ -1397,6 +1397,10 @@ class ScriptRAGMCPServer:
         if not script_id or scene_id is None:
             raise ValueError("script_id and scene_id are required")
 
+        # Convert UUID objects to strings for database compatibility
+        script_id = str(script_id)
+        scene_id = str(scene_id)
+
         # Update scene in database
         from .database.connection import DatabaseConnection
         from .database.operations import GraphOperations
@@ -1524,7 +1528,7 @@ class ScriptRAGMCPServer:
                         dialogue_id = str(uuid4())
 
                         insert_dialogue_query = """
-                            INSERT INTO dialogue (
+                            INSERT INTO scene_elements (
                                 id, element_type, text, raw_text, scene_id,
                                 order_in_scene, character_id, character_name,
                                 created_at, updated_at
@@ -1592,6 +1596,10 @@ class ScriptRAGMCPServer:
 
         if not script_id or scene_id is None:
             raise ValueError("script_id and scene_id are required")
+
+        # Convert UUID objects to strings for database compatibility
+        script_id = str(script_id)
+        scene_id = str(scene_id)
 
         # Delete scene from database
         from .database.connection import DatabaseConnection
@@ -1667,6 +1675,9 @@ class ScriptRAGMCPServer:
         if not script_id or position is None or not heading:
             raise ValueError("script_id, position, and heading are required")
 
+        # Convert script_id to string for database compatibility
+        script_id = str(script_id)
+
         # Inject scene into database
         from uuid import uuid4
 
@@ -1674,10 +1685,13 @@ class ScriptRAGMCPServer:
         from .database.operations import GraphOperations
         from .models import Location, Scene
 
+        # Validate script exists in cache and get actual script object
+        script = self._validate_script_id(script_id)
+
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
             graph_ops = GraphOperations(connection)
 
-            # Verify script exists
+            # Verify script exists in database
             script_query = """
                 SELECT n.id as node_id
                 FROM nodes n
@@ -1738,7 +1752,7 @@ class ScriptRAGMCPServer:
                 heading=heading,
                 description=args.get("action", ""),
                 script_order=position,  # Will be adjusted after reordering
-                script_id=script_id,
+                script_id=script.id,  # Use actual script UUID from cache
                 time_of_day=time_of_day,
             )
 
@@ -1796,7 +1810,7 @@ class ScriptRAGMCPServer:
                             dialogue_id = str(uuid4())
 
                             insert_dialogue_query = """
-                                INSERT INTO dialogue (
+                                INSERT INTO scene_elements (
                                     id, element_type, text, raw_text, scene_id,
                                     order_in_scene, character_id, character_name,
                                     created_at, updated_at

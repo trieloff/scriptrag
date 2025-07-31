@@ -44,6 +44,12 @@ class TestGetSceneDetailsTool:
     @pytest.mark.asyncio
     async def test_get_scene_details_basic(self, mcp_server_with_db):
         """Test basic scene details retrieval."""
+        from scriptrag.models import Script
+
+        # Add script to cache for testing
+        script = Script(title="Test", source_file="test.fountain")
+        mcp_server_with_db._scripts_cache["script_0"] = script
+
         # Currently returns placeholder data
         result = await mcp_server_with_db._tool_get_scene_details(
             {"script_id": "script_0", "scene_id": 1}
@@ -70,6 +76,12 @@ class TestGetCharacterRelationshipsTool:
     @pytest.mark.asyncio
     async def test_get_character_relationships_basic(self, mcp_server_with_db):
         """Test basic character relationships retrieval."""
+        from scriptrag.models import Script
+
+        # Add script to cache for testing
+        script = Script(title="Test", source_file="test.fountain")
+        mcp_server_with_db._scripts_cache["script_0"] = script
+
         result = await mcp_server_with_db._tool_get_character_relationships(
             {"script_id": "script_0", "character_name": "JOHN"}
         )
@@ -82,6 +94,12 @@ class TestGetCharacterRelationshipsTool:
     @pytest.mark.asyncio
     async def test_get_character_relationships_no_character(self, mcp_server_with_db):
         """Test relationships for all characters."""
+        from scriptrag.models import Script
+
+        # Add script to cache for testing
+        script = Script(title="Test", source_file="test.fountain")
+        mcp_server_with_db._scripts_cache["script_0"] = script
+
         result = await mcp_server_with_db._tool_get_character_relationships(
             {"script_id": "script_0"}
         )
@@ -96,6 +114,12 @@ class TestWorldElementTool:
     @pytest.mark.asyncio
     async def test_add_world_element_all_types(self, mcp_server_with_db):
         """Test adding different types of world elements."""
+        from scriptrag.models import Script
+
+        # Add script to cache for testing
+        script = Script(title="Test", source_file="test.fountain")
+        mcp_server_with_db._scripts_cache["script_0"] = script
+
         element_types = [
             "location",
             "technology",
@@ -159,6 +183,12 @@ class TestCharacterProfileTool:
     @pytest.mark.asyncio
     async def test_create_character_profile_full(self, mcp_server_with_db):
         """Test creating a complete character profile."""
+        from scriptrag.models import Script
+
+        # Add script to cache for testing
+        script = Script(title="Test", source_file="test.fountain")
+        mcp_server_with_db._scripts_cache["script_0"] = script
+
         with patch("scriptrag.database.bible.ScriptBibleOperations") as mock_bible:
             mock_bible.return_value.create_character_profile.return_value = (
                 "profile_123"
@@ -354,6 +384,11 @@ class TestAddCharacterKnowledgeTool:
     async def test_add_character_knowledge_with_episode(self, mcp_server_with_db):
         """Test adding character knowledge with episode reference."""
         from scriptrag.database.connection import DatabaseConnection
+        from scriptrag.models import Script
+
+        # Add script to cache for testing
+        script = Script(title="Test", source_file="test.fountain")
+        mcp_server_with_db._scripts_cache["script_0"] = script
 
         with DatabaseConnection(
             str(mcp_server_with_db.config.get_database_path())

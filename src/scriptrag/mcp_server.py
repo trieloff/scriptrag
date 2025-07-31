@@ -18,7 +18,7 @@ async def main() -> None:
     config = load_settings(config_file) if config_file else get_settings()
 
     # Setup logging
-    setup_logging_for_environment(config)
+    setup_logging_for_environment(config.environment)
 
     # Create and start server
     server = ScriptRAGMCPServer(config)

@@ -863,9 +863,10 @@ class ScriptRAGMCPServer:
             return types.ServerResult(
                 types.ReadResourceResult(
                     contents=[
-                        types.TextContent(
-                            type="text",
+                        types.TextResourceContents(
+                            uri=request.params.uri,
                             text=json.dumps(content, indent=2),
+                            mimeType="application/json",
                         )
                     ]
                 )

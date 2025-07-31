@@ -17,7 +17,6 @@ import requests
 import typer
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.table import Table
 
 # Local imports
 from . import ScriptRAG
@@ -33,6 +32,7 @@ from .database.bible import ScriptBibleOperations
 from .database.connection import DatabaseConnection
 from .database.continuity import ContinuityValidator
 from .database.operations import GraphOperations
+from .database.statistics import DatabaseStatistics
 from .mentors.base import MentorAnalysis, MentorResult
 from .models import SceneOrderType
 from .parser.bulk_import import BulkImporter
@@ -402,8 +402,11 @@ def script_parse(
                 """
             ).fetchone()[0]
 
+        # Import Table locally to avoid scope issues in CI
+        from rich.table import Table as RichTable
+
         # Display summary table
-        table = Table(show_header=False, box=None)
+        table = RichTable(show_header=False, box=None)
         table.add_column("", style="dim")
         table.add_column("", style="bold")
 
@@ -503,6 +506,15 @@ def script_import(
         settings = get_settings()
         db_path = Path(settings.database.path)
 
+        # Ensure database is initialized with schema
+        from scriptrag.database import initialize_database
+
+        if not db_path.exists():
+            console.print("[blue]Initializing database...[/blue]")
+            if not initialize_database(db_path):
+                console.print("[red]Failed to initialize database[/red]")
+                raise typer.Exit(1)
+
         # Find fountain files
         file_paths = []
         path = Path(path_or_pattern)
@@ -584,7 +596,10 @@ def script_import(
         else:
             console.print("\n[bold]Import Results:[/bold]")
 
-        table = Table(show_header=True, header_style="bold blue")
+        # Import Table locally to avoid scope issues in CI
+        from rich.table import Table as RichTable
+
+        table = RichTable(show_header=True, header_style="bold blue")
         table.add_column("Metric", style="cyan")
         table.add_column("Count", justify="right")
 
@@ -1064,20 +1079,146 @@ def script_info(
 
         if db_path.exists():
             console.print(f"[bold blue]Database Info:[/bold blue] {db_path}")
-            console.print(f"Size: {db_path.stat().st_size:,} bytes")
 
-            # Log placeholder usage
-            logger.warning(
-                "info command placeholder - database statistics not yet implemented",
-                db_path=str(db_path),
-            )
+            # Ensure database is initialized with schema
+            from scriptrag.database import initialize_database
 
-            # Not yet implemented - tracking in issue #TODO-013
-            console.print("[yellow]⚠️  Database statistics not yet implemented[/yellow]")
-            console.print(
-                "[dim]This feature is planned for a future release. "
-                "Track progress at issue #TODO-013[/dim]"
-            )
+            if not initialize_database(db_path):
+                console.print("[red]Failed to initialize database[/red]")
+                raise typer.Exit(1)
+
+            # Get and display database statistics
+            with get_connection() as conn:
+                stats_collector = DatabaseStatistics(conn)
+                db_stats: dict[str, Any] = stats_collector.get_all_statistics()
+
+                # Import Table locally to avoid scope issues in tests
+                from rich.table import Table as RichTable
+
+                # Database Overview
+                db_metrics: dict[str, Any] = db_stats["database"]
+                console.print(f"\nSize: {db_metrics['file_size']:,} bytes")
+
+                # Entity Summary Table
+                console.print("\n[bold cyan]Entity Summary[/bold cyan]")
+                entity_table = RichTable(show_header=True, header_style="bold")
+                entity_table.add_column("Entity Type", style="dim")
+                entity_table.add_column("Count", justify="right")
+
+                entity_table.add_row("Scripts", f"{db_metrics['total_scripts']:,}")
+                entity_table.add_row("Scenes", f"{db_metrics['total_scenes']:,}")
+                entity_table.add_row(
+                    "Characters", f"{db_metrics['total_characters']:,}"
+                )
+                entity_table.add_row("Locations", f"{db_metrics['total_locations']:,}")
+                entity_table.add_row("Episodes", f"{db_metrics['total_episodes']:,}")
+                entity_table.add_row("Seasons", f"{db_metrics['total_seasons']:,}")
+                console.print(entity_table)
+
+                # Graph Statistics
+                graph_stats: dict[str, Any] = db_stats["graph"]
+                if graph_stats["total_nodes"] > 0:
+                    console.print("\n[bold cyan]Graph Statistics[/bold cyan]")
+                    graph_table = RichTable(show_header=True, header_style="bold")
+                    graph_table.add_column("Metric", style="dim")
+                    graph_table.add_column("Value", justify="right")
+
+                    graph_table.add_row(
+                        "Total Nodes", f"{graph_stats['total_nodes']:,}"
+                    )
+                    graph_table.add_row(
+                        "Total Edges", f"{graph_stats['total_edges']:,}"
+                    )
+                    graph_table.add_row(
+                        "Average Degree", f"{graph_stats['avg_degree']}"
+                    )
+                    graph_table.add_row(
+                        "Graph Density", f"{graph_stats['graph_density']:.4f}"
+                    )
+                    console.print(graph_table)
+
+                    # Node types breakdown
+                    if graph_stats["node_types"]:
+                        console.print("\n[bold]Node Types:[/bold]")
+                        for node_type, count in graph_stats["node_types"].items():
+                            console.print(f"  • {node_type}: {count:,}")
+
+                    # Edge types breakdown
+                    if graph_stats["edge_types"]:
+                        console.print("\n[bold]Edge Types:[/bold]")
+                        for edge_type, count in graph_stats["edge_types"].items():
+                            console.print(f"  • {edge_type}: {count:,}")
+
+                # Embedding Statistics
+                embed_stats: dict[str, Any] = db_stats["embeddings"]
+                if embed_stats["total_embeddings"] > 0:
+                    console.print("\n[bold cyan]Embedding Coverage[/bold cyan]")
+                    embed_table = RichTable(show_header=True, header_style="bold")
+                    embed_table.add_column("Metric", style="dim")
+                    embed_table.add_column("Value", justify="right")
+
+                    embed_table.add_row(
+                        "Total Embeddings", f"{embed_stats['total_embeddings']:,}"
+                    )
+                    embed_table.add_row(
+                        "Embedded Scripts", f"{embed_stats['embedded_scripts']}"
+                    )
+                    embed_table.add_row(
+                        "Embedded Scenes", f"{embed_stats['embedded_scenes']}"
+                    )
+                    embed_table.add_row(
+                        "Coverage", f"{embed_stats['coverage_percentage']:.1f}%"
+                    )
+                    console.print(embed_table)
+
+                    if embed_stats["embedding_models"]:
+                        console.print("\n[bold]Embedding Models:[/bold]")
+                        for model, count in embed_stats["embedding_models"].items():
+                            console.print(f"  • {model}: {count:,} embeddings")
+
+                # Usage Patterns
+                usage: dict[str, Any] = db_stats["usage"]
+
+                # Most connected characters
+                if usage["most_connected_characters"]:
+                    console.print("\n[bold cyan]Most Connected Characters[/bold cyan]")
+                    char_table = RichTable(show_header=True, header_style="bold")
+                    char_table.add_column("Character", style="bold")
+                    char_table.add_column("Connections", justify="right")
+
+                    for char in usage["most_connected_characters"][:5]:
+                        char_table.add_row(char["name"], str(char["connections"]))
+                    console.print(char_table)
+
+                # Longest scripts
+                if usage["longest_scripts"]:
+                    console.print("\n[bold cyan]Longest Scripts[/bold cyan]")
+                    script_table = RichTable(show_header=True, header_style="bold")
+                    script_table.add_column("Script", style="bold")
+                    script_table.add_column("Scenes", justify="right")
+
+                    for script in usage["longest_scripts"][:5]:
+                        script_table.add_row(script["title"], str(script["scenes"]))
+                    console.print(script_table)
+
+                # Busiest locations
+                if usage["busiest_locations"]:
+                    console.print("\n[bold cyan]Busiest Locations[/bold cyan]")
+                    loc_table = RichTable(show_header=True, header_style="bold")
+                    loc_table.add_column("Location", style="bold")
+                    loc_table.add_column("Type", style="dim")
+                    loc_table.add_column("Scenes", justify="right")
+
+                    for loc in usage["busiest_locations"][:5]:
+                        loc_type = "INT" if loc["interior"] else "EXT"
+                        loc_table.add_row(loc["name"], loc_type, str(loc["scenes"]))
+                    console.print(loc_table)
+
+                # Time of day distribution
+                if usage["common_times_of_day"]:
+                    console.print("\n[bold cyan]Scene Times of Day[/bold cyan]")
+                    for time, count in list(usage["common_times_of_day"].items())[:5]:
+                        console.print(f"  • {time}: {count} scenes")
         else:
             console.print(
                 "[yellow]No database found. Use 'scriptrag script parse' "
@@ -1177,10 +1318,16 @@ def scene_list(
         scenes = manager.operations.get_script_scenes(script_id, order_type)
 
         if limit:
+            if limit < 1:
+                console.print("[red]Error: Limit must be a positive number[/red]")
+                raise typer.Exit(1)
             scenes = scenes[:limit]
 
+        # Import Table locally to avoid scope issues in CI
+        from rich.table import Table as RichTable
+
         # Create table
-        table = Table(show_header=True, header_style="bold blue")
+        table = RichTable(show_header=True, header_style="bold blue")
         table.add_column("#", style="cyan", width=4)
         table.add_column("Scene", style="green")
         table.add_column("Location", style="yellow")
@@ -1626,6 +1773,10 @@ def search_all(
 ) -> None:
     """Search across all content types."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         console.print(f"[blue]Searching for:[/blue] {query}")
 
         async def run_search() -> Any:
@@ -1662,6 +1813,10 @@ def search_dialogue(
 ) -> None:
     """Search dialogue content."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         console.print(f"[blue]Searching dialogue for:[/blue] {query}")
         if character:
             console.print(f"[blue]Character filter:[/blue] {character}")
@@ -1703,6 +1858,10 @@ def search_scenes(
 ) -> None:
     """Search scenes by content or filters."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         console.print(f"[blue]Searching scenes for:[/blue] {query}")
         if character:
             console.print(f"[blue]Character filter:[/blue] {character}")
@@ -1752,6 +1911,10 @@ def search_similar(
 ) -> None:
     """Find scenes similar to a given scene using embeddings."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         console.print(f"[blue]Finding scenes similar to:[/blue] {scene_id}")
 
         async def run_search() -> Any:
@@ -1788,6 +1951,10 @@ def search_theme(
 ) -> None:
     """Search for content matching a theme or mood using semantic search."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         console.print(f"[blue]Searching for theme:[/blue] {theme}")
         if entity_type:
             console.print(f"[blue]Entity type filter:[/blue] {entity_type}")
@@ -1831,6 +1998,10 @@ def search_temporal(
 ) -> None:
     """Search based on temporal criteria."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         if day_night:
             console.print(f"[blue]Time of day:[/blue] {day_night}")
         if start_time or end_time:
@@ -1871,7 +2042,10 @@ def _display_search_results(results: list, show_similarity: bool = False) -> Non
         console.print("[yellow]No results found.[/yellow]")
         return
 
-    table = Table(
+    # Import Table locally to avoid scope issues in CI
+    from rich.table import Table as RichTable
+
+    table = RichTable(
         title=f"Search Results ({len(results)} found)",
         show_header=True,
         header_style="bold blue",
@@ -1981,7 +2155,10 @@ def dev_status() -> None:
         ("Logs directory", Path("logs")),
     ]
 
-    table = Table(show_header=True, header_style="bold blue")
+    # Import Table locally to avoid scope issues in CI
+    from rich.table import Table as RichTable
+
+    table = RichTable(show_header=True, header_style="bold blue")
     table.add_column("Component")
     table.add_column("Status")
     table.add_column("Path")
@@ -2144,7 +2321,10 @@ def bible_list(
                 console.print("[yellow]No script bibles found.[/yellow]")
                 return
 
-            table = Table(title="Script Bibles")
+            # Import Table locally to avoid scope issues in CI
+            from rich.table import Table as RichTable
+
+            table = RichTable(title="Script Bibles")
             table.add_column("ID")
             table.add_column("Title")
             table.add_column("Type")
@@ -2530,7 +2710,10 @@ def bible_notes(
                 console.print("[yellow]No continuity notes found.[/yellow]")
                 return
 
-            table = Table(title="Continuity Notes")
+            # Import Table locally to avoid scope issues in CI
+            from rich.table import Table as RichTable
+
+            table = RichTable(title="Continuity Notes")
             table.add_column("ID")
             table.add_column("Type")
             table.add_column("Severity")
@@ -2736,7 +2919,10 @@ def mentor_list() -> None:
             console.print("[yellow]No mentors available.[/yellow]")
             return
 
-        table = Table(show_header=True, header_style="bold blue")
+        # Import Table locally to avoid scope issues in CI
+        from rich.table import Table as RichTable
+
+        table = RichTable(show_header=True, header_style="bold blue")
         table.add_column("Name", style="cyan")
         table.add_column("Type", style="green")
         table.add_column("Version", style="yellow")
@@ -2954,6 +3140,10 @@ def mentor_results(
 ) -> None:
     """Show previous mentor analysis results."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
+
         from .database.connection import DatabaseConnection
         from .mentors import MentorDatabaseOperations
 
@@ -2987,8 +3177,11 @@ def mentor_results(
             console.print("[yellow]No analysis results found.[/yellow]")
             return
 
+        # Import Table locally to avoid scope issues in CI
+        from rich.table import Table as RichTable
+
         # Display results table
-        table = Table(show_header=True, header_style="bold blue")
+        table = RichTable(show_header=True, header_style="bold blue")
         table.add_column("Date", style="cyan")
         table.add_column("Mentor", style="green")
         table.add_column("Score", style="yellow")
@@ -3041,6 +3234,9 @@ def mentor_search(
 ) -> None:
     """Search mentor analysis findings."""
     try:
+        if limit < 1:
+            console.print("[red]Error: Limit must be a positive number[/red]")
+            raise typer.Exit(1)
         from .database.connection import DatabaseConnection
         from .mentors import AnalysisSeverity, MentorDatabaseOperations
 

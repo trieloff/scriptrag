@@ -26,6 +26,7 @@ from .migrations import MigrationRunner, initialize_database
 from .operations import GraphOperations
 from .scene_ordering import SceneOrderingOperations
 from .schema import DatabaseSchema, create_database, migrate_database
+from .statistics import DatabaseStatistics
 from .utils import (
     DatabaseBackup,
     DatabaseMaintenance,
@@ -43,6 +44,7 @@ __all__ = [
     "DatabaseConnection",
     "DatabaseMaintenance",
     "DatabaseSchema",
+    "DatabaseStatistics",
     "DatabaseStats",
     "EmbeddingContent",
     "EmbeddingError",

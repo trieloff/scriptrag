@@ -5,6 +5,7 @@ an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmen
 Generation) pattern.
 """
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -109,11 +110,133 @@ class ScriptRAG:
             Script object containing parsed screenplay data
         """
         self.logger.info("Parsing Fountain screenplay", path=path)
-        # TODO: Implement actual parsing logic
-        # For now, return a dummy Script object
-        from .models import Script
 
-        return Script(title="Parsed Script", source_file=path)
+        # Import here to avoid circular dependencies
+        from .database import create_database, get_connection, initialize_database
+        from .database.operations import GraphOperations
+        from .parser import FountainParser
+
+        # Ensure database exists and is initialized
+        db_path = self.config.get_database_path()
+        if not db_path.exists():
+            self.logger.info("Creating new database", path=str(db_path))
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            create_database(db_path)
+
+        # Initialize database schema if needed
+        initialize_database(db_path)
+
+        # Parse the fountain file
+        parser = FountainParser()
+        script = parser.parse_file(path)
+
+        # Save script data to database
+        with get_connection() as conn:
+            # Save script
+            conn.execute(
+                """
+                INSERT INTO scripts (id, title, fountain_source, source_file,
+                                   author, description, genre, logline, title_page_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    str(script.id),
+                    script.title,
+                    script.fountain_source,
+                    script.source_file,
+                    script.author,
+                    script.description,
+                    script.genre,
+                    script.logline,
+                    json.dumps(script.title_page) if script.title_page else None,
+                ),
+            )
+
+            # Save characters
+            for char in parser.get_characters():
+                conn.execute(
+                    """
+                    INSERT INTO characters (id, script_id, name, aliases_json)
+                    VALUES (?, ?, ?, ?)
+                """,
+                    (
+                        str(char.id),
+                        str(script.id),
+                        char.name,
+                        json.dumps(char.aliases) if char.aliases else None,
+                    ),
+                )
+
+            # Save scenes and locations
+            from uuid import uuid4
+
+            location_map = {}  # Map location text to ID
+
+            for scene in parser.get_scenes():
+                location_id = None
+
+                # Save location if present
+                if scene.location:
+                    # Create a unique key for the location
+                    location_key = (
+                        f"{scene.location.interior}:{scene.location.name}:"
+                        f"{scene.location.time}"
+                    )
+
+                    if location_key not in location_map:
+                        location_id = str(uuid4())
+                        location_map[location_key] = location_id
+
+                        conn.execute(
+                            """
+                            INSERT INTO locations (id, script_id, interior, name,
+                                                 time_of_day, raw_text)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                        """,
+                            (
+                                location_id,
+                                str(script.id),
+                                scene.location.interior,
+                                scene.location.name,
+                                scene.location.time,
+                                scene.location.raw_text,
+                            ),
+                        )
+                    else:
+                        location_id = location_map[location_key]
+
+                # Save scene
+                conn.execute(
+                    """
+                    INSERT INTO scenes (id, script_id, location_id, heading,
+                                      script_order, time_of_day)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                    (
+                        str(scene.id),
+                        str(script.id),
+                        location_id,
+                        scene.heading,
+                        scene.script_order,
+                        scene.location.time if scene.location else None,
+                    ),
+                )
+
+            # Build graph structure
+            ops = GraphOperations(conn)
+            ops.create_script_graph(script)
+
+            # Note: We're skipping async LLM enrichment for now
+            self.logger.info("Graph building and LLM enrichment not yet implemented")
+
+        self.logger.info(
+            "Successfully parsed and stored screenplay",
+            title=script.title,
+            scenes=len(script.scenes),
+            characters=len(script.characters),
+        )
+
+        return script
 
     def search_scenes(self, **kwargs: Any) -> list[Any]:
         """Search for scenes based on various criteria.

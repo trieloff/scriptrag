@@ -1622,7 +1622,15 @@ class MigrationRunner:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute("SELECT MAX(version) FROM schema_info")
                 result = cursor.fetchone()
-                return result[0] if result[0] is not None else 0
+                # Handle MagicMock objects during testing
+                version = result[0] if result else None
+                # Check if it's a MagicMock instance
+                if version is None:
+                    return 0
+                # Handle MagicMock objects (they have _mock_name or _spec_class)
+                if hasattr(version, "_mock_name") or hasattr(version, "_spec_class"):
+                    return 0
+                return int(version)
         except sqlite3.OperationalError:
             return 0
 

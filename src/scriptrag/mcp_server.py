@@ -3,8 +3,8 @@
 import asyncio
 import sys
 
-from .config import get_settings, load_settings, setup_logging_for_environment
-from .mcp.server import ScriptRAGMCPServer
+from scriptrag.config import get_settings, load_settings, setup_logging_for_environment
+from scriptrag.mcp.server import ScriptRAGMCPServer
 
 
 async def main() -> None:

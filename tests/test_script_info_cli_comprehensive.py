@@ -273,19 +273,23 @@ class TestScriptInfoCoverage:
         # Should not crash even with no dialogue/action
         assert "Total Scenes" in result.stdout
 
-    def test_info_command_no_insights_balanced_screenplay(self, cli_runner, tmp_path):
-        """Test balanced screenplay that triggers no specific insights."""
+    def test_info_command_minimal_insights_screenplay(self, cli_runner, tmp_path):
+        """Test screenplay that triggers only the good length insight."""
         parser = Mock()
         script = Script(title="Balanced Script", author="Author")
 
-        # Create balanced content: 100 pages = 25000 words
+        # Create content that triggers minimal insights
+        # - Good length (90-130 pages): 100 pages = 25000 words
+        # - Balance INT/EXT without triggering ratios (not 3:1 or 1:2)
+        # - Moderate character count (5-50)
+        # - Balanced dialogue/action ratio (between 30-70%)
         scenes = []
-        for i in range(20):  # Good number of scenes
+        for i in range(20):  # Moderate scene count
             location = Location(
-                interior=(i % 2 == 0),  # Balanced INT/EXT
+                interior=(i % 3 != 0),  # 2:1 INT/EXT ratio (not extreme)
                 name=f"LOCATION {i}",
                 time="DAY",
-                raw_text=f"{'INT' if i % 2 == 0 else 'EXT'}. LOCATION {i} - DAY",
+                raw_text=f"{'INT' if i % 3 != 0 else 'EXT'}. LOCATION {i} - DAY",
             )
             scene = Scene(
                 location=location,
@@ -294,21 +298,22 @@ class TestScriptInfoCoverage:
                 script_id=uuid4(),
             )
 
-            # Balanced dialogue and action with enough words
+            # Create balanced content
             scene.elements = []
-            # Each scene needs ~1250 words for 100 pages total
+            # 1250 words per scene = 25000 total = 100 pages
+            # Balanced dialogue and action ratio
             scene.elements.append(
                 Action(
-                    text=" ".join(["action"] * 400),
-                    raw_text=" ".join(["action"] * 400),
+                    text=" ".join(["action"] * 300),
+                    raw_text=" ".join(["action"] * 300),
                     scene_id=scene.id,
                     order_in_scene=0,
                 )
             )
             scene.elements.append(
                 Dialogue(
-                    text=" ".join(["dialogue"] * 450),
-                    raw_text=" ".join(["dialogue"] * 450),
+                    text=" ".join(["dialogue"] * 325),
+                    raw_text=" ".join(["dialogue"] * 325),
                     scene_id=scene.id,
                     order_in_scene=1,
                     character_id=uuid4(),
@@ -317,15 +322,25 @@ class TestScriptInfoCoverage:
             )
             scene.elements.append(
                 Action(
-                    text=" ".join(["more"] * 400),
-                    raw_text=" ".join(["more"] * 400),
+                    text=" ".join(["more"] * 300),
+                    raw_text=" ".join(["more"] * 300),
                     scene_id=scene.id,
                     order_in_scene=2,
                 )
             )
+            scene.elements.append(
+                Dialogue(
+                    text=" ".join(["dialog2"] * 325),
+                    raw_text=" ".join(["dialog2"] * 325),
+                    scene_id=scene.id,
+                    order_in_scene=3,
+                    character_id=uuid4(),
+                    character_name=f"CHAR{(i + 1) % 10}",
+                )
+            )
             scenes.append(scene)
 
-        # Moderate character count
+        # Moderate character count (not < 5 or > 50)
         characters = [Character(name=f"CHAR{i}") for i in range(15)]
 
         parser.parse_file.return_value = script
@@ -343,7 +358,16 @@ class TestScriptInfoCoverage:
             result = cli_runner.invoke(app, ["script", "info", str(test_file)])
 
         assert result.exit_code == 0
-        assert "Analysis complete - screenplay appears well-balanced" in result.stdout
+        # Should only have the "Good length" insight
+        assert "Good length" in result.stdout
+        assert "Screenplay is within standard feature range" in result.stdout
+        # Should not have other insights
+        assert "Interior heavy" not in result.stdout
+        assert "Exterior heavy" not in result.stdout
+        assert "Small cast" not in result.stdout
+        assert "Large cast" not in result.stdout
+        assert "Dialogue heavy" not in result.stdout
+        assert "Action heavy" not in result.stdout
 
     def test_info_command_no_title_page_metadata(self, cli_runner, tmp_path):
         """Test screenplay with no title page metadata."""

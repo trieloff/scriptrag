@@ -694,7 +694,7 @@ def script_info(
                 from rich.table import Table as RichTable
 
                 # Database Overview
-                db_metrics = stats["database"]
+                db_metrics: dict[str, Any] = stats["database"]
                 console.print(f"\nSize: {db_metrics['file_size']:,} bytes")
 
                 # Entity Summary Table
@@ -714,7 +714,7 @@ def script_info(
                 console.print(entity_table)
 
                 # Graph Statistics
-                graph_stats = stats["graph"]
+                graph_stats: dict[str, Any] = stats["graph"]
                 if graph_stats["total_nodes"] > 0:
                     console.print("\n[bold cyan]Graph Statistics[/bold cyan]")
                     graph_table = RichTable(show_header=True, header_style="bold")
@@ -748,7 +748,7 @@ def script_info(
                             console.print(f"  • {edge_type}: {count:,}")
 
                 # Embedding Statistics
-                embed_stats = stats["embeddings"]
+                embed_stats: dict[str, Any] = stats["embeddings"]
                 if embed_stats["total_embeddings"] > 0:
                     console.print("\n[bold cyan]Embedding Coverage[/bold cyan]")
                     embed_table = RichTable(show_header=True, header_style="bold")
@@ -775,7 +775,7 @@ def script_info(
                             console.print(f"  • {model}: {count:,} embeddings")
 
                 # Usage Patterns
-                usage = stats["usage"]
+                usage: dict[str, Any] = stats["usage"]
 
                 # Most connected characters
                 if usage["most_connected_characters"]:

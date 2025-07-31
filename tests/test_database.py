@@ -873,14 +873,13 @@ class TestGraphOperations:
 
         # Connect character to scene
         edge_id = graph_ops.connect_character_to_scene(
-            char_node_id, scene_node_id, speaking_lines=5, action_mentions=2
+            char_node_id, scene_node_id, dialogue_count=5
         )
 
         edge = graph_ops.graph.get_edge(edge_id)
         assert edge is not None
-        assert edge.edge_type == "APPEARS_IN"
-        assert edge.properties["speaking_lines"] == 5
-        assert edge.properties["action_mentions"] == 2
+        assert edge.edge_type == "appears_in"
+        assert edge.properties["dialogue_count"] == 5
 
         # Test getting character scenes
         char_scenes = graph_ops.get_character_scenes(char_node_id)
@@ -908,18 +907,18 @@ class TestGraphOperations:
 
         # Create interaction
         graph_ops.connect_character_interaction(
-            char1_node_id, char2_node_id, scene_node_id, dialogue_count=3
+            char1_node_id, char2_node_id, scene_node_id, interaction_type="dialogue"
         )
 
         # Test getting interactions
         interactions = graph_ops.get_character_interactions(
-            char1_node_id, scene_node_id
+            char1_node_id, interaction_type="dialogue"
         )
         assert len(interactions) == 1
 
-        target_char, interaction_edge = interactions[0]
-        assert target_char.id == char2_node_id
-        assert interaction_edge.properties["dialogue_count"] == 3
+        interaction = interactions[0]
+        assert interaction["character_id"] == char2_node_id
+        assert interaction["interaction_type"] == "dialogue"
 
     def test_centrality_analysis(self, graph_ops, stored_script):
         """Test character centrality analysis."""

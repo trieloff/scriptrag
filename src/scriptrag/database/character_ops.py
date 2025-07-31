@@ -174,7 +174,7 @@ class CharacterOperations:
             List of scene nodes
         """
         scenes = self.graph.get_neighbors(
-            character_node_id, direction="outgoing", edge_type="appears_in"
+            character_node_id, direction="out", edge_type="appears_in"
         )
         logger.debug(f"Found {len(scenes)} scenes for character {character_node_id}")
         return scenes

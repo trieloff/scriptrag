@@ -7,6 +7,8 @@ script parsing, searching, configuration management, and development utilities.
 # Standard library imports
 import asyncio
 import contextlib
+import re
+import sqlite3
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
@@ -377,9 +379,44 @@ def db_init(
             logger.error("Database initialization failed", path=str(database_path))
             raise typer.Exit(1)
 
+    except PermissionError as e:
+        logger.error(
+            "Permission denied initializing database",
+            error=str(e),
+            path=str(database_path),
+        )
+        console.print(
+            f"[red]Permission denied: Cannot create database at {database_path}[/red]"
+        )
+        console.print(
+            "[yellow]Check that you have write permissions to the directory[/yellow]"
+        )
+        raise typer.Exit(1) from e
+    except OSError as e:
+        if "No space left on device" in str(e):
+            logger.error(
+                "No disk space for database", error=str(e), path=str(database_path)
+            )
+            console.print(
+                f"[red]Disk full: Cannot create database at {database_path}[/red]"
+            )
+            console.print("[yellow]Free up disk space and try again[/yellow]")
+        else:
+            logger.error(
+                "OS error initializing database", error=str(e), path=str(database_path)
+            )
+            console.print(f"[red]System error: {e}[/red]")
+        raise typer.Exit(1) from e
     except Exception as e:
-        logger.error("Error initializing database", error=str(e))
+        logger.error(
+            "Unexpected error initializing database",
+            error=str(e),
+            path=str(database_path),
+        )
         console.print(f"[red]Error initializing database: {e}[/red]")
+        console.print(
+            "[yellow]This may indicate a corrupted database or system issue[/yellow]"
+        )
         raise typer.Exit(1) from e
 
 
@@ -403,8 +440,6 @@ def db_wipe(
     ] = False,
 ) -> None:
     """Drop all data from the database (requires confirmation)."""
-    import sqlite3
-
     logger = get_logger(__name__)
     settings = get_settings()
 
@@ -446,9 +481,18 @@ def db_wipe(
             # Disable foreign key constraints temporarily
             conn.execute("PRAGMA foreign_keys = OFF")
 
-            # Drop each table
+            # Drop each table with SQL injection protection
             for table in tables:
-                conn.execute(f"DROP TABLE IF EXISTS {table}")
+                # Validate table name contains only allowed characters
+                if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", table):
+                    logger.warning(f"Skipping table with invalid name: {table}")
+                    console.print(
+                        f"  [yellow]Skipped invalid table name: {table}[/yellow]"
+                    )
+                    continue
+
+                # Use proper identifier quoting for SQLite
+                conn.execute(f'DROP TABLE IF EXISTS "{table}"')
                 console.print(f"  [dim]Dropped table: {table}[/dim]")
 
             # Re-enable foreign key constraints
@@ -461,8 +505,35 @@ def db_wipe(
             "Database wiped", path=str(database_path), tables_dropped=len(tables)
         )
 
+    except sqlite3.OperationalError as e:
+        if "database is locked" in str(e):
+            logger.error("Database is locked", error=str(e), path=str(database_path))
+            console.print(f"[red]Database is locked: {database_path}[/red]")
+            console.print(
+                "[yellow]Another process may be using the database. "
+                "Close it and try again[/yellow]"
+            )
+        else:
+            logger.error(
+                "Database operation failed", error=str(e), path=str(database_path)
+            )
+            console.print(f"[red]Database error: {e}[/red]")
+        raise typer.Exit(1) from e
+    except PermissionError as e:
+        logger.error(
+            "Permission denied wiping database", error=str(e), path=str(database_path)
+        )
+        console.print(
+            f"[red]Permission denied: Cannot modify database at {database_path}[/red]"
+        )
+        console.print(
+            "[yellow]Check that you have write permissions to the file[/yellow]"
+        )
+        raise typer.Exit(1) from e
     except Exception as e:
-        logger.error("Error wiping database", error=str(e))
+        logger.error(
+            "Unexpected error wiping database", error=str(e), path=str(database_path)
+        )
         console.print(f"[red]Error wiping database: {e}[/red]")
         raise typer.Exit(1) from e
 

@@ -378,3 +378,58 @@ class TestDbWipe:
 
         assert result.exit_code == 0
         assert "Database wiped successfully" in result.stdout
+
+    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.cli.get_logger")
+    def test_db_wipe_sql_injection_protection(
+        self,
+        mock_get_logger,
+        mock_get_settings,
+        cli_runner,
+        mock_settings,
+        temp_db_path,
+    ):
+        """Test SQL injection protection in database wipe."""
+        mock_get_settings.return_value = mock_settings
+        mock_settings.database.path = str(temp_db_path)
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
+
+        # Create a database with tables that have potentially malicious names
+        temp_db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(temp_db_path) as conn:
+            # Create a normal table
+            conn.execute("CREATE TABLE normal_table (id INTEGER PRIMARY KEY)")
+
+            # Create tables with special characters that could be SQL injection attempts
+            # SQLite allows these names when properly quoted
+            conn.execute(
+                'CREATE TABLE "table; DROP TABLE users; --" (id INTEGER PRIMARY KEY)'
+            )
+            conn.execute('CREATE TABLE "table`with`backticks" (id INTEGER PRIMARY KEY)')
+            conn.execute("CREATE TABLE \"table'with'quotes\" (id INTEGER PRIMARY KEY)")
+            conn.commit()
+
+        result = cli_runner.invoke(app, ["db", "wipe", "--force"])
+
+        assert result.exit_code == 0
+        assert "Database wiped successfully" in result.stdout
+        assert "Dropped table: normal_table" in result.stdout
+
+        # These tables should be skipped due to invalid names
+        assert (
+            "Skipped invalid table name: table; DROP TABLE users; --" in result.stdout
+        )
+        assert "Skipped invalid table name: table`with`backticks" in result.stdout
+        assert "Skipped invalid table name: table'with'quotes" in result.stdout
+
+        # Verify only the normal table was dropped
+        with sqlite3.connect(temp_db_path) as conn:
+            cursor = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' "
+                "AND name NOT LIKE 'sqlite_%'"
+            )
+            remaining_tables = [row[0] for row in cursor.fetchall()]
+            # The tables with special characters should still exist
+            assert len(remaining_tables) == 3
+            assert "normal_table" not in remaining_tables

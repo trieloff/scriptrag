@@ -31,9 +31,9 @@ async def search_scenes(
     try:
         # Validate required parameters
         if not search_request.query:
-            raise HTTPException(status_code=400, detail="Query is required")
+            raise HTTPException(status_code=422, detail="Query is required")
         if not search_request.script_id:
-            raise HTTPException(status_code=400, detail="Script ID is required")
+            raise HTTPException(status_code=422, detail="Script ID is required")
 
         result = await db_ops.search_scenes(
             query=search_request.query,
@@ -54,6 +54,9 @@ async def search_scenes(
             offset=result["offset"],
         )
 
+    except HTTPException:
+        # Re-raise HTTPException without wrapping
+        raise
     except Exception as e:
         logger.error("Failed to search scenes", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to search scenes") from e
@@ -68,9 +71,9 @@ async def semantic_search(
     try:
         # Validate required parameters
         if not search_request.query:
-            raise HTTPException(status_code=400, detail="Query is required")
+            raise HTTPException(status_code=422, detail="Query is required")
         if not search_request.script_id:
-            raise HTTPException(status_code=400, detail="Script ID is required")
+            raise HTTPException(status_code=422, detail="Script ID is required")
 
         result = await db_ops.semantic_search(
             query=search_request.query,
@@ -113,7 +116,7 @@ async def search_by_character(
     try:
         # Validate required parameters
         if not script_id:
-            raise HTTPException(status_code=400, detail="Script ID is required")
+            raise HTTPException(status_code=422, detail="Script ID is required")
 
         result = await db_ops.search_scenes(
             query="",  # Empty query for character-only search

@@ -268,14 +268,74 @@ class ScriptRAG:
     async def list_scripts(self) -> list[Any]:  # Will return ScriptModel via API layer
         """List all scripts."""
         self.logger.debug("Listing all scripts")
-        raise NotImplementedError("list_scripts not yet implemented")
+
+        # Import here to avoid circular dependencies
+        from .api.models import ScriptModel
+        from .database import get_connection
+
+        scripts = []
+        with get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT id, title, author, created_at, updated_at
+                FROM scripts
+                ORDER BY updated_at DESC
+            """)
+
+            for row in cursor.fetchall():
+                # Create a basic ScriptModel with minimal data
+                script = ScriptModel(
+                    id=row["id"],
+                    title=row["title"],
+                    author=row["author"],
+                    created_at=row["created_at"],
+                    updated_at=row["updated_at"],
+                    scenes=[],  # We'll leave scenes empty for list view
+                    characters=set(),  # We'll leave characters empty for list view
+                )
+                scripts.append(script)
+
+        self.logger.debug("Found scripts", count=len(scripts))
+        return scripts
 
     async def get_script(
         self, script_id: str
     ) -> Any | None:  # Will return ScriptModel via API layer
         """Get a script by ID."""
         self.logger.debug("Getting script", script_id=script_id)
-        raise NotImplementedError("get_script not yet implemented")
+
+        # Import here to avoid circular dependencies
+        from .api.models import ScriptModel
+        from .database import get_connection
+
+        with get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT id, title, author, created_at, updated_at
+                FROM scripts
+                WHERE id = ?
+            """,
+                (script_id,),
+            )
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            # Create a basic ScriptModel
+            script = ScriptModel(
+                id=row["id"],
+                title=row["title"],
+                author=row["author"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+                scenes=[],  # We'll leave scenes empty for now
+                characters=set(),  # We'll leave characters empty for now
+            )
+
+            # TODO: Load scenes and characters if needed
+
+            self.logger.debug("Found script", script_id=script_id, title=script.title)
+            return script
 
     async def create_script(
         self,
@@ -338,8 +398,48 @@ class ScriptRAG:
         self.logger.info(
             "Storing script", title=getattr(script_model, "title", "unknown")
         )
-        # TODO: Store the script and return the ID
-        raise NotImplementedError("store_script not yet implemented")
+
+        # Import here to avoid circular dependencies
+        from uuid import uuid4
+
+        from .database import get_connection
+
+        # Generate a new ID if not provided
+        script_id = getattr(script_model, "id", None) or str(uuid4())
+
+        with get_connection() as conn:
+            # Store the script
+            conn.execute(
+                """
+                INSERT INTO scripts (id, title, author, created_at, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+                (
+                    script_id,
+                    script_model.title,
+                    getattr(script_model, "author", None),
+                ),
+            )
+
+            # Store scenes if provided
+            scenes = getattr(script_model, "scenes", [])
+            for scene in scenes:
+                scene_id = getattr(scene, "id", None) or str(uuid4())
+                conn.execute(
+                    """
+                    INSERT INTO scenes (id, script_id, heading, script_order)
+                    VALUES (?, ?, ?, ?)
+                """,
+                    (
+                        scene_id,
+                        script_id,
+                        getattr(scene, "heading", ""),
+                        getattr(scene, "scene_number", 0),
+                    ),
+                )
+
+        self.logger.info("Script stored successfully", script_id=script_id)
+        return script_id
 
     async def analyze_scene_dependencies(self, script_id: str) -> list[Any]:
         """Analyze scene dependencies."""

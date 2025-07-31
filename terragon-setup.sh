@@ -70,6 +70,28 @@ log_command() {
     return $exit_code
 }
 
+# Function to create symlink with or without sudo
+create_symlink() {
+    local source="$1"
+    local target="$2"
+
+    # Try without sudo first
+    if ln -sf "$source" "$target" 2>/dev/null; then
+        log_success "Created symlink: $target -> $source"
+        return 0
+    else
+        # Fall back to sudo
+        log_info "Need elevated permissions, trying with sudo..."
+        if sudo ln -sf "$source" "$target" 2>&1 | tee -a "$LOG_FILE"; then
+            log_success "Created symlink with sudo: $target -> $source"
+            return 0
+        else
+            log_warning "Failed to create symlink: $target -> $source"
+            return 1
+        fi
+    fi
+}
+
 # Track execution time
 SCRIPT_START=$(date +%s)
 
@@ -356,9 +378,7 @@ if [ ! -f "$HOME/.local/bin/git" ] || ! grep -q "Git wrapper - Automatically det
     # Create symlink to make ai-aligned-git available system-wide
     if [ -f "$HOME/.local/bin/git" ]; then
         log_info "Creating symlink for ai-aligned-git..."
-        sudo ln -sf "$HOME/.local/bin/git" /usr/local/bin/git || {
-            log_warning "Failed to create symlink for ai-aligned-git"
-        }
+        create_symlink "$HOME/.local/bin/git" "/usr/local/bin/git"
         # Verify the symlink worked
         if [ -L "/usr/local/bin/git" ]; then
             log_success "ai-aligned-git symlink created at /usr/local/bin/git"
@@ -370,9 +390,7 @@ else
     # Check if symlink exists, create if not
     if [ ! -L "/usr/local/bin/git" ] && [ -f "$HOME/.local/bin/git" ]; then
         log_info "Creating symlink for existing ai-aligned-git installation..."
-        sudo ln -sf "$HOME/.local/bin/git" /usr/local/bin/git || {
-            log_warning "Failed to create symlink for ai-aligned-git"
-        }
+        create_symlink "$HOME/.local/bin/git" "/usr/local/bin/git"
         if [ -L "/usr/local/bin/git" ]; then
             log_success "ai-aligned-git symlink created at /usr/local/bin/git"
         fi
@@ -417,13 +435,11 @@ if ! command -v uv &> /dev/null; then
 
             # Create symlink to make uv available system-wide
             log_info "Creating symlink to make uv available in PATH..."
-            log_info "Running: sudo ln -sf $HOME/.local/bin/uv /usr/local/bin/uv"
-            sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv 2>&1 | tee -a "$LOG_FILE" || {
-                exit_code=$?
-                log_warning "Failed to create symlink, exit code: $exit_code"
+            log_info "Attempting to create symlink: /usr/local/bin/uv -> $HOME/.local/bin/uv"
+            if ! create_symlink "$HOME/.local/bin/uv" "/usr/local/bin/uv"; then
                 log_warning "Will use explicit path: $HOME/.local/bin/uv"
                 UV_CMD="$HOME/.local/bin/uv"
-            }
+            fi
 
             # Check if symlink worked
             if command -v uv &> /dev/null; then
@@ -452,11 +468,8 @@ else
     if [ -x "$HOME/.local/bin/uv" ] && [ ! -L "/usr/local/bin/uv" ]; then
         log_info "Found uv at $HOME/.local/bin/uv but no system-wide symlink exists"
         log_info "Creating symlink for existing uv installation..."
-        log_info "Running: sudo ln -sf $HOME/.local/bin/uv /usr/local/bin/uv"
-        sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv 2>&1 | tee -a "$LOG_FILE" || {
-            exit_code=$?
-            log_warning "Failed to create symlink for uv, exit code: $exit_code"
-        }
+        log_info "Attempting to create symlink: /usr/local/bin/uv -> $HOME/.local/bin/uv"
+        create_symlink "$HOME/.local/bin/uv" "/usr/local/bin/uv"
         if [ -L "/usr/local/bin/uv" ]; then
             log_success "uv symlink created at /usr/local/bin/uv"
             log_info "Symlink details: $(ls -la /usr/local/bin/uv)"

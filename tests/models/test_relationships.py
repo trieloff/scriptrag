@@ -1,6 +1,6 @@
 """Tests for relationship models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
@@ -71,9 +71,9 @@ class TestRelationship:
         assert rel.created_at == custom_time
 
         # Test default timestamp
-        before = datetime.utcnow()
+        before = datetime.now(UTC).replace(tzinfo=None)
         rel2 = Relationship(from_id=uuid4(), to_id=uuid4(), relationship_type="TEST")
-        after = datetime.utcnow()
+        after = datetime.now(UTC).replace(tzinfo=None)
 
         assert before <= rel2.created_at <= after
 

@@ -16,7 +16,22 @@ from scriptrag.config import get_logger
 
 
 def scene_to_response(scene: Any) -> SceneResponse:
-    """Convert a SceneModel to SceneResponse."""
+    """Convert a SceneModel or dict to SceneResponse."""
+    if isinstance(scene, dict):
+        # Handle dict responses from database operations
+        return SceneResponse(
+            id=str(scene.get("id", "")),
+            script_id=str(scene.get("script_id", "")),
+            scene_number=scene.get("scene_number", 0),
+            heading=scene.get("heading", ""),
+            content=scene.get("content", ""),
+            character_count=scene.get("character_count", 0),
+            word_count=scene.get("word_count", 0),
+            page_start=scene.get("page_start"),
+            page_end=scene.get("page_end"),
+            has_embedding=scene.get("has_embedding", False),
+        )
+    # Handle SceneModel objects
     return SceneResponse(
         id=str(scene.id) if scene.id else "",
         script_id=str(scene.script_id) if scene.script_id else "",

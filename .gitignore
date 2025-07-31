@@ -188,3 +188,4 @@ config/local.yaml
 *id='*'*
 MagicMock/
 *MagicMock*
+**/MagicMock/

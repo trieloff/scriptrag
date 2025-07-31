@@ -343,27 +343,6 @@ class ScriptRAGMCPServer:
                     "required": ["script_id"],
                 },
             },
-            {
-                "name": "export_data",
-                "description": "Export script data in various formats",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "script_id": {"type": "string", "description": "Script ID"},
-                        "format": {
-                            "type": "string",
-                            "enum": ["json", "csv", "graphml", "fountain"],
-                            "description": "Export format",
-                        },
-                        "include_metadata": {
-                            "type": "boolean",
-                            "description": "Include metadata in export",
-                            "default": True,
-                        },
-                    },
-                    "required": ["script_id", "format"],
-                },
-            },
             # Script Bible and Continuity Management Tools
             {
                 "name": "create_series_bible",
@@ -758,7 +737,6 @@ class ScriptRAGMCPServer:
                 "inject_scene": self._tool_inject_scene,
                 "get_scene_details": self._tool_get_scene_details,
                 "get_character_relationships": self._tool_get_character_relationships,
-                "export_data": self._tool_export_data,
                 # Script Bible tools
                 "create_series_bible": self._tool_create_series_bible,
                 "create_character_profile": self._tool_create_character_profile,
@@ -2215,25 +2193,6 @@ class ScriptRAGMCPServer:
                 "total_characters": len(all_character_nodes),
                 "total_relationships": len(relationships),
             }
-
-    async def _tool_export_data(self, args: dict[str, Any]) -> dict[str, Any]:
-        """Export script data."""
-        script_id = args.get("script_id")
-        export_format = args.get("format")
-
-        if not script_id or not export_format:
-            raise ValueError("script_id and format are required")
-
-        include_metadata = args.get("include_metadata", True)
-
-        # TODO: Implement actual export functionality
-        return {
-            "script_id": script_id,
-            "format": export_format,
-            "exported": True,
-            "file_path": f"exports/{script_id}.{export_format}",
-            "include_metadata": include_metadata,
-        }
 
     # Script Bible Tool Implementations
 

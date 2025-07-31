@@ -70,8 +70,7 @@ class TestGetSceneDetailsTool:
                 ),
             )
 
-            # Update scene to use numeric ID (1) as expected by test
-            sample_scene.id = 1
+            # Update scene to use the script_id
             sample_scene.script_id = sample_script.id
 
             # Store the scene
@@ -82,7 +81,7 @@ class TestGetSceneDetailsTool:
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                 (
-                    sample_scene.id,
+                    str(sample_scene.id),
                     str(sample_scene.script_id),
                     sample_scene.heading,
                     sample_scene.description,
@@ -97,11 +96,11 @@ class TestGetSceneDetailsTool:
 
         # Now the scene exists and can be retrieved
         result = await mcp_server_with_db._tool_get_scene_details(
-            {"script_id": "script_0", "scene_id": sample_scene.id}
+            {"script_id": "script_0", "scene_id": str(sample_scene.id)}
         )
 
         assert result["script_id"] == "script_0"
-        assert result["scene_id"] == sample_scene.id
+        assert result["scene_id"] == str(sample_scene.id)
         assert "heading" in result
         assert "action" in result
         assert "dialogue" in result
@@ -433,7 +432,8 @@ class TestAddCharacterKnowledgeTool:
 
         # Add script to cache for testing
         script = Script(title="Test", source_file="test.fountain")
-        mcp_server_with_db._scripts_cache["script_0"] = script
+        script_id = str(script.id)
+        mcp_server_with_db._scripts_cache[script_id] = script
 
         with DatabaseConnection(
             str(mcp_server_with_db.config.get_database_path())
@@ -442,9 +442,9 @@ class TestAddCharacterKnowledgeTool:
             conn.execute(
                 """
                 INSERT INTO scripts (id, title, format, created_at, updated_at)
-                VALUES ('script_0', ?, 'screenplay', datetime('now'), datetime('now'))
+                VALUES (?, ?, 'screenplay', datetime('now'), datetime('now'))
                 """,
-                (script.title,),
+                (script_id, script.title),
             )
 
             # Setup test data
@@ -453,9 +453,9 @@ class TestAddCharacterKnowledgeTool:
                 INSERT INTO characters (
                     id, name, description, script_id, created_at, updated_at
                 )
-                VALUES (?, 'JOHN', '', 'script_0', datetime('now'), datetime('now'))
+                VALUES (?, 'JOHN', '', ?, datetime('now'), datetime('now'))
             """,
-                (str(uuid4()),),
+                (str(uuid4()), script_id),
             )
 
             conn.execute(
@@ -463,9 +463,9 @@ class TestAddCharacterKnowledgeTool:
                 INSERT INTO episodes (
                     id, script_id, title, number, created_at, updated_at
                 )
-                VALUES (?, 'script_0', 'Pilot', 1, datetime('now'), datetime('now'))
+                VALUES (?, ?, 'Pilot', 1, datetime('now'), datetime('now'))
             """,
-                (str(uuid4()),),
+                (str(uuid4()), script_id),
             )
 
             with patch("scriptrag.database.bible.ScriptBibleOperations") as mock_bible:
@@ -475,7 +475,7 @@ class TestAddCharacterKnowledgeTool:
 
                 result = await mcp_server_with_db._tool_add_character_knowledge(
                     {
-                        "script_id": "script_0",
+                        "script_id": script_id,
                         "character_name": "JOHN",
                         "knowledge_type": "secret",
                         "knowledge_subject": "Identity",
@@ -626,7 +626,7 @@ class TestToolParameterValidation:
         from scriptrag.models import Scene
 
         script = Script(title="Test", source_file="test.fountain")
-        script_id = f"script_{script.id.hex[:8]}"
+        script_id = str(script.id)
         mcp_server_with_db._scripts_cache[script_id] = script
 
         # Create a scene first

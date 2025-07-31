@@ -383,9 +383,13 @@ Already? Give me two minutes.
         # Use the actual db_connection fixture
         graph_ops.connection = db_connection
 
-        # Mock connection.execute directly (not via transaction)
+        # Create a mock that we'll assign to the connection
+        mock_conn = Mock()
         mock_execute = Mock()
-        graph_ops.connection.execute = mock_execute
+        mock_conn.execute = mock_execute
+
+        # Replace the connection with our mock
+        graph_ops.connection = mock_conn
 
         # Test dependency removal
         graph_ops._remove_scene_dependencies(scene_id)

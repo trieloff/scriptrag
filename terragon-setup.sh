@@ -37,6 +37,7 @@ declare -A COMPLETED_STEPS=(
     ["python_check"]=0
     ["jq_install"]=0
     ["gh_workflow_peek"]=0
+    ["ai_aligned_git"]=0
     ["uv_install"]=0
     ["directories"]=0
     ["venv_create"]=0
@@ -53,6 +54,7 @@ declare -A STEP_DESCRIPTIONS=(
     ["python_check"]="Check Python version (3.11+)"
     ["jq_install"]="Install jq for git operations"
     ["gh_workflow_peek"]="Install gh-workflow-peek for CI analysis"
+    ["ai_aligned_git"]="Install ai-aligned-git for AI-safe git operations"
     ["uv_install"]="Install uv package manager"
     ["directories"]="Create required directories"
     ["venv_create"]="Create Python virtual environment"
@@ -83,7 +85,7 @@ show_remaining_steps() {
     log_info ""
     log_warning "⏳ Remaining steps to complete manually:"
     local has_remaining=0
-    for step in python_check jq_install gh_workflow_peek uv_install directories venv_create venv_activate pip_upgrade dependencies env_file pre_commit db_init; do
+    for step in python_check jq_install gh_workflow_peek ai_aligned_git uv_install directories venv_create venv_activate pip_upgrade dependencies env_file pre_commit db_init; do
         if [ "${COMPLETED_STEPS[$step]}" -eq 0 ]; then
             echo "   - ${STEP_DESCRIPTIONS[$step]}"
             has_remaining=1
@@ -212,6 +214,27 @@ else
 fi
 
 mark_completed "gh_workflow_peek"
+check_timeout
+
+# Install ai-aligned-git (git wrapper for AI safety)
+log_info "Checking for ai-aligned-git..."
+if [ ! -f "$HOME/.local/bin/git" ] || ! grep -q "AI-Aligned-Git" "$HOME/.local/bin/git" 2>/dev/null; then
+    log_info "Installing ai-aligned-git for AI-safe git operations..."
+    # Download and run the install script
+    curl -fsSL https://raw.githubusercontent.com/trieloff/ai-aligned-git/main/install.sh -o /tmp/install-ai-aligned-git.sh && \
+    chmod +x /tmp/install-ai-aligned-git.sh && \
+    bash /tmp/install-ai-aligned-git.sh -y || {
+        log_warning "Failed to install ai-aligned-git, continuing..."
+    }
+    rm -f /tmp/install-ai-aligned-git.sh
+
+    # Ensure ~/.local/bin is in PATH for this session
+    export PATH="$HOME/.local/bin:$PATH"
+else
+    log_info "ai-aligned-git is already installed"
+fi
+
+mark_completed "ai_aligned_git"
 check_timeout
 
 # Install uv if not present (it should be pre-installed in Terragon)

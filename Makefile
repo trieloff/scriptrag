@@ -267,6 +267,17 @@ clean: ## Clean build artifacts and caches
 	rm -rf .eggs/
 	rm -rf .pytest_cache/
 
+.PHONY: clean-python
+clean-python: ## Clean Python cache files (.pyc, __pycache__)
+	@echo "🧹 Cleaning Python cache files..."
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+	find . -type f -name "*.pyo" -delete
+	find . -type f -name "*.pyd" -delete
+	find . -type f -name ".coverage.*" -delete
+	find . -type d -name "*.egg" -exec rm -rf {} + 2>/dev/null || true
+	@echo "✅ Python cache cleaned"
+
 .PHONY: clean-mock-files
 clean-mock-files: ## Clean up mock files created by tests
 	@echo "🧹 Cleaning up mock files..."
@@ -274,7 +285,7 @@ clean-mock-files: ## Clean up mock files created by tests
 	@echo "✅ Mock files cleaned"
 
 .PHONY: clean-all
-clean-all: clean clean-mock-files ## Clean all artifacts including caches and venv
+clean-all: clean clean-python clean-mock-files ## Clean all artifacts including caches and venv
 	rm -rf .mypy_cache/
 	rm -rf .ruff_cache/
 	rm -rf htmlcov/
@@ -283,9 +294,8 @@ clean-all: clean clean-mock-files ## Clean all artifacts including caches and ve
 	rm -rf site/
 	rm -rf .bandit-report.json
 	rm -rf .safety-report.json
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete
-	find . -type f -name "*.pyo" -delete
+	rm -rf junit.xml
+	rm -rf prof/
 	find . -type f -name "*~" -delete
 	find . -type f -name ".DS_Store" -delete
 	rm -rf .venv/

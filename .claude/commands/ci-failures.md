@@ -65,67 +65,33 @@ echo "📋 Failed jobs and steps:"
 gh run view "$FAILED_RUN" --repo="$REPO" --json jobs --jq '.jobs[] | select(.conclusion == "failure") | "Job: \(.name)\n  Failed steps: \([.steps[] | select(.conclusion == "failure") | "- \(.name) (step \(.number))"] | join("\n  "))"' || echo "Unable to retrieve job details"
 
 echo ""
-echo "🔍 Fetching error logs..."
+echo "🔍 Analyzing CI failures with gh workflow-peek..."
 echo ""
 
-# Create a temporary file for logs
-TMPFILE=$(mktemp)
+# Use gh workflow-peek for intelligent error extraction
+gh workflow-peek "$FAILED_RUN" --repo="$REPO" --max 300 || {
+    echo "Unable to analyze with workflow-peek. Falling back to manual analysis..."
 
-# Download the full log
-gh run view "$FAILED_RUN" --repo="$REPO" --log > "$TMPFILE" 2>/dev/null || {
-    echo "Unable to download full logs. Trying alternative method..."
+    # Fallback: Create a temporary file for logs
+    TMPFILE=$(mktemp)
+
+    # Download the full log
     gh run view "$FAILED_RUN" --repo="$REPO" --log-failed > "$TMPFILE" 2>/dev/null || {
         echo "Unable to retrieve logs"
         rm -f "$TMPFILE"
         exit 1
     }
+
+    # Extract error patterns
+    echo "📋 Error summary (fallback mode):"
+    echo ""
+
+    # Look for common error patterns
+    grep -i -E "error:|failed:|failure:|FAILED.*test_|AssertionError|pytest.*failed" "$TMPFILE" | head -100 || echo "No error patterns found"
+
+    # Clean up
+    rm -f "$TMPFILE"
 }
-
-# Extract error patterns
-echo "📋 Error summary:"
-echo ""
-
-# Look for Python test failures
-if grep -q "FAILED.*test_" "$TMPFILE" 2>/dev/null; then
-    echo "🐍 Python test failures:"
-    # Get both start and end of matches for comprehensive view
-    { grep -E "FAILED.*test_|AssertionError|pytest.*failed" "$TMPFILE" | head -25;
-      echo "...";
-      grep -E "FAILED.*test_|AssertionError|pytest.*failed" "$TMPFILE" | tail -25; } | sort | uniq
-    echo ""
-    echo "💡 Note: Showing first and last 25 matches. Adjust limits if failures are missing."
-fi
-
-# Look for type checking errors
-if grep -q "error: " "$TMPFILE" 2>/dev/null; then
-    echo "📝 Type checking errors:"
-    # Get both start and end for complete picture
-    { grep -A 2 -B 2 "error: " "$TMPFILE" | head -50;
-      echo "...";
-      grep -A 2 -B 2 "error: " "$TMPFILE" | tail -50; } | sort | uniq
-    echo ""
-    echo "💡 Note: Showing first and last 50 lines. Increase if needed for full coverage."
-fi
-
-# Look for linting errors
-if grep -q -E "ruff|flake8|pylint" "$TMPFILE" 2>/dev/null; then
-    echo "🔍 Linting errors:"
-    { grep -A 2 -B 2 -E "ruff|flake8|pylint.*:" "$TMPFILE" | head -50;
-      echo "...";
-      grep -A 2 -B 2 -E "ruff|flake8|pylint.*:" "$TMPFILE" | tail -50; } | sort | uniq
-    echo ""
-fi
-
-# Look for general errors
-echo "❌ General errors:"
-{ grep -i -E "error:|failed:|failure:" "$TMPFILE" | grep -v "::error" | head -30;
-  echo "...";
-  grep -i -E "error:|failed:|failure:" "$TMPFILE" | grep -v "::error" | tail -30; } | sort | uniq || echo "No specific error patterns found"
-echo ""
-echo "💡 Tip: Critical errors often appear at the start or end of logs. Adjust extraction limits if issues are missing."
-
-# Clean up
-rm -f "$TMPFILE"
 ```
 
 ### Step 3: Provide actionable summary

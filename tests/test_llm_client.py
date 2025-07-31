@@ -86,13 +86,45 @@ class TestLLMClient:
             LLMClient()
 
     async def test_init_missing_api_key(self, mock_settings):
-        """Test client initialization fails with missing API key."""
+        """Test client init fails with missing API key for non-local endpoints."""
         mock_settings.llm_api_key = None
+        mock_settings.llm_endpoint = "http://api.example.com/v1"  # Non-local endpoint
         with (
             patch("scriptrag.llm.client.get_settings", return_value=mock_settings),
             pytest.raises(LLMClientError, match="LLM API key not configured"),
         ):
             LLMClient()
+
+    async def test_init_localhost_no_api_key(self, mock_settings):
+        """Test client initialization succeeds for localhost without API key."""
+        mock_settings.llm_api_key = None
+        # Test various localhost formats
+        localhost_urls = [
+            "http://localhost:8080/v1",
+            "http://127.0.0.1:8080/v1",
+            "http://0.0.0.0:8080/v1",
+        ]
+
+        for url in localhost_urls:
+            mock_settings.llm_endpoint = url
+            with (
+                patch("scriptrag.llm.client.get_settings", return_value=mock_settings),
+                patch("scriptrag.llm.client.AsyncOpenAI") as mock_openai,
+            ):
+                client = LLMClient()
+
+                # Should create client with dummy key
+                assert client.endpoint == url
+                assert (
+                    client.api_key == "dummy-key-for-local"  # pragma: allowlist secret
+                )
+
+                # Verify AsyncOpenAI was called with dummy key
+                mock_openai.assert_called_with(
+                    api_key="dummy-key-for-local",  # pragma: allowlist secret
+                    base_url=url,
+                    timeout=httpx.Timeout(60.0),
+                )
 
     async def test_get_available_models(self, mock_settings, mock_openai_client):
         """Test retrieving available models."""

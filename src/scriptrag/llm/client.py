@@ -50,8 +50,20 @@ class LLMClient:
 
         if not self.endpoint:
             raise LLMClientError("LLM endpoint not configured")
-        if not self.api_key:
+
+        # Check if endpoint is localhost/local URL
+        is_local = any(
+            self.endpoint.startswith(prefix)
+            for prefix in ["http://localhost", "http://127.0.0.1", "http://0.0.0.0"]
+        )
+
+        # Only require API key for non-local endpoints
+        if not is_local and not self.api_key:
             raise LLMClientError("LLM API key not configured")
+
+        # Use dummy key for local endpoints if none provided
+        if is_local and not self.api_key:
+            self.api_key = "dummy-key-for-local"  # pragma: allowlist secret
 
         # Extract base URL from endpoint (remove /chat/completions if present)
         base_url = self.endpoint.replace("/chat/completions", "").rstrip("/")

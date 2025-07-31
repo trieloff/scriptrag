@@ -5,32 +5,102 @@
 
 set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
-# Color codes for output
+# Setup log file
+LOG_DIR="/tmp"
+LOG_FILE="$LOG_DIR/terragon-setup-$(date +%Y%m%d-%H%M%S).log"
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting Terragon setup script" > "$LOG_FILE"
+
+# Color codes for output (console only)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Logging functions
+# Logging functions - output to both console and file
+log_message() {
+    local level="$1"
+    local message="$2"
+    local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+
+    # Write to log file with timestamp and level
+    echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
+
+    # Also output to console with colors
+    case "$level" in
+        INFO)
+            echo -e "${BLUE}[INFO]${NC} $message"
+            ;;
+        SUCCESS)
+            echo -e "${GREEN}[SUCCESS]${NC} $message"
+            ;;
+        WARNING)
+            echo -e "${YELLOW}[WARNING]${NC} $message"
+            ;;
+        ERROR)
+            echo -e "${RED}[ERROR]${NC} $message" >&2
+            ;;
+    esac
+}
+
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    log_message "INFO" "$1"
 }
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    log_message "SUCCESS" "$1"
 }
 
 log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    log_message "WARNING" "$1"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" >&2
+    log_message "ERROR" "$1"
+}
+
+# Log command output
+log_command() {
+    local cmd="$1"
+    local timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+    echo "[$timestamp] [COMMAND] Running: $cmd" >> "$LOG_FILE"
+    eval "$cmd" 2>&1 | tee -a "$LOG_FILE"
+    local exit_code=${PIPESTATUS[0]}
+    echo "[$timestamp] [COMMAND] Exit code: $exit_code" >> "$LOG_FILE"
+    return $exit_code
+}
+
+# Function to create symlink with or without sudo
+create_symlink() {
+    local source="$1"
+    local target="$2"
+
+    # Try without sudo first
+    if ln -sf "$source" "$target" 2>/dev/null; then
+        log_success "Created symlink: $target -> $source"
+        return 0
+    else
+        # Fall back to sudo
+        log_info "Need elevated permissions, trying with sudo..."
+        if sudo ln -sf "$source" "$target" 2>&1 | tee -a "$LOG_FILE"; then
+            log_success "Created symlink with sudo: $target -> $source"
+            return 0
+        else
+            log_warning "Failed to create symlink: $target -> $source"
+            return 1
+        fi
+    fi
 }
 
 # Track execution time
 SCRIPT_START=$(date +%s)
+
+# Log script environment
+log_info "Log file: $LOG_FILE"
+log_info "Current user: $(whoami)"
+log_info "Current directory: $(pwd)"
+log_info "PATH: $PATH"
+log_info "Script parameters: $*"
 
 # Track completed steps
 declare -A COMPLETED_STEPS=(
@@ -200,35 +270,91 @@ check_timeout
 # Install gh-workflow-peek GitHub CLI extension
 log_info "Checking for gh-workflow-peek extension..."
 if command -v gh &> /dev/null; then
+    log_info "GitHub CLI found at: $(which gh)"
+
     # First ensure column utility is installed (required by gh-workflow-peek)
     if ! command -v column &> /dev/null; then
         log_info "Installing column utility (required by gh-workflow-peek)..."
         if command -v apt-get &> /dev/null; then
-            sudo apt-get install -y bsdmainutils || sudo apt-get install -y util-linux || {
+            log_info "Using apt-get to install column utility..."
+            sudo apt-get install -y bsdmainutils 2>&1 | tee -a "$LOG_FILE" || sudo apt-get install -y util-linux 2>&1 | tee -a "$LOG_FILE" || {
                 log_warning "Failed to install column utility via apt-get"
             }
         elif command -v yum &> /dev/null; then
-            sudo yum install -y util-linux || {
+            log_info "Using yum to install column utility..."
+            sudo yum install -y util-linux 2>&1 | tee -a "$LOG_FILE" || {
                 log_warning "Failed to install column utility via yum"
             }
         elif command -v brew &> /dev/null; then
-            brew install util-linux || {
+            log_info "Using brew to install column utility..."
+            brew install util-linux 2>&1 | tee -a "$LOG_FILE" || {
                 log_warning "Failed to install column utility via brew"
             }
         fi
+
+        # Check if column is now available
+        if command -v column &> /dev/null; then
+            log_success "Column utility installed successfully at: $(which column)"
+        else
+            log_warning "Column utility still not found after installation attempt"
+        fi
+    else
+        log_info "Column utility already available at: $(which column)"
     fi
 
+    # Install gh-workflow-peek manually to avoid authentication requirement
+    log_info "Installing gh-workflow-peek extension manually..."
+
+    # GitHub CLI extensions are stored in ~/.local/share/gh/extensions/
+    GH_EXT_DIR="$HOME/.local/share/gh/extensions"
+    GH_WORKFLOW_PEEK_DIR="$GH_EXT_DIR/gh-workflow-peek"
+
+    # Create extensions directory if it doesn't exist
+    log_info "Creating GitHub CLI extensions directory: $GH_EXT_DIR"
+    mkdir -p "$GH_EXT_DIR"
+
     # Check if gh-workflow-peek is already installed
-    if ! gh extension list | grep -q "trieloff/gh-workflow-peek"; then
-        log_info "Installing gh-workflow-peek for CI/CD analysis..."
-        gh extension install trieloff/gh-workflow-peek || {
-            log_warning "Failed to install gh-workflow-peek, continuing..."
+    if [ -d "$GH_WORKFLOW_PEEK_DIR" ]; then
+        log_info "gh-workflow-peek directory already exists at $GH_WORKFLOW_PEEK_DIR"
+
+        # Check if it's a valid git repository
+        if [ -d "$GH_WORKFLOW_PEEK_DIR/.git" ]; then
+            log_info "Updating existing gh-workflow-peek installation..."
+            cd "$GH_WORKFLOW_PEEK_DIR"
+            git pull 2>&1 | tee -a "$LOG_FILE" || {
+                log_warning "Failed to update gh-workflow-peek, using existing version"
+            }
+            cd - >/dev/null
+        else
+            log_warning "gh-workflow-peek directory exists but is not a git repository"
+            log_info "Removing and re-installing..."
+            rm -rf "$GH_WORKFLOW_PEEK_DIR"
+        fi
+    fi
+
+    # Install if not present
+    if [ ! -d "$GH_WORKFLOW_PEEK_DIR" ]; then
+        log_info "Cloning gh-workflow-peek repository..."
+        log_info "Running: git clone https://github.com/trieloff/gh-workflow-peek.git $GH_WORKFLOW_PEEK_DIR"
+        git clone https://github.com/trieloff/gh-workflow-peek.git "$GH_WORKFLOW_PEEK_DIR" 2>&1 | tee -a "$LOG_FILE" || {
+            exit_code=$?
+            log_error "Failed to clone gh-workflow-peek, exit code: $exit_code"
+            log_warning "Continuing with setup despite gh-workflow-peek installation failure..."
         }
+    fi
+
+    # Verify installation
+    if [ -f "$GH_WORKFLOW_PEEK_DIR/gh-workflow-peek" ]; then
+        log_success "gh-workflow-peek installed successfully at $GH_WORKFLOW_PEEK_DIR"
+        log_info "Extension will be available after GitHub CLI authentication"
+        log_info "To authenticate: gh auth login"
     else
-        log_info "gh-workflow-peek is already installed"
+        log_error "gh-workflow-peek executable not found after installation"
     fi
 else
-    log_warning "GitHub CLI (gh) not found, skipping gh-workflow-peek installation"
+    log_warning "GitHub CLI (gh) not found at expected locations"
+    log_info "Searched PATH: $PATH"
+    log_warning "Skipping gh-workflow-peek installation"
 fi
 
 mark_completed "gh_workflow_peek"
@@ -252,9 +378,7 @@ if [ ! -f "$HOME/.local/bin/git" ] || ! grep -q "Git wrapper - Automatically det
     # Create symlink to make ai-aligned-git available system-wide
     if [ -f "$HOME/.local/bin/git" ]; then
         log_info "Creating symlink for ai-aligned-git..."
-        sudo ln -sf "$HOME/.local/bin/git" /usr/local/bin/git || {
-            log_warning "Failed to create symlink for ai-aligned-git"
-        }
+        create_symlink "$HOME/.local/bin/git" "/usr/local/bin/git"
         # Verify the symlink worked
         if [ -L "/usr/local/bin/git" ]; then
             log_success "ai-aligned-git symlink created at /usr/local/bin/git"
@@ -266,9 +390,7 @@ else
     # Check if symlink exists, create if not
     if [ ! -L "/usr/local/bin/git" ] && [ -f "$HOME/.local/bin/git" ]; then
         log_info "Creating symlink for existing ai-aligned-git installation..."
-        sudo ln -sf "$HOME/.local/bin/git" /usr/local/bin/git || {
-            log_warning "Failed to create symlink for ai-aligned-git"
-        }
+        create_symlink "$HOME/.local/bin/git" "/usr/local/bin/git"
         if [ -L "/usr/local/bin/git" ]; then
             log_success "ai-aligned-git symlink created at /usr/local/bin/git"
         fi
@@ -280,55 +402,69 @@ check_timeout
 
 # Install uv if not present (it should be pre-installed in Terragon)
 UV_CMD="uv"
+log_info "Checking for uv package manager..."
+log_info "Current PATH: $PATH"
+
 if ! command -v uv &> /dev/null; then
-    log_info "Installing uv package manager..."
-    curl -LsSf https://astral.sh/uv/install.sh | sh || {
-        log_error "Failed to install uv"
+    log_info "uv not found in PATH, attempting installation..."
+    log_info "Running: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    curl -LsSf https://astral.sh/uv/install.sh 2>&1 | tee -a "$LOG_FILE" | sh 2>&1 | tee -a "$LOG_FILE" || {
+        exit_code=$?
+        log_error "Failed to install uv, exit code: $exit_code"
         exit 1
     }
     export PATH="$HOME/.local/bin:$PATH"
+    log_info "Updated PATH: $PATH"
 
     # Source the uv environment script if it exists
     if [ -f "$HOME/.local/bin/env" ]; then
-        log_info "Sourcing uv environment script..."
+        log_info "Sourcing uv environment script at $HOME/.local/bin/env..."
         source "$HOME/.local/bin/env"
+    else
+        log_info "No uv environment script found at $HOME/.local/bin/env"
     fi
 
-    # Verify uv is now available
-    if ! command -v uv &> /dev/null; then
-        log_info "uv not found in PATH after installation, checking explicit location..."
-        if [ -x "$HOME/.local/bin/uv" ]; then
-            log_info "Found uv at $HOME/.local/bin/uv"
-            # Create symlink to make uv available system-wide
-            log_info "Creating symlink to make uv available in PATH..."
-            sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv || {
-                log_warning "Failed to create symlink, using explicit path"
-                UV_CMD="$HOME/.local/bin/uv"
-            }
-            # Check if symlink worked
-            if command -v uv &> /dev/null; then
-                log_success "uv is now available in PATH"
-            else
-                UV_CMD="$HOME/.local/bin/uv"
-            fi
-        else
-            log_error "Cannot find uv executable after installation"
-            exit 1
+    # Check if uv was installed to ~/.local/bin
+    if [ -x "$HOME/.local/bin/uv" ]; then
+        log_info "Found uv executable at $HOME/.local/bin/uv"
+        log_info "File details: $(ls -la $HOME/.local/bin/uv)"
+
+        # Always try to create symlink for system-wide availability
+        if [ ! -L "/usr/local/bin/uv" ]; then
+            log_info "Creating symlink to make uv available system-wide..."
+            log_info "Attempting to create symlink: /usr/local/bin/uv -> $HOME/.local/bin/uv"
+            create_symlink "$HOME/.local/bin/uv" "/usr/local/bin/uv"
         fi
+
+        # Verify uv is available
+        if command -v uv &> /dev/null; then
+            log_success "uv is available at: $(which uv)"
+            log_info "uv version: $(uv --version 2>&1)"
+        else
+            log_warning "uv not in PATH, will use explicit path: $HOME/.local/bin/uv"
+            UV_CMD="$HOME/.local/bin/uv"
+            log_info "Testing uv at explicit path: $($UV_CMD --version 2>&1)"
+        fi
+    else
+        log_error "Cannot find uv executable at $HOME/.local/bin/uv after installation"
+        log_info "Contents of $HOME/.local/bin:"
+        ls -la "$HOME/.local/bin/" 2>&1 | tee -a "$LOG_FILE" || log_warning "Cannot list $HOME/.local/bin"
+        exit 1
     fi
 else
-    log_info "uv is already available in PATH"
+    log_info "uv is already available at: $(which uv)"
+    log_info "uv version: $(uv --version 2>&1)"
+fi
 
-    # Check if uv is in user's local bin but not symlinked to system-wide location
-    if [ -x "$HOME/.local/bin/uv" ] && [ ! -L "/usr/local/bin/uv" ]; then
-        log_info "Creating symlink for existing uv installation..."
-        sudo ln -sf "$HOME/.local/bin/uv" /usr/local/bin/uv || {
-            log_warning "Failed to create symlink for uv"
-        }
-        if [ -L "/usr/local/bin/uv" ]; then
-            log_success "uv symlink created at /usr/local/bin/uv"
-        fi
-    fi
+# Always ensure symlink exists if uv is in ~/.local/bin
+if [ -x "$HOME/.local/bin/uv" ] && [ ! -L "/usr/local/bin/uv" ]; then
+    log_info "Found uv at $HOME/.local/bin/uv but no system-wide symlink exists"
+    log_info "Creating symlink for existing uv installation..."
+    log_info "Attempting to create symlink: /usr/local/bin/uv -> $HOME/.local/bin/uv"
+    create_symlink "$HOME/.local/bin/uv" "/usr/local/bin/uv"
+elif [ -L "/usr/local/bin/uv" ]; then
+    log_info "System-wide uv symlink already exists at /usr/local/bin/uv"
+    log_info "Symlink details: $(ls -la /usr/local/bin/uv)"
 fi
 
 mark_completed "uv_install"
@@ -470,7 +606,7 @@ log_info "Total setup time: ${TOTAL_TIME} seconds"
 # Show completion summary
 log_info ""
 log_info "📋 Setup Summary:"
-for step in python_check jq_install gh_workflow_peek uv_install directories venv_create venv_activate pip_upgrade dependencies env_file pre_commit db_init; do
+for step in python_check jq_install gh_workflow_peek ai_aligned_git uv_install directories venv_create venv_activate pip_upgrade dependencies env_file pre_commit db_init; do
     if [ "${COMPLETED_STEPS[$step]}" -eq 1 ]; then
         echo "   ✅ ${STEP_DESCRIPTIONS[$step]}"
     else
@@ -482,6 +618,13 @@ log_info ""
 log_info "Environment ready. You can now run:"
 log_info "  - 'python -m scriptrag' to run the CLI"
 log_info "  - 'python -m scriptrag.mcp_server' to run the MCP server"
+
+# Log final summary
+log_info ""
+log_info "=================================================="
+log_info "Setup log saved to: $LOG_FILE"
+log_info "To view the log: cat $LOG_FILE"
+log_info "=================================================="
 log_info "  - 'make test' to run tests"
 log_info "  - 'make help' to see all available commands"
 

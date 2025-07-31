@@ -10,7 +10,7 @@ import pytest
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.database.connection import DatabaseConnection
 from scriptrag.database.migrations import initialize_database
-from scriptrag.mcp_server import ScriptRAGMCPServer
+from scriptrag.mcp.server import ScriptRAGMCPServer
 from scriptrag.models import Script
 
 

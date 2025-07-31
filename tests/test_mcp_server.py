@@ -92,7 +92,7 @@ class TestScriptRAGMCPServer:
         """Test getting available tools when all are enabled."""
         tools = mcp_server.get_available_tools()
 
-        assert len(tools) == 23  # 11 original + 5 mentor tools + 7 bible tools
+        assert len(tools) == 22  # 11 original + 5 mentor tools + 6 bible tools
         tool_names = [t["name"] for t in tools]
         assert "parse_script" in tool_names
         assert "search_scenes" in tool_names
@@ -132,8 +132,8 @@ class TestScriptRAGMCPServer:
         assert isinstance(result, types.ServerResult)
         assert isinstance(result.root, types.ListToolsResult)
         assert (
-            len(result.root.tools) == 23
-        )  # 11 original + 5 mentor tools + 7 bible tools
+            len(result.root.tools) == 22
+        )  # 11 original + 5 mentor tools + 6 bible tools
         assert all(isinstance(tool, types.Tool) for tool in result.root.tools)
 
     @pytest.mark.asyncio
@@ -1157,32 +1157,6 @@ class TestInjectSceneTool:
         assert result["heading"] == "INT. COFFEE SHOP - MORNING"
         assert result["characters_added"] == 1
         assert result["dialogue_entries"] == 1
-
-
-class TestExportDataTool:
-    """Comprehensive tests for export_data tool."""
-
-    @pytest.mark.asyncio
-    async def test_export_data_missing_params(self, mcp_server):
-        """Test with missing required parameters."""
-        with pytest.raises(ValueError, match="script_id and format are required"):
-            await mcp_server._tool_export_data({"script_id": "test"})
-
-    @pytest.mark.asyncio
-    async def test_export_data_formats(self, mcp_server):
-        """Test different export formats."""
-        for format_type in ["json", "csv", "graphml", "fountain"]:
-            result = await mcp_server._tool_export_data(
-                {
-                    "script_id": "script_0",
-                    "format": format_type,
-                    "include_metadata": False,
-                }
-            )
-
-            assert result["exported"] is True
-            assert result["format"] == format_type
-            assert result["include_metadata"] is False
 
 
 class TestBibleTools:

@@ -81,6 +81,7 @@ multi-user features.
 - World map and location guides
 - Mentor result visualization and trends
 - Visual trend analysis
+- Script export functionality from MCP server (pointless in MCP context)
 
 **Use Instead**:
 

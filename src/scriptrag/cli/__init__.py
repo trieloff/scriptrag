@@ -5,9 +5,12 @@ manageable and improve code organization.
 """
 
 # Import supporting modules for backwards compatibility during CLI refactoring
+from pathlib import Path
+
 from scriptrag.config import get_logger, get_settings
 from scriptrag.database.bible import ScriptBibleOperations
 from scriptrag.database.connection import DatabaseConnection
+from scriptrag.database.continuity import ContinuityValidator
 
 from .main import app
 
@@ -38,7 +41,9 @@ def get_latest_script_id(connection: "DatabaseConnection") -> tuple[str, str] | 
 
 
 __all__ = [
+    "ContinuityValidator",
     "DatabaseConnection",
+    "Path",
     "ScriptBibleOperations",
     "app",
     "get_latest_script_id",

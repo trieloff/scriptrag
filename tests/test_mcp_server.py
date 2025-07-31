@@ -746,7 +746,7 @@ class TestSearchScenesTool:
             await mcp_server._tool_search_scenes({"script_id": "invalid_id"})
 
     @pytest.mark.asyncio
-    async def test_search_scenes_with_all_filters(self, mcp_server, _tmp_path):
+    async def test_search_scenes_with_all_filters(self, mcp_server):
         """Test searching scenes with all filter types."""
         # Setup database with test data
         from scriptrag.database.connection import DatabaseConnection
@@ -763,11 +763,6 @@ class TestSearchScenesTool:
 
             # Create script graph and get script node
             script_node_id = graph_ops.create_script_graph(script)
-            # Update the script entity_id to match our test ID
-            conn.execute(
-                "UPDATE nodes SET entity_id = ? WHERE id = ?",
-                (script_id, script_node_id),
-            )
 
             # Create scene with location and characters
             scene = Scene(
@@ -886,10 +881,6 @@ class TestGetCharacterInfoTool:
 
             # Create script and characters
             script_node_id = graph_ops.create_script_graph(script)
-            conn.execute(
-                "UPDATE nodes SET entity_id = ? WHERE id = ?",
-                (script_id, script_node_id),
-            )
             john = Character(id=uuid4(), name="JOHN", description="Main character")
             jane = Character(
                 id=uuid4(), name="JANE", description="Supporting character"
@@ -958,10 +949,6 @@ class TestAnalyzeTimelineTool:
         with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
             graph_ops = GraphOperations(conn)
             script_node_id = graph_ops.create_script_graph(script)
-            conn.execute(
-                "UPDATE nodes SET entity_id = ? WHERE id = ?",
-                (script_id, script_node_id),
-            )
 
             # Create scenes with non-linear temporal order
             scenes = [
@@ -1042,10 +1029,6 @@ class TestUpdateSceneTool:
         with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
             graph_ops = GraphOperations(conn)
             script_node_id = graph_ops.create_script_graph(script)
-            conn.execute(
-                "UPDATE nodes SET entity_id = ? WHERE id = ?",
-                (script_id, script_node_id),
-            )
 
             # Create scene
             scene = Scene(
@@ -1100,10 +1083,6 @@ class TestDeleteSceneTool:
         with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
             graph_ops = GraphOperations(conn)
             script_node_id = graph_ops.create_script_graph(script)
-            conn.execute(
-                "UPDATE nodes SET entity_id = ? WHERE id = ?",
-                (script_id, script_node_id),
-            )
 
             # Create multiple scenes
             scenes = []
@@ -1142,11 +1121,7 @@ class TestInjectSceneTool:
 
         with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
             graph_ops = GraphOperations(conn)
-            script_node_id = graph_ops.create_script_graph(script)
-            conn.execute(
-                "UPDATE nodes SET entity_id = ? WHERE id = ?",
-                (script_id, script_node_id),
-            )
+            graph_ops.create_script_graph(script)
 
         with pytest.raises(ValueError, match="Invalid position"):
             await mcp_server._tool_inject_scene(
@@ -1165,11 +1140,7 @@ class TestInjectSceneTool:
 
         with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
             graph_ops = GraphOperations(conn)
-            script_node_id = graph_ops.create_script_graph(script)
-            conn.execute(
-                "UPDATE nodes SET entity_id = ? WHERE id = ?",
-                (script_id, script_node_id),
-            )
+            graph_ops.create_script_graph(script)
 
         result = await mcp_server._tool_inject_scene(
             {

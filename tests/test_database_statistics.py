@@ -338,6 +338,9 @@ class TestDatabaseStatistics:
                 "cont.",  # Should count as NIGHT (lowercase)
                 "DAY",
                 "Cont.",  # Should count as DAY (mixed case)
+                "CONTINUED",  # Should count as DAY
+                "MORNING",
+                "continued",  # Should count as MORNING (lowercase)
             ]
             for i, time_of_day in enumerate(times_of_day):
                 scene_id = str(uuid4())
@@ -365,10 +368,15 @@ class TestDatabaseStatistics:
             assert "CONT." not in usage["common_times_of_day"]
             assert "cont." not in usage["common_times_of_day"]
             assert "Cont." not in usage["common_times_of_day"]
+            assert "CONTINUED" not in usage["common_times_of_day"]
+            assert "continued" not in usage["common_times_of_day"]
 
             # Verify counts
             assert usage["common_times_of_day"]["NIGHT"] == 4  # 1 NIGHT + 3 continuity
-            assert usage["common_times_of_day"]["DAY"] == 2  # 1 DAY + 1 continuity
+            assert usage["common_times_of_day"]["DAY"] == 3  # 1 DAY + 2 continuity
+            assert (
+                usage["common_times_of_day"]["MORNING"] == 2
+            )  # 1 MORNING + 1 continuity
 
     def test_all_statistics(self, tmp_path):
         """Test get_all_statistics aggregation."""

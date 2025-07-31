@@ -320,9 +320,10 @@ class DatabaseStatistics:
                     -- LAG with IGNORE NULLS would be ideal (not in SQLite)
                     -- So we use a different approach
                     CASE
-                        -- Mark CONTINUOUS and CONT. as NULL to be filled later
+                        -- Mark continuity markers as NULL to be filled later
                         WHEN UPPER(time_of_day) = 'CONTINUOUS' THEN NULL
                         WHEN UPPER(time_of_day) = 'CONT.' THEN NULL
+                        WHEN UPPER(time_of_day) = 'CONTINUED' THEN NULL
                         ELSE time_of_day
                     END as actual_time
                 FROM scenes
@@ -330,7 +331,7 @@ class DatabaseStatistics:
                 ORDER BY script_id, script_order
             ),
             propagated_times AS (
-                -- Propagate time values to CONTINUOUS scenes from their predecessors
+                -- Propagate time values to continuity scenes from their predecessors
                 SELECT
                     s1.script_id,
                     s1.script_order,

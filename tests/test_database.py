@@ -909,7 +909,12 @@ class TestDatabaseConnectionErrors:
     """Test error handling in DatabaseConnection class."""
 
     def test_invalid_database_path_with_mock_object(self):
-        """Test that mock objects in database paths are rejected."""
+        """Test that mock objects in database paths are rejected.
+
+        This test verifies that when a Mock object is passed as a database path,
+        the Path() constructor properly raises a TypeError. This ensures type
+        safety and prevents accidental passing of mock objects in tests.
+        """
         mock_path = Mock()
         mock_path.__str__ = Mock(return_value="/mock/path.db")
 
@@ -918,45 +923,76 @@ class TestDatabaseConnectionErrors:
             DatabaseConnection(mock_path)
         # Check for either error message format (different Python versions)
         error_msg = str(exc_info.value)
-        assert "not Mock" in error_msg or "not 'Mock'" in error_msg
+        assert (
+            "expected str, bytes or os.PathLike object, not Mock" in error_msg
+            or (
+                "argument should be a str or an os.PathLike object where __fspath__ "
+                "returns a str, not 'Mock'"
+            )
+            in error_msg
+        )
 
-    def test_invalid_database_path_with_invalid_characters(self, tmp_path):
-        """Test database paths with invalid characters."""
-        # Test with null character in path
+    def test_database_path_with_null_character_in_filename(self, tmp_path):
+        """Test database paths with null character in filename.
+
+        This test ensures that database paths containing null bytes (\x00) in
+        the filename are properly rejected with a ValueError. Null bytes are
+        invalid in file paths and could cause security issues if not handled.
+        """
         null_path = tmp_path / "test\x00.db"
-        with pytest.raises((ValueError, OSError)):
+        with pytest.raises(ValueError, match="embedded null"):
             conn = DatabaseConnection(str(null_path))
             conn._get_connection()
 
-        # Test with newline in path - actually allowed by Path
-        # So we'll test a different invalid scenario
-        invalid_path = str(tmp_path / "test\x00invalid")
-        with pytest.raises((ValueError, OSError, TypeError)):
+    def test_database_path_with_null_character_in_directory(self, tmp_path):
+        """Test database paths with null character in directory component.
+
+        This test verifies that database paths containing null bytes (\x00) in
+        directory names are rejected. This prevents potential path traversal
+        attacks and ensures file system compatibility.
+        """
+        invalid_path = str(tmp_path / "test\x00invalid" / "database.db")
+        with pytest.raises(ValueError, match="embedded null"):
             conn = DatabaseConnection(invalid_path)
             conn._get_connection()
 
     @patch("sqlite3.connect")
     def test_sqlite3_connect_permission_error(self, mock_connect, tmp_path):
-        """Test handling of permission errors during connection."""
+        """Test handling of permission errors during connection.
+
+        This test simulates a scenario where sqlite3.connect() fails due to
+        insufficient permissions (e.g., read-only directory, permission denied
+        on database file). Verifies that the error is properly propagated.
+        """
         mock_connect.side_effect = PermissionError("Permission denied")
 
         conn = DatabaseConnection(tmp_path / "test.db")
-        with pytest.raises(PermissionError):
+        with pytest.raises(PermissionError, match="Permission denied"):
             conn._get_connection()
 
     @patch("sqlite3.connect")
     def test_sqlite3_connect_disk_full_error(self, mock_connect, tmp_path):
-        """Test handling of disk full errors during connection."""
+        """Test handling of disk full errors during connection.
+
+        This test simulates a disk I/O error (e.g., disk full, hardware failure)
+        when attempting to create or open a database connection. Ensures the
+        OperationalError is properly handled and not masked.
+        """
         mock_connect.side_effect = sqlite3.OperationalError("disk I/O error")
 
         conn = DatabaseConnection(tmp_path / "test.db")
-        with pytest.raises(sqlite3.OperationalError) as exc_info:
+        with pytest.raises(sqlite3.OperationalError, match="disk I/O error"):
             conn._get_connection()
-        assert "disk I/O error" in str(exc_info.value)
 
     @patch("sqlite3.connect")
     def test_pragma_command_failures(self, mock_connect, tmp_path):
-        """Test handling of PRAGMA command failures."""
+        """Test handling of PRAGMA command failures.
+
+        This test verifies that when PRAGMA commands fail during connection setup
+        (e.g., foreign_keys, journal_mode), the error is properly caught and
+        re-raised with appropriate context. This can happen with restricted
+        SQLite builds or filesystem issues.
+        """
         mock_conn = MagicMock()
         mock_connect.return_value = mock_conn
 
@@ -966,9 +1002,10 @@ class TestDatabaseConnectionErrors:
         )
 
         conn = DatabaseConnection(tmp_path / "test.db")
-        with pytest.raises(sqlite3.OperationalError) as exc_info:
+        with pytest.raises(
+            sqlite3.OperationalError, match="PRAGMA foreign_keys failed"
+        ):
             conn._get_connection()
-        assert "PRAGMA foreign_keys failed" in str(exc_info.value)
 
         # Verify that the PRAGMA command was attempted
         mock_conn.execute.assert_called_with("PRAGMA foreign_keys = ON")
@@ -990,13 +1027,19 @@ class TestDatabaseConnectionErrors:
         mock_conn.execute.side_effect = execute_side_effect
 
         conn = DatabaseConnection(tmp_path / "test.db")
-        with pytest.raises(sqlite3.OperationalError) as exc_info:
+        with pytest.raises(
+            sqlite3.OperationalError, match="Cannot change journal mode"
+        ):
             conn._get_connection()
-        assert "Cannot change journal mode" in str(exc_info.value)
 
     @patch("sqlite3.connect")
     def test_transaction_begin_failure(self, mock_connect, tmp_path):
-        """Test handling of BEGIN statement failures in transaction."""
+        """Test handling of BEGIN statement failures in transaction.
+
+        This test simulates a database lock scenario where the BEGIN statement
+        fails (e.g., another process has exclusive lock). Verifies that the
+        transaction context manager properly handles and propagates the error.
+        """
         mock_conn = MagicMock()
         mock_connect.return_value = mock_conn
 
@@ -1019,7 +1062,12 @@ class TestDatabaseConnectionErrors:
 
     @patch("sqlite3.connect")
     def test_transaction_rollback_failure(self, mock_connect, tmp_path):
-        """Test handling when rollback fails after transaction error."""
+        """Test handling when rollback fails after transaction error.
+
+        This test simulates a critical scenario where both the transaction AND
+        the rollback fail. This can happen with corrupted databases or severe
+        I/O errors. Currently, the rollback error masks the original error.
+        """
         mock_conn = MagicMock()
         mock_connect.return_value = mock_conn
 
@@ -1044,6 +1092,43 @@ class TestDatabaseConnectionErrors:
         assert "Cannot rollback" in str(exc_info.value)
         # Verify rollback was attempted
         mock_conn.rollback.assert_called_once()
+
+    @patch("sqlite3.connect")
+    def test_transaction_rollback_preserves_original_exception(
+        self, mock_connect, tmp_path
+    ):
+        """Test that original transaction error is preserved when rollback also fails.
+
+        This test documents the current behavior where rollback errors mask the
+        original transaction error. Ideally, both exceptions should be preserved
+        using exception chaining (raise ... from original_exception).
+        """
+        mock_conn = MagicMock()
+        mock_connect.return_value = mock_conn
+
+        conn = DatabaseConnection(tmp_path / "test.db")
+
+        # Configure to succeed during setup
+        mock_conn.execute.return_value = MagicMock()
+        conn._get_connection()
+
+        # Configure rollback to fail
+        original_error = ValueError("Original transaction error")
+        rollback_error = sqlite3.OperationalError("Rollback failed")
+        mock_conn.rollback.side_effect = rollback_error
+
+        with (
+            pytest.raises(sqlite3.OperationalError) as exc_info,
+            conn.transaction(),
+        ):
+            raise original_error
+
+        # Currently, only the rollback error is raised
+        assert "Rollback failed" in str(exc_info.value)
+
+        # NOTE: Ideally we would check for exception chaining here:
+        # assert exc_info.value.__cause__ is original_error
+        # But the current implementation doesn't preserve the chain
 
     @patch("sqlite3.connect")
     def test_connection_close_failure(self, mock_connect, tmp_path):
@@ -1103,40 +1188,47 @@ class TestDatabaseConnectionErrors:
 
         mock_conn.execute.side_effect = execute_side_effect
 
-        with pytest.raises(sqlite3.OperationalError) as exc_info:
+        with pytest.raises(sqlite3.OperationalError, match="syntax error"):
             conn.execute("INVALID SQL QUERY")
-        assert "syntax error" in str(exc_info.value)
 
     @patch("pathlib.Path.mkdir")
     def test_directory_creation_failure(self, mock_mkdir, tmp_path):
-        """Test handling of directory creation failures."""
+        """Test handling of directory creation failures.
+
+        This test verifies error handling when the database directory cannot be
+        created (e.g., permission denied, read-only filesystem). The connection
+        should fail gracefully with a clear error message.
+        """
         mock_mkdir.side_effect = PermissionError("Cannot create directory")
 
         conn = DatabaseConnection(tmp_path / "nonexistent" / "path" / "test.db")
-        with pytest.raises(PermissionError) as exc_info:
+        with pytest.raises(PermissionError, match="Cannot create directory"):
             conn._get_connection()
-        assert "Cannot create directory" in str(exc_info.value)
 
     @patch("sqlite3.connect")
     def test_row_factory_setting_failure(self, mock_connect, tmp_path):
-        """Test handling when setting row_factory fails."""
+        """Test handling when setting row_factory fails.
+
+        This test simulates a rare scenario where setting the row_factory
+        attribute fails (e.g., read-only connection object, custom SQLite build).
+        Ensures the error is properly propagated rather than silently ignored.
+        """
         mock_conn = MagicMock()
         mock_connect.return_value = mock_conn
 
         # Allow PRAGMA commands to succeed
         mock_conn.execute.return_value = MagicMock()
 
-        # Make row_factory assignment fail
-        def raise_on_row_factory(_self, value):
-            if value == sqlite3.Row:
+        # Make row_factory assignment fail - use a property descriptor
+        class FailingProperty:
+            def __get__(self, obj, obj_type=None):
+                return None
+
+            def __set__(self, obj, value):
                 raise AttributeError("Cannot set row_factory")
 
-        type(mock_conn).row_factory = property(
-            lambda _self: None,
-            raise_on_row_factory,
-        )
+        type(mock_conn).row_factory = FailingProperty()
 
         conn = DatabaseConnection(tmp_path / "test.db")
-        with pytest.raises(AttributeError) as exc_info:
+        with pytest.raises(AttributeError, match="Cannot set row_factory"):
             conn._get_connection()
-        assert "Cannot set row_factory" in str(exc_info.value)

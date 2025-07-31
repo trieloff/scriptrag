@@ -2,7 +2,7 @@
 
 import json
 import uuid
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import mcp.types as types
 import pytest
@@ -307,18 +307,17 @@ def populated_database(mock_settings, test_ids):
 @pytest.fixture
 def mcp_server_with_data(mock_settings, populated_database, test_ids):  # noqa: ARG001
     """Create MCP server instance with populated test database."""
-    with patch("scriptrag.mcp_server.ScriptRAG"):
-        server = ScriptRAGMCPServer(mock_settings)
+    server = ScriptRAGMCPServer(mock_settings)
 
-        # Add script to cache
-        script = Script(
-            id=uuid.UUID(test_ids["script_id"]),
-            title="Test Screenplay",
-            source_file="test.fountain",
-        )
-        server._scripts_cache = {test_ids["script_id"]: script}
+    # Add script to cache
+    script = Script(
+        id=uuid.UUID(test_ids["script_id"]),
+        title="Test Screenplay",
+        source_file="test.fountain",
+    )
+    server._scripts_cache = {test_ids["script_id"]: script}
 
-        return server
+    return server
 
 
 class TestScriptBibleResource:
@@ -539,46 +538,45 @@ class TestScriptBibleResource:
 
         empty_script_id = "e1b2c3d4-e5f6-4789-0123-456789abcdef"
 
-        with patch("scriptrag.mcp_server.ScriptRAG"):
-            server = ScriptRAGMCPServer(mock_settings)
-            script = Script(
-                id=uuid.UUID(empty_script_id),
-                title="Empty Script",
-                source_file="empty.fountain",
-            )
-            server._scripts_cache = {empty_script_id: script}
+        server = ScriptRAGMCPServer(mock_settings)
+        script = Script(
+            id=uuid.UUID(empty_script_id),
+            title="Empty Script",
+            source_file="empty.fountain",
+        )
+        server._scripts_cache = {empty_script_id: script}
 
-            # Insert only the script
-            with (
-                DatabaseConnection(str(db_path)) as connection,
-                connection.get_connection() as conn,
-            ):
-                conn.execute(
-                    """
+        # Insert only the script
+        with (
+            DatabaseConnection(str(db_path)) as connection,
+            connection.get_connection() as conn,
+        ):
+            conn.execute(
+                """
                         INSERT INTO scripts (id, title, source_file)
                         VALUES (?, 'Empty Script', 'empty.fountain')
                     """,
-                    (empty_script_id,),
-                )
-                conn.commit()
-
-            request = types.ReadResourceRequest(
-                method="resources/read",
-                params=types.ReadResourceRequestParams(
-                    uri=types.AnyUrl(f"screenplay://{empty_script_id}")
-                ),
+                (empty_script_id,),
             )
+            conn.commit()
 
-            result = await server._handle_read_resource(request)
-            content = json.loads(result.root.contents[0].text)
+        request = types.ReadResourceRequest(
+            method="resources/read",
+            params=types.ReadResourceRequestParams(
+                uri=types.AnyUrl(f"screenplay://{empty_script_id}")
+            ),
+        )
 
-            # Should have empty arrays but valid structure
-            assert content["script_id"] == empty_script_id
-            assert len(content["scenes"]) == 0
-            assert len(content["characters"]) == 0
-            assert len(content["plot_threads"]) == 0
-            assert content["stats"]["total_scenes"] == 0
-            assert content["stats"]["total_characters"] == 0
+        result = await server._handle_read_resource(request)
+        content = json.loads(result.root.contents[0].text)
+
+        # Should have empty arrays but valid structure
+        assert content["script_id"] == empty_script_id
+        assert len(content["scenes"]) == 0
+        assert len(content["characters"]) == 0
+        assert len(content["plot_threads"]) == 0
+        assert content["stats"]["total_scenes"] == 0
+        assert content["stats"]["total_characters"] == 0
 
     @pytest.mark.asyncio
     async def test_read_script_resource_character_sorting(

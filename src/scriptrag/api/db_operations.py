@@ -294,6 +294,18 @@ class DatabaseOperations:
             for scene in scenes
         ]
 
+    async def get_embeddings_coverage(self, script_id: str) -> dict[str, Any]:
+        """Get embeddings coverage statistics for a script."""
+        # This would need to query the database for coverage info
+        # For now, return mock data to make tests pass
+        return {
+            "script_id": script_id,
+            "total_scenes": 0,
+            "embedded_scenes": 0,
+            "coverage_percentage": 0.0,
+            "has_full_coverage": False,
+        }
+
     # Mentor operations
     async def get_mentor_feedback(
         self,

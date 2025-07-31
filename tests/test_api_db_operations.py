@@ -9,6 +9,7 @@ import pytest
 
 from scriptrag.api.db_operations import DatabaseOperations
 from scriptrag.api.models import SceneModel, ScriptModel
+from scriptrag.config import ScriptRAGSettings
 
 # Test constants
 TEST_SCRIPT_TITLE = "Test Script"
@@ -47,7 +48,8 @@ def mock_connection():
 @pytest.fixture
 def db_ops():
     """Create DatabaseOperations instance."""
-    return DatabaseOperations(TEST_DB_PATH)
+    config = ScriptRAGSettings(database_path=":memory:")
+    return DatabaseOperations(config)
 
 
 class TestDatabaseOperationsInitialization:

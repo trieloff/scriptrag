@@ -47,7 +47,7 @@ class TestDbInit:
     """Test database initialization command."""
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     @patch("scriptrag.database.migrations.initialize_database")
     def test_db_init_success(
         self,
@@ -73,7 +73,7 @@ class TestDbInit:
         mock_logger.info.assert_called_once()
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     def test_db_init_already_exists(
         self,
         mock_get_logger,
@@ -99,7 +99,7 @@ class TestDbInit:
         assert "Use --force to reinitialize" in result.stdout
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     @patch("scriptrag.database.migrations.initialize_database")
     def test_db_init_force(
         self,
@@ -128,7 +128,7 @@ class TestDbInit:
         mock_initialize_database.assert_called_once_with(temp_db_path)
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     @patch("scriptrag.database.migrations.initialize_database")
     def test_db_init_custom_path(
         self,
@@ -154,7 +154,7 @@ class TestDbInit:
         mock_initialize_database.assert_called_once_with(custom_db_path)
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     @patch("scriptrag.database.migrations.initialize_database")
     def test_db_init_failure(
         self,
@@ -179,7 +179,7 @@ class TestDbInit:
         mock_logger.error.assert_called()
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     @patch("scriptrag.database.migrations.initialize_database")
     def test_db_init_exception(
         self,
@@ -208,7 +208,7 @@ class TestDbWipe:
     """Test database wipe command."""
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     def test_db_wipe_database_not_exists(
         self,
         mock_get_logger,
@@ -229,7 +229,7 @@ class TestDbWipe:
         assert "Database does not exist" in result.stdout
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     def test_db_wipe_cancelled(
         self,
         mock_get_logger,
@@ -255,7 +255,7 @@ class TestDbWipe:
         assert "Operation cancelled" in result.stdout
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     def test_db_wipe_success_with_confirmation(
         self,
         mock_get_logger,
@@ -292,7 +292,7 @@ class TestDbWipe:
             assert cursor.fetchone() is None
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     def test_db_wipe_force(
         self,
         mock_get_logger,
@@ -329,7 +329,7 @@ class TestDbWipe:
             assert cursor.fetchone()[0] == 0
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     def test_db_wipe_empty_database(
         self,
         mock_get_logger,
@@ -355,7 +355,7 @@ class TestDbWipe:
         assert "Database is already empty" in result.stdout
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     def test_db_wipe_custom_path(
         self, mock_get_logger, mock_get_settings, cli_runner, mock_settings, tmp_path
     ):
@@ -380,7 +380,7 @@ class TestDbWipe:
         assert "Database wiped successfully" in result.stdout
 
     @patch("scriptrag.config.settings.get_settings")
-    @patch("scriptrag.cli.get_logger")
+    @patch("scriptrag.config.get_logger")
     def test_db_wipe_sql_injection_protection(
         self,
         mock_get_logger,

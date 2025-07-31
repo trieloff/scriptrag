@@ -2,6 +2,7 @@
 
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import uuid4
 
 import mcp.types as types
 import pytest
@@ -40,6 +41,37 @@ def mcp_server(mock_settings, tmp_path):
 
     with patch("scriptrag.mcp_server.ScriptRAG"):
         return ScriptRAGMCPServer(mock_settings)
+
+
+@pytest.fixture
+def store_script_in_db(mcp_server):
+    """Helper function to properly store a script in the database."""
+    from scriptrag.database.connection import DatabaseConnection
+
+    def _store_script(script):
+        """Store script and return the database ID."""
+        db_path = str(mcp_server.config.get_database_path())
+        with DatabaseConnection(db_path) as conn, conn.transaction() as tx:
+            # Store the script in the database
+            tx.execute(
+                """
+                    INSERT INTO scripts (id, title, author, format, genre,
+                    description, is_series)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                (
+                    str(script.id),
+                    script.title,
+                    script.author,
+                    script.format,
+                    script.genre,
+                    script.description,
+                    script.is_series,
+                ),
+            )
+        return script.id
+
+    return _store_script
 
 
 class TestScriptRAGMCPServer:
@@ -617,3 +649,737 @@ class TestScriptRAGMCPServer:
 
         with pytest.raises(ValueError, match="Script not found"):
             await mcp_server._tool_get_scene_details(args)
+
+
+class TestParseScriptTool:
+    """Comprehensive tests for parse_script tool."""
+
+    @pytest.mark.asyncio
+    async def test_parse_script_success(self, mcp_server, tmp_path):
+        """Test successful script parsing."""
+        test_file = tmp_path / "test.fountain"
+        test_file.write_text("Title: Test Script\n\nFADE IN:")
+
+        mock_script = Script(title="Test Script", source_file=str(test_file))
+        mock_script.scenes = [MagicMock(), MagicMock()]
+        mock_script.characters = {"JOHN", "JANE"}
+        mcp_server.scriptrag.parse_fountain = MagicMock(return_value=mock_script)
+
+        result = await mcp_server._tool_parse_script({"path": str(test_file)})
+
+        assert result["title"] == "Test Script"
+        assert result["source_file"] == str(test_file)
+        assert result["scenes_count"] == 2
+        assert set(result["characters"]) == {"JOHN", "JANE"}
+        assert "script_id" in result
+        assert result["script_id"].startswith("script_")
+
+    @pytest.mark.asyncio
+    async def test_parse_script_file_not_found(self, mcp_server):
+        """Test parsing non-existent file."""
+        with pytest.raises(ValueError, match="File not found"):
+            await mcp_server._tool_parse_script({"path": "/nonexistent/file.fountain"})
+
+    @pytest.mark.asyncio
+    async def test_parse_script_directory_path(self, mcp_server, tmp_path):
+        """Test parsing directory instead of file."""
+        test_dir = tmp_path / "testdir"
+        test_dir.mkdir()
+
+        with pytest.raises(ValueError, match="Path is not a file"):
+            await mcp_server._tool_parse_script({"path": str(test_dir)})
+
+    @pytest.mark.asyncio
+    async def test_parse_script_invalid_extension(self, mcp_server, tmp_path):
+        """Test parsing file with invalid extension."""
+        test_file = tmp_path / "test.pdf"
+        test_file.write_text("not a fountain file")
+
+        with pytest.raises(ValueError, match="Invalid file type"):
+            await mcp_server._tool_parse_script({"path": str(test_file)})
+
+    @pytest.mark.asyncio
+    async def test_parse_script_valid_extensions(self, mcp_server, tmp_path):
+        """Test parsing files with all valid extensions."""
+        mock_script = Script(title="Test", source_file="test")
+        mcp_server.scriptrag.parse_fountain = MagicMock(return_value=mock_script)
+
+        for ext in [".fountain", ".spmd", ".txt", ".FOUNTAIN", ".SPMD", ".TXT"]:
+            test_file = tmp_path / f"test{ext}"
+            test_file.write_text("Title: Test")
+
+            result = await mcp_server._tool_parse_script({"path": str(test_file)})
+            assert "script_id" in result
+
+    @pytest.mark.asyncio
+    async def test_parse_script_cache_limit(self, mcp_server, tmp_path):
+        """Test script cache size limit."""
+        mcp_server._max_cache_size = 3
+        mock_script = Script(title="Test", source_file="test")
+        mcp_server.scriptrag.parse_fountain = MagicMock(return_value=mock_script)
+
+        test_file = tmp_path / "test.fountain"
+        test_file.write_text("Title: Test")
+
+        # Add scripts until cache is full
+        script_ids = []
+        for _ in range(5):
+            result = await mcp_server._tool_parse_script({"path": str(test_file)})
+            script_ids.append(result["script_id"])
+
+        # Cache should only contain last 3 scripts
+        assert len(mcp_server._scripts_cache) == 3
+        assert script_ids[0] not in mcp_server._scripts_cache
+        assert script_ids[1] not in mcp_server._scripts_cache
+        assert script_ids[2] in mcp_server._scripts_cache
+        assert script_ids[3] in mcp_server._scripts_cache
+        assert script_ids[4] in mcp_server._scripts_cache
+
+
+class TestSearchScenesTool:
+    """Comprehensive tests for search_scenes tool."""
+
+    @pytest.mark.asyncio
+    async def test_search_scenes_invalid_script_id(self, mcp_server):
+        """Test searching with invalid script ID."""
+        with pytest.raises(ValueError, match="Script not found"):
+            await mcp_server._tool_search_scenes({"script_id": "invalid_id"})
+
+    @pytest.mark.asyncio
+    async def test_search_scenes_with_all_filters(self, mcp_server):
+        """Test searching scenes with all filter types."""
+        # Setup database with test data
+        from scriptrag.database.connection import DatabaseConnection
+        from scriptrag.database.operations import GraphOperations
+        from scriptrag.models import Character, Location, Scene
+
+        script = Script(title="Test", source_file="test.fountain")
+        script_id = f"script_{script.id.hex[:8]}"  # Use script's UUID to create ID
+        mcp_server._scripts_cache[script_id] = script
+
+        # Create test data in database
+        with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
+            graph_ops = GraphOperations(conn)
+
+            # Create script graph and get script node
+            script_node_id = graph_ops.create_script_graph(script)
+
+            # Create scene with location and characters
+            scene = Scene(
+                id=uuid4(),
+                heading="INT. COFFEE SHOP - DAY",
+                description="John meets Mary for coffee",
+                script_order=1,
+                script_id=script.id,  # Use script's actual UUID
+                time_of_day="DAY",
+            )
+            scene_node_id = graph_ops.create_scene_node(scene, script_node_id)
+
+            # Create characters
+            john = Character(id=uuid4(), name="JOHN", description="")
+            mary = Character(id=uuid4(), name="MARY", description="")
+            john_node_id = graph_ops.create_character_node(john, script_node_id)
+            mary_node_id = graph_ops.create_character_node(mary, script_node_id)
+
+            # Create location
+            location = Location(
+                interior=True,
+                name="COFFEE SHOP",
+                time="DAY",
+                raw_text="INT. COFFEE SHOP - DAY",
+            )
+            location_node_id = graph_ops.create_location_node(location, script_node_id)
+
+            # Create relationships
+            graph_ops.graph.add_edge(john_node_id, scene_node_id, "APPEARS_IN")
+            graph_ops.graph.add_edge(mary_node_id, scene_node_id, "APPEARS_IN")
+            graph_ops.graph.add_edge(scene_node_id, location_node_id, "AT_LOCATION")
+
+        # Test search with all filters
+        result = await mcp_server._tool_search_scenes(
+            {
+                "script_id": script_id,
+                "query": "coffee",
+                "location": "COFFEE SHOP",
+                "characters": ["JOHN", "MARY"],
+                "limit": 10,
+            }
+        )
+
+        assert result["script_id"] == script_id
+        assert result["total_matches"] == 1
+        assert len(result["results"]) == 1
+        scene_result = result["results"][0]
+        assert "coffee" in scene_result["description"].lower()
+        assert scene_result["location"] == "COFFEE SHOP"
+        assert "JOHN" in scene_result["characters"]
+        assert "MARY" in scene_result["characters"]
+
+    @pytest.mark.asyncio
+    async def test_search_scenes_empty_results(self, mcp_server):
+        """Test search returning no results."""
+        script = Script(title="Test", source_file="test.fountain")
+        mcp_server._scripts_cache["script_0"] = script
+
+        result = await mcp_server._tool_search_scenes(
+            {"script_id": "script_0", "query": "nonexistent"}
+        )
+
+        assert result["total_matches"] == 0
+        assert result["results"] == []
+
+
+class TestGetCharacterInfoTool:
+    """Comprehensive tests for get_character_info tool."""
+
+    @pytest.mark.asyncio
+    async def test_get_character_info_missing_params(self, mcp_server):
+        """Test with missing required parameters."""
+        with pytest.raises(
+            ValueError, match="script_id and character_name are required"
+        ):
+            await mcp_server._tool_get_character_info({"script_id": "test"})
+
+        with pytest.raises(
+            ValueError, match="script_id and character_name are required"
+        ):
+            await mcp_server._tool_get_character_info({"character_name": "JOHN"})
+
+    @pytest.mark.asyncio
+    async def test_get_character_info_not_found(self, mcp_server):
+        """Test getting info for non-existent character."""
+        script = Script(title="Test", source_file="test.fountain")
+        mcp_server._scripts_cache["script_0"] = script
+
+        result = await mcp_server._tool_get_character_info(
+            {"script_id": "script_0", "character_name": "NONEXISTENT"}
+        )
+
+        assert result["error"] == "Character 'NONEXISTENT' not found in script"
+        assert result["scenes_count"] == 0
+        assert result["dialogue_lines"] == 0
+
+    @pytest.mark.asyncio
+    async def test_get_character_info_with_relationships(
+        self, mcp_server, store_script_in_db
+    ):
+        """Test getting character info with relationships."""
+        from scriptrag.database.connection import DatabaseConnection
+        from scriptrag.database.operations import GraphOperations
+        from scriptrag.models import Character, Scene
+
+        script = Script(title="Test", source_file="test.fountain")
+        # CONSPIRACY FIX: Store script in database first
+        stored_script_id = store_script_in_db(script)
+        script.id = stored_script_id
+
+        script_id = f"script_{script.id.hex[:8]}"
+        mcp_server._scripts_cache[script_id] = script
+
+        with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
+            graph_ops = GraphOperations(conn)
+
+            # Create script and characters
+            script_node_id = graph_ops.create_script_graph(script)
+            john = Character(id=uuid4(), name="JOHN", description="Main character")
+            jane = Character(
+                id=uuid4(), name="JANE", description="Supporting character"
+            )
+            john_node_id = graph_ops.create_character_node(john, script_node_id)
+            jane_node_id = graph_ops.create_character_node(jane, script_node_id)
+
+            # Create scene where both appear
+            scene = Scene(
+                id=uuid4(),
+                heading="INT. ROOM - DAY",
+                description="",
+                script_order=1,
+                script_id=script.id,
+            )
+            scene_node_id = graph_ops.create_scene_node(scene, script_node_id)
+
+            # Create relationships
+            graph_ops.graph.add_edge(john_node_id, scene_node_id, "APPEARS_IN")
+            graph_ops.graph.add_edge(jane_node_id, scene_node_id, "APPEARS_IN")
+            graph_ops.graph.add_edge(john_node_id, jane_node_id, "SPEAKS_TO")
+
+            # Add dialogue
+            conn.execute(
+                """
+                INSERT INTO scene_elements (id, element_type, text, raw_text, scene_id,
+                                    order_in_scene, character_id, character_name,
+                                    created_at, updated_at)
+                VALUES (?, 'dialogue', 'Hello Jane', 'Hello Jane', ?, 0, ?, 'JOHN',
+                        datetime('now'), datetime('now'))
+            """,
+                (str(uuid4()), str(scene.id), str(john.id)),
+            )
+
+        result = await mcp_server._tool_get_character_info(
+            {"script_id": script_id, "character_name": "JOHN"}
+        )
+
+        assert result["character_name"] == "JOHN"
+        assert result["description"] == "Main character"
+        assert result["scenes_count"] == 1
+        assert result["dialogue_lines"] == 1
+        assert len(result["relationships"]) > 0
+
+
+class TestAnalyzeTimelineTool:
+    """Comprehensive tests for analyze_timeline tool."""
+
+    @pytest.mark.asyncio
+    async def test_analyze_timeline_no_script_id(self, mcp_server):
+        """Test without script_id."""
+        with pytest.raises(ValueError, match="script_id is required"):
+            await mcp_server._tool_analyze_timeline({})
+
+    @pytest.mark.asyncio
+    async def test_analyze_timeline_non_linear(self, mcp_server):
+        """Test analyzing non-linear timeline with flashbacks."""
+        from scriptrag.database.connection import DatabaseConnection
+        from scriptrag.database.operations import GraphOperations
+        from scriptrag.models import Scene
+
+        script = Script(title="Test", source_file="test.fountain")
+        script_id = f"script_{script.id.hex[:8]}"
+        mcp_server._scripts_cache[script_id] = script
+
+        with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
+            graph_ops = GraphOperations(conn)
+            script_node_id = graph_ops.create_script_graph(script)
+
+            # Create scenes with non-linear temporal order
+            scenes = [
+                Scene(
+                    id=uuid4(),
+                    heading="INT. PRESENT - DAY",
+                    description="",
+                    script_order=1,
+                    temporal_order=3,
+                    script_id=script.id,
+                    time_of_day="DAY",
+                ),
+                Scene(
+                    id=uuid4(),
+                    heading="INT. PAST - NIGHT",
+                    description="",
+                    script_order=2,
+                    temporal_order=1,
+                    script_id=script.id,
+                    time_of_day="NIGHT",
+                ),
+                Scene(
+                    id=uuid4(),
+                    heading="INT. PRESENT - DAY",
+                    description="",
+                    script_order=3,
+                    temporal_order=4,
+                    script_id=script.id,
+                    time_of_day="DAY",
+                ),
+            ]
+
+            for scene in scenes:
+                graph_ops.create_scene_node(scene, script_node_id)
+
+        result = await mcp_server._tool_analyze_timeline(
+            {"script_id": script_id, "include_flashbacks": True}
+        )
+
+        assert result["timeline_type"] == "non_linear"
+        assert result["flashbacks_detected"] > 0
+        assert len(result["temporal_jumps"]) > 0
+        assert result["time_distribution"]["DAY"] == 2
+        assert result["time_distribution"]["NIGHT"] == 1
+
+
+class TestUpdateSceneTool:
+    """Comprehensive tests for update_scene tool."""
+
+    @pytest.mark.asyncio
+    async def test_update_scene_missing_params(self, mcp_server):
+        """Test with missing required parameters."""
+        with pytest.raises(ValueError, match="script_id and scene_id are required"):
+            await mcp_server._tool_update_scene({"script_id": "test"})
+
+    @pytest.mark.asyncio
+    async def test_update_scene_not_found(self, mcp_server):
+        """Test updating non-existent scene."""
+        script = Script(title="Test", source_file="test.fountain")
+        mcp_server._scripts_cache["script_0"] = script
+
+        with pytest.raises(ValueError, match="Scene .* not found in script"):
+            await mcp_server._tool_update_scene(
+                {"script_id": "script_0", "scene_id": 999}
+            )
+
+    @pytest.mark.asyncio
+    async def test_update_scene_with_dialogue(self, mcp_server):
+        """Test updating scene with new dialogue."""
+        from scriptrag.database.connection import DatabaseConnection
+        from scriptrag.database.operations import GraphOperations
+        from scriptrag.models import Character, Scene
+
+        script = Script(title="Test", source_file="test.fountain")
+        script_id = f"script_{script.id.hex[:8]}"
+        mcp_server._scripts_cache[script_id] = script
+
+        with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
+            graph_ops = GraphOperations(conn)
+            script_node_id = graph_ops.create_script_graph(script)
+
+            # Create scene
+            scene = Scene(
+                id=uuid4(),
+                heading="INT. ROOM - DAY",
+                description="Original",
+                script_order=1,
+                script_id=script.id,
+            )
+            graph_ops.create_scene_node(scene, script_node_id)
+
+            # Create character
+            john = Character(id=uuid4(), name="JOHN", description="")
+            graph_ops.create_character_node(john, script_node_id)
+
+        result = await mcp_server._tool_update_scene(
+            {
+                "script_id": script_id,
+                "scene_id": scene.id,
+                "heading": "EXT. GARDEN - NIGHT",
+                "action": "Updated action",
+                "dialogue": [
+                    {
+                        "character": "JOHN",
+                        "text": "Hello world!",
+                        "parenthetical": "smiling",
+                    }
+                ],
+            }
+        )
+
+        assert result["updated"] is True
+        assert result["changes"]["heading"] == "EXT. GARDEN - NIGHT"
+        assert result["changes"]["action"] == "Updated action"
+        assert "dialogue" in result["changes"]
+
+
+class TestDeleteSceneTool:
+    """Comprehensive tests for delete_scene tool."""
+
+    @pytest.mark.asyncio
+    async def test_delete_scene_with_reordering(self, mcp_server):
+        """Test deleting scene with automatic reordering."""
+        from scriptrag.database.connection import DatabaseConnection
+        from scriptrag.database.operations import GraphOperations
+        from scriptrag.models import Scene
+
+        script = Script(title="Test", source_file="test.fountain")
+        script_id = f"script_{script.id.hex[:8]}"
+        mcp_server._scripts_cache[script_id] = script
+
+        with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
+            graph_ops = GraphOperations(conn)
+            script_node_id = graph_ops.create_script_graph(script)
+
+            # Create multiple scenes
+            scenes = []
+            for i in range(3):
+                scene = Scene(
+                    id=uuid4(),
+                    heading=f"SCENE {i + 1}",
+                    description="",
+                    script_order=i + 1,
+                    script_id=script.id,
+                )
+                graph_ops.create_scene_node(scene, script_node_id)
+                scenes.append(scene)
+
+        # Delete middle scene
+        result = await mcp_server._tool_delete_scene(
+            {"script_id": script_id, "scene_id": scenes[1].id}
+        )
+
+        assert result["deleted"] is True
+        assert result["scenes_reordered"] == 1  # Third scene should be reordered
+
+
+class TestInjectSceneTool:
+    """Comprehensive tests for inject_scene tool."""
+
+    @pytest.mark.asyncio
+    async def test_inject_scene_invalid_position(self, mcp_server):
+        """Test injecting scene at invalid position."""
+        script = Script(title="Test", source_file="test.fountain")
+        script_id = f"script_{script.id.hex[:8]}"
+        mcp_server._scripts_cache[script_id] = script
+
+        from scriptrag.database.connection import DatabaseConnection
+        from scriptrag.database.operations import GraphOperations
+
+        with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
+            graph_ops = GraphOperations(conn)
+            graph_ops.create_script_graph(script)
+
+        with pytest.raises(ValueError, match="Invalid position"):
+            await mcp_server._tool_inject_scene(
+                {"script_id": script_id, "position": -1, "heading": "INT. ROOM - DAY"}
+            )
+
+    @pytest.mark.asyncio
+    async def test_inject_scene_with_parsed_location(self, mcp_server):
+        """Test injecting scene with automatic location parsing."""
+        script = Script(title="Test", source_file="test.fountain")
+        script_id = f"script_{script.id.hex[:8]}"
+        mcp_server._scripts_cache[script_id] = script
+
+        from scriptrag.database.connection import DatabaseConnection
+        from scriptrag.database.operations import GraphOperations
+
+        with DatabaseConnection(str(mcp_server.config.get_database_path())) as conn:
+            graph_ops = GraphOperations(conn)
+            graph_ops.create_script_graph(script)
+
+        result = await mcp_server._tool_inject_scene(
+            {
+                "script_id": script_id,
+                "position": 0,
+                "heading": "INT. COFFEE SHOP - MORNING",
+                "action": "The shop is busy",
+                "dialogue": [{"character": "BARISTA", "text": "Next customer!"}],
+            }
+        )
+
+        assert result["injected"] is True
+        assert result["position"] == 0
+        assert result["heading"] == "INT. COFFEE SHOP - MORNING"
+        assert result["characters_added"] == 1
+        assert result["dialogue_entries"] == 1
+
+
+class TestExportDataTool:
+    """Comprehensive tests for export_data tool."""
+
+    @pytest.mark.asyncio
+    async def test_export_data_missing_params(self, mcp_server):
+        """Test with missing required parameters."""
+        with pytest.raises(ValueError, match="script_id and format are required"):
+            await mcp_server._tool_export_data({"script_id": "test"})
+
+    @pytest.mark.asyncio
+    async def test_export_data_formats(self, mcp_server):
+        """Test different export formats."""
+        for format_type in ["json", "csv", "graphml", "fountain"]:
+            result = await mcp_server._tool_export_data(
+                {
+                    "script_id": "script_0",
+                    "format": format_type,
+                    "include_metadata": False,
+                }
+            )
+
+            assert result["exported"] is True
+            assert result["format"] == format_type
+            assert result["include_metadata"] is False
+
+
+class TestBibleTools:
+    """Tests for Script Bible management tools."""
+
+    @pytest.mark.asyncio
+    async def test_create_series_bible(self, mcp_server):
+        """Test creating a series bible."""
+        with patch("scriptrag.database.bible.ScriptBibleOperations") as mock_bible:
+            mock_bible.return_value.create_series_bible.return_value = "bible_123"
+
+            result = await mcp_server._tool_create_series_bible(
+                {
+                    "script_id": "script_0",
+                    "title": "Test Series Bible",
+                    "description": "Bible for test series",
+                    "bible_type": "series",
+                    "created_by": "Test User",
+                }
+            )
+
+            assert result["bible_id"] == "bible_123"
+            assert result["created"] is True
+
+    @pytest.mark.asyncio
+    async def test_add_character_knowledge_invalid_character(self, mcp_server):
+        """Test adding knowledge for non-existent character."""
+        from scriptrag.database.connection import DatabaseConnection
+
+        with (
+            DatabaseConnection(str(mcp_server.config.get_database_path())),
+            pytest.raises(ValueError, match="Character .* not found"),
+        ):
+            await mcp_server._tool_add_character_knowledge(
+                {
+                    "script_id": "script_0",
+                    "character_name": "NONEXISTENT",
+                    "knowledge_type": "fact",
+                    "knowledge_subject": "test",
+                }
+            )
+
+    @pytest.mark.asyncio
+    async def test_check_continuity(self, mcp_server):
+        """Test continuity checking."""
+        with patch(
+            "scriptrag.database.continuity.ContinuityValidator"
+        ) as mock_validator:
+            mock_issues = [
+                MagicMock(
+                    issue_type="timeline",
+                    severity="high",
+                    title="Issue 1",
+                    description="Desc 1",
+                ),
+                MagicMock(
+                    issue_type="character",
+                    severity="medium",
+                    title="Issue 2",
+                    description="Desc 2",
+                ),
+            ]
+            mock_validator.return_value.validate_script_continuity.return_value = (
+                mock_issues
+            )
+            mock_notes_method = (
+                mock_validator.return_value.create_continuity_notes_from_issues
+            )
+            mock_notes_method.return_value = ["note1", "note2"]
+
+            result = await mcp_server._tool_check_continuity(
+                {"script_id": "script_0", "create_notes": True}
+            )
+
+            assert result["total_issues"] == 2
+            assert result["notes_created"] == 2
+            assert result["by_severity"]["high"] == 1
+            assert result["by_severity"]["medium"] == 1
+
+
+class TestMentorTools:
+    """Tests for Mentor analysis tools."""
+
+    @pytest.mark.asyncio
+    async def test_list_mentors(self, mcp_server):
+        """Test listing available mentors."""
+        with patch("scriptrag.mentors.get_mentor_registry") as mock_registry:
+            mock_registry.return_value.list_mentors.return_value = [
+                {"name": "McKee", "description": "Story structure expert"},
+                {"name": "Snyder", "description": "Save the Cat methodology"},
+            ]
+
+            result = await mcp_server._tool_list_mentors({})
+
+            assert result["total_count"] == 2
+            assert len(result["mentors"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_analyze_script_with_mentor_invalid_mentor(self, mcp_server):
+        """Test analyzing with invalid mentor name."""
+        with patch("scriptrag.mentors.get_mentor_registry") as mock_registry:
+            mock_registry.return_value.is_registered.return_value = False
+            mock_registry.return_value.__iter__.return_value = iter(["McKee", "Snyder"])
+
+            with pytest.raises(ValueError, match="Mentor .* not found"):
+                await mcp_server._tool_analyze_script_with_mentor(
+                    {"script_id": "script_0", "mentor_name": "InvalidMentor"}
+                )
+
+    @pytest.mark.asyncio
+    async def test_search_mentor_analyses(self, mcp_server):
+        """Test searching mentor analyses."""
+        with (
+            patch("scriptrag.database.connection.DatabaseConnection"),
+            patch("scriptrag.mentors.MentorDatabaseOperations") as mock_db,
+        ):
+            mock_analysis = MagicMock()
+            mock_analysis.id = uuid4()
+            mock_analysis.title = "Test Finding"
+            mock_analysis.description = "Test description"
+            mock_analysis.severity.value = "warning"
+            mock_analysis.category = "structure"
+            mock_analysis.mentor_name = "McKee"
+            mock_analysis.confidence = 0.85
+            mock_analysis.recommendations = ["Fix this"]
+            mock_analysis.examples = []
+            mock_analysis.scene_id = None
+            mock_analysis.character_id = None
+
+            mock_db.return_value.search_analyses.return_value = [mock_analysis]
+
+            result = await mcp_server._tool_search_mentor_analyses(
+                {
+                    "query": "test finding",
+                    "mentor_name": "McKee",
+                    "severity": "warning",
+                    "limit": 10,
+                }
+            )
+
+            assert result["results_count"] == 1
+            assert result["results"][0]["title"] == "Test Finding"
+            assert result["results"][0]["severity"] == "warning"
+
+
+class TestErrorHandling:
+    """Tests for error handling across all tools."""
+
+    @pytest.mark.asyncio
+    async def test_tool_call_exception_handling(self, mcp_server):
+        """Test that exceptions in tools are properly handled."""
+        # Make parse_script raise an exception
+        mcp_server._tool_parse_script = AsyncMock(side_effect=Exception("Test error"))
+
+        request = types.CallToolRequest(
+            method="tools/call",
+            params=types.CallToolRequestParams(
+                name="parse_script", arguments={"path": "/test.fountain"}
+            ),
+        )
+
+        result = await mcp_server._handle_tool_call(request)
+
+        assert result.root.isError
+        assert "Test error" in result.root.content[0].text
+
+    @pytest.mark.asyncio
+    async def test_validate_script_id_helper(self, mcp_server):
+        """Test the _validate_script_id helper method."""
+        # Test valid script ID
+        script = Script(title="Test", source_file="test.fountain")
+        mcp_server._scripts_cache["valid_id"] = script
+
+        result = mcp_server._validate_script_id("valid_id")
+        assert result == script
+
+        # Test invalid script ID
+        with pytest.raises(ValueError, match="Script not found"):
+            mcp_server._validate_script_id("invalid_id")
+
+    def test_add_to_cache_size_limit(self, mcp_server):
+        """Test cache size limiting in _add_to_cache method."""
+        mcp_server._max_cache_size = 2
+
+        script1 = Script(title="Script 1", source_file="1.fountain")
+        script2 = Script(title="Script 2", source_file="2.fountain")
+        script3 = Script(title="Script 3", source_file="3.fountain")
+
+        mcp_server._add_to_cache("id1", script1)
+        assert len(mcp_server._scripts_cache) == 1
+
+        mcp_server._add_to_cache("id2", script2)
+        assert len(mcp_server._scripts_cache) == 2
+
+        # Adding third should remove first (oldest)
+        mcp_server._add_to_cache("id3", script3)
+        assert len(mcp_server._scripts_cache) == 2
+        assert "id1" not in mcp_server._scripts_cache
+        assert "id2" in mcp_server._scripts_cache
+        assert "id3" in mcp_server._scripts_cache

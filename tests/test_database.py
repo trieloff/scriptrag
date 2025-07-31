@@ -135,6 +135,30 @@ def graph_ops(db_connection):
 
 
 @pytest.fixture
+def stored_script(db_connection, sample_script):
+    """Create and store a script in the database."""
+    with db_connection.transaction() as conn:
+        # Store the script in the database
+        conn.execute(
+            """
+            INSERT INTO scripts (id, title, author, format, genre, description,
+                is_series)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(sample_script.id),
+                sample_script.title,
+                sample_script.author,
+                sample_script.format,
+                sample_script.genre,
+                sample_script.description,
+                sample_script.is_series,
+            ),
+        )
+    return sample_script
+
+
+@pytest.fixture
 def sample_script():
     """Create a sample script for testing."""
     return Script(
@@ -789,9 +813,12 @@ class TestGraphOperations:
         assert loc_node.node_type == "location"
         assert loc_node.properties["name"] == sample_location.name
 
-    def test_scene_operations(self, graph_ops, sample_script, sample_scene):
+    def test_scene_operations(self, graph_ops, stored_script, sample_scene):
         """Test scene node operations."""
-        script_node_id = graph_ops.create_script_graph(sample_script)
+        # Update scene to reference the stored script
+        sample_scene.script_id = stored_script.id
+
+        script_node_id = graph_ops.create_script_graph(stored_script)
 
         scene_node_id = graph_ops.create_scene_node(sample_scene, script_node_id)
 
@@ -800,16 +827,16 @@ class TestGraphOperations:
         assert scene_node.node_type == "scene"
         assert scene_node.properties["script_order"] == sample_scene.script_order
 
-    def test_scene_ordering(self, graph_ops, sample_script):
+    def test_scene_ordering(self, graph_ops, stored_script):
         """Test scene ordering operations."""
-        script_node_id = graph_ops.create_script_graph(sample_script)
+        script_node_id = graph_ops.create_script_graph(stored_script)
 
         # Create multiple scenes
         scenes = []
         scene_node_ids = []
         for i in range(3):
             scene = Scene(
-                script_id=sample_script.id,
+                script_id=stored_script.id,
                 heading=f"Scene {i + 1}",
                 script_order=i + 1,
                 temporal_order=i + 1,
@@ -834,10 +861,13 @@ class TestGraphOperations:
         assert ordered_scenes[2].properties["script_order"] == 3
 
     def test_character_scene_connections(
-        self, graph_ops, sample_script, sample_character, sample_scene
+        self, graph_ops, stored_script, sample_character, sample_scene
     ):
         """Test connecting characters to scenes."""
-        script_node_id = graph_ops.create_script_graph(sample_script)
+        # Update scene to reference the stored script
+        sample_scene.script_id = stored_script.id
+
+        script_node_id = graph_ops.create_script_graph(stored_script)
         char_node_id = graph_ops.create_character_node(sample_character, script_node_id)
         scene_node_id = graph_ops.create_scene_node(sample_scene, script_node_id)
 
@@ -857,9 +887,9 @@ class TestGraphOperations:
         assert len(char_scenes) == 1
         assert char_scenes[0].id == scene_node_id
 
-    def test_character_interactions(self, graph_ops, sample_script):
+    def test_character_interactions(self, graph_ops, stored_script):
         """Test character interaction tracking."""
-        script_node_id = graph_ops.create_script_graph(sample_script)
+        script_node_id = graph_ops.create_script_graph(stored_script)
 
         # Create two characters
         char1 = Character(name="ALICE", description="First character")
@@ -869,7 +899,7 @@ class TestGraphOperations:
         char2_node_id = graph_ops.create_character_node(char2, script_node_id)
 
         # Create a scene
-        scene = Scene(script_id=sample_script.id, heading="Test Scene", script_order=1)
+        scene = Scene(script_id=stored_script.id, heading="Test Scene", script_order=1)
         scene_node_id = graph_ops.create_scene_node(scene, script_node_id)
 
         # Connect characters to scene
@@ -891,9 +921,9 @@ class TestGraphOperations:
         assert target_char.id == char2_node_id
         assert interaction_edge.properties["dialogue_count"] == 3
 
-    def test_centrality_analysis(self, graph_ops, sample_script):
+    def test_centrality_analysis(self, graph_ops, stored_script):
         """Test character centrality analysis."""
-        script_node_id = graph_ops.create_script_graph(sample_script)
+        script_node_id = graph_ops.create_script_graph(stored_script)
 
         # Create characters
         characters = []
@@ -905,7 +935,7 @@ class TestGraphOperations:
             char_node_ids.append(char_node_id)
 
         # Create scenes and interactions to give one character higher centrality
-        scene = Scene(script_id=sample_script.id, heading="Test Scene", script_order=1)
+        scene = Scene(script_id=stored_script.id, heading="Test Scene", script_order=1)
         scene_node_id = graph_ops.create_scene_node(scene, script_node_id)
 
         # Connect all characters to scene

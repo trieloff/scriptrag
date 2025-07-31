@@ -383,19 +383,20 @@ Already? Give me two minutes.
         # Use the actual db_connection fixture
         graph_ops.connection = db_connection
 
-        # Mock the transaction context
+        # Create a mock that we'll assign to the connection
         mock_conn = Mock()
-        mock_transaction = Mock()
-        mock_transaction.__enter__ = Mock(return_value=mock_conn)
-        mock_transaction.__exit__ = Mock(return_value=None)
-        graph_ops.connection.transaction = Mock(return_value=mock_transaction)
+        mock_execute = Mock()
+        mock_conn.execute = mock_execute
+
+        # Replace the connection with our mock
+        graph_ops.connection = mock_conn
 
         # Test dependency removal
         graph_ops._remove_scene_dependencies(scene_id)
 
         # Should execute DELETE query for dependencies
-        mock_conn.execute.assert_called_once()
-        call_args = mock_conn.execute.call_args
+        mock_execute.assert_called_once()
+        call_args = mock_execute.call_args
         assert "DELETE FROM scene_dependencies" in call_args[0][0]
         assert scene_id in call_args[0][1]
 

@@ -850,8 +850,8 @@ class ScriptRAGMCPServer:
         if not script_id:
             raise ValueError("script_id is required")
 
-        # Validate script exists
-        _ = self._validate_script_id(script_id)
+        # Validate script exists and get full UUID
+        script = self._validate_script_id(script_id)
 
         # Get search criteria
         query = args.get("query")
@@ -877,7 +877,7 @@ class ScriptRAGMCPServer:
                     AND script_n.entity_id = ? AND script_n.node_type = 'script'
                 WHERE 1=1
             """
-            params.append(script_id)
+            params.append(str(script.id))  # Use full UUID instead of truncated ID
 
             # Add text search if query provided
             if query:
@@ -956,7 +956,7 @@ class ScriptRAGMCPServer:
 
                 # Get location
                 loc_query = """
-                    SELECT l.label
+                    SELECT l.label, l.properties_json
                     FROM nodes l
                     JOIN edges e
                         ON e.to_node_id = l.id AND e.edge_type = 'AT_LOCATION'
@@ -965,7 +965,17 @@ class ScriptRAGMCPServer:
                 """
                 loc_cursor = connection.execute(loc_query, (row["id"],))
                 loc_row = loc_cursor.fetchone()
-                scene_data["location"] = loc_row["label"] if loc_row else None
+                if loc_row:
+                    # Try to get name from properties, fall back to label
+                    try:
+                        import json
+
+                        props = json.loads(loc_row["properties_json"])
+                        scene_data["location"] = props.get("name", loc_row["label"])
+                    except (json.JSONDecodeError, KeyError, TypeError):
+                        scene_data["location"] = loc_row["label"]
+                else:
+                    scene_data["location"] = None
 
                 results.append(scene_data)
 
@@ -989,13 +999,13 @@ class ScriptRAGMCPServer:
             raise ValueError("script_id and character_name are required")
 
         # Validate script exists
-        _ = self._validate_script_id(script_id)
+        script = self._validate_script_id(script_id)
 
         # Get character information from database
         from .database.connection import DatabaseConnection
 
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
-            # Find character in this script
+            # Find character in this script using the actual script UUID
             char_query = """
                 SELECT c.*, cn.id as node_id
                 FROM characters c
@@ -1008,7 +1018,10 @@ class ScriptRAGMCPServer:
                 WHERE UPPER(c.name) LIKE UPPER(?)
                 LIMIT 1
             """
-            cursor = connection.execute(char_query, (script_id, f"%{character_name}%"))
+            cursor = connection.execute(
+                char_query,
+                (str(script.id), f"%{character_name}%"),
+            )
             char_row = cursor.fetchone()
 
             if not char_row:
@@ -1037,11 +1050,11 @@ class ScriptRAGMCPServer:
             scene_cursor = connection.execute(scene_query, (char_node_id,))
             scene_count = scene_cursor.fetchone()["scene_count"]
 
-            # Get dialogue count
+            # Get dialogue count from scene_elements
             dialogue_query = """
                 SELECT COUNT(*) as dialogue_count
-                FROM dialogue d
-                WHERE d.character_id = ?
+                FROM scene_elements se
+                WHERE se.character_id = ? AND se.element_type = 'dialogue'
             """
             dialogue_cursor = connection.execute(dialogue_query, (character_id,))
             dialogue_count = dialogue_cursor.fetchone()["dialogue_count"]
@@ -1170,7 +1183,7 @@ class ScriptRAGMCPServer:
             raise ValueError("script_id is required")
 
         # Validate script exists
-        _ = self._validate_script_id(script_id)
+        script = self._validate_script_id(script_id)
 
         include_flashbacks = args.get("include_flashbacks", True)
 
@@ -1178,7 +1191,7 @@ class ScriptRAGMCPServer:
         from .database.connection import DatabaseConnection
 
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
-            # Get all scenes in script
+            # Get all scenes in script using the actual script UUID
             scenes_query = """
                 SELECT s.*, n.properties_json as properties
                 FROM scenes s
@@ -1188,7 +1201,7 @@ class ScriptRAGMCPServer:
                     AND sn.entity_id = ? AND sn.node_type = 'script'
                 ORDER BY s.script_order
             """
-            cursor = connection.execute(scenes_query, (script_id,))
+            cursor = connection.execute(scenes_query, (str(script.id),))
             scenes = cursor.fetchall()
 
             # Analyze timeline structure
@@ -1399,6 +1412,13 @@ class ScriptRAGMCPServer:
         if not script_id or scene_id is None:
             raise ValueError("script_id and scene_id are required")
 
+        # Validate script exists and get full UUID
+        script = self._validate_script_id(script_id)
+
+        # Convert UUID objects to strings for database compatibility
+        script_uuid = str(script.id)
+        scene_id = str(scene_id)
+
         # Update scene in database
         from .database.connection import DatabaseConnection
         from .database.operations import GraphOperations
@@ -1406,7 +1426,7 @@ class ScriptRAGMCPServer:
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
             graph_ops = GraphOperations(connection)
 
-            # First verify the scene belongs to this script
+            # First verify the scene belongs to this script using full UUID
             verify_query = """
                 SELECT s.id, n.id as node_id
                 FROM scenes s
@@ -1416,7 +1436,7 @@ class ScriptRAGMCPServer:
                     AND sn.entity_id = ? AND sn.node_type = 'script'
                 WHERE s.id = ?
             """
-            cursor = connection.execute(verify_query, (script_id, scene_id))
+            cursor = connection.execute(verify_query, (script_uuid, scene_id))
             scene_row = cursor.fetchone()
 
             if not scene_row:
@@ -1448,10 +1468,10 @@ class ScriptRAGMCPServer:
 
             # Handle dialogue updates
             if dialogue_entries:
-                # Delete existing dialogue for this scene
+                # Delete existing dialogue elements for this scene
                 delete_dialogue_query = """
-                    DELETE FROM dialogue
-                    WHERE scene_id = ?
+                    DELETE FROM scene_elements
+                    WHERE scene_id = ? AND element_type = 'dialogue'
                 """
                 connection.execute(delete_dialogue_query, (scene_id,))
 
@@ -1489,12 +1509,13 @@ class ScriptRAGMCPServer:
 
                             insert_char_query = """
                                 INSERT INTO characters (
-                                    id, name, description, created_at, updated_at
-                                ) VALUES (?, ?, '', datetime('now'), datetime('now'))
+                                    id, script_id, name, description,
+                                    created_at, updated_at
+                                ) VALUES (?, ?, ?, '', datetime('now'), datetime('now'))
                             """
                             connection.execute(
                                 insert_char_query,
-                                (character_id, character_name.upper()),
+                                (character_id, script_uuid, character_name.upper()),
                             )
 
                             # Add to graph
@@ -1502,9 +1523,9 @@ class ScriptRAGMCPServer:
 
                             from .models import Character
 
-                            # Get script node ID
+                            # Get script node ID using the full UUID
                             script_nodes = graph_ops.graph.find_nodes(
-                                node_type="script", entity_id=script_id
+                                node_type="script", entity_id=script_uuid
                             )
                             if not script_nodes:
                                 raise ValueError(f"Script {script_id} not found")
@@ -1526,7 +1547,7 @@ class ScriptRAGMCPServer:
                         dialogue_id = str(uuid4())
 
                         insert_dialogue_query = """
-                            INSERT INTO dialogue (
+                            INSERT INTO scene_elements (
                                 id, element_type, text, raw_text, scene_id,
                                 order_in_scene, character_id, character_name,
                                 created_at, updated_at
@@ -1553,7 +1574,7 @@ class ScriptRAGMCPServer:
                         if parenthetical:
                             paren_id = str(uuid4())
                             insert_paren_query = """
-                                INSERT INTO parentheticals (
+                                INSERT INTO scene_elements (
                                     id, element_type, text, raw_text, scene_id,
                                     order_in_scene, associated_dialogue_id,
                                     created_at, updated_at
@@ -1595,6 +1616,13 @@ class ScriptRAGMCPServer:
         if not script_id or scene_id is None:
             raise ValueError("script_id and scene_id are required")
 
+        # Validate script exists and get full UUID
+        script = self._validate_script_id(script_id)
+
+        # Convert UUID objects to strings for database compatibility
+        script_uuid = str(script.id)
+        scene_id = str(scene_id)
+
         # Delete scene from database
         from .database.connection import DatabaseConnection
         from .database.operations import GraphOperations
@@ -1602,7 +1630,7 @@ class ScriptRAGMCPServer:
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
             graph_ops = GraphOperations(connection)
 
-            # First verify the scene belongs to this script
+            # First verify the scene belongs to this script using full UUID
             verify_query = """
                 SELECT s.id, s.script_order, n.id as node_id
                 FROM scenes s
@@ -1612,7 +1640,7 @@ class ScriptRAGMCPServer:
                     AND sn.entity_id = ? AND sn.node_type = 'script'
                 WHERE s.id = ?
             """
-            cursor = connection.execute(verify_query, (script_id, scene_id))
+            cursor = connection.execute(verify_query, (script_uuid, scene_id))
             scene_row = cursor.fetchone()
 
             if not scene_row:
@@ -1639,7 +1667,7 @@ class ScriptRAGMCPServer:
                 ORDER BY s.script_order
             """
             reorder_cursor = connection.execute(
-                reorder_query, (script_id, deleted_script_order)
+                reorder_query, (script_uuid, deleted_script_order)
             )
             scenes_to_reorder = reorder_cursor.fetchall()
 
@@ -1669,6 +1697,9 @@ class ScriptRAGMCPServer:
         if not script_id or position is None or not heading:
             raise ValueError("script_id, position, and heading are required")
 
+        # Convert script_id to string for database compatibility
+        script_id = str(script_id)
+
         # Inject scene into database
         from uuid import uuid4
 
@@ -1676,16 +1707,19 @@ class ScriptRAGMCPServer:
         from .database.operations import GraphOperations
         from .models import Location, Scene
 
+        # Validate script exists in cache and get actual script object
+        script = self._validate_script_id(script_id)
+
         with DatabaseConnection(str(self.config.get_database_path())) as connection:
             graph_ops = GraphOperations(connection)
 
-            # Verify script exists
+            # Verify script exists in database
             script_query = """
                 SELECT n.id as node_id
                 FROM nodes n
                 WHERE n.entity_id = ? AND n.node_type = 'script'
             """
-            cursor = connection.execute(script_query, (script_id,))
+            cursor = connection.execute(script_query, (str(script.id),))
             script_row = cursor.fetchone()
 
             if not script_row:
@@ -1740,7 +1774,7 @@ class ScriptRAGMCPServer:
                 heading=heading,
                 description=args.get("action", ""),
                 script_order=position,  # Will be adjusted after reordering
-                script_id=script_id,
+                script_id=script.id,  # Use actual script UUID from cache
                 time_of_day=time_of_day,
             )
 
@@ -1755,10 +1789,11 @@ class ScriptRAGMCPServer:
                     characters.append(char_name)
 
             # Use graph operations to inject the scene
+            # Convert 0-based position to 1-based for inject_scene_at_position
             success = graph_ops.inject_scene_at_position(
                 script_node_id=script_node_id,
                 scene=scene,
-                position=position,
+                position=position + 1,  # Convert 0-based to 1-based
                 characters=characters,
                 location=location_name if location else None,
             )
@@ -1798,7 +1833,7 @@ class ScriptRAGMCPServer:
                             dialogue_id = str(uuid4())
 
                             insert_dialogue_query = """
-                                INSERT INTO dialogue (
+                                INSERT INTO scene_elements (
                                     id, element_type, text, raw_text, scene_id,
                                     order_in_scene, character_id, character_name,
                                     created_at, updated_at

@@ -97,6 +97,10 @@ class DatabaseConnection:
         # Convert to string for validation
         path_str = str(db_path)
 
+        # Special case for in-memory databases
+        if path_str == ":memory:":
+            return Path(":memory:")
+
         # Check for null bytes
         if "\x00" in path_str:
             raise ValueError("Invalid database path: contains null bytes")

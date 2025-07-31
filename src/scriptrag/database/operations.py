@@ -64,6 +64,27 @@ class GraphOperations:
         Returns:
             Script node ID
         """
+        # First, ensure the script exists in the scripts table
+        with self.connection.transaction() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO scripts (
+                    id, title, author, format, genre, is_series,
+                    source_file, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """,
+                (
+                    str(script.id),
+                    script.title,
+                    script.author,
+                    script.format,
+                    script.genre,
+                    script.is_series,
+                    script.source_file,
+                ),
+            )
+
         # Create script node
         script_node_id = self.graph.add_node(
             node_type="script",
@@ -90,6 +111,25 @@ class GraphOperations:
         Returns:
             Season node ID
         """
+        # Ensure season exists in seasons table
+        with self.connection.transaction() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO seasons (
+                    id, script_id, number, title, year,
+                    created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """,
+                (
+                    str(season.id),
+                    str(season.script_id),
+                    season.number,
+                    season.title,
+                    season.year,
+                ),
+            )
+
         season_node_id = self.graph.add_node(
             node_type="season",
             entity_id=str(season.id),
@@ -124,6 +164,28 @@ class GraphOperations:
         Returns:
             Episode node ID
         """
+        # Ensure episode exists in episodes table
+        with self.connection.transaction() as conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO episodes (
+                    id, script_id, season_id, number, title,
+                    writer, director, air_date, created_at, updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """,
+                (
+                    str(episode.id),
+                    str(episode.script_id),
+                    str(episode.season_id) if episode.season_id else None,
+                    episode.number,
+                    episode.title,
+                    episode.writer,
+                    episode.director,
+                    episode.air_date.isoformat() if episode.air_date else None,
+                ),
+            )
+
         episode_node_id = self.graph.add_node(
             node_type="episode",
             entity_id=str(episode.id),
@@ -165,6 +227,46 @@ class GraphOperations:
         Returns:
             Character node ID
         """
+        # Get script entity_id from the script node
+        script_entity_id = None
+        try:
+            script_node = self.graph.get_node(script_node_id)
+            if script_node:
+                script_entity_id = script_node.entity_id
+        except Exception as e:
+            logger.warning(
+                "Failed to get script entity_id from node",
+                script_node_id=script_node_id,
+                error=str(e),
+            )
+
+        # Ensure character exists in characters table
+        if script_entity_id:
+            with self.connection.transaction() as conn:
+                # Convert aliases list to JSON string if present
+                aliases_json = None
+                if character.aliases:
+                    import json
+
+                    aliases_json = json.dumps(character.aliases)
+
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO characters (
+                        id, script_id, name, description, aliases_json,
+                        created_at, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """,
+                    (
+                        str(character.id),
+                        script_entity_id,
+                        character.name,
+                        character.description,
+                        aliases_json,
+                    ),
+                )
+
         character_node_id = self.graph.add_node(
             node_type="character",
             entity_id=str(character.id),
@@ -197,9 +299,53 @@ class GraphOperations:
         Returns:
             Location node ID
         """
+        # Generate a deterministic ID for location based on script and location details
+        from uuid import NAMESPACE_DNS, uuid5
+
+        location_id = str(
+            uuid5(
+                NAMESPACE_DNS,
+                f"{script_node_id}:{location.name}:{location.time or ''}",
+            )
+        )
+
+        # Get script entity_id from the script node
+        script_entity_id = None
+        try:
+            script_node = self.graph.get_node(script_node_id)
+            if script_node:
+                script_entity_id = script_node.entity_id
+        except Exception as e:
+            logger.warning(
+                "Failed to get script entity_id from node",
+                script_node_id=script_node_id,
+                error=str(e),
+            )
+
+        # Ensure location exists in locations table
+        if script_entity_id:
+            with self.connection.transaction() as conn:
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO locations (
+                        id, script_id, interior, name, time_of_day,
+                        raw_text, created_at, updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                    """,
+                    (
+                        location_id,
+                        script_entity_id,
+                        location.interior,
+                        location.name,
+                        location.time,
+                        location.raw_text,
+                    ),
+                )
+
         location_node_id = self.graph.add_node(
             node_type="location",
-            entity_id=None,  # Location model doesn't have an id field
+            entity_id=location_id,
             label=str(location),
             properties={
                 "interior": location.interior,
@@ -253,6 +399,42 @@ class GraphOperations:
                 "date_in_story": scene.date_in_story,
             },
         )
+
+        # Get script entity_id from the script node for scenes table
+        script_entity_id = None
+        try:
+            script_node = self.graph.get_node(script_node_id)
+            if script_node:
+                script_entity_id = script_node.entity_id
+        except Exception:
+            # If we can't get the script entity_id, use the script_id from the scene
+            script_entity_id = str(scene.script_id)
+
+        # Also insert into scenes table for timeline analysis compatibility
+        with self.connection.transaction() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO scenes (
+                    id, script_id, script_order, temporal_order, logical_order,
+                    heading, description, estimated_duration_minutes, time_of_day,
+                    date_in_story, created_at, updated_at
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
+                )
+                """,
+                (
+                    str(scene.id),
+                    script_entity_id,
+                    scene.script_order,
+                    scene.temporal_order,
+                    scene.logical_order,
+                    scene.heading,
+                    scene.description,
+                    scene.estimated_duration_minutes,
+                    scene.time_of_day,
+                    scene.date_in_story,
+                ),
+            )
 
         # Connect scene to script
         self.graph.add_edge(
@@ -1408,61 +1590,60 @@ class GraphOperations:
         Returns:
             True if successful
         """
-        # Use transaction to ensure atomicity
-        with self.connection.transaction():
-            try:
-                # Get scene node
-                scene_node = self.graph.get_node(scene_node_id)
-                if not scene_node:
-                    logger.error(f"Scene {scene_node_id} not found")
-                    return False
-
-                # Get script for re-indexing
-                script_edges = self.graph.find_edges(
-                    to_node_id=scene_node_id, edge_type="HAS_SCENE"
-                )
-                if not script_edges:
-                    logger.error(f"No script found for scene {scene_node_id}")
-                    return False
-
-                script_node_id = script_edges[0].from_node_id
-                scene_order = scene_node.properties.get("script_order", 0)
-
-                # Remove all dependencies involving this scene
-                self._remove_scene_dependencies(scene_node_id)
-
-                # Remove all edges connected to this scene
-                all_edges = self.graph.find_edges(from_node_id=scene_node_id)
-                all_edges.extend(self.graph.find_edges(to_node_id=scene_node_id))
-
-                for edge in all_edges:
-                    self.graph.delete_edge(edge.id)
-
-                # Delete the scene node
-                self.graph.delete_node(scene_node_id)
-
-                # Re-index remaining scenes
-                self._reindex_scenes_after_deletion(script_node_id, scene_order)
-
-                logger.info(f"Deleted scene {scene_node_id} with reference integrity")
-                return True
-
-            except Exception as e:
-                logger.error(f"Failed to delete scene {scene_node_id}: {e}")
+        # Don't create a new transaction - caller should manage transactions
+        try:
+            # Get scene node
+            scene_node = self.graph.get_node(scene_node_id)
+            if not scene_node:
+                logger.error(f"Scene {scene_node_id} not found")
                 return False
+
+            # Get script for re-indexing
+            script_edges = self.graph.find_edges(
+                to_node_id=scene_node_id, edge_type="HAS_SCENE"
+            )
+            if not script_edges:
+                logger.error(f"No script found for scene {scene_node_id}")
+                return False
+
+            script_node_id = script_edges[0].from_node_id
+            scene_order = scene_node.properties.get("script_order", 0)
+
+            # Remove all dependencies involving this scene
+            self._remove_scene_dependencies(scene_node_id)
+
+            # Remove all edges connected to this scene
+            all_edges = self.graph.find_edges(from_node_id=scene_node_id)
+            all_edges.extend(self.graph.find_edges(to_node_id=scene_node_id))
+
+            for edge in all_edges:
+                self.graph.delete_edge(edge.id)
+
+            # Delete the scene node
+            self.graph.delete_node(scene_node_id)
+
+            # Re-index remaining scenes
+            self._reindex_scenes_after_deletion(script_node_id, scene_order)
+
+            logger.info(f"Deleted scene {scene_node_id} with reference integrity")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to delete scene {scene_node_id}: {e}")
+            return False
 
     def _remove_scene_dependencies(self, scene_node_id: str) -> None:
         """Remove all dependencies involving a scene."""
         try:
-            with self.connection.transaction() as conn:
-                # Remove dependencies where this scene is involved
-                conn.execute(
-                    """
-                    DELETE FROM scene_dependencies
-                    WHERE from_scene_id = ? OR to_scene_id = ?
-                    """,
-                    (scene_node_id, scene_node_id),
-                )
+            conn = self.connection
+            # Remove dependencies where this scene is involved
+            conn.execute(
+                """
+                DELETE FROM scene_dependencies
+                WHERE from_scene_id = ? OR to_scene_id = ?
+                """,
+                (scene_node_id, scene_node_id),
+            )
 
         except Exception as e:
             logger.error(
@@ -1514,68 +1695,61 @@ class GraphOperations:
         Returns:
             Scene node ID if successful, None otherwise
         """
-        # Use transaction to ensure atomicity
-        with self.connection.transaction():
-            try:
-                # Get current scenes to validate position
-                current_scenes = self.get_script_scenes(
-                    script_node_id, SceneOrderType.SCRIPT
-                )
-                max_position = len(current_scenes) + 1
+        # Don't create a new transaction - caller should manage transactions
+        try:
+            # Get current scenes to validate position
+            current_scenes = self.get_script_scenes(
+                script_node_id, SceneOrderType.SCRIPT
+            )
+            max_position = len(current_scenes) + 1
 
-                if position < 1 or position > max_position:
-                    logger.error(
-                        f"Invalid position {position}. Must be 1-{max_position}"
+            if position < 1 or position > max_position:
+                logger.error(f"Invalid position {position}. Must be 1-{max_position}")
+                return None
+
+            # Shift existing scenes to make room
+            self._shift_scenes_for_injection(script_node_id, position)
+
+            # Create the new scene with specified position
+            scene_data = scene.model_dump()
+            scene_data["script_order"] = position
+            scene_node_id = self.create_scene_node(scene, script_node_id)
+
+            # Update the node with correct position
+            self.graph.update_node(scene_node_id, properties={"script_order": position})
+
+            # Connect characters if provided
+            if characters:
+                for char_name in characters:
+                    # Find or create character
+                    existing_chars = self.graph.find_nodes(
+                        node_type="character",
+                        label_pattern=char_name.upper(),
                     )
-                    return None
 
-                # Shift existing scenes to make room
-                self._shift_scenes_for_injection(script_node_id, position)
-
-                # Create the new scene with specified position
-                scene_data = scene.model_dump()
-                scene_data["script_order"] = position
-                scene_node_id = self.create_scene_node(scene, script_node_id)
-
-                # Update the node with correct position
-                self.graph.update_node(
-                    scene_node_id, properties={"script_order": position}
-                )
-
-                # Connect characters if provided
-                if characters:
-                    for char_name in characters:
-                        # Find or create character
-                        existing_chars = self.graph.find_nodes(
-                            node_type="character",
-                            label_pattern=char_name.upper(),
+                    if existing_chars:
+                        char_node_id = existing_chars[0].id
+                    else:
+                        character = Character(name=char_name)
+                        char_node_id = self.create_character_node(
+                            character, script_node_id
                         )
 
-                        if existing_chars:
-                            char_node_id = existing_chars[0].id
-                        else:
-                            character = Character(name=char_name)
-                            char_node_id = self.create_character_node(
-                                character, script_node_id
-                            )
+                    self.connect_character_to_scene(char_node_id, scene_node_id)
 
-                        self.connect_character_to_scene(char_node_id, scene_node_id)
+            # Connect location if provided
+            if location:
+                self._update_scene_location_with_propagation(scene_node_id, location)
 
-                # Connect location if provided
-                if location:
-                    self._update_scene_location_with_propagation(
-                        scene_node_id, location
-                    )
+            # Re-analyze dependencies for affected scenes
+            self._reanalyze_dependencies_after_injection(script_node_id, position)
 
-                # Re-analyze dependencies for affected scenes
-                self._reanalyze_dependencies_after_injection(script_node_id, position)
+            logger.info(f"Injected scene at position {position}")
+            return scene_node_id
 
-                logger.info(f"Injected scene at position {position}")
-                return scene_node_id
-
-            except Exception as e:
-                logger.error(f"Failed to inject scene at position {position}: {e}")
-                return None
+        except Exception as e:
+            logger.error(f"Failed to inject scene at position {position}: {e}")
+            return None
 
     def _shift_scenes_for_injection(self, script_node_id: str, position: int) -> None:
         """Shift scene orders to make room for injection."""

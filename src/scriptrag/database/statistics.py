@@ -320,8 +320,9 @@ class DatabaseStatistics:
                     -- LAG with IGNORE NULLS would be ideal (not in SQLite)
                     -- So we use a different approach
                     CASE
-                        -- Mark CONTINUOUS as NULL to be filled later
+                        -- Mark CONTINUOUS and CONT. as NULL to be filled later
                         WHEN UPPER(time_of_day) = 'CONTINUOUS' THEN NULL
+                        WHEN UPPER(time_of_day) = 'CONT.' THEN NULL
                         ELSE time_of_day
                     END as actual_time
                 FROM scenes

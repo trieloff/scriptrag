@@ -193,13 +193,13 @@ class TestDatabaseStatistics:
             )
 
             # Add scenes with different times of day
-            # Pattern: DAY, NIGHT, CONTINUOUS (x2), MORNING, CONTINUOUS
+            # Pattern: DAY, NIGHT, CONTINUOUS, CONT., MORNING, CONTINUOUS
             # Expected count: DAY=1, NIGHT=3, MORNING=2
             times_of_day = [
                 "DAY",
                 "NIGHT",
                 "CONTINUOUS",  # Should count as NIGHT
-                "CONTINUOUS",  # Should count as NIGHT
+                "CONT.",  # Should count as NIGHT (abbreviation)
                 "MORNING",
                 "CONTINUOUS",  # Should count as MORNING
             ]
@@ -305,6 +305,70 @@ class TestDatabaseStatistics:
 
             # Total should be 2 (first CONTINUOUS is not counted)
             assert sum(usage["common_times_of_day"].values()) == 2
+
+    def test_cont_abbreviation_variations(self, tmp_path):
+        """Test that CONT. abbreviation is handled like CONTINUOUS."""
+        db_path = tmp_path / "cont_abbreviation_test.db"
+        initialize_database(db_path)
+
+        conn = DatabaseConnection(db_path)
+        with conn.transaction() as tx:
+            # Add test data
+            script_id = str(uuid4())
+            tx.execute(
+                """INSERT INTO scripts (id, title, author, description)
+                   VALUES (?, ?, ?, ?)""",
+                (script_id, "Test Script", "Test Author", "A test script"),
+            )
+
+            # Add location
+            location_id = str(uuid4())
+            tx.execute(
+                """INSERT INTO locations
+                   (id, script_id, interior, name, time_of_day, raw_text)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (location_id, script_id, True, "Office", "DAY", "INT. OFFICE - DAY"),
+            )
+
+            # Test various continuity markers
+            times_of_day = [
+                "NIGHT",
+                "CONTINUOUS",  # Should count as NIGHT
+                "CONT.",  # Should count as NIGHT
+                "cont.",  # Should count as NIGHT (lowercase)
+                "DAY",
+                "Cont.",  # Should count as DAY (mixed case)
+            ]
+            for i, time_of_day in enumerate(times_of_day):
+                scene_id = str(uuid4())
+                tx.execute(
+                    """INSERT INTO scenes
+                       (id, script_id, location_id, heading, script_order, time_of_day)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (
+                        scene_id,
+                        script_id,
+                        location_id,
+                        f"INT. OFFICE - {time_of_day}",
+                        i,
+                        time_of_day,
+                    ),
+                )
+
+        # Test statistics
+        with DatabaseConnection(db_path) as conn:
+            stats = DatabaseStatistics(conn)
+            usage = stats.get_usage_patterns()
+
+            # No continuity markers should appear
+            assert "CONTINUOUS" not in usage["common_times_of_day"]
+            assert "CONT." not in usage["common_times_of_day"]
+            assert "cont." not in usage["common_times_of_day"]
+            assert "Cont." not in usage["common_times_of_day"]
+
+            # Verify counts
+            assert usage["common_times_of_day"]["NIGHT"] == 4  # 1 NIGHT + 3 continuity
+            assert usage["common_times_of_day"]["DAY"] == 2  # 1 DAY + 1 continuity
 
     def test_all_statistics(self, tmp_path):
         """Test get_all_statistics aggregation."""

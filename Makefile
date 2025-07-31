@@ -2,6 +2,9 @@
 # Requires: make, python3.11+
 # UV will be installed automatically if missing
 
+# Ensure we use bash for shell commands
+SHELL := /bin/bash
+
 .PHONY: help
 help: ## Show this help message
 	@echo "ScriptRAG Development Commands"
@@ -118,14 +121,49 @@ security: install ## Run security checks (bandit, safety, pip-audit)
 # Testing
 .PHONY: test
 test: install ## Run all tests in parallel with coverage
+	@echo "🔍 Checking for mock files before tests..."
+	@bash -c 'if find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null | head -1 | grep -q .; then \
+		echo "❌ ERROR: Found mock files with invalid names!"; \
+		echo "These files should never be created. They indicate a bug in test mocking."; \
+		echo "Please fix the mock configuration to return proper values instead of Mock objects."; \
+		echo ""; \
+		echo "Files found:"; \
+		find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null; \
+		exit 1; \
+	fi'
 	uv run pytest tests/ -v -n auto --cov=scriptrag --cov-report= --junit-xml=junit.xml $(PYTEST_ARGS)
 	uv run coverage combine || true  # May already be combined by pytest-xdist
 	uv run coverage xml
 	uv run coverage report --show-missing
+	@echo "🔍 Checking for mock files after tests..."
+	@bash -c 'if find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null | head -1 | grep -q .; then \
+		echo "❌ ERROR: Tests created mock files with invalid names!"; \
+		echo "These files indicate improper mock configuration in tests."; \
+		echo "Mock objects should return proper string values, not Mock object representations."; \
+		echo ""; \
+		echo "Files created:"; \
+		find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null; \
+		echo ""; \
+		echo "To fix: Ensure all mocked methods that return paths return actual string values."; \
+		echo "Example: mock_settings.get_database_path.return_value = '\''/test/db.sqlite'\''"; \
+		exit 1; \
+	fi'
 
 .PHONY: test-fast
 test-fast: install ## Run tests without coverage (faster)
+	@echo "🔍 Checking for mock files before tests..."
+	@bash -c 'if find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null | head -1 | grep -q .; then \
+		echo "❌ ERROR: Found mock files with invalid names!"; \
+		echo "Run '\''make clean-mock-files'\'' to remove them."; \
+		exit 1; \
+	fi'
 	uv run pytest tests/ -v -n auto
+	@echo "🔍 Checking for mock files after tests..."
+	@bash -c 'if find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null | head -1 | grep -q .; then \
+		echo "❌ ERROR: Tests created mock files!"; \
+		echo "Fix mock configuration in tests."; \
+		exit 1; \
+	fi'
 
 .PHONY: test-watch
 test-watch: install ## Run tests in watch mode
@@ -228,6 +266,15 @@ clean: ## Clean build artifacts and caches
 	rm -rf *.egg-info
 	rm -rf .eggs/
 	rm -rf .pytest_cache/
+
+.PHONY: clean-mock-files
+clean-mock-files: ## Clean up mock files created by tests
+	@echo "🧹 Cleaning up mock files..."
+	@bash -c 'find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null -print0 | xargs -0 -r rm -f'
+	@echo "✅ Mock files cleaned"
+
+.PHONY: clean-all
+clean-all: clean clean-mock-files ## Clean all artifacts including caches and venv
 	rm -rf .mypy_cache/
 	rm -rf .ruff_cache/
 	rm -rf htmlcov/
@@ -241,11 +288,9 @@ clean: ## Clean build artifacts and caches
 	find . -type f -name "*.pyo" -delete
 	find . -type f -name "*~" -delete
 	find . -type f -name ".DS_Store" -delete
-
-.PHONY: clean-all
-clean-all: clean ## Clean everything including venv
 	rm -rf .venv/
 	rm -rf uv.lock
+
 
 # Quality checks (combines multiple checks)
 .PHONY: check

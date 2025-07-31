@@ -27,6 +27,8 @@ from .config import (
     load_settings,
     setup_logging_for_environment,
 )
+from .database.connection import DatabaseConnection
+from .database.graph import GraphDatabase, GraphEdge, GraphNode
 from .models import Script
 
 
@@ -1984,13 +1986,200 @@ class ScriptRAGMCPServer:
 
         character_name = args.get("character_name")
 
-        # TODO: Implement relationship analysis
-        return {
-            "script_id": script_id,
-            "character_name": character_name,
-            "relationships": [],
-            "total_characters": 0,
-        }
+        # Get database connection with proper resource management
+        db_path = str(self.config.database.path)
+        with DatabaseConnection(db_path) as connection:
+            graph_db = GraphDatabase(connection)
+
+            # Get script node
+            script_nodes = graph_db.find_nodes(node_type="script", limit=100)
+            script_node = None
+            for node in script_nodes:
+                if node.entity_id == script_id:
+                    script_node = node
+                    break
+
+            if not script_node:
+                return {
+                    "script_id": script_id,
+                    "character_name": character_name,
+                    "relationships": [],
+                    "total_characters": 0,
+                    "error": "Script not found in graph",
+                }
+
+            # Get all character nodes for this script
+            all_character_nodes: list[GraphNode] = []
+            character_node_map: dict[str, GraphNode] = {}  # Map character name to node
+
+            # Query all character nodes with batch loading to avoid N+1 queries
+            sql = """
+            SELECT n.*, c.name as char_name
+            FROM nodes n
+            JOIN characters c ON c.id = n.entity_id
+            WHERE n.node_type = 'character' AND c.script_id = ?
+            """
+            rows = connection.fetch_all(sql, (script_id,))
+
+            # Create nodes directly from query results to avoid N+1 queries
+            for row in rows:
+                char_name = row["char_name"]
+                # Create GraphNode directly from row data
+                node = GraphNode.from_row(row)
+                all_character_nodes.append(node)
+                character_node_map[char_name] = node
+
+            # If specific character requested, validate it exists
+            target_character_node = None
+            if character_name:
+                target_character_node = character_node_map.get(character_name)
+                if not target_character_node:
+                    return {
+                        "script_id": script_id,
+                        "character_name": character_name,
+                        "relationships": [],
+                        "total_characters": len(all_character_nodes),
+                        "error": f"Character '{character_name}' not found",
+                    }
+
+            # Build relationship data
+            relationships: list[dict[str, Any]] = []
+            # Track unique relationships
+            relationship_map: dict[tuple[str, str], dict[str, Any]] = {}
+
+            # Query all SPEAKS_TO edges between characters
+            if character_name and target_character_node:
+                # Get relationships for specific character
+                # Outgoing relationships (character speaks to others)
+                outgoing_edges = graph_db.find_edges(
+                    from_node_id=target_character_node.id, edge_type="SPEAKS_TO"
+                )
+
+                # Incoming relationships (others speak to character)
+                incoming_edges = graph_db.find_edges(
+                    to_node_id=target_character_node.id, edge_type="SPEAKS_TO"
+                )
+
+                # Process edges
+                all_edges = outgoing_edges + incoming_edges
+            else:
+                # Get all character relationships in the script
+                character_node_ids = [node.id for node in all_character_nodes]
+
+                # Query all SPEAKS_TO edges between these characters
+                if character_node_ids:
+                    # Validate input size to prevent excessive placeholder generation
+                    if len(character_node_ids) > 1000:  # reasonable limit
+                        raise ValueError("Too many character nodes")
+
+                    placeholders = ",".join(["?"] * len(character_node_ids))
+                    sql = f"""
+                    SELECT * FROM edges
+                    WHERE edge_type = 'SPEAKS_TO'
+                    AND from_node_id IN ({placeholders})
+                    AND to_node_id IN ({placeholders})
+                    """
+                    params = character_node_ids + character_node_ids
+                    rows = connection.fetch_all(sql, tuple(params))
+
+                    # Convert rows to GraphEdge objects
+                    all_edges = []
+                    for row in rows:
+                        edge = GraphEdge.from_row(row)
+                        all_edges.append(edge)
+                else:
+                    all_edges = []
+
+            # Process edges to build relationships
+            for edge in all_edges:
+                # Get character names for both nodes
+                from_char_name = None
+                to_char_name = None
+
+                for char_name, node in character_node_map.items():
+                    if node.id == edge.from_node_id:
+                        from_char_name = char_name
+                    if node.id == edge.to_node_id:
+                        to_char_name = char_name
+
+                if not from_char_name or not to_char_name:
+                    continue
+
+                # Create a unique key for bidirectional relationships
+                sorted_names = sorted([from_char_name, to_char_name])
+                rel_key = (sorted_names[0], sorted_names[1])
+
+                if rel_key not in relationship_map:
+                    relationship_map[rel_key] = {
+                        "characters": list(rel_key),
+                        "interactions": [],
+                        "dialogue_count": 0,
+                        "scene_count": 0,
+                        "scenes": set(),
+                    }
+
+                # Add interaction details
+                scene_id = edge.properties.get("scene_id")
+                dialogue_count = edge.properties.get("dialogue_count", 1)
+
+                relationship_map[rel_key]["interactions"].append(
+                    {
+                        "from": from_char_name,
+                        "to": to_char_name,
+                        "scene_id": scene_id,
+                        "dialogue_count": dialogue_count,
+                    }
+                )
+                relationship_map[rel_key]["dialogue_count"] += dialogue_count
+                if scene_id:
+                    relationship_map[rel_key]["scenes"].add(scene_id)
+
+            # Calculate metrics and format relationships
+            scene_limit = getattr(self.config.mcp, "max_scenes_per_relationship", 10)
+
+            for _rel_key, rel_data in relationship_map.items():
+                char1, char2 = rel_data["characters"]
+
+                # Skip if filtering by character and relationship doesn't involve them
+                if character_name and character_name not in rel_data["characters"]:
+                    continue
+
+                # Calculate interaction strength (dialogue count and scene count)
+                scene_count = len(rel_data["scenes"])
+                dialogue_count = rel_data["dialogue_count"]
+                strength = min(1.0, (dialogue_count * 0.1 + scene_count * 0.2))
+
+                # Determine primary character for directed relationships
+                if character_name:
+                    other_character = char2 if char1 == character_name else char1
+                    relationship_type = "mutual"  # Could be enhanced with more analysis
+                else:
+                    other_character = char2
+                    relationship_type = "mutual"
+
+                relationships.append(
+                    {
+                        "character": other_character if character_name else char1,
+                        "other_character": None if character_name else char2,
+                        "relationship_type": relationship_type,
+                        "dialogue_exchanges": dialogue_count,
+                        "shared_scenes": scene_count,
+                        "interaction_strength": round(strength, 3),
+                        # Limit scenes for response size using configurable limit
+                        "scenes": list(rel_data["scenes"])[:scene_limit],
+                    }
+                )
+
+            # Sort by interaction strength
+            relationships.sort(key=lambda x: x["interaction_strength"], reverse=True)
+
+            return {
+                "script_id": script_id,
+                "character_name": character_name,
+                "relationships": relationships,
+                "total_characters": len(all_character_nodes),
+                "total_relationships": len(relationships),
+            }
 
     async def _tool_export_data(self, args: dict[str, Any]) -> dict[str, Any]:
         """Export script data."""
@@ -2600,13 +2789,309 @@ class ScriptRAGMCPServer:
                 raise ValueError(f"Script not found: {script_id}")
 
             script = self._scripts_cache[script_id]
+
+            # Fetch scenes for this script
+            scenes_data = []
+            characters_data = {}  # Use dict to track unique characters
+
+            from .database.connection import DatabaseConnection
+
+            db_path = str(self.config.get_database_path())
+            with (
+                DatabaseConnection(db_path) as connection,
+                connection.get_connection() as conn,
+            ):
+                # Query scenes for this script
+                cursor = conn.execute(
+                    """
+                    SELECT
+                        s.id, s.heading, s.description, s.script_order,
+                        s.temporal_order, s.logical_order, s.time_of_day,
+                        s.date_in_story, s.estimated_duration_minutes,
+                        l.name as location_name, l.interior
+                    FROM scenes s
+                    LEFT JOIN locations l ON s.location_id = l.id
+                    WHERE s.script_id = ?
+                    ORDER BY s.script_order
+                """,
+                    (script_id,),
+                )
+
+                for row in cursor:
+                    scene_data = {
+                        "id": row["id"],
+                        "heading": row["heading"],
+                        "description": row["description"],
+                        "script_order": row["script_order"],
+                        "temporal_order": row["temporal_order"],
+                        "logical_order": row["logical_order"],
+                        "time_of_day": row["time_of_day"],
+                        "date_in_story": row["date_in_story"],
+                        "duration_minutes": row["estimated_duration_minutes"],
+                        "location": {
+                            "name": row["location_name"],
+                            "interior": (
+                                bool(row["interior"])
+                                if row["interior"] is not None
+                                else None
+                            ),
+                        }
+                        if row["location_name"]
+                        else None,
+                        "characters": [],
+                        "dialogue_count": 0,
+                    }
+
+                    # Get characters in this scene
+                    char_cursor = conn.execute(
+                        """
+                            SELECT DISTINCT
+                                c.id, c.name, c.description,
+                                COUNT(DISTINCT se.id) as dialogue_count
+                            FROM scene_elements se
+                            JOIN characters c ON se.character_id = c.id
+                            WHERE se.scene_id = ? AND se.element_type = 'dialogue'
+                            GROUP BY c.id, c.name, c.description
+                        """,
+                        (row["id"],),
+                    )
+
+                    for char_row in char_cursor:
+                        scene_data["characters"].append(
+                            {
+                                "id": char_row["id"],
+                                "name": char_row["name"],
+                                "dialogue_count": char_row["dialogue_count"],
+                            }
+                        )
+                        scene_data["dialogue_count"] += char_row["dialogue_count"]
+
+                        # Track character for overall stats
+                        if char_row["id"] not in characters_data:
+                            characters_data[char_row["id"]] = {
+                                "id": char_row["id"],
+                                "name": char_row["name"],
+                                "description": char_row["description"],
+                                "scene_count": 0,
+                                "dialogue_count": 0,
+                                "scenes": [],
+                            }
+
+                        characters_data[char_row["id"]]["scene_count"] += 1
+                        characters_data[char_row["id"]]["dialogue_count"] += char_row[
+                            "dialogue_count"
+                        ]
+                        characters_data[char_row["id"]]["scenes"].append(row["id"])
+
+                    scenes_data.append(scene_data)
+
+                # Get scene dependencies/relationships
+                for scene in scenes_data:
+                    dep_cursor = conn.execute(
+                        """
+                            SELECT
+                            sd.to_scene_id, sd.dependency_type,
+                            sd.description, sd.strength,
+                            s.heading as to_scene_heading
+                            FROM scene_dependencies sd
+                            JOIN scenes s ON sd.to_scene_id = s.id
+                            WHERE sd.from_scene_id = ?
+                        """,
+                        (scene["id"],),
+                    )
+
+                    scene["relationships"] = []
+                    for dep_row in dep_cursor:
+                        scene["relationships"].append(
+                            {
+                                "to_scene_id": dep_row["to_scene_id"],
+                                "type": dep_row["dependency_type"],
+                                "description": dep_row["description"],
+                                "strength": dep_row["strength"],
+                                "to_scene_heading": dep_row["to_scene_heading"],
+                            }
+                        )
+
+                # Get character profiles if they exist
+                for char_id in characters_data:
+                    profile_cursor = conn.execute(
+                        """
+                            SELECT
+                            full_name, age, occupation, background,
+                            personality_traits, motivations, fears, goals,
+                            physical_description, character_arc
+                            FROM character_profiles
+                            WHERE character_id = ? AND script_id = ?
+                        """,
+                        (char_id, script_id),
+                    )
+
+                    profile_row = profile_cursor.fetchone()
+                    if profile_row:
+                        characters_data[char_id].update(
+                            {
+                                "full_name": profile_row["full_name"],
+                                "age": profile_row["age"],
+                                "occupation": profile_row["occupation"],
+                                "background": profile_row["background"],
+                                "personality_traits": profile_row["personality_traits"],
+                                "motivations": profile_row["motivations"],
+                                "fears": profile_row["fears"],
+                                "goals": profile_row["goals"],
+                                "physical_description": profile_row[
+                                    "physical_description"
+                                ],
+                                "character_arc": profile_row["character_arc"],
+                            }
+                        )
+
+                # Get character relationships
+                for char_id in characters_data:
+                    # Get edges where this character interacts with others
+                    rel_cursor = conn.execute(
+                        """
+                            SELECT DISTINCT
+                                e.to_node_id, e.edge_type, e.weight,
+                                c2.name as other_character_name,
+                                COUNT(DISTINCT se1.scene_id) as shared_scenes
+                            FROM nodes n1
+                            JOIN edges e ON n1.id = e.from_node_id
+                            JOIN nodes n2 ON e.to_node_id = n2.id
+                            JOIN characters c1 ON n1.entity_id = c1.id
+                            JOIN characters c2 ON n2.entity_id = c2.id
+                            LEFT JOIN scene_elements se1 ON se1.character_id = c1.id
+                            LEFT JOIN scene_elements se2 ON se2.character_id = c2.id
+                                AND se1.scene_id = se2.scene_id
+                            WHERE n1.node_type = 'character'
+                                AND n2.node_type = 'character'
+                                AND c1.id = ?
+                                AND e.edge_type IN (
+                                    'INTERACTS_WITH', 'SPEAKS_TO', 'RELATED_TO'
+                                )
+                            GROUP BY e.to_node_id, e.edge_type, e.weight, c2.name
+                        """,
+                        (char_id,),
+                    )
+
+                    relationships = []
+                    for rel_row in rel_cursor:
+                        relationships.append(
+                            {
+                                "character_name": rel_row["other_character_name"],
+                                "relationship_type": rel_row["edge_type"],
+                                "strength": rel_row["weight"],
+                                "shared_scenes": rel_row["shared_scenes"],
+                            }
+                        )
+
+                    if relationships:
+                        characters_data[char_id]["relationships"] = relationships
+
+            # Convert characters dict to sorted list
+            characters_list = sorted(
+                characters_data.values(),
+                key=lambda x: x["dialogue_count"],
+                reverse=True,
+            )
+
+            # Get plot threads and story arcs
+            plot_threads = []
+            with connection.get_connection() as conn:
+                thread_cursor = conn.execute(
+                    """
+                    SELECT
+                        id, name, thread_type, priority, description,
+                        status, introduced_episode_id, resolved_episode_id,
+                        primary_characters_json, key_scenes_json
+                    FROM plot_threads
+                    WHERE script_id = ? AND status IN ('active', 'resolved')
+                    ORDER BY priority DESC, name
+                """,
+                    (script_id,),
+                )
+
+                for thread_row in thread_cursor:
+                    plot_threads.append(
+                        {
+                            "id": thread_row["id"],
+                            "name": thread_row["name"],
+                            "type": thread_row["thread_type"],
+                            "priority": thread_row["priority"],
+                            "description": thread_row["description"],
+                            "status": thread_row["status"],
+                            "primary_characters": json.loads(
+                                thread_row["primary_characters_json"] or "[]"
+                            ),
+                            "key_scenes": json.loads(
+                                thread_row["key_scenes_json"] or "[]"
+                            ),
+                        }
+                    )
+
+            # Create scene timeline with grouping
+            timeline: dict[str, Any] = {
+                "chronological": [],  # Scenes by temporal order
+                "by_location": {},  # Scenes grouped by location
+                "by_act": {  # Traditional three-act structure
+                    "act_1": [],
+                    "act_2": [],
+                    "act_3": [],
+                },
+            }
+
+            # Group scenes for timeline
+            for scene in scenes_data:
+                # Chronological timeline
+                timeline["chronological"].append(
+                    {
+                        "scene_id": scene["id"],
+                        "heading": scene["heading"],
+                        "order": scene["temporal_order"] or scene["script_order"],
+                        "time_of_day": scene["time_of_day"],
+                        "date_in_story": scene["date_in_story"],
+                    }
+                )
+
+                # By location
+                if scene["location"]:
+                    loc_name = scene["location"]["name"]
+                    if loc_name not in timeline["by_location"]:
+                        timeline["by_location"][loc_name] = []
+                    timeline["by_location"][loc_name].append(scene["id"])
+
+                # By act (rough approximation based on script position)
+                total_scenes = len(scenes_data)
+                if scene["script_order"] <= total_scenes * 0.25:
+                    timeline["by_act"]["act_1"].append(scene["id"])
+                elif scene["script_order"] <= total_scenes * 0.75:
+                    timeline["by_act"]["act_2"].append(scene["id"])
+                else:
+                    timeline["by_act"]["act_3"].append(scene["id"])
+
+            # Sort chronological timeline
+            timeline["chronological"].sort(key=lambda x: x["order"])
+
             content = json.dumps(
                 {
                     "script_id": script_id,
                     "title": script.title,
                     "source_file": script.source_file,
-                    "scenes": [],  # TODO: Add scene data when available
-                    "characters": [],  # TODO: Add character data
+                    "scenes": scenes_data,
+                    "characters": characters_list,
+                    "plot_threads": plot_threads,
+                    "timeline": timeline,
+                    "stats": {
+                        "total_scenes": len(scenes_data),
+                        "total_characters": len(characters_list),
+                        "total_dialogue": sum(s["dialogue_count"] for s in scenes_data),
+                        "estimated_runtime_minutes": sum(
+                            s["duration_minutes"] or 0 for s in scenes_data
+                        ),
+                        "locations": len(timeline["by_location"]),
+                        "active_plot_threads": len(
+                            [t for t in plot_threads if t["status"] == "active"]
+                        ),
+                    },
                 },
                 indent=2,
             )

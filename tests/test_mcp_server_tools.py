@@ -97,11 +97,11 @@ class TestGetSceneDetailsTool:
 
         # Now the scene exists and can be retrieved
         result = await mcp_server_with_db._tool_get_scene_details(
-            {"script_id": "script_0", "scene_id": 1}
+            {"script_id": "script_0", "scene_id": sample_scene.id}
         )
 
         assert result["script_id"] == "script_0"
-        assert result["scene_id"] == 1
+        assert result["scene_id"] == sample_scene.id
         assert "heading" in result
         assert "action" in result
         assert "dialogue" in result
@@ -438,6 +438,15 @@ class TestAddCharacterKnowledgeTool:
         with DatabaseConnection(
             str(mcp_server_with_db.config.get_database_path())
         ) as conn:
+            # First, insert the script into the database
+            conn.execute(
+                """
+                INSERT INTO scripts (id, title, format, created_at, updated_at)
+                VALUES ('script_0', ?, 'screenplay', datetime('now'), datetime('now'))
+                """,
+                (script.title,),
+            )
+
             # Setup test data
             conn.execute(
                 """

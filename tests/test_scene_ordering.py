@@ -34,18 +34,8 @@ def sample_script(graph_ops: GraphOperations) -> tuple[str, Script]:
         format="screenplay",
     )
 
-    # Create script in database
+    # Create script in database (this already inserts into scripts table)
     _ = graph_ops.create_script_graph(script)
-
-    # Store script record
-    with graph_ops.connection.transaction() as conn:
-        conn.execute(
-            """
-            INSERT INTO scripts (id, title, author, format)
-            VALUES (?, ?, ?, ?)
-            """,
-            (str(script.id), script.title, script.author, script.format),
-        )
 
     return str(script.id), script
 

@@ -254,6 +254,42 @@ class GraphOperations:
             },
         )
 
+        # Get script entity_id from the script node for scenes table
+        script_entity_id = None
+        try:
+            script_node = self.graph.get_node(script_node_id)
+            if script_node:
+                script_entity_id = script_node.entity_id
+        except Exception:
+            # If we can't get the script entity_id, use the script_id from the scene
+            script_entity_id = str(scene.script_id)
+
+        # Also insert into scenes table for timeline analysis compatibility
+        with self.connection.transaction() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO scenes (
+                    id, script_id, script_order, temporal_order, logical_order,
+                    heading, description, estimated_duration_minutes, time_of_day,
+                    date_in_story, created_at, updated_at
+                ) VALUES (
+                    ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now')
+                )
+                """,
+                (
+                    str(scene.id),
+                    script_entity_id,
+                    scene.script_order,
+                    scene.temporal_order,
+                    scene.logical_order,
+                    scene.heading,
+                    scene.description,
+                    scene.estimated_duration_minutes,
+                    scene.time_of_day,
+                    scene.date_in_story,
+                ),
+            )
+
         # Connect scene to script
         self.graph.add_edge(
             from_node_id=script_node_id,

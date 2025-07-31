@@ -1035,11 +1035,11 @@ class ScriptRAGMCPServer:
             scene_cursor = connection.execute(scene_query, (char_node_id,))
             scene_count = scene_cursor.fetchone()["scene_count"]
 
-            # Get dialogue count
+            # Get dialogue count from scene_elements
             dialogue_query = """
                 SELECT COUNT(*) as dialogue_count
-                FROM dialogue d
-                WHERE d.character_id = ?
+                FROM scene_elements se
+                WHERE se.character_id = ? AND se.element_type = 'dialogue'
             """
             dialogue_cursor = connection.execute(dialogue_query, (character_id,))
             dialogue_count = dialogue_cursor.fetchone()["dialogue_count"]

@@ -7,7 +7,7 @@ import pytest
 
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.database.continuity import ContinuityIssue
-from scriptrag.mcp_server import ScriptRAGMCPServer
+from scriptrag.mcp.server import ScriptRAGMCPServer
 
 
 @pytest.fixture

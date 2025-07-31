@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from scriptrag.mcp_server import ScriptRAGMCPServer
+from scriptrag.mcp.server import ScriptRAGMCPServer
 from scriptrag.models import Script
 
 

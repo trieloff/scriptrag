@@ -8,7 +8,7 @@ import mcp.types as types
 import pytest
 
 from scriptrag.config import ScriptRAGSettings
-from scriptrag.mcp_server import ScriptRAGMCPServer
+from scriptrag.mcp.server import ScriptRAGMCPServer
 from scriptrag.models import Script
 
 
@@ -39,7 +39,7 @@ def mcp_server(mock_settings, tmp_path):
 
     initialize_database(test_db_path)
 
-    with patch("scriptrag.mcp_server.ScriptRAG"):
+    with patch("scriptrag.mcp.server.ScriptRAG"):
         return ScriptRAGMCPServer(mock_settings)
 
 
@@ -79,7 +79,7 @@ class TestScriptRAGMCPServer:
 
     def test_initialization(self, mock_settings):
         """Test server initialization."""
-        with patch("scriptrag.mcp_server.ScriptRAG") as mock_scriptrag:
+        with patch("scriptrag.mcp.server.ScriptRAG") as mock_scriptrag:
             server = ScriptRAGMCPServer(mock_settings)
 
             assert server.config == mock_settings

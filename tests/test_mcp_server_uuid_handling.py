@@ -5,7 +5,7 @@ import pytest
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.database.connection import DatabaseConnection
 from scriptrag.database.operations import GraphOperations
-from scriptrag.mcp_server import ScriptRAGMCPServer
+from scriptrag.mcp.server import ScriptRAGMCPServer
 from scriptrag.models import Character, Location, Scene, Script
 
 

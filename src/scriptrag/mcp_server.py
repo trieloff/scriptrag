@@ -27,6 +27,8 @@ from .config import (
     load_settings,
     setup_logging_for_environment,
 )
+from .database.connection import DatabaseConnection
+from .database.graph import GraphDatabase, GraphEdge, GraphNode
 from .models import Script
 
 
@@ -2019,13 +2021,200 @@ class ScriptRAGMCPServer:
 
         character_name = args.get("character_name")
 
-        # TODO: Implement relationship analysis
-        return {
-            "script_id": script_id,
-            "character_name": character_name,
-            "relationships": [],
-            "total_characters": 0,
-        }
+        # Get database connection with proper resource management
+        db_path = str(self.config.database.path)
+        with DatabaseConnection(db_path) as connection:
+            graph_db = GraphDatabase(connection)
+
+            # Get script node
+            script_nodes = graph_db.find_nodes(node_type="script", limit=100)
+            script_node = None
+            for node in script_nodes:
+                if node.entity_id == script_id:
+                    script_node = node
+                    break
+
+            if not script_node:
+                return {
+                    "script_id": script_id,
+                    "character_name": character_name,
+                    "relationships": [],
+                    "total_characters": 0,
+                    "error": "Script not found in graph",
+                }
+
+            # Get all character nodes for this script
+            all_character_nodes: list[GraphNode] = []
+            character_node_map: dict[str, GraphNode] = {}  # Map character name to node
+
+            # Query all character nodes with batch loading to avoid N+1 queries
+            sql = """
+            SELECT n.*, c.name as char_name
+            FROM nodes n
+            JOIN characters c ON c.id = n.entity_id
+            WHERE n.node_type = 'character' AND c.script_id = ?
+            """
+            rows = connection.fetch_all(sql, (script_id,))
+
+            # Create nodes directly from query results to avoid N+1 queries
+            for row in rows:
+                char_name = row["char_name"]
+                # Create GraphNode directly from row data
+                node = GraphNode.from_row(row)
+                all_character_nodes.append(node)
+                character_node_map[char_name] = node
+
+            # If specific character requested, validate it exists
+            target_character_node = None
+            if character_name:
+                target_character_node = character_node_map.get(character_name)
+                if not target_character_node:
+                    return {
+                        "script_id": script_id,
+                        "character_name": character_name,
+                        "relationships": [],
+                        "total_characters": len(all_character_nodes),
+                        "error": f"Character '{character_name}' not found",
+                    }
+
+            # Build relationship data
+            relationships: list[dict[str, Any]] = []
+            # Track unique relationships
+            relationship_map: dict[tuple[str, str], dict[str, Any]] = {}
+
+            # Query all SPEAKS_TO edges between characters
+            if character_name and target_character_node:
+                # Get relationships for specific character
+                # Outgoing relationships (character speaks to others)
+                outgoing_edges = graph_db.find_edges(
+                    from_node_id=target_character_node.id, edge_type="SPEAKS_TO"
+                )
+
+                # Incoming relationships (others speak to character)
+                incoming_edges = graph_db.find_edges(
+                    to_node_id=target_character_node.id, edge_type="SPEAKS_TO"
+                )
+
+                # Process edges
+                all_edges = outgoing_edges + incoming_edges
+            else:
+                # Get all character relationships in the script
+                character_node_ids = [node.id for node in all_character_nodes]
+
+                # Query all SPEAKS_TO edges between these characters
+                if character_node_ids:
+                    # Validate input size to prevent excessive placeholder generation
+                    if len(character_node_ids) > 1000:  # reasonable limit
+                        raise ValueError("Too many character nodes")
+
+                    placeholders = ",".join(["?"] * len(character_node_ids))
+                    sql = f"""
+                    SELECT * FROM edges
+                    WHERE edge_type = 'SPEAKS_TO'
+                    AND from_node_id IN ({placeholders})
+                    AND to_node_id IN ({placeholders})
+                    """
+                    params = character_node_ids + character_node_ids
+                    rows = connection.fetch_all(sql, tuple(params))
+
+                    # Convert rows to GraphEdge objects
+                    all_edges = []
+                    for row in rows:
+                        edge = GraphEdge.from_row(row)
+                        all_edges.append(edge)
+                else:
+                    all_edges = []
+
+            # Process edges to build relationships
+            for edge in all_edges:
+                # Get character names for both nodes
+                from_char_name = None
+                to_char_name = None
+
+                for char_name, node in character_node_map.items():
+                    if node.id == edge.from_node_id:
+                        from_char_name = char_name
+                    if node.id == edge.to_node_id:
+                        to_char_name = char_name
+
+                if not from_char_name or not to_char_name:
+                    continue
+
+                # Create a unique key for bidirectional relationships
+                sorted_names = sorted([from_char_name, to_char_name])
+                rel_key = (sorted_names[0], sorted_names[1])
+
+                if rel_key not in relationship_map:
+                    relationship_map[rel_key] = {
+                        "characters": list(rel_key),
+                        "interactions": [],
+                        "dialogue_count": 0,
+                        "scene_count": 0,
+                        "scenes": set(),
+                    }
+
+                # Add interaction details
+                scene_id = edge.properties.get("scene_id")
+                dialogue_count = edge.properties.get("dialogue_count", 1)
+
+                relationship_map[rel_key]["interactions"].append(
+                    {
+                        "from": from_char_name,
+                        "to": to_char_name,
+                        "scene_id": scene_id,
+                        "dialogue_count": dialogue_count,
+                    }
+                )
+                relationship_map[rel_key]["dialogue_count"] += dialogue_count
+                if scene_id:
+                    relationship_map[rel_key]["scenes"].add(scene_id)
+
+            # Calculate metrics and format relationships
+            scene_limit = getattr(self.config.mcp, "max_scenes_per_relationship", 10)
+
+            for _rel_key, rel_data in relationship_map.items():
+                char1, char2 = rel_data["characters"]
+
+                # Skip if filtering by character and relationship doesn't involve them
+                if character_name and character_name not in rel_data["characters"]:
+                    continue
+
+                # Calculate interaction strength (dialogue count and scene count)
+                scene_count = len(rel_data["scenes"])
+                dialogue_count = rel_data["dialogue_count"]
+                strength = min(1.0, (dialogue_count * 0.1 + scene_count * 0.2))
+
+                # Determine primary character for directed relationships
+                if character_name:
+                    other_character = char2 if char1 == character_name else char1
+                    relationship_type = "mutual"  # Could be enhanced with more analysis
+                else:
+                    other_character = char2
+                    relationship_type = "mutual"
+
+                relationships.append(
+                    {
+                        "character": other_character if character_name else char1,
+                        "other_character": None if character_name else char2,
+                        "relationship_type": relationship_type,
+                        "dialogue_exchanges": dialogue_count,
+                        "shared_scenes": scene_count,
+                        "interaction_strength": round(strength, 3),
+                        # Limit scenes for response size using configurable limit
+                        "scenes": list(rel_data["scenes"])[:scene_limit],
+                    }
+                )
+
+            # Sort by interaction strength
+            relationships.sort(key=lambda x: x["interaction_strength"], reverse=True)
+
+            return {
+                "script_id": script_id,
+                "character_name": character_name,
+                "relationships": relationships,
+                "total_characters": len(all_character_nodes),
+                "total_relationships": len(relationships),
+            }
 
     async def _tool_export_data(self, args: dict[str, Any]) -> dict[str, Any]:
         """Export script data."""

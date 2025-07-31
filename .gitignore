@@ -187,6 +187,7 @@ config/local.yaml
 *<Mock*
 *id='*'*
 MagicMock/
+**/MagicMock/
 .test-artifacts/
 test-results/
 

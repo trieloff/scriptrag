@@ -15,7 +15,7 @@ graph TB
         MCP[MCP Server]
     end
 
-    subgraph "Processing Layer"
+    subgraph "Processing Layer - Actors"
         FP[Fountain Parser]
         CE[Content Extractor]
         EG[Embedding Generator]
@@ -24,11 +24,11 @@ graph TB
         QE[Query Engine]
     end
 
-    subgraph "Storage Layer"
-        GR[(Git Repository)]
-        LFS[(Git LFS)]
-        DB[(SQLite Database)]
-        IA[Insight Agents]
+    subgraph "Storage Layer - Places"
+        GR(Git Repository)
+        LFS(Git LFS)
+        DB(SQLite Database)
+        IA(Insight Agents)
     end
 
     subgraph "External Services"
@@ -37,6 +37,7 @@ graph TB
 
     CLI --> FP
     CLI --> QE
+    CLI --> GS
     MCP --> FP
     MCP --> QE
 
@@ -56,12 +57,25 @@ graph TB
     QE --> DB
     QE --> LFS
 
-    style CLI fill:#b3d9ff
-    style MCP fill:#b3d9ff
-    style LLM fill:#ffccb3
-    style GR fill:#d4f1d4
-    style LFS fill:#d4f1d4
-    style DB fill:#d4f1d4
+    %% Actor styling (rectangular boxes)
+    style CLI fill:#b3d9ff,stroke:#333,stroke-width:4px
+    style MCP fill:#b3d9ff,stroke:#333,stroke-width:4px
+    style FP fill:#fff,stroke:#333,stroke-width:4px
+    style CE fill:#fff,stroke:#333,stroke-width:4px
+    style EG fill:#fff,stroke:#333,stroke-width:4px
+    style GS fill:#fff,stroke:#333,stroke-width:4px
+    style DI fill:#fff,stroke:#333,stroke-width:4px
+    style QE fill:#fff,stroke:#333,stroke-width:4px
+    style LLM fill:#ffccb3,stroke:#333,stroke-width:4px
+
+    %% Place styling (pill-shaped with rounded corners)
+    style GR fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:20,ry:20
+    style LFS fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:20,ry:20
+    style DB fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:20,ry:20
+    style IA fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:20,ry:20
+
+    %% Edge styling
+    linkStyle default stroke:#333,stroke-width:2px
 ```
 
 ## System Components (Actors and Places)

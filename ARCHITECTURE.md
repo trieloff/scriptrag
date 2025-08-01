@@ -26,7 +26,7 @@ graph TB
     end
 
     subgraph "Storage Layer"
-        subgraph "Git Repository"
+        subgraph GR["Git Repository"]
             FF(Fountain Files)
             SB(Script Bible)
             CIA(Custom Insight Agents)
@@ -34,7 +34,8 @@ graph TB
 
         LFS(Git LFS)
 
-        subgraph "SQLite Database"
+        DB[(SQLite Database)]
+        subgraph DB_contents["(Database Contents)"]
             Scenes(Scenes)
             Scripts(Scripts)
             Characters(Characters)
@@ -52,7 +53,9 @@ graph TB
     MCP --> FP
     MCP --> QE
 
-    FF --> FP
+    FF --> GS
+    GS --> FP
+    GS --> LFS
     FP --> CE
     CE --> LLM
     BIA --> CE
@@ -61,19 +64,12 @@ graph TB
     EG --> LLM
     EG --> LFS
 
-    GS --> FF
     GS --> DI
-    DI --> Scenes
-    DI --> Scripts
-    DI --> Characters
-    DI --> Series
+    DI --> DB
     FF --> DI
+    LFS --> DI
 
-    Scenes --> QE
-    Scripts --> QE
-    Characters --> QE
-    Series --> QE
-    LFS --> QE
+    DB --> QE
 
     %% Actor styling (rectangular boxes)
     style CLI fill:#b3d9ff,stroke:#333,stroke-width:4px
@@ -89,13 +85,14 @@ graph TB
     %% Place styling (pill-shaped with rounded corners)
     style BIA fill:#e6f3ff,stroke:#333,stroke-width:4px,rx:50,ry:50
     style LFS fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:50,ry:50
+    style DB fill:#fff5e6,stroke:#333,stroke-width:4px,rx:50,ry:50
     style FF fill:#e8f5e8,stroke:#333,stroke-width:4px,rx:40,ry:40
     style SB fill:#e8f5e8,stroke:#333,stroke-width:4px,rx:40,ry:40
     style CIA fill:#e8f5e8,stroke:#333,stroke-width:4px,rx:40,ry:40
-    style Scenes fill:#fff5e6,stroke:#333,stroke-width:4px,rx:40,ry:40
-    style Scripts fill:#fff5e6,stroke:#333,stroke-width:4px,rx:40,ry:40
-    style Characters fill:#fff5e6,stroke:#333,stroke-width:4px,rx:40,ry:40
-    style Series fill:#fff5e6,stroke:#333,stroke-width:4px,rx:40,ry:40
+    style Scenes fill:#ffe6cc,stroke:#333,stroke-width:4px,rx:30,ry:30
+    style Scripts fill:#ffe6cc,stroke:#333,stroke-width:4px,rx:30,ry:30
+    style Characters fill:#ffe6cc,stroke:#333,stroke-width:4px,rx:30,ry:30
+    style Series fill:#ffe6cc,stroke:#333,stroke-width:4px,rx:30,ry:30
 
     %% Edge styling
     linkStyle default stroke:#333,stroke-width:2px

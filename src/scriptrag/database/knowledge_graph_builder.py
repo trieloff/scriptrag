@@ -143,7 +143,7 @@ class KnowledgeGraphBuilder:
                 edges = self.graph_ops.create_scene_sequence(
                     scene_node_ids, SceneOrderType.SCRIPT
                 )
-                stats["total_edges"] += edges
+                stats["total_edges"] += len(edges)
 
             # Enrich with LLM if requested
             if enrich_with_llm and self.llm_client:

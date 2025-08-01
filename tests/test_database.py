@@ -527,7 +527,10 @@ class TestGraphDatabase:
         """Test node creation, retrieval, update, and deletion."""
         # Create node
         node_id = graph_db.add_node(
-            node_type="test", label="Test Node", properties={"key": "value"}
+            node_type="test",
+            entity_id="test_entity",
+            label="Test Node",
+            properties={"key": "value"},
         )
 
         # Retrieve node
@@ -562,8 +565,8 @@ class TestGraphDatabase:
     def test_edge_operations(self, graph_db):
         """Test edge creation, retrieval, and deletion."""
         # Create nodes
-        node1_id = graph_db.add_node("test", label="Node 1")
-        node2_id = graph_db.add_node("test", label="Node 2")
+        node1_id = graph_db.add_node("test", entity_id="node1_entity", label="Node 1")
+        node2_id = graph_db.add_node("test", entity_id="node2_entity", label="Node 2")
 
         # Create edge
         edge_id = graph_db.add_edge(

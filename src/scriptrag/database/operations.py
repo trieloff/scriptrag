@@ -185,7 +185,7 @@ class GraphOperations:
 
     def create_scene_sequence(
         self, scene_ids: list[str], sequence_type: str = "follows"
-    ) -> int:
+    ) -> list[str]:
         """Create sequential relationships between scenes."""
         return self._scene_ops.create_scene_sequence(scene_ids, sequence_type)
 

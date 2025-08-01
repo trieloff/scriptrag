@@ -240,7 +240,7 @@ class CharacterOperations:
         """
         # Get all characters in the script
         characters = self.graph.get_neighbors(
-            script_node_id, direction="outgoing", edge_type="HAS_CHARACTER"
+            script_node_id, direction="out", edge_type="HAS_CHARACTER"
         )
 
         centrality = {}

@@ -100,7 +100,7 @@ class SceneOperations:
 
     def create_scene_sequence(
         self, scene_ids: list[str], sequence_type: str = "follows"
-    ) -> int:
+    ) -> list[str]:
         """Create sequential relationships between scenes.
 
         Args:
@@ -108,9 +108,9 @@ class SceneOperations:
             sequence_type: Type of sequence relationship
 
         Returns:
-            Number of edges created
+            List of created edge IDs
         """
-        edges_created = 0
+        edge_ids = []
 
         for i in range(len(scene_ids) - 1):
             edge_id = self.graph.add_edge(
@@ -120,12 +120,12 @@ class SceneOperations:
                 properties={"position": i},
             )
             if edge_id:
-                edges_created += 1
+                edge_ids.append(edge_id)
 
         logger.info(
-            f"Created {edges_created} {sequence_type} edges for {len(scene_ids)} scenes"
+            f"Created {len(edge_ids)} {sequence_type} edges for {len(scene_ids)} scenes"
         )
-        return edges_created
+        return edge_ids
 
     def update_scene_order(
         self, script_node_id: str, scene_positions: dict[str, int]

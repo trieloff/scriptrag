@@ -614,10 +614,11 @@ Arc: [potential character development]"""
         # Create temporal sequence
         if temporal_order:
             edges = self.graph_ops.create_scene_sequence(
-                temporal_order, SceneOrderType.TEMPORAL
+                temporal_order, SceneOrderType.TEMPORAL.value
             )
-            self.logger.info(f"Created {edges} temporal relationships")
-            return edges
+            edges_count = len(edges)
+            self.logger.info(f"Created {edges_count} temporal relationships")
+            return edges_count
 
         return 0
 

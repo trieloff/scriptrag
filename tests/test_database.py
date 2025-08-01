@@ -811,7 +811,7 @@ class TestGraphOperations:
         loc_node = graph_ops.graph.get_node(loc_node_id)
         assert loc_node is not None
         assert loc_node.node_type == "location"
-        assert loc_node.properties["name"] == sample_location.name
+        assert loc_node.label == sample_location.name
 
     def test_scene_operations(self, graph_ops, stored_script, sample_scene):
         """Test scene node operations."""
@@ -847,7 +847,7 @@ class TestGraphOperations:
 
         # Create sequence
         edge_ids = graph_ops.create_scene_sequence(
-            scene_node_ids, SceneOrderType.SCRIPT
+            scene_node_ids, SceneOrderType.SCRIPT.value
         )
         assert len(edge_ids) == 2  # 3 scenes = 2 edges
 

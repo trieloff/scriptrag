@@ -6,6 +6,64 @@ This document describes the architecture of ScriptRAG v2 using Fundamental Model
 
 ScriptRAG v2 is a Git-native screenplay analysis system that combines version control with intelligent content extraction and search capabilities. All screenplay content and metadata are stored in Fountain files with structured data in boneyard sections, while embeddings are managed through Git LFS.
 
+## System Architecture Overview
+
+```mermaid
+graph TB
+    subgraph "User Interface"
+        CLI[CLI Interface]
+        MCP[MCP Server]
+    end
+
+    subgraph "Processing Layer"
+        FP[Fountain Parser]
+        CE[Content Extractor]
+        EG[Embedding Generator]
+        GS[Git Synchronizer]
+        DI[Database Indexer]
+        QE[Query Engine]
+    end
+
+    subgraph "Storage Layer"
+        GR[(Git Repository)]
+        LFS[(Git LFS)]
+        DB[(SQLite Database)]
+        IA[Insight Agents]
+    end
+
+    subgraph "External Services"
+        LLM[LLM API]
+    end
+
+    CLI --> FP
+    CLI --> QE
+    MCP --> FP
+    MCP --> QE
+
+    FP --> GR
+    FP --> CE
+    CE --> LLM
+    CE --> IA
+    CE --> EG
+    EG --> LLM
+    EG --> LFS
+
+    GS --> GR
+    GS --> DI
+    DI --> DB
+    DI --> GR
+
+    QE --> DB
+    QE --> LFS
+
+    style CLI fill:#b3d9ff
+    style MCP fill:#b3d9ff
+    style LLM fill:#ffccb3
+    style GR fill:#d4f1d4
+    style LFS fill:#d4f1d4
+    style DB fill:#d4f1d4
+```
+
 ## System Components (Actors and Places)
 
 ### Actors (Active Components)
@@ -220,32 +278,92 @@ ScriptRAG v2 is a Git-native screenplay analysis system that combines version co
 
 ### Relationships Flow
 
-```text
-Series ←──has_many──→ Script
-   ↓                     ↓
-has_many             has_many
-   ↓                     ↓
-Character              Scene
-   ↓                     ↓
-has_one              has_one
-   ↓                     ↓
-Bible               Embedding
-   ↓                     ↓
-stored_in           stored_in
-   ↓                     ↓
-Git Repo            Git LFS
+```mermaid
+erDiagram
+    Series ||--o{ Script : "has_many"
+    Series ||--o{ Character : "has_many"
+    Script ||--o{ Scene : "has_many"
+    Scene ||--|| Embedding : "has_one"
+    Scene }o--o{ Character : "appears_in"
+    Scene ||--o{ Dialogue : "has_many"
+    Scene ||--|| Metadata : "described_by"
+    Scene ||--o| Scene : "follows/precedes"
+    Character ||--|| Bible : "has_one"
+    Character ||--o{ Dialogue : "speaks"
+    Dialogue }o--|| Character : "spoken_by"
+    Bible ||--|| GitRepo : "stored_in"
+    Embedding ||--|| GitLFS : "stored_in"
 
-Scene ←──appears_in──→ Character
-  ↓                        ↓
-has_many                speaks
-  ↓                        ↓
-Dialogue ←────spoken_by────┘
+    Series {
+        string series_id PK
+        string title
+        string type
+        timestamp created_at
+    }
 
-Scene ←───described_by───→ Metadata
-  ↓
-follows/precedes
-  ↓
-Scene
+    Script {
+        string file_path PK
+        string title
+        string series_id FK
+        string format_type
+        int season_number
+        int episode_number
+        int movie_number
+        timestamp last_modified
+    }
+
+    Scene {
+        string content_hash PK
+        string type
+        string location
+        string time_of_day
+        text action_text
+        array dialogue_lines
+    }
+
+    Character {
+        string character_id PK
+        string series_id FK
+        string name
+        array aliases
+        string bible_path
+        string bible_embedding
+    }
+
+    Dialogue {
+        text text
+        string character_name
+        string parenthetical
+    }
+
+    Metadata {
+        string content_hash FK
+        array characters_present
+        array props
+        string emotional_tone
+        array themes
+        string story_function
+    }
+
+    Embedding {
+        string content_hash FK
+        string file_path
+        int dimensions
+        string model_version
+    }
+
+    Bible {
+        string path
+        text content
+    }
+
+    GitRepo {
+        type storage
+    }
+
+    GitLFS {
+        type storage
+    }
 ```
 
 ## Required Integrations
@@ -285,24 +403,33 @@ Scene
 
 ## Processing Flow
 
-```text
-1. User edits scene in Fountain file
-     ↓
-2. Git pre-commit hook activates
-     ↓
-3. Changed scenes detected (via content hash)
-     ↓
-4. For each changed scene:
-   a. Content Extractor → LLM → Metadata
-   b. Embedding Generator → LLM → Vectors
-   c. Store embeddings in Git LFS
-   d. Update boneyard in Fountain file
-     ↓
-5. Commit proceeds with updated files
-     ↓
-6. Database Indexer updates local cache
-     ↓
-7. Scene ready for search/analysis
+```mermaid
+flowchart TD
+    A[User edits scene in Fountain file] --> B[Git pre-commit hook activates]
+    B --> C[Changed scenes detected via content hash]
+    C --> D{For each changed scene}
+
+    D --> E[Content Extractor]
+    E --> F[LLM Analysis]
+    F --> G[Metadata Generated]
+
+    D --> H[Embedding Generator]
+    H --> I[LLM Embedding]
+    I --> J[Vectors Generated]
+
+    G --> K[Update boneyard in Fountain file]
+    J --> L[Store embeddings in Git LFS]
+
+    K --> M[Commit proceeds with updated files]
+    L --> M
+
+    M --> N[Database Indexer updates local cache]
+    N --> O[Scene ready for search/analysis]
+
+    style A fill:#e1f5e1
+    style O fill:#e1f5e1
+    style F fill:#ffe4b5
+    style I fill:#ffe4b5
 ```
 
 ## Design Principles
@@ -409,11 +536,25 @@ See [Example Insight Agent: Emotional Beats](docs/example-insight-agent.md) for 
 
 #### Agent Execution Flow
 
-1. **Discovery**: Content Extractor scans `insight-agents/` directory
-2. **Context Gathering**: Execute SQL query to gather scene context
-3. **LLM Processing**: Send context + prompt to LLM
-4. **Validation**: Validate response against JSON schema
-5. **Storage**: Store validated results in scene's extracted metadata
+```mermaid
+flowchart LR
+    A[Content Extractor] --> B[Scan insight-agents/]
+    B --> C[Load Agent Files]
+    C --> D[Execute SQL Context Query]
+    D --> E[Gather Scene Data]
+    E --> F[Build LLM Prompt]
+    F --> G[Send to LLM]
+    G --> H[Receive Response]
+    H --> I{Validate JSON Schema}
+    I -->|Valid| J[Store in Metadata]
+    I -->|Invalid| K[Log Error]
+    J --> L[Return Results]
+    K --> L
+
+    style A fill:#b3d9ff
+    style G fill:#ffccb3
+    style J fill:#d4f1d4
+```
 
 #### Benefits
 

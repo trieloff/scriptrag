@@ -44,9 +44,13 @@ class TestGetCharacterRelationships:
         """Test handling when script is not found in graph."""
         with (
             patch(
-                "scriptrag.mcp_server.DatabaseConnection", return_value=mock_connection
+                "scriptrag.mcp.tools_character.DatabaseConnection",
+                return_value=mock_connection,
             ),
-            patch("scriptrag.mcp_server.GraphDatabase", return_value=mock_graph_db),
+            patch(
+                "scriptrag.mcp.tools_character.GraphDatabase",
+                return_value=mock_graph_db,
+            ),
         ):
             # Mock find_nodes to return empty list
             mock_graph_db.find_nodes.return_value = []
@@ -67,9 +71,13 @@ class TestGetCharacterRelationships:
         """Test handling when specific character is not found."""
         with (
             patch(
-                "scriptrag.mcp_server.DatabaseConnection", return_value=mock_connection
+                "scriptrag.mcp.tools_character.DatabaseConnection",
+                return_value=mock_connection,
             ),
-            patch("scriptrag.mcp_server.GraphDatabase", return_value=mock_graph_db),
+            patch(
+                "scriptrag.mcp.tools_character.GraphDatabase",
+                return_value=mock_graph_db,
+            ),
         ):
             # Mock script node
             script_node = GraphNode(
@@ -135,9 +143,13 @@ class TestGetCharacterRelationships:
         """Test successfully getting all character relationships."""
         with (
             patch(
-                "scriptrag.mcp_server.DatabaseConnection", return_value=mock_connection
+                "scriptrag.mcp.tools_character.DatabaseConnection",
+                return_value=mock_connection,
             ),
-            patch("scriptrag.mcp_server.GraphDatabase", return_value=mock_graph_db),
+            patch(
+                "scriptrag.mcp.tools_character.GraphDatabase",
+                return_value=mock_graph_db,
+            ),
         ):
             # Mock script node
             script_node = GraphNode(
@@ -249,9 +261,13 @@ class TestGetCharacterRelationships:
         """Test successfully filtering relationships by specific character."""
         with (
             patch(
-                "scriptrag.mcp_server.DatabaseConnection", return_value=mock_connection
+                "scriptrag.mcp.tools_character.DatabaseConnection",
+                return_value=mock_connection,
             ),
-            patch("scriptrag.mcp_server.GraphDatabase", return_value=mock_graph_db),
+            patch(
+                "scriptrag.mcp.tools_character.GraphDatabase",
+                return_value=mock_graph_db,
+            ),
         ):
             # Mock script node
             script_node = GraphNode(
@@ -321,9 +337,13 @@ class TestGetCharacterRelationships:
         """Test handling when there are no relationships."""
         with (
             patch(
-                "scriptrag.mcp_server.DatabaseConnection", return_value=mock_connection
+                "scriptrag.mcp.tools_character.DatabaseConnection",
+                return_value=mock_connection,
             ),
-            patch("scriptrag.mcp_server.GraphDatabase", return_value=mock_graph_db),
+            patch(
+                "scriptrag.mcp.tools_character.GraphDatabase",
+                return_value=mock_graph_db,
+            ),
         ):
             # Mock script node
             script_node = GraphNode(
@@ -367,9 +387,13 @@ class TestGetCharacterRelationships:
         """Test that too many characters raises ValueError."""
         with (
             patch(
-                "scriptrag.mcp_server.DatabaseConnection", return_value=mock_connection
+                "scriptrag.mcp.tools_character.DatabaseConnection",
+                return_value=mock_connection,
             ),
-            patch("scriptrag.mcp_server.GraphDatabase", return_value=mock_graph_db),
+            patch(
+                "scriptrag.mcp.tools_character.GraphDatabase",
+                return_value=mock_graph_db,
+            ),
         ):
             # Mock script node
             script_node = GraphNode(
@@ -410,9 +434,13 @@ class TestGetCharacterRelationships:
         """Test that interaction strength is calculated correctly."""
         with (
             patch(
-                "scriptrag.mcp_server.DatabaseConnection", return_value=mock_connection
+                "scriptrag.mcp.tools_character.DatabaseConnection",
+                return_value=mock_connection,
             ),
-            patch("scriptrag.mcp_server.GraphDatabase", return_value=mock_graph_db),
+            patch(
+                "scriptrag.mcp.tools_character.GraphDatabase",
+                return_value=mock_graph_db,
+            ),
         ):
             # Mock script node
             script_node = GraphNode(
@@ -511,9 +539,13 @@ class TestGetCharacterRelationships:
 
         with (
             patch(
-                "scriptrag.mcp_server.DatabaseConnection", return_value=mock_connection
+                "scriptrag.mcp.tools_character.DatabaseConnection",
+                return_value=mock_connection,
             ),
-            patch("scriptrag.mcp_server.GraphDatabase", return_value=mock_graph_db),
+            patch(
+                "scriptrag.mcp.tools_character.GraphDatabase",
+                return_value=mock_graph_db,
+            ),
         ):
             # Mock script node
             script_node = GraphNode(
@@ -586,9 +618,13 @@ class TestGetCharacterRelationships:
         """Test that database connection is properly closed even on error."""
         with (
             patch(
-                "scriptrag.mcp_server.DatabaseConnection", return_value=mock_connection
+                "scriptrag.mcp.tools_character.DatabaseConnection",
+                return_value=mock_connection,
             ),
-            patch("scriptrag.mcp_server.GraphDatabase", return_value=mock_graph_db),
+            patch(
+                "scriptrag.mcp.tools_character.GraphDatabase",
+                return_value=mock_graph_db,
+            ),
         ):
             # Mock find_nodes to raise an exception
             mock_graph_db.find_nodes.side_effect = Exception("Database error")
@@ -609,9 +645,13 @@ class TestGetCharacterRelationships:
         """Test that relationships are sorted by interaction strength."""
         with (
             patch(
-                "scriptrag.mcp_server.DatabaseConnection", return_value=mock_connection
+                "scriptrag.mcp.tools_character.DatabaseConnection",
+                return_value=mock_connection,
             ),
-            patch("scriptrag.mcp_server.GraphDatabase", return_value=mock_graph_db),
+            patch(
+                "scriptrag.mcp.tools_character.GraphDatabase",
+                return_value=mock_graph_db,
+            ),
         ):
             # Mock script node
             script_node = GraphNode(

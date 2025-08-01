@@ -382,9 +382,10 @@ class GraphOperations:
         entity_id: str,
         label: str,
         properties: dict[str, Any] | None = None,
+        node_id: str | None = None,
     ) -> str:
         """Add a node to the graph."""
-        return self.graph.add_node(node_type, entity_id, label, properties)
+        return self.graph.add_node(node_type, entity_id, label, properties, node_id)
 
     def get_node(self, node_id: str) -> GraphNode | None:
         """Get a node by ID."""

@@ -808,6 +808,15 @@ class ScriptRAGMCPServer:
                 )
             )
 
+    async def _tool_get_character_relationships(
+        self, args: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Tool compatibility method for character relationships.
+
+        Delegates to character tools implementation for backward compatibility.
+        """
+        return await self._character_tools.get_character_relationships(args)
+
     async def _handle_list_resources(
         self, _request: types.ListResourcesRequest
     ) -> types.ServerResult:

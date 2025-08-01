@@ -69,10 +69,10 @@ graph TB
     style LLM fill:#ffccb3,stroke:#333,stroke-width:4px
 
     %% Place styling (pill-shaped with rounded corners)
-    style GR fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:20,ry:20
-    style LFS fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:20,ry:20
-    style DB fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:20,ry:20
-    style IA fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:20,ry:20
+    style GR fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:50,ry:50
+    style LFS fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:50,ry:50
+    style DB fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:50,ry:50
+    style IA fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:50,ry:50
 
     %% Edge styling
     linkStyle default stroke:#333,stroke-width:2px

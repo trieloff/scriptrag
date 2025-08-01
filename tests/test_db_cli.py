@@ -72,7 +72,7 @@ class TestDbInit:
 
         assert result.exit_code == 0
         assert "Database initialized successfully" in result.stdout
-        mock_initialize_database.assert_called_once_with(str(temp_db_path))
+        mock_initialize_database.assert_called_once_with(temp_db_path)
         mock_logger.info.assert_called_once()
 
     @patch("scriptrag.cli.commands.database.get_settings")
@@ -128,7 +128,7 @@ class TestDbInit:
 
         assert result.exit_code == 0
         assert "Database initialized successfully" in result.stdout
-        mock_initialize_database.assert_called_once_with(str(temp_db_path))
+        mock_initialize_database.assert_called_once_with(temp_db_path)
 
     @patch("scriptrag.cli.commands.database.get_settings")
     @patch("scriptrag.cli.commands.database.get_logger")

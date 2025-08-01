@@ -297,7 +297,7 @@ async def test_build_temporal_graph(mock_connection):
         patch.object(
             builder.graph_ops,
             "create_scene_sequence",
-            return_value=2,
+            return_value=["edge_1", "edge_2"],
         ) as mock_seq,
     ):
         edges_created = await builder.build_temporal_graph("script_node_1")

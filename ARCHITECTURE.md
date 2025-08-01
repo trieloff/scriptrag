@@ -58,7 +58,7 @@ graph TB
     end
 
     subgraph "External Services"
-        LLM[LLM API]
+        LLM[LLM API<br/>OpenAI REST / Claude Code SDK]
         ch_llm1((◀))
         ch_llm2((◀))
     end
@@ -460,13 +460,16 @@ erDiagram
 
 ### 2. **LLM Integration**
 
+- **API Endpoints** (two options):
+  - **OpenAI-compatible REST API**: Direct HTTP calls to OpenAI or compatible endpoints
+  - **Claude Code SDK**: Native integration when running within Claude Code environment
 - **API Requirements**:
-  - OpenAI-compatible endpoint
   - Embedding generation capability
   - Text completion for extraction
+  - Structured output support (JSON mode)
 - **Supported Providers**:
-  - Local: LMStudio, Ollama
-  - Cloud: OpenAI, Anthropic
+  - Local: LMStudio, Ollama (via OpenAI-compatible API)
+  - Cloud: OpenAI, Anthropic (via REST API or Claude Code SDK)
 
 ### 3. **Database Integration**
 

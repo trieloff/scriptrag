@@ -17,6 +17,7 @@ class ScriptRAG:
         Raises:
             NotImplementedError: This feature is not yet implemented
         """
+        _ = path  # Acknowledge parameter until implemented
         raise NotImplementedError("Fountain parsing not yet implemented in v2")
 
     def search(self, query: str) -> None:
@@ -28,4 +29,5 @@ class ScriptRAG:
         Raises:
             NotImplementedError: This feature is not yet implemented
         """
+        _ = query  # Acknowledge parameter until implemented
         raise NotImplementedError("Search functionality not yet implemented in v2")

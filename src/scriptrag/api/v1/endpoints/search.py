@@ -32,12 +32,10 @@ async def search_scenes(
         # Validate required parameters
         if not search_request.query:
             raise HTTPException(status_code=422, detail="Query is required")
-        if not search_request.script_id:
-            raise HTTPException(status_code=422, detail="Script ID is required")
 
         result = await db_ops.search_scenes(
             query=search_request.query,
-            script_id=search_request.script_id,
+            script_id=search_request.script_id or "",  # Provide empty string for None
             character=search_request.character,
             limit=search_request.limit,
             offset=search_request.offset,
@@ -72,12 +70,10 @@ async def semantic_search(
         # Validate required parameters
         if not search_request.query:
             raise HTTPException(status_code=422, detail="Query is required")
-        if not search_request.script_id:
-            raise HTTPException(status_code=422, detail="Script ID is required")
 
         result = await db_ops.semantic_search(
             query=search_request.query,
-            script_id=search_request.script_id,
+            script_id=search_request.script_id or "",  # Provide empty string for None
             threshold=search_request.threshold,
             limit=search_request.limit,
         )
@@ -114,14 +110,13 @@ async def search_by_character(
 ) -> SearchResponse:
     """Search scenes containing a specific character."""
     try:
-        # Validate required parameters
-        if not script_id:
-            raise HTTPException(status_code=422, detail="Script ID is required")
+        # Allow searching without script_id for global search
+        pass
 
         result = await db_ops.search_scenes(
             query="",  # Empty query for character-only search
             character=character_name,
-            script_id=script_id,
+            script_id=script_id or "",
             limit=limit,
             offset=offset,
         )

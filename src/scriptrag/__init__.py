@@ -96,6 +96,16 @@ class ScriptRAG:
             database_path=str(self.config.get_database_path()),
         )
 
+        # Initialize database connection
+        from .database import create_database
+        from .database.connection import DatabaseConnection
+
+        # Create schema if needed
+        create_database(str(self.config.get_database_path()))
+
+        # Create database connection for operations
+        self.database = DatabaseConnection(str(self.config.get_database_path()))
+
         # TODO: Initialize components
         self._fountain_parser: FountainParser | None = None
         self._graph_db: GraphDatabase | None = None
@@ -476,16 +486,39 @@ class ScriptRAG:
         self.logger.info(
             "Creating scene", script_id=script_id, scene_number=scene_number
         )
-        # Mock implementation for test compatibility
         from uuid import uuid4
 
-        return Scene(
+        scene = Scene(
             id=uuid4(),
             script_id=UUID(script_id) if script_id else uuid4(),
             heading=heading,
             script_order=scene_number,
             description=content or "",
         )
+
+        # Store in database if available
+        if self.database:
+            try:
+                with self.database.get_connection() as conn:
+                    conn.execute(
+                        """
+                        INSERT INTO scenes (id, script_id, script_order, heading,
+                                           description)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            str(scene.id),
+                            str(scene.script_id),
+                            scene.script_order,
+                            scene.heading,
+                            scene.description,
+                        ),
+                    )
+                    conn.commit()
+            except Exception as e:
+                self.logger.warning("Failed to store scene in database", error=str(e))
+
+        return scene
 
     async def update_scene(self, scene: Scene) -> bool:
         """Update scene information."""

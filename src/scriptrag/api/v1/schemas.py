@@ -256,7 +256,7 @@ class SearchRequest(BaseModel):
 class SceneSearchRequest(SearchRequest):
     """Scene search request."""
 
-    query: str | None = Field(default=None, description="Text search query")
+    query: str = Field(description="Text search query")
     script_id: str | None = Field(default=None, description="Filter by script")
     character: str | None = Field(default=None, description="Filter by character")
     scene_numbers: list[int] | None = Field(

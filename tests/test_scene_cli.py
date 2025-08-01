@@ -8,7 +8,8 @@ from unittest.mock import MagicMock, Mock, patch
 
 from typer.testing import CliRunner
 
-from scriptrag.cli import app, get_latest_script_id
+from scriptrag.cli import app
+from scriptrag.cli.commands.scene import get_latest_script_id
 from scriptrag.models import SceneOrderType
 
 
@@ -136,10 +137,10 @@ class TestGetLatestScriptId:
 class TestSceneListCommand:
     """Test scene list CLI command."""
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_list_default_order(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -163,10 +164,10 @@ class TestSceneListCommand:
         assert "INT. OFFICE - DAY" in result.output
         assert "EXT. STREET - DAY" in result.output
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_list_temporal_order(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -199,10 +200,10 @@ class TestSceneListCommand:
             "script-123", SceneOrderType.TEMPORAL
         )
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_list_with_limit(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -231,7 +232,7 @@ class TestSceneListCommand:
         # Should only show first 3 scenes
         # Note: Exact count may vary due to table formatting, but should be limited
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     def test_scene_list_no_database(self, mock_get_settings):
         """Test scene list when database doesn't exist."""
         mock_settings = create_mock_settings("/nonexistent/db.sqlite")
@@ -260,10 +261,10 @@ class TestSceneListCommand:
 class TestSceneUpdateCommand:
     """Test scene update CLI command."""
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_update_location_success(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -297,10 +298,10 @@ class TestSceneUpdateCommand:
             "scene1", "INT. NEW OFFICE - DAY"
         )
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_update_invalid_scene_number(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -342,10 +343,10 @@ class TestSceneUpdateCommand:
         assert result.exit_code == 1
         assert "No updates specified" in result.output
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_update_location_failure(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -377,10 +378,10 @@ class TestSceneUpdateCommand:
 class TestSceneReorderCommand:
     """Test scene reorder CLI command."""
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_reorder_success(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -413,10 +414,10 @@ class TestSceneReorderCommand:
             "scene2", 1, SceneOrderType.SCRIPT
         )
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_reorder_temporal_order(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -456,10 +457,10 @@ class TestSceneReorderCommand:
         assert result.exit_code == 1
         assert "Invalid order type" in result.output
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_reorder_invalid_position(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -487,10 +488,10 @@ class TestSceneReorderCommand:
         assert result.exit_code == 1
         assert "Invalid position" in result.output
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_reorder_failure(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -520,10 +521,10 @@ class TestSceneReorderCommand:
 class TestSceneAnalyzeCommand:
     """Test scene analyze CLI command."""
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_analyze_dependencies(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -560,10 +561,10 @@ class TestSceneAnalyzeCommand:
         assert "EXT. STREET - DAY" in result.output
         assert "Depends on:" in result.output
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_analyze_temporal(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -598,10 +599,10 @@ class TestSceneAnalyzeCommand:
             "script-123", mock_temporal_order, SceneOrderType.TEMPORAL
         )
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_analyze_all(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -642,10 +643,10 @@ class TestSceneAnalyzeCommand:
         assert result.exit_code == 1
         assert "Invalid analysis type" in result.output
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_scene_analyze_no_dependencies(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -678,7 +679,7 @@ class TestSceneAnalyzeCommand:
 class TestSceneCommandsCommon:
     """Test common functionality across scene commands."""
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     def test_no_database_file(self, mock_get_settings):
         """Test scene commands when database file doesn't exist."""
         mock_settings = create_mock_settings("/nonexistent/db.sqlite")
@@ -703,9 +704,9 @@ class TestSceneCommandsCommon:
             assert result.exit_code == 1
             assert "No database found" in result.output
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_no_scripts_in_database(
         self, mock_get_latest, mock_db_conn, mock_get_settings
     ):
@@ -741,10 +742,10 @@ class TestSceneCommandsCommon:
                 "Error" in result.output and "sqlite-vec" in result.output
             )
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
     def test_no_scenes_in_script(
         self, mock_get_latest, mock_scene_manager, mock_db_conn, mock_get_settings
     ):
@@ -774,7 +775,7 @@ class TestSceneCommandsCommon:
             assert result.exit_code == 1
             assert "No scenes found" in result.output
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.cli.DatabaseConnection")
     @patch("scriptrag.cli.SceneManager")
     def test_exception_handling(

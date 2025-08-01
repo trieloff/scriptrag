@@ -13,6 +13,7 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from scriptrag.api.models import SceneModel
 from scriptrag.api.v1.endpoints.scenes import (
     delete_scene_enhanced,
     inject_scene_at_position,
@@ -297,12 +298,27 @@ class TestEnhancedSceneAPIEndpoints:
         """Test scene metadata update."""
         scene_id = "scene_001"
 
-        mock_db_ops.get_scene.return_value = sample_scene_data
-        mock_db_ops.update_scene_metadata.return_value = True
+        # Create SceneModel objects instead of dicts
+        scene_model = SceneModel(
+            id=sample_scene_data["id"],
+            script_id=sample_scene_data["script_id"],
+            scene_number=sample_scene_data["scene_number"],
+            heading=sample_scene_data["heading"],
+            content=sample_scene_data["content"],
+            characters=["JOHN"],
+        )
 
-        updated_scene_data = sample_scene_data.copy()
-        updated_scene_data["heading"] = "NEW HEADING"
-        mock_db_ops.get_scene.side_effect = [sample_scene_data, updated_scene_data]
+        updated_scene_model = SceneModel(
+            id=sample_scene_data["id"],
+            script_id=sample_scene_data["script_id"],
+            scene_number=sample_scene_data["scene_number"],
+            heading="NEW HEADING",
+            content=sample_scene_data["content"],
+            characters=["JOHN"],
+        )
+
+        mock_db_ops.get_scene.side_effect = [scene_model, updated_scene_model]
+        mock_db_ops.update_scene_metadata.return_value = True
 
         # Test
         response = await update_scene_metadata(
@@ -311,7 +327,6 @@ class TestEnhancedSceneAPIEndpoints:
             description="New description",
             time_of_day="NIGHT",
             location="INT. NEW PLACE - NIGHT",
-            propagate_to_graph=True,
             db_ops=mock_db_ops,
         )
 
@@ -324,7 +339,6 @@ class TestEnhancedSceneAPIEndpoints:
             description="New description",
             time_of_day="NIGHT",
             location="INT. NEW PLACE - NIGHT",
-            propagate_to_graph=True,
         )
 
     @pytest.mark.asyncio
@@ -348,7 +362,17 @@ class TestEnhancedSceneAPIEndpoints:
         """Test scene metadata update failure."""
         scene_id = "scene_001"
 
-        mock_db_ops.get_scene.return_value = sample_scene_data
+        # Create SceneModel object instead of dict
+        scene_model = SceneModel(
+            id=sample_scene_data["id"],
+            script_id=sample_scene_data["script_id"],
+            scene_number=sample_scene_data["scene_number"],
+            heading=sample_scene_data["heading"],
+            content=sample_scene_data["content"],
+            characters=["JOHN"],
+        )
+
+        mock_db_ops.get_scene.return_value = scene_model
         mock_db_ops.update_scene_metadata.return_value = False
 
         # Test

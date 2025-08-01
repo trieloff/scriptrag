@@ -191,36 +191,37 @@ class TestMalformedInput:
 class TestDatabaseErrors:
     """Test handling of database-related errors."""
 
-    @patch("scriptrag.cli.get_settings")
-    def test_database_not_found(self, mock_get_settings, cli_runner, mock_settings):
+    @patch("scriptrag.config.settings.get_settings")
+    @patch("pathlib.Path.exists")
+    def test_database_not_found(
+        self, mock_exists, mock_get_settings, cli_runner, mock_settings
+    ):
         """Test commands when database doesn't exist."""
         mock_get_settings.return_value = mock_settings
+        mock_exists.return_value = False
 
-        with patch("scriptrag.cli.Path") as mock_path:
-            mock_path.return_value.exists.return_value = False
+        commands = [
+            ["script", "info"],
+            ["scene", "list"],
+            ["search", "all", "test"],
+            ["bible", "list"],
+        ]
 
-            commands = [
-                ["script", "info"],
-                ["scene", "list"],
-                ["search", "all", "test"],
-                ["bible", "list"],
-            ]
+        for command in commands:
+            result = cli_runner.invoke(app, command)
+            # Some commands might handle missing database differently
+            assert result.exit_code in [0, 1]
+            if result.exit_code == 1:
+                # Some commands might have specific error messages
+                assert (
+                    "database" in result.stdout.lower()
+                    or "Error" in result.stdout
+                    or "Failed" in result.stdout
+                    or "no such table" in result.stdout.lower()
+                )
 
-            for command in commands:
-                result = cli_runner.invoke(app, command)
-                # Some commands might handle missing database differently
-                assert result.exit_code in [0, 1]
-                if result.exit_code == 1:
-                    # Some commands might have specific error messages
-                    assert (
-                        "database" in result.stdout.lower()
-                        or "Error" in result.stdout
-                        or "Failed" in result.stdout
-                        or "no such table" in result.stdout.lower()
-                    )
-
-    @patch("scriptrag.cli.get_settings")
-    @patch("scriptrag.cli.DatabaseConnection")
+    @patch("scriptrag.config.settings.get_settings")
+    @patch("scriptrag.database.connection.DatabaseConnection")
     def test_database_connection_error(
         self, mock_db_conn, mock_get_settings, cli_runner, mock_settings
     ):
@@ -228,9 +229,7 @@ class TestDatabaseErrors:
         mock_get_settings.return_value = mock_settings
         mock_db_conn.side_effect = Exception("Database connection failed")
 
-        with patch("scriptrag.cli.Path") as mock_path:
-            mock_path.return_value.exists.return_value = True
-
+        with patch("pathlib.Path.exists", return_value=True):
             result = cli_runner.invoke(app, ["script", "info"])
             # Should handle the error gracefully
             assert (
@@ -239,12 +238,16 @@ class TestDatabaseErrors:
                 or "database" in result.stdout.lower()
             )
 
-    @patch("scriptrag.cli.get_settings")
-    @patch("scriptrag.cli.DatabaseConnection")
-    @patch("scriptrag.cli.get_latest_script_id")
+    @patch("scriptrag.config.settings.get_settings")
+    @patch("scriptrag.database.connection.DatabaseConnection")
+    @patch("scriptrag.cli.commands.bible.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
+    @patch("scriptrag.cli.commands.mentor.get_latest_script_id")
     def test_no_scripts_in_database(
         self,
-        mock_get_latest,
+        mock_get_latest_mentor,
+        mock_get_latest_scene,
+        mock_get_latest_bible,
         mock_db_conn,
         mock_get_settings,
         cli_runner,
@@ -252,14 +255,15 @@ class TestDatabaseErrors:
     ):
         """Test commands when no scripts exist in database."""
         mock_get_settings.return_value = mock_settings
-        mock_get_latest.return_value = None  # No scripts
+        # Mock all the get_latest_script_id functions to return None (no scripts)
+        mock_get_latest_bible.return_value = None
+        mock_get_latest_scene.return_value = None
+        mock_get_latest_mentor.return_value = None
 
         mock_connection = MagicMock()
         mock_db_conn.return_value = mock_connection
 
-        with patch("scriptrag.cli.Path") as mock_path:
-            mock_path.return_value.exists.return_value = True
-
+        with patch("pathlib.Path.exists", return_value=True):
             commands_requiring_scripts = [
                 ["scene", "list"],
                 ["scene", "update", "1", "--location", "INT. OFFICE"],
@@ -317,7 +321,7 @@ class TestConfigurationErrors:
         # Should fail with error code 1 or 2
         assert result.exit_code in [1, 2]
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.cli.commands.script.get_settings")
     def test_missing_required_config(self, mock_get_settings, cli_runner):
         """Test commands when required configuration is missing."""
         mock_get_settings.side_effect = Exception("Missing required configuration")
@@ -331,9 +335,9 @@ class TestConfigurationErrors:
 class TestExceptionHandling:
     """Test general exception handling and error recovery."""
 
-    @patch("scriptrag.cli.get_settings")
-    @patch("scriptrag.cli.DatabaseConnection")
-    @patch("scriptrag.cli.SceneManager")
+    @patch("scriptrag.config.settings.get_settings")
+    @patch("scriptrag.database.connection.DatabaseConnection")
+    @patch("scriptrag.cli.commands.scene.SceneManager")
     def test_unexpected_exception_handling(
         self,
         mock_scene_manager,
@@ -351,14 +355,12 @@ class TestExceptionHandling:
         mock_connection = MagicMock()
         mock_db_conn.return_value = mock_connection
 
-        with patch("scriptrag.cli.Path") as mock_path:
-            mock_path.return_value.exists.return_value = True
-
+        with patch("pathlib.Path.exists", return_value=True):
             result = cli_runner.invoke(app, ["scene", "list"])
             assert result.exit_code == 1
             assert "Error" in result.stdout
 
-    @patch("scriptrag.cli.typer.prompt")
+    @patch("typer.prompt")
     def test_user_input_interruption(self, mock_prompt, cli_runner):
         """Test handling of user interruption (Ctrl+C)."""
         mock_prompt.side_effect = KeyboardInterrupt()
@@ -399,14 +401,12 @@ class TestOptionValidation:
 class TestErrorMessages:
     """Test quality and clarity of error messages."""
 
-    @patch("scriptrag.cli.get_settings")
+    @patch("scriptrag.config.settings.get_settings")
     def test_helpful_error_messages(self, mock_get_settings, cli_runner, mock_settings):
         """Test that error messages are helpful and actionable."""
         mock_get_settings.return_value = mock_settings
 
-        with patch("scriptrag.cli.Path") as mock_path:
-            mock_path.return_value.exists.return_value = False
-
+        with patch("pathlib.Path.exists", return_value=False):
             result = cli_runner.invoke(app, ["script", "info"])
             # Should handle missing database gracefully
             assert result.exit_code in [0, 1]
@@ -443,7 +443,7 @@ class TestExitCodes:
         assert result.exit_code == 2
 
         # Runtime error (should return 1)
-        with patch("scriptrag.cli.get_settings") as mock_settings:
+        with patch("scriptrag.cli.commands.script.get_settings") as mock_settings:
             mock_settings.side_effect = Exception("Runtime error")
             result = cli_runner.invoke(app, ["script", "info"])
             assert result.exit_code == 1

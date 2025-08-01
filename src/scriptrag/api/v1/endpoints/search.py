@@ -29,9 +29,13 @@ async def search_scenes(
 ) -> SearchResponse:
     """Search scenes with text and filters."""
     try:
+        # Validate required parameters
+        if not search_request.query:
+            raise HTTPException(status_code=422, detail="Query is required")
+
         result = await db_ops.search_scenes(
             query=search_request.query,
-            script_id=search_request.script_id,
+            script_id=search_request.script_id or "",  # Provide empty string for None
             character=search_request.character,
             limit=search_request.limit,
             offset=search_request.offset,
@@ -48,6 +52,9 @@ async def search_scenes(
             offset=result["offset"],
         )
 
+    except HTTPException:
+        # Re-raise HTTPException without wrapping
+        raise
     except Exception as e:
         logger.error("Failed to search scenes", error=str(e))
         raise HTTPException(status_code=500, detail="Failed to search scenes") from e
@@ -60,9 +67,13 @@ async def semantic_search(
 ) -> SearchResponse:
     """Search scenes by semantic similarity."""
     try:
+        # Validate required parameters
+        if not search_request.query:
+            raise HTTPException(status_code=422, detail="Query is required")
+
         result = await db_ops.semantic_search(
             query=search_request.query,
-            script_id=search_request.script_id,
+            script_id=search_request.script_id or "",  # Provide empty string for None
             threshold=search_request.threshold,
             limit=search_request.limit,
         )
@@ -99,9 +110,13 @@ async def search_by_character(
 ) -> SearchResponse:
     """Search scenes containing a specific character."""
     try:
+        # Allow searching without script_id for global search
+        pass
+
         result = await db_ops.search_scenes(
+            query="",  # Empty query for character-only search
             character=character_name,
-            script_id=script_id,
+            script_id=script_id or "",
             limit=limit,
             offset=offset,
         )

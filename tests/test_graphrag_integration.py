@@ -321,20 +321,22 @@ class TestGraphRAGPipelineIntegration:
         for location in set(locations):
             loc_id = str(uuid4())
             graph_ops.add_node(
-                node_id=loc_id,
                 node_type="location",
+                entity_id=loc_id,
                 label=location,
                 properties={"name": location},
+                node_id=loc_id,
             )
             location_nodes[location] = loc_id
 
         # Link scenes to locations
         for scene_id, location in zip(scene_ids, locations, strict=False):
             graph_ops.add_node(
-                node_id=scene_id,
                 node_type="scene",
+                entity_id=scene_id,
                 label=f"Scene in {location}",
                 properties={},
+                node_id=scene_id,
             )
             graph_ops.add_edge(
                 source_id=scene_id,
@@ -381,10 +383,11 @@ class TestGraphRAGPipelineIntegration:
 
         # Add character node
         graph_ops.add_node(
-            node_id=character_id,
             node_type="character",
+            entity_id=character_id,
             label="PROTAGONIST",
             properties={"name": "Protagonist", "role": "main"},
+            node_id=character_id,
         )
 
         # Add scene nodes with emotional states
@@ -396,10 +399,11 @@ class TestGraphRAGPipelineIntegration:
             scene_ids.append(scene_id)
 
             graph_ops.add_node(
-                node_id=scene_id,
                 node_type="scene",
+                entity_id=scene_id,
                 label=f"Scene {idx + 1}",
                 properties={"order": idx + 1, "emotion": emotion},
+                node_id=scene_id,
             )
 
             # Character appears in scene with emotional state

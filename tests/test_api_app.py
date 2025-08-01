@@ -589,7 +589,11 @@ class TestAPISecurityFeatures:
         )
 
         # Should process safely without executing SQL
-        assert response.status_code in [200, 500]  # Either works or fails safely
+        assert response.status_code in [
+            200,
+            422,
+            500,
+        ]  # Either works, validation error, or fails safely
 
         # Verify database is still intact
         response = client.get("/api/v1/scripts/")

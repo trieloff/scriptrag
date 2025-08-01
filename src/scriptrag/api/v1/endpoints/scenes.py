@@ -14,6 +14,48 @@ from scriptrag.api.v1.schemas import (
 )
 from scriptrag.config import get_logger
 
+
+def scene_to_response(scene: Any) -> SceneResponse:
+    """Convert a SceneModel or dict to SceneResponse."""
+    if isinstance(scene, dict):
+        # Handle dict responses from database operations
+        return SceneResponse(
+            id=str(scene.get("id", "")),
+            script_id=str(scene.get("script_id", "")),
+            scene_number=scene.get("scene_number", 0),
+            heading=scene.get("heading", ""),
+            content=scene.get("content", ""),
+            character_count=scene.get("character_count", 0),
+            word_count=scene.get("word_count", 0),
+            page_start=scene.get("page_start"),
+            page_end=scene.get("page_end"),
+            has_embedding=scene.get("has_embedding", False),
+        )
+    # Handle SceneModel objects
+    return SceneResponse(
+        id=str(scene.id) if scene.id else "",
+        script_id=str(scene.script_id) if scene.script_id else "",
+        scene_number=getattr(scene, "scene_number", 0),  # SceneModel uses scene_number
+        heading=scene.heading or "",
+        content=getattr(scene, "content", None)
+        or getattr(scene, "description", "")
+        or "",  # Handle both SceneModel.content and database Scene.description
+        character_count=len(scene.characters) if hasattr(scene, "characters") else 0,
+        word_count=len(
+            (
+                getattr(scene, "content", None)
+                or getattr(scene, "description", "")
+                or ""
+            ).split()
+        ),  # Handle both content sources
+        page_start=getattr(scene, "page_start", None),
+        page_end=getattr(scene, "page_end", None),
+        has_embedding=(
+            scene.embedding is not None if hasattr(scene, "embedding") else False
+        ),
+    )
+
+
 logger = get_logger(__name__)
 router = APIRouter()
 
@@ -35,18 +77,7 @@ async def get_scene(
         if not scene:
             raise HTTPException(status_code=404, detail="Scene not found")
 
-        return SceneResponse(
-            id=scene["id"],
-            script_id=scene["script_id"],
-            scene_number=scene["scene_number"],
-            heading=scene["heading"],
-            content=scene["content"],
-            character_count=scene["character_count"],
-            word_count=scene["word_count"],
-            page_start=scene["page_start"],
-            page_end=scene["page_end"],
-            has_embedding=scene["has_embedding"],
-        )
+        return scene_to_response(scene)
 
     except HTTPException:
         raise
@@ -81,18 +112,7 @@ async def create_scene(
         if not scene:
             raise HTTPException(status_code=500, detail="Failed to create scene")
 
-        return SceneResponse(
-            id=scene["id"],
-            script_id=scene["script_id"],
-            scene_number=scene["scene_number"],
-            heading=scene["heading"],
-            content=scene["content"],
-            character_count=scene["character_count"],
-            word_count=scene["word_count"],
-            page_start=scene["page_start"],
-            page_end=scene["page_end"],
-            has_embedding=scene["has_embedding"],
-        )
+        return scene_to_response(scene)
 
     except HTTPException:
         raise
@@ -134,18 +154,7 @@ async def update_scene(
                 status_code=500, detail="Failed to retrieve updated scene"
             )
 
-        return SceneResponse(
-            id=updated_scene["id"],
-            script_id=updated_scene["script_id"],
-            scene_number=updated_scene["scene_number"],
-            heading=updated_scene["heading"],
-            content=updated_scene["content"],
-            character_count=updated_scene["character_count"],
-            word_count=updated_scene["word_count"],
-            page_start=updated_scene["page_start"],
-            page_end=updated_scene["page_end"],
-            has_embedding=updated_scene["has_embedding"],
-        )
+        return scene_to_response(updated_scene)
 
     except HTTPException:
         raise
@@ -216,18 +225,7 @@ async def update_scene_enhanced(
                 status_code=500, detail="Failed to retrieve updated scene"
             )
 
-        return SceneResponse(
-            id=updated_scene["id"],
-            script_id=updated_scene["script_id"],
-            scene_number=updated_scene["scene_number"],
-            heading=updated_scene["heading"],
-            content=updated_scene["content"],
-            character_count=updated_scene["character_count"],
-            word_count=updated_scene["word_count"],
-            page_start=updated_scene["page_start"],
-            page_end=updated_scene["page_end"],
-            has_embedding=updated_scene["has_embedding"],
-        )
+        return scene_to_response(updated_scene)
 
     except HTTPException:
         raise
@@ -278,14 +276,24 @@ async def inject_scene_after(
             raise HTTPException(status_code=404, detail="Reference scene not found")
 
         # Calculate position (inject after means position = current + 1)
-        new_position = ref_scene["scene_number"] + 1
+        new_position = ref_scene.get("scene_number", 1) + 1
 
         # Use enhanced inject method with full re-indexing
-        new_scene_id = await db_ops.inject_scene_at_position(
-            script_id=ref_scene["script_id"],
-            scene_data=scene_data,
-            position=new_position,
-        )
+        try:
+            new_scene_id = await db_ops.inject_scene_at_position(
+                script_id=ref_scene.get("script_id", ""),
+                scene_data=scene_data,
+                position=new_position,
+            )
+        except Exception as inject_error:
+            logger.error(
+                "Database error during scene injection",
+                scene_id=scene_id,
+                error=str(inject_error),
+            )
+            raise HTTPException(
+                status_code=500, detail="Failed to inject scene"
+            ) from inject_error
 
         if not new_scene_id:
             raise HTTPException(status_code=500, detail="Failed to inject scene")
@@ -297,18 +305,7 @@ async def inject_scene_after(
                 status_code=500, detail="Failed to retrieve injected scene"
             )
 
-        return SceneResponse(
-            id=scene["id"],
-            script_id=scene["script_id"],
-            scene_number=scene["scene_number"],
-            heading=scene["heading"],
-            content=scene["content"],
-            character_count=scene["character_count"],
-            word_count=scene["word_count"],
-            page_start=scene["page_start"],
-            page_end=scene["page_end"],
-            has_embedding=scene["has_embedding"],
-        )
+        return scene_to_response(scene)
 
     except HTTPException:
         raise
@@ -444,7 +441,7 @@ async def get_scene_dependencies(
             )
 
         # Get dependencies
-        dependencies = await db_ops.get_scene_dependencies(scene_id, direction)
+        dependencies = await db_ops.get_scene_dependencies(scene_id)
 
         return {
             "scene_id": scene_id,
@@ -536,7 +533,7 @@ async def inject_scene_at_position(
 
         # Inject scene with enhanced operations
         new_scene_id = await db_ops.inject_scene_at_position(
-            script_id=ref_scene["script_id"],
+            script_id=ref_scene.get("script_id", ""),
             scene_data=scene_data,
             position=position,
         )
@@ -551,18 +548,7 @@ async def inject_scene_at_position(
                 status_code=500, detail="Failed to retrieve injected scene"
             )
 
-        return SceneResponse(
-            id=scene["id"],
-            script_id=scene["script_id"],
-            scene_number=scene["scene_number"],
-            heading=scene["heading"],
-            content=scene["content"],
-            character_count=scene["character_count"],
-            word_count=scene["word_count"],
-            page_start=scene["page_start"],
-            page_end=scene["page_end"],
-            has_embedding=scene["has_embedding"],
-        )
+        return scene_to_response(scene)
 
     except HTTPException:
         raise
@@ -615,7 +601,6 @@ async def update_scene_metadata(
     description: str | None = None,
     time_of_day: str | None = None,
     location: str | None = None,
-    propagate_to_graph: bool = True,
     db_ops: DatabaseOperations = Depends(get_db_ops),
 ) -> SceneResponse:
     """Update scene metadata with optional graph propagation."""
@@ -632,7 +617,6 @@ async def update_scene_metadata(
             description=description,
             time_of_day=time_of_day,
             location=location,
-            propagate_to_graph=propagate_to_graph,
         )
 
         if not success:
@@ -647,18 +631,7 @@ async def update_scene_metadata(
                 status_code=500, detail="Failed to retrieve updated scene"
             )
 
-        return SceneResponse(
-            id=updated_scene["id"],
-            script_id=updated_scene["script_id"],
-            scene_number=updated_scene["scene_number"],
-            heading=updated_scene["heading"],
-            content=updated_scene["content"],
-            character_count=updated_scene["character_count"],
-            word_count=updated_scene["word_count"],
-            page_start=updated_scene["page_start"],
-            page_end=updated_scene["page_end"],
-            has_embedding=updated_scene["has_embedding"],
-        )
+        return scene_to_response(updated_scene)
 
     except HTTPException:
         raise

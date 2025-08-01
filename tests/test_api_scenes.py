@@ -420,7 +420,7 @@ class TestSceneEndpoints:
         # Configure the mock database operations from the client fixture
         mock_db_ops = client.app.state.db_ops
         mock_db_ops.get_scene.return_value = mock_ref_scene
-        mock_db_ops.shift_scene_numbers.side_effect = Exception("Database error")
+        mock_db_ops.inject_scene_at_position.side_effect = Exception("Database error")
 
         response = client.post(
             f"/api/v1/scenes/{ref_scene_id}/inject-after", json=scene_data

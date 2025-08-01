@@ -7,7 +7,7 @@ import pytest
 
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.database.continuity import ContinuityIssue
-from scriptrag.mcp_server import ScriptRAGMCPServer
+from scriptrag.mcp.server import ScriptRAGMCPServer
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def mock_scriptrag():
 @pytest.fixture
 def mcp_server(mcp_settings, mock_scriptrag):
     """Create MCP server instance for testing."""
-    with patch("scriptrag.mcp_server.ScriptRAG", return_value=mock_scriptrag):
+    with patch("scriptrag.ScriptRAG", return_value=mock_scriptrag):
         server = ScriptRAGMCPServer(mcp_settings)
         server.scriptrag = mock_scriptrag
         return server

@@ -42,7 +42,7 @@ class GraphNode:
         self.node_type = node_type
         self.entity_id = entity_id
         self.label = label
-        self.properties = properties or {}
+        self.properties: dict[str, Any] = properties or {}
 
     def to_dict(self) -> dict[str, Any]:
         """Convert node to dictionary representation."""
@@ -108,7 +108,7 @@ class GraphEdge:
         self.from_node_id = from_node_id
         self.to_node_id = to_node_id
         self.edge_type = edge_type
-        self.properties = properties or {}
+        self.properties: dict[str, Any] = properties or {}
         self.weight = weight
 
     def to_dict(self) -> dict[str, Any]:
@@ -322,6 +322,32 @@ class GraphDatabase:
         rows = self.connection.fetch_all(sql, tuple(params) if params else None)
         return [GraphNode.from_row(row) for row in rows]
 
+    def get_nodes_by_property(
+        self, node_type: str, property_name: str, property_value: Any
+    ) -> list[GraphNode]:
+        """Get nodes by property value.
+
+        Args:
+            node_type: Type of node to search
+            property_name: Name of property to match
+            property_value: Value to match
+
+        Returns:
+            List of matching nodes
+        """
+        # Search in JSON properties using SQLite JSON functions
+        sql = """
+            SELECT * FROM nodes
+            WHERE node_type = ?
+            AND json_extract(properties_json, ?) = ?
+        """
+
+        # JSON path for property
+        json_path = f"$.{property_name}"
+
+        rows = self.connection.fetch_all(sql, (node_type, json_path, property_value))
+        return [GraphNode.from_row(row) for row in rows]
+
     # Edge operations
     def add_edge(
         self,
@@ -374,6 +400,43 @@ class GraphDatabase:
         """
         row = self.connection.fetch_one("SELECT * FROM edges WHERE id = ?", (edge_id,))
         return GraphEdge.from_row(row) if row else None
+
+    def update_edge(
+        self,
+        edge_id: str,
+        properties: dict[str, Any] | None = None,
+        weight: float | None = None,
+    ) -> bool:
+        """Update an edge.
+
+        Args:
+            edge_id: Edge identifier
+            properties: New properties to set
+            weight: New weight to set
+
+        Returns:
+            True if edge was updated
+        """
+        updates = []
+        params: list[Any] = []
+
+        if properties is not None:
+            updates.append("properties_json = ?")
+            params.append(json.dumps(properties))
+
+        if weight is not None:
+            updates.append("weight = ?")
+            params.append(weight)
+
+        if not updates:
+            return False
+
+        params.append(edge_id)
+        sql = f"UPDATE edges SET {', '.join(updates)} WHERE id = ?"
+
+        with self.connection.transaction() as conn:
+            cursor = conn.execute(sql, params)
+        return cursor.rowcount > 0
 
     def delete_edge(self, edge_id: str) -> bool:
         """Delete an edge.

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from scriptrag.mcp_server import ScriptRAGMCPServer
+from scriptrag.mcp.server import ScriptRAGMCPServer
 from scriptrag.models import Script
 
 
@@ -34,7 +34,7 @@ def mcp_server_with_db(tmp_path):
     initialize_database(test_db_path)
 
     # Create server
-    with patch("scriptrag.mcp_server.ScriptRAG"):
+    with patch("scriptrag.ScriptRAG"):
         return ScriptRAGMCPServer(settings)
 
 

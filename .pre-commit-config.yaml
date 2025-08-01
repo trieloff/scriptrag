@@ -34,6 +34,20 @@ repos:
       - id: check-builtin-literals
       - id: check-docstring-first
 
+  # Custom hook to check Python file sizes
+  - repo: local
+    hooks:
+      - id: check-python-file-size
+        name: Check Python file size limits
+        entry: python3 scripts/check_file_size.py
+        language: system
+        types: [python]
+        pass_filenames: true
+        description: |
+          Enforces file size limits to ensure MCP tool compatibility:
+          - Regular files: 1000 lines (warning), 1500 lines (error)
+          - Test files: 2000 lines (error)
+
   # Python linting and import sorting with Ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.5

@@ -527,7 +527,10 @@ class TestGraphDatabase:
         """Test node creation, retrieval, update, and deletion."""
         # Create node
         node_id = graph_db.add_node(
-            node_type="test", label="Test Node", properties={"key": "value"}
+            node_type="test",
+            entity_id="test_entity",
+            label="Test Node",
+            properties={"key": "value"},
         )
 
         # Retrieve node
@@ -562,8 +565,8 @@ class TestGraphDatabase:
     def test_edge_operations(self, graph_db):
         """Test edge creation, retrieval, and deletion."""
         # Create nodes
-        node1_id = graph_db.add_node("test", label="Node 1")
-        node2_id = graph_db.add_node("test", label="Node 2")
+        node1_id = graph_db.add_node("test", entity_id="node1_entity", label="Node 1")
+        node2_id = graph_db.add_node("test", entity_id="node2_entity", label="Node 2")
 
         # Create edge
         edge_id = graph_db.add_edge(
@@ -811,7 +814,7 @@ class TestGraphOperations:
         loc_node = graph_ops.graph.get_node(loc_node_id)
         assert loc_node is not None
         assert loc_node.node_type == "location"
-        assert loc_node.properties["name"] == sample_location.name
+        assert loc_node.label == sample_location.name
 
     def test_scene_operations(self, graph_ops, stored_script, sample_scene):
         """Test scene node operations."""
@@ -847,7 +850,7 @@ class TestGraphOperations:
 
         # Create sequence
         edge_ids = graph_ops.create_scene_sequence(
-            scene_node_ids, SceneOrderType.SCRIPT
+            scene_node_ids, SceneOrderType.SCRIPT.value
         )
         assert len(edge_ids) == 2  # 3 scenes = 2 edges
 
@@ -873,14 +876,13 @@ class TestGraphOperations:
 
         # Connect character to scene
         edge_id = graph_ops.connect_character_to_scene(
-            char_node_id, scene_node_id, speaking_lines=5, action_mentions=2
+            char_node_id, scene_node_id, dialogue_count=5
         )
 
         edge = graph_ops.graph.get_edge(edge_id)
         assert edge is not None
-        assert edge.edge_type == "APPEARS_IN"
-        assert edge.properties["speaking_lines"] == 5
-        assert edge.properties["action_mentions"] == 2
+        assert edge.edge_type == "appears_in"
+        assert edge.properties["dialogue_count"] == 5
 
         # Test getting character scenes
         char_scenes = graph_ops.get_character_scenes(char_node_id)
@@ -908,18 +910,18 @@ class TestGraphOperations:
 
         # Create interaction
         graph_ops.connect_character_interaction(
-            char1_node_id, char2_node_id, scene_node_id, dialogue_count=3
+            char1_node_id, char2_node_id, scene_node_id, interaction_type="dialogue"
         )
 
         # Test getting interactions
         interactions = graph_ops.get_character_interactions(
-            char1_node_id, scene_node_id
+            char1_node_id, interaction_type="dialogue"
         )
         assert len(interactions) == 1
 
-        target_char, interaction_edge = interactions[0]
-        assert target_char.id == char2_node_id
-        assert interaction_edge.properties["dialogue_count"] == 3
+        interaction = interactions[0]
+        assert interaction["character_id"] == char2_node_id
+        assert interaction["interaction_type"] == "dialogue"
 
     def test_centrality_analysis(self, graph_ops, stored_script):
         """Test character centrality analysis."""
@@ -972,7 +974,7 @@ class TestMigrationRunner:
         runner = MigrationRunner(temp_db_path)
 
         assert runner.get_current_version() == 0
-        assert runner.get_target_version() == 5
+        assert runner.get_target_version() == 6
         assert runner.needs_migration()
 
     def test_apply_initial_migration(self, temp_db_path):
@@ -1000,12 +1002,13 @@ class TestMigrationRunner:
         runner.migrate_to_latest()
 
         history = runner.get_migration_history()
-        assert len(history) == 5
+        assert len(history) == 6
         assert history[0]["version"] == 1
         assert history[1]["version"] == 2
         assert history[2]["version"] == 3
         assert history[3]["version"] == 4
         assert history[4]["version"] == 5
+        assert history[5]["version"] == 6
         assert "description" in history[0]
 
     def test_initialize_database_function(self, temp_db_path):

@@ -8,6 +8,7 @@ Generation) pattern.
 import json
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 # Configuration imports
 from .config import (
@@ -23,7 +24,7 @@ from .llm import LLMClient as ActualLLMClient
 from .llm import create_llm_client
 
 # Model imports
-from .models import Script
+from .models import Scene, Script
 
 __version__ = "0.1.0"
 __author__ = "Your Name"
@@ -95,10 +96,21 @@ class ScriptRAG:
             database_path=str(self.config.get_database_path()),
         )
 
+        # Initialize database connection
+        from .database import create_database
+        from .database.connection import DatabaseConnection
+
+        # Create schema if needed
+        create_database(str(self.config.get_database_path()))
+
+        # Create database connection for operations
+        self.database = DatabaseConnection(str(self.config.get_database_path()))
+
         # TODO: Initialize components
         self._fountain_parser: FountainParser | None = None
         self._graph_db: GraphDatabase | None = None
         self._llm_client: ActualLLMClient | None = None
+        self._graph_ops: Any | None = None  # GraphOperations instance
 
     def parse_fountain(self, path: str) -> Script:
         """Parse a screenplay in Fountain format.
@@ -224,10 +236,31 @@ class ScriptRAG:
 
             # Build graph structure
             ops = GraphOperations(conn)
-            ops.create_script_graph(script)
+            script_node_id = ops.create_script_graph(script)
 
-            # Note: We're skipping async LLM enrichment for now
-            self.logger.info("Graph building and LLM enrichment not yet implemented")
+            # Create character nodes and link to script
+            character_node_map = {}
+            for char in parser.get_characters():
+                char_node_id = ops.create_character_node(char, script_node_id)
+                character_node_map[str(char.id)] = char_node_id
+
+            # Create scene nodes and character relationships
+            scene_node_map = {}
+            for scene in parser.get_scenes():
+                scene_node_id = ops.create_scene_node(scene, script_node_id)
+                scene_node_map[str(scene.id)] = scene_node_id
+
+                # Connect characters to scenes they appear in
+                if hasattr(scene, "characters") and scene.characters:
+                    for char_id in scene.characters:
+                        if str(char_id) in character_node_map:
+                            ops.connect_character_to_scene(
+                                character_node_map[str(char_id)],
+                                scene_node_id,
+                                0,  # dialogue_count placeholder
+                            )
+
+            self.logger.info("Graph structure built with character-scene relationships")
 
         self.logger.info(
             "Successfully parsed and stored screenplay",
@@ -247,10 +280,375 @@ class ScriptRAG:
         self.logger.debug("Searching scenes", criteria=kwargs)
         raise NotImplementedError("Search not yet implemented")
 
-    def update_scene(self, scene_id: int, **kwargs: Any) -> None:
-        """Update a scene with new information."""
+    def update_scene_sync(self, scene_id: int, **kwargs: Any) -> None:
+        """Update a scene with new information (sync version)."""
         self.logger.info("Updating scene", scene_id=scene_id, changes=kwargs)
         raise NotImplementedError("Scene update not yet implemented")
+
+    # Async API methods for DatabaseOperations compatibility
+    async def initialize(self) -> None:
+        """Initialize database connections and components."""
+        self.logger.info("Initializing ScriptRAG components")
+
+        # Initialize database and graph operations
+        from .database import get_connection
+        from .database.operations import GraphOperations
+
+        # Get database connection
+        connection = get_connection(self.config.get_database_path())
+
+        # Initialize graph operations
+        self._graph_ops = GraphOperations(connection)
+
+        self.logger.debug("ScriptRAG components initialized successfully")
+
+    async def cleanup(self) -> None:
+        """Clean up database connections and resources."""
+        self.logger.info("Cleaning up ScriptRAG components")
+
+        # Close graph operations and database connection
+        if self._graph_ops and hasattr(self._graph_ops, "connection"):
+            self._graph_ops.connection.close()
+            self._graph_ops = None
+
+        self.logger.debug("ScriptRAG components cleaned up successfully")
+
+    # Script operations
+    async def list_scripts(self) -> list[Any]:  # Will return ScriptModel via API layer
+        """List all scripts."""
+        self.logger.debug("Listing all scripts")
+
+        # Import here to avoid circular dependencies
+        from .api.models import ScriptModel
+        from .database import get_connection
+
+        scripts = []
+        with get_connection() as conn:
+            cursor = conn.execute("""
+                SELECT id, title, author, created_at, updated_at
+                FROM scripts
+                ORDER BY updated_at DESC
+            """)
+
+            for row in cursor.fetchall():
+                # Create a basic ScriptModel with minimal data
+                script = ScriptModel(
+                    id=row["id"],
+                    title=row["title"],
+                    author=row["author"],
+                    created_at=row["created_at"],
+                    updated_at=row["updated_at"],
+                    scenes=[],  # We'll leave scenes empty for list view
+                    characters=set(),  # We'll leave characters empty for list view
+                )
+                scripts.append(script)
+
+        self.logger.debug("Found scripts", count=len(scripts))
+        return scripts
+
+    async def get_script(
+        self, script_id: str
+    ) -> Any | None:  # Will return ScriptModel via API layer
+        """Get a script by ID."""
+        self.logger.debug("Getting script", script_id=script_id)
+
+        # Import here to avoid circular dependencies
+        from .api.models import ScriptModel
+        from .database import get_connection
+
+        with get_connection() as conn:
+            cursor = conn.execute(
+                """
+                SELECT id, title, author, created_at, updated_at
+                FROM scripts
+                WHERE id = ?
+            """,
+                (script_id,),
+            )
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            # Load scenes for this script
+            scene_cursor = conn.execute(
+                """
+                SELECT id, heading, description, script_order
+                FROM scenes
+                WHERE script_id = ?
+                ORDER BY script_order
+                """,
+                (script_id,),
+            )
+
+            scenes = []
+            from .api.models import SceneModel
+
+            for scene_row in scene_cursor.fetchall():
+                scene = SceneModel(
+                    id=scene_row["id"],
+                    script_id=script_id,
+                    scene_number=scene_row["script_order"],
+                    heading=scene_row["heading"] or "",
+                    content=scene_row["description"] or "",
+                )
+                scenes.append(scene)
+
+            # Create a complete ScriptModel with scenes loaded
+            script = ScriptModel(
+                id=row["id"],
+                title=row["title"],
+                author=row["author"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+                scenes=scenes,  # Now properly loaded!
+                characters=set(),  # Characters can be loaded later if needed
+            )
+
+            self.logger.debug("Found script", script_id=script_id, title=script.title)
+            return script
+
+    async def create_script(
+        self,
+        title: str,
+        author: str | None = None,
+        description: str | None = None,  # noqa: ARG002
+        genre: str | None = None,  # noqa: ARG002
+    ) -> Any:  # Will return ScriptModel via API layer
+        """Create a new script."""
+        self.logger.info("Creating script", title=title, author=author)
+        raise NotImplementedError("create_script not yet implemented")
+
+    async def update_script(self, script: Script) -> bool:
+        """Update script metadata."""
+        self.logger.info("Updating script", script_id=str(script.id))
+        raise NotImplementedError("update_script not yet implemented")
+
+    async def delete_script(self, script_id: str) -> bool:
+        """Delete a script."""
+        self.logger.info("Deleting script", script_id=script_id)
+        raise NotImplementedError("delete_script not yet implemented")
+
+    # Scene operations
+    async def list_scenes(self, script_id: str) -> list[Scene]:
+        """List scenes for a script."""
+        self.logger.debug("Listing scenes", script_id=script_id)
+
+        if not self._graph_ops:
+            return []
+
+        # Use graph operations to get scenes
+        from .database import get_connection
+
+        with get_connection(self.config.get_database_path()) as conn:
+            cursor = conn.execute(
+                """
+                SELECT id, script_id, script_order, heading, description
+                FROM scenes
+                WHERE script_id = ?
+                ORDER BY script_order
+                """,
+                (script_id,),
+            )
+
+            scenes = []
+            for row in cursor.fetchall():
+                scene = Scene(
+                    id=row["id"],
+                    script_id=row["script_id"],
+                    script_order=row["script_order"],
+                    heading=row["heading"] or "",
+                    description=row["description"] or "",
+                )
+                scenes.append(scene)
+
+        return scenes
+
+    async def get_scene(self, scene_id: str) -> Scene | None:
+        """Get a scene by ID."""
+        self.logger.debug("Getting scene", scene_id=scene_id)
+
+        if not self._graph_ops:
+            return None
+
+        # Use database to get scene
+        from .database import get_connection
+
+        with get_connection(self.config.get_database_path()) as conn:
+            cursor = conn.execute(
+                """
+                SELECT id, script_id, script_order, heading, description
+                FROM scenes
+                WHERE id = ?
+                """,
+                (scene_id,),
+            )
+
+            row = cursor.fetchone()
+            if not row:
+                return None
+
+            return Scene(
+                id=row["id"],
+                script_id=row["script_id"],
+                script_order=row["script_order"],
+                heading=row["heading"] or "",
+                description=row["description"] or "",
+            )
+
+    async def create_scene(
+        self,
+        script_id: str,
+        scene_number: int,
+        heading: str,
+        content: str | None = None,
+    ) -> Scene:
+        """Create a new scene."""
+        self.logger.info(
+            "Creating scene", script_id=script_id, scene_number=scene_number
+        )
+        from uuid import uuid4
+
+        scene = Scene(
+            id=uuid4(),
+            script_id=UUID(script_id) if script_id else uuid4(),
+            heading=heading,
+            script_order=scene_number,
+            description=content or "",
+        )
+
+        # Store in database if available
+        if self.database:
+            try:
+                with self.database.get_connection() as conn:
+                    conn.execute(
+                        """
+                        INSERT INTO scenes (id, script_id, script_order, heading,
+                                           description)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            str(scene.id),
+                            str(scene.script_id),
+                            scene.script_order,
+                            scene.heading,
+                            scene.description,
+                        ),
+                    )
+                    conn.commit()
+            except Exception as e:
+                self.logger.warning("Failed to store scene in database", error=str(e))
+
+        return scene
+
+    async def update_scene(self, scene: Scene) -> bool:
+        """Update scene information."""
+        self.logger.info("Updating scene", scene_id=str(scene.id))
+
+        # Store in database if available
+        if self.database:
+            try:
+                with self.database.get_connection() as conn:
+                    conn.execute(
+                        """
+                        UPDATE scenes
+                        SET script_order = ?, heading = ?, description = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            scene.script_order,
+                            scene.heading,
+                            scene.description,
+                            str(scene.id),
+                        ),
+                    )
+                    conn.commit()
+                    return True
+            except Exception as e:
+                self.logger.warning("Failed to update scene in database", error=str(e))
+                return False
+
+        # If no database, still return True for compatibility
+        return True
+
+    async def delete_scene(self, scene_id: str) -> bool:
+        """Delete a scene."""
+        self.logger.info("Deleting scene", scene_id=scene_id)
+
+        # Delete from database if available
+        if self.database:
+            try:
+                with self.database.get_connection() as conn:
+                    # Delete the scene
+                    cursor = conn.execute(
+                        "DELETE FROM scenes WHERE id = ?",
+                        (scene_id,),
+                    )
+                    conn.commit()
+                    # Return True if a row was deleted
+                    return cursor.rowcount > 0
+            except Exception as e:
+                self.logger.warning(
+                    "Failed to delete scene from database", error=str(e)
+                )
+                return False
+
+        # If no database, still return True for compatibility
+        return True
+
+    # Additional API methods that are called
+    async def store_script(self, script_model: Any) -> str:
+        """Store a parsed script model."""
+        self.logger.info(
+            "Storing script", title=getattr(script_model, "title", "unknown")
+        )
+
+        # Import here to avoid circular dependencies
+        from uuid import uuid4
+
+        from .database import get_connection
+
+        # Generate a new ID if not provided
+        script_id = getattr(script_model, "id", None) or str(uuid4())
+
+        with get_connection() as conn:
+            # Store the script
+            conn.execute(
+                """
+                INSERT INTO scripts (id, title, author, created_at, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            """,
+                (
+                    script_id,
+                    script_model.title,
+                    getattr(script_model, "author", None),
+                ),
+            )
+
+            # Store scenes if provided
+            scenes = getattr(script_model, "scenes", [])
+            for scene in scenes:
+                scene_id = getattr(scene, "id", None) or str(uuid4())
+                conn.execute(
+                    """
+                    INSERT INTO scenes (id, script_id, heading, script_order)
+                    VALUES (?, ?, ?, ?)
+                """,
+                    (
+                        scene_id,
+                        script_id,
+                        getattr(scene, "heading", ""),
+                        getattr(scene, "scene_number", 0),
+                    ),
+                )
+
+        self.logger.info("Script stored successfully", script_id=script_id)
+        return script_id
+
+    async def analyze_scene_dependencies(self, script_id: str) -> list[Any]:
+        """Analyze scene dependencies."""
+        self.logger.debug("Analyzing scene dependencies", script_id=script_id)
+        raise NotImplementedError("analyze_scene_dependencies not yet implemented")
 
     @property
     def fountain_parser(self) -> "FountainParser":

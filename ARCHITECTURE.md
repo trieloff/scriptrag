@@ -141,19 +141,38 @@ ScriptRAG v2 is a Git-native screenplay analysis system that combines version co
   - file_path (relative to repo root)
   - title
   - format_type (feature/tv)
+  - season_number (for TV series)
+  - episode_number (for TV series)
+  - movie_number (for feature series, e.g., Bond films)
   - last_modified
 - **Relations**:
   - has_many → Scenes
   - belongs_to → Series (optional)
 
+#### Series
+
+- **Attributes**:
+  - series_id (unique identifier)
+  - title
+  - type (tv/feature)
+  - created_at
+- **Relations**:
+  - has_many → Scripts
+  - has_many → Characters
+
 #### Character
 
 - **Attributes**:
+  - character_id (series + name composite)
   - name (normalized)
   - aliases (array)
+  - bible_path (relative path to .md file)
+  - bible_embedding (Git LFS reference)
 - **Relations**:
+  - belongs_to → Series (unique per series)
   - appears_in → Scenes
   - speaks → Dialogue Lines
+  - has_one → Character Bible (markdown file)
 
 #### Dialogue Line
 
@@ -190,15 +209,19 @@ ScriptRAG v2 is a Git-native screenplay analysis system that combines version co
 ### Relationships Flow
 
 ```text
-Script ←──has_many──→ Scene
+Series ←──has_many──→ Script
    ↓                     ↓
-belongs_to           has_one
+has_many             has_many
    ↓                     ↓
-Series              Embedding
-                        ↓
-                   stored_in
-                        ↓
-                   Git LFS
+Character              Scene
+   ↓                     ↓
+has_one              has_one
+   ↓                     ↓
+Bible               Embedding
+   ↓                     ↓
+stored_in           stored_in
+   ↓                     ↓
+Git Repo            Git LFS
 
 Scene ←──appears_in──→ Character
   ↓                        ↓
@@ -278,6 +301,137 @@ Scene
 4. **Lazy Processing**: Only process what changes
 5. **Reconstructible**: Database can be rebuilt from Fountain files
 6. **Local-First**: No required cloud dependencies
+
+## SQLite JSON Storage
+
+SQLite provides robust JSON support that enables storing complete scene structures as documents while maintaining query performance.
+
+### Database Schema
+
+```sql
+-- Main scenes table with full JSON document
+CREATE TABLE scenes (
+    content_hash TEXT PRIMARY KEY,
+    script_path TEXT NOT NULL,
+    scene_number INTEGER,
+    scene_data JSON NOT NULL,  -- Complete scene structure
+    embedding_vector BLOB,     -- Vector data (or use separate table)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    -- Generated columns for frequently queried fields
+    location TEXT GENERATED ALWAYS AS (json_extract(scene_data, '$.location')) STORED,
+    scene_type TEXT GENERATED ALWAYS AS (json_extract(scene_data, '$.type')) STORED,
+    characters TEXT GENERATED ALWAYS AS (json_extract(scene_data, '$.extracted.characters')) STORED
+);
+
+-- Scripts table
+CREATE TABLE scripts (
+    file_path TEXT PRIMARY KEY,
+    title TEXT,
+    series_id TEXT,
+    metadata JSON,  -- Includes season/episode/movie numbers
+    last_synced TIMESTAMP,
+    FOREIGN KEY (series_id) REFERENCES series(series_id)
+);
+
+-- Series table
+CREATE TABLE series (
+    series_id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    type TEXT CHECK (type IN ('tv', 'feature')),
+    metadata JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Characters table
+CREATE TABLE characters (
+    character_id TEXT PRIMARY KEY,  -- {series_id}:{character_name}
+    series_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    aliases JSON,  -- Array of alternate names
+    bible_path TEXT,  -- Path to markdown file
+    bible_embedding_path TEXT,  -- Git LFS reference
+    metadata JSON,
+    FOREIGN KEY (series_id) REFERENCES series(series_id),
+    UNIQUE (series_id, name)
+);
+
+-- Indexes for performance
+CREATE INDEX idx_scenes_script ON scenes(script_path);
+CREATE INDEX idx_scenes_location ON scenes(location);
+CREATE INDEX idx_scenes_characters ON scenes(characters);
+CREATE INDEX idx_characters_series ON characters(series_id);
+```
+
+### Example Scene JSON Structure
+
+```json
+{
+    "content_hash": "a3f5c9b8d7e2f1a4",  // pragma: allowlist secret
+    "type": "INT",
+    "location": "COFFEE SHOP",
+    "time": "DAY",
+    "scene_number": 1,
+    "page_number": 1,
+    "content": {
+        "action": "The shop buzzes with morning energy. SARAH (30s, exhausted) stumbles to the counter.",
+        "dialogue": [
+            {
+                "character": "SARAH",
+                "lines": "Triple shot, no questions.",
+                "parenthetical": "desperate"
+            }
+        ]
+    },
+    "extracted": {
+        "characters": ["SARAH", "BARISTA"],
+        "character_details": {
+            "SARAH": {
+                "age": "30s",
+                "traits": ["exhausted", "desperate"]
+            }
+        },
+        "props": ["coffee cup", "counter"],
+        "emotional_tone": "comedic desperation",
+        "themes": ["exhaustion", "routine"],
+        "story_function": "character introduction"
+    },
+    "embeddings": {
+        "scene": "embeddings/a3f5c9b8d7e2f1a4.npy"
+    },
+    "metadata": {
+        "last_processed": "2024-01-15T10:30:00Z",
+        "llm_model": "gpt-4",
+        "extractor_version": "1.0"
+    }
+}
+```
+
+### JSON Query Examples
+
+```sql
+-- Find all scenes with a specific character
+SELECT scene_data FROM scenes
+WHERE json_extract(scene_data, '$.extracted.characters') LIKE '%SARAH%';
+
+-- Get all coffee shop scenes
+SELECT * FROM scenes
+WHERE json_extract(scene_data, '$.location') LIKE '%COFFEE%';
+
+-- Find scenes by emotional tone
+SELECT * FROM scenes
+WHERE json_extract(scene_data, '$.extracted.emotional_tone') = 'comedic desperation';
+
+-- Join scenes with characters
+SELECT
+    s.content_hash,
+    s.location,
+    c.name,
+    c.bible_path
+FROM scenes s, json_each(s.scene_data, '$.extracted.characters') je
+JOIN characters c ON c.name = je.value
+WHERE c.series_id = 'breaking-bad';
+```
 
 ## Configuration Points
 

@@ -251,12 +251,21 @@ class CharacterOperations:
             # Count interactions
             interactions = self.get_character_interactions(char.id)
 
+            # Calculate diversity metrics
+            unique_chars = {i["character_id"] for i in interactions}
+            # Diversity is the number of unique characters interacted with
+            # This gives higher scores to characters who interact with more
+            # different people
+            interaction_diversity = len(unique_chars)
+
             # Calculate simple centrality metrics
             centrality[char.id] = {
                 "name": char.label,
                 "scene_count": len(scenes),
                 "interaction_count": len(interactions),
-                "unique_interactions": len({i["character_id"] for i in interactions}),
+                "unique_interactions": len(unique_chars),
+                "interaction_diversity": interaction_diversity,
+                "scene_frequency": len(scenes),  # Frequency in script
                 # Simple centrality score
                 "centrality_score": len(scenes) + len(interactions) * 0.5,
             }

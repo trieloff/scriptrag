@@ -251,6 +251,15 @@ def bible_world_element(
     ] = None,
 ) -> None:
     """Create or update a world element."""
+    # Validate element type
+    valid_types = {"location", "prop", "object", "institution", "technology", "concept"}
+    if element_type not in valid_types:
+        console.print(
+            f"[red]✗[/red] Invalid element type '{element_type}'. "
+            f"Valid types: {', '.join(sorted(valid_types))}"
+        )
+        raise typer.Exit(1)
+
     try:
         settings = get_settings()
         with DatabaseConnection(str(settings.get_database_path())) as connection:

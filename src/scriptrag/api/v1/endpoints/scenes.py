@@ -271,11 +271,21 @@ async def inject_scene_after(
         new_position = ref_scene.get("scene_number", 1) + 1
 
         # Use enhanced inject method with full re-indexing
-        new_scene_id = await db_ops.inject_scene_at_position(
-            script_id=ref_scene.get("script_id", ""),
-            scene_data=scene_data,
-            position=new_position,
-        )
+        try:
+            new_scene_id = await db_ops.inject_scene_at_position(
+                script_id=ref_scene.get("script_id", ""),
+                scene_data=scene_data,
+                position=new_position,
+            )
+        except Exception as inject_error:
+            logger.error(
+                "Database error during scene injection",
+                scene_id=scene_id,
+                error=str(inject_error),
+            )
+            raise HTTPException(
+                status_code=500, detail="Failed to inject scene"
+            ) from inject_error
 
         if not new_scene_id:
             raise HTTPException(status_code=500, detail="Failed to inject scene")

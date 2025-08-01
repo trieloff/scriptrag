@@ -1,1 +1,0 @@
-"""ScriptRAG CLI commands package."""

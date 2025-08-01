@@ -204,7 +204,7 @@ class TestScriptOperations:
         assert result.title == TEST_SCRIPT_TITLE
         assert result.author == "Test Author"
         assert result.metadata is None  # Implementation doesn't load metadata
-        assert len(result.scenes) == 0  # Implementation leaves scenes empty
+        assert len(result.scenes) == 2  # Implementation correctly loads scenes
 
     @pytest.mark.asyncio
     async def test_get_script_not_found(self, db_ops, mock_connection):

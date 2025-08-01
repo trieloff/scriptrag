@@ -339,18 +339,40 @@ class ScriptRAG:
             if not row:
                 return None
 
-            # Create a basic ScriptModel
+            # Load scenes for this script
+            scene_cursor = conn.execute(
+                """
+                SELECT id, heading, description, script_order
+                FROM scenes
+                WHERE script_id = ?
+                ORDER BY script_order
+                """,
+                (script_id,),
+            )
+
+            scenes = []
+            from .api.models import SceneModel
+
+            for scene_row in scene_cursor.fetchall():
+                scene = SceneModel(
+                    id=scene_row["id"],
+                    script_id=script_id,
+                    scene_number=scene_row["script_order"],
+                    heading=scene_row["heading"] or "",
+                    content=scene_row["description"] or "",
+                )
+                scenes.append(scene)
+
+            # Create a complete ScriptModel with scenes loaded
             script = ScriptModel(
                 id=row["id"],
                 title=row["title"],
                 author=row["author"],
                 created_at=row["created_at"],
                 updated_at=row["updated_at"],
-                scenes=[],  # We'll leave scenes empty for now
-                characters=set(),  # We'll leave characters empty for now
+                scenes=scenes,  # Now properly loaded!
+                characters=set(),  # Characters can be loaded later if needed
             )
-
-            # TODO: Load scenes and characters if needed
 
             self.logger.debug("Found script", script_id=script_id, title=script.title)
             return script

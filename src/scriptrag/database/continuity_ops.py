@@ -296,7 +296,7 @@ class ContinuityOperations:
 
         # Get all characters
         characters = self.graph.get_neighbors(
-            script_node_id, direction="outgoing", edge_type="has_character"
+            script_node_id, direction="outgoing", edge_type="HAS_CHARACTER"
         )
 
         for char in characters:

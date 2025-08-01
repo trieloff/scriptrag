@@ -95,7 +95,7 @@ class CharacterOperations:
         self.graph.add_edge(
             from_node_id=script_node_id,
             to_node_id=character_node_id,
-            edge_type="has_character",
+            edge_type="HAS_CHARACTER",
             properties={},
         )
 
@@ -240,7 +240,7 @@ class CharacterOperations:
         """
         # Get all characters in the script
         characters = self.graph.get_neighbors(
-            script_node_id, direction="outgoing", edge_type="has_character"
+            script_node_id, direction="outgoing", edge_type="HAS_CHARACTER"
         )
 
         centrality = {}
@@ -378,7 +378,7 @@ class CharacterOperations:
         """
         # Get all existing characters in the script
         existing_chars = self.graph.get_neighbors(
-            script_node_id, direction="outgoing", edge_type="has_character"
+            script_node_id, direction="outgoing", edge_type="HAS_CHARACTER"
         )
 
         char_name_to_id = {

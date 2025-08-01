@@ -99,6 +99,37 @@ after Write/Edit/MultiEdit operations:
 - **Indentation**: 4 spaces, no tabs
 - **Line Endings**: LF only (Unix style)
 
+### **File Size Limits (MCP Compatibility)**
+
+To ensure MCP tools can effectively read and process our code, Python files must adhere to these size limits:
+
+- **Regular Python files**:
+  - Soft limit: 1000 lines (warning - consider refactoring)
+  - Hard limit: 1500 lines (error - must refactor)
+- **Test files**:
+  - Hard limit: 2000 lines (error - must split)
+
+**Why these limits?**
+
+- MCP tools have token limitations when reading files
+- Smaller files are easier to understand and maintain
+- Encourages modular design and single responsibility principle
+
+**When to refactor large files:**
+
+1. Split by functionality or responsibility
+2. Extract common utilities to separate modules
+3. Use composition and delegation patterns
+4. Create sub-modules for complex features
+
+**Current violations to address:**
+
+- `cli.py` (3313 lines) → Split into command groups
+- `mcp_server.py` (3346 lines) → Extract tool implementations
+- `character_arc.py` (2538 lines) → Split mentor logic
+- `operations.py` (1967 lines) → Separate by operation type
+- `migrations.py` (1896 lines) → Consider versioned migration files
+
 ### **Type Annotations (Required)**
 
 ```python

@@ -37,9 +37,17 @@ def scene_to_response(scene: Any) -> SceneResponse:
         script_id=str(scene.script_id) if scene.script_id else "",
         scene_number=getattr(scene, "scene_number", 0),  # SceneModel uses scene_number
         heading=scene.heading or "",
-        content=scene.description or "",  # Map database description to API content
+        content=getattr(scene, "content", None)
+        or getattr(scene, "description", "")
+        or "",  # Handle both SceneModel.content and database Scene.description
         character_count=len(scene.characters) if hasattr(scene, "characters") else 0,
-        word_count=len((scene.description or "").split()),  # Use description field
+        word_count=len(
+            (
+                getattr(scene, "content", None)
+                or getattr(scene, "description", "")
+                or ""
+            ).split()
+        ),  # Handle both content sources
         page_start=getattr(scene, "page_start", None),
         page_end=getattr(scene, "page_end", None),
         has_embedding=(

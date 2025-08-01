@@ -52,11 +52,11 @@ graph TB
     MCP --> FP
     MCP --> QE
 
-    FP --> FF
+    FF --> FP
     FP --> CE
     CE --> LLM
-    CE --> BIA
-    CE --> CIA
+    BIA --> CE
+    CIA --> CE
     CE --> EG
     EG --> LLM
     EG --> LFS
@@ -67,13 +67,13 @@ graph TB
     DI --> Scripts
     DI --> Characters
     DI --> Series
-    DI --> FF
+    FF --> DI
 
-    QE --> Scenes
-    QE --> Scripts
-    QE --> Characters
-    QE --> Series
-    QE --> LFS
+    Scenes --> QE
+    Scripts --> QE
+    Characters --> QE
+    Series --> QE
+    LFS --> QE
 
     %% Actor styling (rectangular boxes)
     style CLI fill:#b3d9ff,stroke:#333,stroke-width:4px

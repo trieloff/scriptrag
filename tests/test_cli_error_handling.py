@@ -241,9 +241,13 @@ class TestDatabaseErrors:
     @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.database.connection.DatabaseConnection")
     @patch("scriptrag.cli.commands.bible.get_latest_script_id")
+    @patch("scriptrag.cli.commands.scene.get_latest_script_id")
+    @patch("scriptrag.cli.commands.mentor.get_latest_script_id")
     def test_no_scripts_in_database(
         self,
-        mock_get_latest,
+        mock_get_latest_mentor,
+        mock_get_latest_scene,
+        mock_get_latest_bible,
         mock_db_conn,
         mock_get_settings,
         cli_runner,
@@ -251,7 +255,10 @@ class TestDatabaseErrors:
     ):
         """Test commands when no scripts exist in database."""
         mock_get_settings.return_value = mock_settings
-        mock_get_latest.return_value = None  # No scripts
+        # Mock all the get_latest_script_id functions to return None (no scripts)
+        mock_get_latest_bible.return_value = None
+        mock_get_latest_scene.return_value = None
+        mock_get_latest_mentor.return_value = None
 
         mock_connection = MagicMock()
         mock_db_conn.return_value = mock_connection
@@ -330,7 +337,7 @@ class TestExceptionHandling:
 
     @patch("scriptrag.config.settings.get_settings")
     @patch("scriptrag.database.connection.DatabaseConnection")
-    @patch("scriptrag.scene_manager.SceneManager")
+    @patch("scriptrag.cli.commands.scene.SceneManager")
     def test_unexpected_exception_handling(
         self,
         mock_scene_manager,

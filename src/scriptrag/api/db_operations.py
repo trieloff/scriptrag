@@ -158,14 +158,16 @@ class DatabaseOperations:
         if not scene:
             return None
 
+        # Extract content from Scene model (uses description field)
+        content = getattr(scene, "description", "") or ""
         return {
             "id": str(scene.id),
             "script_id": str(scene.script_id),
             "scene_number": scene.script_order,
             "heading": scene.heading or "",
-            "content": getattr(scene, "content", "") or "",
+            "content": content,
             "character_count": len(getattr(scene, "characters", [])),
-            "word_count": len((getattr(scene, "content", "") or "").split()),
+            "word_count": len(content.split()) if content else 0,
             "page_start": getattr(scene, "page_start", None),
             "page_end": getattr(scene, "page_end", None),
             "has_embedding": getattr(scene, "embedding", None) is not None,
@@ -179,7 +181,7 @@ class DatabaseOperations:
         content: str | None = None,
     ) -> str:
         """Create a new scene."""
-        # TODO: Create scene and return scene ID
+        # Use ScriptRAG instance to create scene
         scene = await self.scriptrag.create_scene(
             script_id, scene_number, heading, content
         )

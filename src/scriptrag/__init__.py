@@ -523,13 +523,56 @@ class ScriptRAG:
     async def update_scene(self, scene: Scene) -> bool:
         """Update scene information."""
         self.logger.info("Updating scene", scene_id=str(scene.id))
-        # Mock implementation for test compatibility
+
+        # Store in database if available
+        if self.database:
+            try:
+                with self.database.get_connection() as conn:
+                    conn.execute(
+                        """
+                        UPDATE scenes
+                        SET script_order = ?, heading = ?, description = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            scene.script_order,
+                            scene.heading,
+                            scene.description,
+                            str(scene.id),
+                        ),
+                    )
+                    conn.commit()
+                    return True
+            except Exception as e:
+                self.logger.warning("Failed to update scene in database", error=str(e))
+                return False
+
+        # If no database, still return True for compatibility
         return True
 
     async def delete_scene(self, scene_id: str) -> bool:
         """Delete a scene."""
         self.logger.info("Deleting scene", scene_id=scene_id)
-        # Mock implementation for test compatibility
+
+        # Delete from database if available
+        if self.database:
+            try:
+                with self.database.get_connection() as conn:
+                    # Delete the scene
+                    cursor = conn.execute(
+                        "DELETE FROM scenes WHERE id = ?",
+                        (scene_id,),
+                    )
+                    conn.commit()
+                    # Return True if a row was deleted
+                    return cursor.rowcount > 0
+            except Exception as e:
+                self.logger.warning(
+                    "Failed to delete scene from database", error=str(e)
+                )
+                return False
+
+        # If no database, still return True for compatibility
         return True
 
     # Additional API methods that are called

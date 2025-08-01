@@ -241,6 +241,7 @@ class CharacterTools:
         except Exception:
             return {
                 "script_id": script_id,
+                "character_name": character_name,
                 "relationships": [],
                 "total_characters": 0,
                 "error": "Script not found in graph",
@@ -271,10 +272,23 @@ class CharacterTools:
                 char_row = cursor.fetchone()
 
                 if not char_row:
+                    # Count total characters in script for consistency
+                    total_chars_query = """
+                        SELECT COUNT(DISTINCT c.id) as total
+                        FROM characters c
+                        WHERE c.script_id = ?
+                    """
+                    total_cursor = connection.execute(
+                        total_chars_query, (str(script.id),)
+                    )
+                    total_row = total_cursor.fetchone()
+                    total_characters = total_row["total"] if total_row else 0
+
                     return {
                         "script_id": script_id,
-                        "character": character_name,
+                        "character_name": character_name,
                         "relationships": [],
+                        "total_characters": total_characters,
                         "error": f"Character '{character_name}' not found",
                     }
 
@@ -326,7 +340,7 @@ class CharacterTools:
 
                 return {
                     "script_id": script_id,
-                    "character": char_row["name"],
+                    "character_name": char_row["name"],
                     "relationships": relationships,
                 }
             # Get all character relationships in script
@@ -402,5 +416,6 @@ class CharacterTools:
                 "script_id": script_id,
                 "relationships": relationships,
                 "character_stats": character_stats,
+                "total_characters": len(character_stats),
                 "total_relationships": len(relationships),
             }

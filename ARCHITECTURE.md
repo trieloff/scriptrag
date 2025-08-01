@@ -320,60 +320,14 @@ SQLite provides robust JSON support that enables storing complete scene structur
 
 ### Database Schema
 
-```sql
--- Main scenes table with full JSON document
-CREATE TABLE scenes (
-    content_hash TEXT PRIMARY KEY,
-    script_path TEXT NOT NULL,
-    scene_number INTEGER,
-    scene_data JSON NOT NULL,  -- Complete scene structure
-    embedding_vector BLOB,     -- Vector data (or use separate table)
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+The database uses SQLite with JSON support to store complete scene structures as documents while maintaining query performance. The schema includes:
 
-    -- Generated columns for frequently queried fields
-    location TEXT GENERATED ALWAYS AS (json_extract(scene_data, '$.location')) STORED,
-    scene_type TEXT GENERATED ALWAYS AS (json_extract(scene_data, '$.type')) STORED,
-    characters TEXT GENERATED ALWAYS AS (json_extract(scene_data, '$.extracted.characters')) STORED
-);
+- **scenes**: Stores scene data with JSON documents, content hashes, and generated columns for frequently queried fields
+- **scripts**: Tracks screenplay files with metadata including series associations
+- **series**: Manages TV series or feature film franchises
+- **characters**: Maintains character information with links to character bibles and embeddings
 
--- Scripts table
-CREATE TABLE scripts (
-    file_path TEXT PRIMARY KEY,
-    title TEXT,
-    series_id TEXT,
-    metadata JSON,  -- Includes season/episode/movie numbers
-    last_synced TIMESTAMP,
-    FOREIGN KEY (series_id) REFERENCES series(series_id)
-);
-
--- Series table
-CREATE TABLE series (
-    series_id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    type TEXT CHECK (type IN ('tv', 'feature')),
-    metadata JSON,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Characters table
-CREATE TABLE characters (
-    character_id TEXT PRIMARY KEY,  -- {series_id}:{character_name}
-    series_id TEXT NOT NULL,
-    name TEXT NOT NULL,
-    aliases JSON,  -- Array of alternate names
-    bible_path TEXT,  -- Path to markdown file
-    bible_embedding_path TEXT,  -- Git LFS reference
-    metadata JSON,
-    FOREIGN KEY (series_id) REFERENCES series(series_id),
-    UNIQUE (series_id, name)
-);
-
--- Indexes for performance
-CREATE INDEX idx_scenes_script ON scenes(script_path);
-CREATE INDEX idx_scenes_location ON scenes(location);
-CREATE INDEX idx_scenes_characters ON scenes(characters);
-CREATE INDEX idx_characters_series ON characters(series_id);
-```
+All tables use appropriate indexes for performance optimization.
 
 ### Example Scene JSON Structure
 
@@ -421,29 +375,12 @@ CREATE INDEX idx_characters_series ON characters(series_id);
 
 ### JSON Query Examples
 
-```sql
--- Find all scenes with a specific character
-SELECT scene_data FROM scenes
-WHERE json_extract(scene_data, '$.extracted.characters') LIKE '%SARAH%';
+The system supports various query patterns using SQLite's JSON functions:
 
--- Get all coffee shop scenes
-SELECT * FROM scenes
-WHERE json_extract(scene_data, '$.location') LIKE '%COFFEE%';
-
--- Find scenes by emotional tone
-SELECT * FROM scenes
-WHERE json_extract(scene_data, '$.extracted.emotional_tone') = 'comedic desperation';
-
--- Join scenes with characters
-SELECT
-    s.content_hash,
-    s.location,
-    c.name,
-    c.bible_path
-FROM scenes s, json_each(s.scene_data, '$.extracted.characters') je
-JOIN characters c ON c.name = je.value
-WHERE c.series_id = 'breaking-bad';
-```
+- **Character search**: Find scenes containing specific characters using JSON path expressions
+- **Location queries**: Search for scenes by location metadata
+- **Emotional tone filtering**: Query scenes by their extracted emotional characteristics
+- **Complex joins**: Combine scene data with character information through JSON relationships
 
 ## Configuration Points
 

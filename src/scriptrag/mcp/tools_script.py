@@ -85,6 +85,9 @@ class ScriptTools:
 
     async def export_data(self, args: dict[str, Any]) -> dict[str, Any]:
         """Export data from a script."""
+        if "script_id" not in args:
+            raise InvalidArgumentError("script_id is required")
+
         script_id = args["script_id"]
         format_type = args.get("format", "json")
 

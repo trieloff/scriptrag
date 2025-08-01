@@ -236,7 +236,15 @@ class CharacterTools:
             raise ValueError("script_id is required")
 
         # Validate script exists
-        script = self.server._validate_script_id(script_id)
+        try:
+            script = self.server._validate_script_id(script_id)
+        except Exception:
+            return {
+                "script_id": script_id,
+                "relationships": [],
+                "total_characters": 0,
+                "error": "Script not found in graph",
+            }
 
         # Get relationships from database
         with DatabaseConnection(str(self.config.get_database_path())) as connection:

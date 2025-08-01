@@ -54,7 +54,7 @@ class SceneOperations:
                 "script_order": scene.script_order,
                 "temporal_order": scene.temporal_order,
                 "logical_order": scene.logical_order,
-                "description": scene.description,
+                "description": scene.description or "",
                 "heading": scene.heading,
                 "time_of_day": scene.time_of_day,
                 "estimated_duration_minutes": scene.estimated_duration_minutes,

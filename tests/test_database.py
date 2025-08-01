@@ -999,12 +999,13 @@ class TestMigrationRunner:
         runner.migrate_to_latest()
 
         history = runner.get_migration_history()
-        assert len(history) == 5
+        assert len(history) == 6
         assert history[0]["version"] == 1
         assert history[1]["version"] == 2
         assert history[2]["version"] == 3
         assert history[3]["version"] == 4
         assert history[4]["version"] == 5
+        assert history[5]["version"] == 6
         assert "description" in history[0]
 
     def test_initialize_database_function(self, temp_db_path):

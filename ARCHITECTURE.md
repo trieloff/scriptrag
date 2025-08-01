@@ -23,6 +23,20 @@ graph TB
         DI[Database Indexer]
         QE[Query Engine]
         BIA(Built-in Insight Agents)
+
+        %% Channels (circles with triangles)
+        ch1((▶))
+        ch2((▶))
+        ch3((▼))
+        ch4((▶))
+        ch5((▼))
+        ch6((▶))
+        ch7((▼))
+        ch8((▶))
+        ch9((▶))
+        ch10((▼))
+        ch11((▶))
+        ch12((▶))
     end
 
     subgraph "Storage Layer"
@@ -45,30 +59,47 @@ graph TB
 
     subgraph "External Services"
         LLM[LLM API]
+        ch_llm1((◀))
+        ch_llm2((◀))
     end
 
-    CLI --> FP
-    CLI --> QE
-    CLI --> GS
-    MCP --> FP
-    MCP --> QE
+    %% UI to Core channels
+    CLI --> ch1
+    ch1 --> FP
+    CLI --> ch2
+    ch2 --> QE
+    CLI --> ch3
+    ch3 --> GS
+    MCP --> ch10
+    ch10 --> FP
+    MCP --> ch11
+    ch11 --> QE
 
+    %% Core actor-to-actor channels
+    GS --> ch4
+    ch4 --> FP
+    FP --> ch5
+    ch5 --> CE
+    CE --> ch6
+    ch6 --> EG
+    GS --> ch7
+    ch7 --> DI
+
+    %% Actor to LLM channels
+    CE --> ch_llm1
+    ch_llm1 --> LLM
+    EG --> ch_llm2
+    ch_llm2 --> LLM
+
+    %% Actor to Place connections (no channels needed)
     FF --> GS
-    GS --> FP
     GS --> LFS
-    FP --> CE
-    CE --> LLM
     BIA --> CE
     CIA --> CE
-    CE --> EG
-    EG --> LLM
     EG --> LFS
-
-    GS --> DI
     DI --> DB
     FF --> DI
     LFS --> DI
-
     DB --> QE
 
     %% Actor styling (rectangular boxes)
@@ -93,6 +124,22 @@ graph TB
     style Scripts fill:#ffe6cc,stroke:#333,stroke-width:4px,rx:30,ry:30
     style Characters fill:#ffe6cc,stroke:#333,stroke-width:4px,rx:30,ry:30
     style Series fill:#ffe6cc,stroke:#333,stroke-width:4px,rx:30,ry:30
+
+    %% Channel styling (small circles)
+    style ch1 fill:#fff,stroke:#333,stroke-width:2px
+    style ch2 fill:#fff,stroke:#333,stroke-width:2px
+    style ch3 fill:#fff,stroke:#333,stroke-width:2px
+    style ch4 fill:#fff,stroke:#333,stroke-width:2px
+    style ch5 fill:#fff,stroke:#333,stroke-width:2px
+    style ch6 fill:#fff,stroke:#333,stroke-width:2px
+    style ch7 fill:#fff,stroke:#333,stroke-width:2px
+    style ch8 fill:#fff,stroke:#333,stroke-width:2px
+    style ch9 fill:#fff,stroke:#333,stroke-width:2px
+    style ch10 fill:#fff,stroke:#333,stroke-width:2px
+    style ch11 fill:#fff,stroke:#333,stroke-width:2px
+    style ch12 fill:#fff,stroke:#333,stroke-width:2px
+    style ch_llm1 fill:#fff,stroke:#333,stroke-width:2px
+    style ch_llm2 fill:#fff,stroke:#333,stroke-width:2px
 
     %% Edge styling
     linkStyle default stroke:#333,stroke-width:2px

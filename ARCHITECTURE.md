@@ -27,8 +27,9 @@ ScriptRAG v2 is a Git-native screenplay analysis system that combines version co
 - **Output**: Structured metadata (characters, props, emotions, themes)
 - **Responsibilities**:
   - Interface with LLM for content analysis
-  - Generate structured extraction prompts
-  - Validate and normalize extracted data
+  - Load and execute Insight Agents
+  - Validate output against JSON schemas
+  - Aggregate results from multiple agents
 
 #### 3. **Embedding Generator**
 
@@ -115,6 +116,17 @@ ScriptRAG v2 is a Git-native screenplay analysis system that combines version co
   - Extracted metadata
   - Embedding references
   - Processing timestamp
+
+#### 5. **Insight Agents Directory**
+
+- **Content**: Markdown files defining extraction agents
+- **Location**: `insight-agents/` in Git repository
+- **Format**: Markdown with YAML frontmatter
+- **Components**:
+  - Agent metadata (name, property)
+  - SQL context query
+  - JSON output schema
+  - LLM prompt template
 
 ## Data Model
 
@@ -440,3 +452,147 @@ WHERE c.series_id = 'breaking-bad';
 - **Storage Paths**: Database location, embedding directory
 - **Git Hooks**: Enable/disable automatic processing
 - **Model Selection**: Embedding model, extraction model
+
+## System Surfaces
+
+### Insight Agents - Extensible Content Extraction
+
+Insight Agents provide a flexible, declarative way to extend the Content Extractor's capabilities without modifying code. Each agent is defined as a Markdown file that specifies what information to extract and how.
+
+#### Agent File Structure
+
+Insight Agents are Markdown files with:
+
+- **YAML frontmatter**: Agent metadata (name, property, description)
+- **Context Query section**: SQL to gather scene data
+- **Output Schema section**: JSON Schema for validation
+- **Analysis Prompt section**: Instructions for the LLM
+
+See [Example Insight Agent: Emotional Beats](docs/example-insight-agent.md) for a complete example.
+
+#### Agent Execution Flow
+
+1. **Discovery**: Content Extractor scans `insight-agents/` directory
+2. **Context Gathering**: Execute SQL query to gather scene context
+3. **LLM Processing**: Send context + prompt to LLM
+4. **Validation**: Validate response against JSON schema
+5. **Storage**: Store validated results in scene's extracted metadata
+
+#### Benefits
+
+- **No Code Changes**: Add new extraction capabilities via markdown files
+- **Domain Expertise**: Screenplay experts can contribute without coding
+- **Testable**: Each agent can be tested independently
+- **Versioned**: Agents are version-controlled with the project
+
+### API Layer - Unified Interface
+
+The API layer provides a consistent interface to ScriptRAG's capabilities, exposed through both CLI and MCP (Model Context Protocol). This layer enforces access control and ensures all operations go through validated pathways.
+
+#### Core API Operations
+
+```python
+class ScriptRAGAPI:
+    """Public API surface for ScriptRAG operations."""
+
+    # Script Management
+    def import_script(self, fountain_path: Path) -> ScriptID
+    def list_scripts(self, series_id: Optional[str] = None) -> List[Script]
+    def get_script(self, script_id: str) -> Script
+
+    # Scene Operations  
+    def list_scenes(self, script_id: str) -> List[Scene]
+    def get_scene(self, content_hash: str) -> Scene
+    def reprocess_scene(self, content_hash: str) -> Scene
+
+    # Search
+    def search_dialogue(self, query: str, limit: int = 10) -> List[SearchResult]
+    def search_by_character(self, character: str) -> List[Scene]
+    def semantic_search(self, query: str, limit: int = 10) -> List[Scene]
+
+    # Character Management
+    def list_characters(self, series_id: str) -> List[Character]
+    def get_character(self, character_id: str) -> Character
+    def update_character_bible(self, character_id: str, bible_path: Path) -> None
+
+    # Series Management
+    def create_series(self, title: str, type: str) -> Series
+    def list_series(self) -> List[Series]
+
+    # Insight Agents
+    def list_agents(self) -> List[InsightAgent]
+    def run_agent(self, agent_name: str, scene_hash: str) -> Dict[str, Any]
+```
+
+### CLI Interface
+
+```bash
+# Script operations
+scriptrag script import path/to/script.fountain
+scriptrag script list --series breaking-bad
+scriptrag script show s01e01
+
+# Scene operations
+scriptrag scene list s01e01
+scriptrag scene show <content-hash>
+scriptrag scene reprocess <content-hash>
+
+# Search operations
+scriptrag search dialogue "I am the one who knocks"
+scriptrag search character WALTER
+scriptrag search semantic "tense confrontation"
+
+# Character operations
+scriptrag character list breaking-bad
+scriptrag character show breaking-bad:WALTER
+scriptrag character update-bible breaking-bad:WALTER docs/walter-white.md
+
+# Agent operations
+scriptrag agent list
+scriptrag agent run emotional_beats <content-hash>
+```
+
+### MCP Protocol Interface
+
+The MCP server exposes the same operations through the Model Context Protocol:
+
+```typescript
+// MCP Tools
+{
+  name: "scriptrag_import_script",
+  description: "Import a Fountain screenplay",
+  parameters: {
+    fountain_path: { type: "string", description: "Path to fountain file" }
+  }
+}
+
+{
+  name: "scriptrag_search_dialogue",
+  description: "Search for dialogue in scripts",
+  parameters: {
+    query: { type: "string", description: "Search query" },
+    limit: { type: "number", description: "Max results", default: 10 }
+  }
+}
+
+// MCP Resources
+{
+  name: "scriptrag://series/breaking-bad",
+  description: "Breaking Bad series information",
+  mimeType: "application/json"
+}
+
+{
+  name: "scriptrag://character/breaking-bad:WALTER",
+  description: "Walter White character bible",
+  mimeType: "text/markdown"
+}
+```
+
+### Design Principles
+
+1. **Consistency**: CLI and MCP expose identical functionality
+2. **Validation**: All inputs validated before processing
+3. **Error Handling**: Graceful errors with actionable messages
+4. **Discoverability**: Operations are self-documenting
+5. **Security**: No direct database access, only through API

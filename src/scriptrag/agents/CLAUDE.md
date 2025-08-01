@@ -103,7 +103,8 @@ Current scene:
 
 Provide a detailed emotional beat analysis following the schema.
 
-``` <!-- End of markdown example -->
+```yaml
+<!-- End of markdown example -->
 
 ## Agent Loading
 

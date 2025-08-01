@@ -15,20 +15,31 @@ graph TB
         MCP[MCP Server]
     end
 
-    subgraph "Processing Layer - Actors"
+    subgraph "Core"
         FP[Fountain Parser]
         CE[Content Extractor]
         EG[Embedding Generator]
         GS[Git Synchronizer]
         DI[Database Indexer]
         QE[Query Engine]
+        BIA(Built-in Insight Agents)
     end
 
-    subgraph "Storage Layer - Places"
-        GR(Git Repository)
+    subgraph "Storage Layer"
+        subgraph "Git Repository"
+            FF(Fountain Files)
+            SB(Script Bible)
+            CIA(Custom Insight Agents)
+        end
+
         LFS(Git LFS)
-        DB(SQLite Database)
-        IA(Insight Agents)
+
+        subgraph "SQLite Database"
+            Scenes(Scenes)
+            Scripts(Scripts)
+            Characters(Characters)
+            Series(Series)
+        end
     end
 
     subgraph "External Services"
@@ -41,20 +52,27 @@ graph TB
     MCP --> FP
     MCP --> QE
 
-    FP --> GR
+    FP --> FF
     FP --> CE
     CE --> LLM
-    CE --> IA
+    CE --> BIA
+    CE --> CIA
     CE --> EG
     EG --> LLM
     EG --> LFS
 
-    GS --> GR
+    GS --> FF
     GS --> DI
-    DI --> DB
-    DI --> GR
+    DI --> Scenes
+    DI --> Scripts
+    DI --> Characters
+    DI --> Series
+    DI --> FF
 
-    QE --> DB
+    QE --> Scenes
+    QE --> Scripts
+    QE --> Characters
+    QE --> Series
     QE --> LFS
 
     %% Actor styling (rectangular boxes)
@@ -69,10 +87,15 @@ graph TB
     style LLM fill:#ffccb3,stroke:#333,stroke-width:4px
 
     %% Place styling (pill-shaped with rounded corners)
-    style GR fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:50,ry:50
+    style BIA fill:#e6f3ff,stroke:#333,stroke-width:4px,rx:50,ry:50
     style LFS fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:50,ry:50
-    style DB fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:50,ry:50
-    style IA fill:#d4f1d4,stroke:#333,stroke-width:4px,rx:50,ry:50
+    style FF fill:#e8f5e8,stroke:#333,stroke-width:4px,rx:40,ry:40
+    style SB fill:#e8f5e8,stroke:#333,stroke-width:4px,rx:40,ry:40
+    style CIA fill:#e8f5e8,stroke:#333,stroke-width:4px,rx:40,ry:40
+    style Scenes fill:#fff5e6,stroke:#333,stroke-width:4px,rx:40,ry:40
+    style Scripts fill:#fff5e6,stroke:#333,stroke-width:4px,rx:40,ry:40
+    style Characters fill:#fff5e6,stroke:#333,stroke-width:4px,rx:40,ry:40
+    style Series fill:#fff5e6,stroke:#333,stroke-width:4px,rx:40,ry:40
 
     %% Edge styling
     linkStyle default stroke:#333,stroke-width:2px

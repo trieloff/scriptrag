@@ -236,10 +236,31 @@ class ScriptRAG:
 
             # Build graph structure
             ops = GraphOperations(conn)
-            ops.create_script_graph(script)
+            script_node_id = ops.create_script_graph(script)
 
-            # Note: We're skipping async LLM enrichment for now
-            self.logger.info("Graph building and LLM enrichment not yet implemented")
+            # Create character nodes and link to script
+            character_node_map = {}
+            for char in parser.get_characters():
+                char_node_id = ops.create_character_node(char, script_node_id)
+                character_node_map[str(char.id)] = char_node_id
+
+            # Create scene nodes and character relationships
+            scene_node_map = {}
+            for scene in parser.get_scenes():
+                scene_node_id = ops.create_scene_node(scene, script_node_id)
+                scene_node_map[str(scene.id)] = scene_node_id
+
+                # Connect characters to scenes they appear in
+                if hasattr(scene, "characters") and scene.characters:
+                    for char_id in scene.characters:
+                        if str(char_id) in character_node_map:
+                            ops.connect_character_to_scene(
+                                character_node_map[str(char_id)],
+                                scene_node_id,
+                                0,  # dialogue_count placeholder
+                            )
+
+            self.logger.info("Graph structure built with character-scene relationships")
 
         self.logger.info(
             "Successfully parsed and stored screenplay",

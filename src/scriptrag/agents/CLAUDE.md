@@ -55,7 +55,7 @@ JOIN scenes s2 ON s1.script_path = s2.script_path
 WHERE s1.content_hash = :content_hash
 AND s2.scene_number BETWEEN s1.scene_number - 2 AND s1.scene_number + 2
 ORDER BY s2.scene_number
-\`\`\`
+\```
 
 ## Output Schema
 

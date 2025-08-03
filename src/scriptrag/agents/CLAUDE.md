@@ -35,7 +35,7 @@ agents/
 
 ## Agent File Format
 
-```markdown
+````markdown
 ---
 name: emotional_beats
 property: emotional_progression
@@ -55,7 +55,7 @@ JOIN scenes s2 ON s1.script_path = s2.script_path
 WHERE s1.content_hash = :content_hash
 AND s2.scene_number BETWEEN s1.scene_number - 2 AND s1.scene_number + 2
 ORDER BY s2.scene_number
-\```
+```
 
 ## Output Schema
 
@@ -84,7 +84,7 @@ ORDER BY s2.scene_number
   },
   "required": ["emotional_beats", "overall_arc"]
 }
-\`\`\`
+```
 
 ## Analysis Prompt
 
@@ -102,9 +102,7 @@ Current scene:
 {scene}
 
 Provide a detailed emotional beat analysis following the schema.
-
-```
-<!-- End of markdown example -->
+````
 
 ## Agent Loading
 

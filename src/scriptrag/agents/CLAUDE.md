@@ -4,7 +4,7 @@ This directory contains the Insight Agents system for extensible content extract
 
 ## Architecture Role
 
-Insight Agents are **Places** in the FMC architecture that:
+Insight Agents are **configuration components** that:
 
 - Store extraction logic as markdown files
 - Provide prompts and schemas to the Content Extractor

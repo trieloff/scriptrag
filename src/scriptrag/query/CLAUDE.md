@@ -4,10 +4,10 @@ This directory contains the query engine that enables semantic and structured se
 
 ## Architecture Role
 
-The Query Engine is an **Actor** in the FMC architecture. It:
+The Query Engine is a **processing component** that:
 
-- Reads from SQLite Database and Git LFS (Places)
-- Called by CLI and MCP interfaces (through channels)
+- Reads from SQLite Database and Git LFS storage backends
+- Called by CLI and MCP interfaces
 - Performs vector similarity search and structured queries
 - Ranks and presents search results
 
@@ -353,8 +353,8 @@ Key test scenarios:
 
 ## Integration Points
 
-- **Called by**: CLI and MCP interfaces (via channels)
-- **Reads from**: SQLite Database, Git LFS (Places)
+- **Called by**: CLI and MCP interfaces
+- **Reads from**: SQLite Database, Git LFS storage backends
 - **Uses**: Embedding Generator for query embeddings
 
 ## Configuration

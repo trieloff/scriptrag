@@ -4,11 +4,11 @@ This directory contains the embedding generation system that creates vector repr
 
 ## Architecture Role
 
-The Embedding Generator is an **Actor** in the FMC architecture. It:
+The Embedding Generator is a **processing component** that:
 
-- Receives scene data from Content Extractor (through a channel)
-- Communicates with LLM API for embeddings (through a channel)
-- Writes embedding vectors to Git LFS (Place)
+- Receives scene data from Content Extractor
+- Communicates with LLM API for embeddings
+- Writes embedding vectors to Git LFS storage backend
 
 ## Key Responsibilities
 
@@ -255,9 +255,9 @@ Key test cases:
 
 ## Integration Points
 
-- **Input from**: Content Extractor (via channel)
-- **Writes to**: Git LFS (Place)
-- **Communicates with**: LLM API (via channel)
+- **Input from**: Content Extractor
+- **Writes to**: Git LFS storage backend
+- **Communicates with**: LLM API
 
 ## Configuration
 

@@ -4,7 +4,7 @@ This directory implements Git LFS operations for storing and retrieving large fi
 
 ## Architecture Role
 
-LFS Storage is a **Place** in the FMC architecture that:
+LFS Storage is a **storage backend** that:
 
 - Stores numpy arrays of scene embeddings
 - Provides content-addressed storage

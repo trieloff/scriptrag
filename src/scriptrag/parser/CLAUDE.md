@@ -4,9 +4,9 @@ This directory contains the Fountain screenplay format parser, which extracts st
 
 ## Architecture Role
 
-The Fountain Parser is an **Actor** in the FMC architecture. It:
+The Fountain Parser is a **processing component** that:
 
-- Receives Fountain text from the Git Synchronizer (through a channel)
+- Receives Fountain text from the Git Synchronizer
 - Extracts structured scene data
 - Calculates content hashes for deduplication
 - Parses boneyard JSON metadata
@@ -177,9 +177,9 @@ Key test cases:
 
 ## Integration Points
 
-- **Input from**: Git Synchronizer (via channel)
-- **Output to**: Content Extractor (via channel)
-- **Reads from**: Fountain Files (Place)
+- **Input from**: Git Synchronizer
+- **Output to**: Content Extractor
+- **Reads from**: Fountain Files
 
 ## Fountain Specification
 

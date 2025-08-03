@@ -4,11 +4,11 @@ This directory contains the content extraction system that analyzes scenes using
 
 ## Architecture Role
 
-The Content Extractor is an **Actor** in the FMC architecture. It:
+The Content Extractor is a **processing component** that:
 
-- Receives parsed scenes from the Fountain Parser (through a channel)
-- Reads from Built-in and Custom Insight Agents (Places)
-- Communicates with LLM API (through a channel)
+- Receives parsed scenes from the Fountain Parser
+- Reads from Built-in and Custom Insight Agents
+- Communicates with LLM API
 - Outputs structured metadata to the Embedding Generator
 
 ## Key Responsibilities
@@ -217,10 +217,10 @@ Key test scenarios:
 
 ## Integration Points
 
-- **Input from**: Fountain Parser (via channel)
-- **Output to**: Embedding Generator (via channel)
-- **Reads from**: Built-in/Custom Insight Agents (Places)
-- **Communicates with**: LLM API (via channel)
+- **Input from**: Fountain Parser
+- **Output to**: Embedding Generator
+- **Reads from**: Built-in/Custom Insight Agents
+- **Communicates with**: LLM API
 
 ## Configuration
 

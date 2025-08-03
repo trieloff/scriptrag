@@ -1,13 +1,13 @@
 # Storage Layer
 
-This directory contains the storage layer implementations for all "Places" in the FMC architecture. Each subdirectory represents a different storage backend.
+This directory contains the storage layer implementations for all storage backends. Each subdirectory represents a different storage backend.
 
 ## Architecture Role
 
-The storage layer provides the **Places** in the FMC architecture where data is stored and retrieved. These are passive components that:
+The storage layer provides storage backends where data is stored and retrieved. These are components that:
 
-- Store data written by Actors
-- Provide data when read by Actors
+- Store data written by processing components
+- Provide data when read by processing components
 - Maintain data integrity and consistency
 
 ## Storage Components

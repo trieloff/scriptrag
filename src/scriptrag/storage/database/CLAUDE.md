@@ -4,7 +4,7 @@ This directory implements SQLite database operations for storing and querying sc
 
 ## Architecture Role
 
-Database Storage is a **Place** in the FMC architecture that:
+Database Storage is a **storage backend** that:
 
 - Stores structured scene data with JSON documents
 - Maintains relationships between entities

@@ -4,7 +4,7 @@ This directory implements Git repository operations for storing and retrieving F
 
 ## Architecture Role
 
-Git Storage is a **Place** in the FMC architecture that:
+Git Storage is a **storage backend** that:
 
 - Stores Fountain files with boneyard metadata
 - Stores Script Bible markdown files

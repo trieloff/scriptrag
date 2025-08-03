@@ -4,11 +4,11 @@ This directory contains the database indexing system that maintains a searchable
 
 ## Architecture Role
 
-The Database Indexer is an **Actor** in the FMC architecture. It:
+The Database Indexer is a **processing component** that:
 
-- Reads from Fountain Files and Git LFS (Places)
-- Writes to SQLite Database (Place)
-- Called by Git Synchronizer (through a channel)
+- Reads from Fountain Files and Git LFS storage backends
+- Writes to SQLite Database storage backend
+- Called by Git Synchronizer
 - Maintains search indices and relationships
 
 ## Key Responsibilities
@@ -279,9 +279,9 @@ Key test scenarios:
 
 ## Integration Points
 
-- **Called by**: Git Synchronizer (via channel)
-- **Reads from**: Fountain Files, Git LFS (Places)
-- **Writes to**: SQLite Database (Place)
+- **Called by**: Git Synchronizer
+- **Reads from**: Fountain Files, Git LFS storage backends
+- **Writes to**: SQLite Database storage backend
 - **Uses**: Fountain Parser
 
 ## Configuration

@@ -4,11 +4,11 @@ This directory contains the Git synchronization system that manages Git hooks, d
 
 ## Architecture Role
 
-The Git Synchronizer is an **Actor** in the FMC architecture. It:
+The Git Synchronizer is a **processing component** that:
 
-- Reads from Fountain Files in Git Repository (Place)
-- Writes to Git LFS for embeddings (Place)
-- Calls Fountain Parser and Database Indexer (through channels)
+- Reads from Fountain Files in Git Repository
+- Writes to Git LFS storage for embeddings
+- Calls Fountain Parser and Database Indexer
 - Manages Git hooks for automatic processing
 
 ## Key Responsibilities
@@ -226,14 +226,14 @@ def _track_embeddings(self):
 ```python
 def _process_new_scene(self, scene: Scene, file_path: Path):
     """Coordinate processing pipeline for a scene."""
-    # This triggers the pipeline through channels:
+    # This triggers the processing pipeline:
     # 1. Parser has already parsed the scene
     # 2. Send to Content Extractor
     # 3. Then to Embedding Generator
     # 4. Store results back in boneyard
 
     # In practice, this might use an event system
-    # or direct channel communication
+    # or direct component communication
     pass
 ```
 
@@ -256,11 +256,11 @@ Key test scenarios:
 
 ## Integration Points
 
-- **Reads from**: Fountain Files in Git Repository (Place)
-- **Writes to**: Git LFS (Place)
-- **Calls**: Fountain Parser (via channel)
-- **Calls**: Database Indexer (via channel)
-- **Called by**: CLI/MCP (via channel)
+- **Reads from**: Fountain Files in Git Repository
+- **Writes to**: Git LFS storage backend
+- **Calls**: Fountain Parser
+- **Calls**: Database Indexer
+- **Called by**: CLI/MCP interfaces
 
 ## Configuration
 

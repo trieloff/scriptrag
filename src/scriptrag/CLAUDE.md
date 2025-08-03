@@ -4,32 +4,32 @@ This is the root module for ScriptRAG v2, implementing a Git-native screenplay a
 
 ## Architecture Role
 
-The scriptrag module serves as the main package that orchestrates all components in the system. It follows the architecture defined in `/root/repo/ARCHITECTURE.md`.
+The scriptrag module serves as the main package that orchestrates all components in the system. It follows the [architecture](../../ARCHITECTURE.md) defined for the project.
 
 ## Key Components
 
-- **API/**: Public API surface (used by CLI and MCP)
-- **cli/**: Command-line interface implementation
-- **MCP/**: Model Context Protocol server
-- **parser/**: Fountain file parsing (Actor in FMC)
-- **extractor/**: Content extraction with LLM (Actor in FMC)
-- **embeddings/**: Vector embedding generation (Actor in FMC)
-- **synchronizer/**: Git operations and hooks (Actor in FMC)
-- **indexer/**: Database indexing (Actor in FMC)
-- **query/**: Query engine for search (Actor in FMC)
-- **storage/**: Storage layer implementations (Places in FMC)
-- **agents/**: Insight agents for extensible extraction
-- **config/**: Configuration management
-- **models/**: Data models and types
-- **utils/**: Shared utilities
+- `api/`: Public API surface (used by CLI and MCP)
+- `cli/`: Command-line interface implementation
+- `mcp/`: Model Context Protocol server
+- `parser/`: Fountain file parsing
+- `extractor/`: Content extraction with LLM
+- `embeddings/`: Vector embedding generation
+- `synchronizer/`: Git operations and hooks
+- `indexer/`: Database indexing
+- `query/`: Query engine for search
+- `storage/`: Storage layer implementations
+- `agents/`: Insight agents for extensible extraction
+- `config/`: Configuration management
+- `models/`: Data models and types
+- `utils/`: Shared utilities
 
 ## Development Guidelines
 
-1. **Follow FMC Patterns**: Actors perform actions, Places store data
-2. **Use Channels**: Actors communicate through channels, not directly
-3. **Respect Read/Write**: Actor → Place = write, Place → Actor = read
-4. **Type Everything**: Full type annotations required
-5. **Test Coverage**: Maintain >80% coverage
+1. **Type Everything**: Full type annotations required
+2. **Test Coverage**: Maintain >80% coverage
+3. **Modular Design**: Each component has a single responsibility
+4. **Error Handling**: Use specific exception types
+5. **Logging**: Use structured logging throughout
 
 ## Import Structure
 
@@ -47,9 +47,9 @@ from .storage.database import DatabaseStorage
 
 The system uses a hierarchical configuration system:
 
-1. Environment variables (scriptrag_*)
-2. User config file (~/.scriptrag/config.YAML)
-3. Project config file (.scriptrag/config.YAML)
+1. Environment variables (`scriptrag_*`)
+2. User config file (`~/.scriptrag/config.yaml`)
+3. Project config file (`.scriptrag/config.yaml`)
 4. Default values
 
 ## Error Handling

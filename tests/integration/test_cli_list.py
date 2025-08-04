@@ -1,5 +1,6 @@
 """Integration tests for scriptrag list command."""
 
+import re
 import shutil
 from pathlib import Path
 
@@ -7,6 +8,13 @@ import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli import app
+
+
+def strip_ansi_codes(text: str) -> str:
+    """Strip ANSI escape sequences from text."""
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    return ansi_escape.sub("", text)
+
 
 # Path to fixture files
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "fountain"
@@ -63,7 +71,8 @@ class TestListCommand:
         # Count all fountain files in the test directory
         test_dir = Path.cwd()  # We're in the test directory due to monkeypatch.chdir
         expected_count = len(list(test_dir.glob("**/*.fountain")))
-        assert f"Found {expected_count} scripts" in result.stdout
+        clean_stdout = strip_ansi_codes(result.stdout)
+        assert f"Found {expected_count} scripts" in clean_stdout
         assert "The Great Adventure" in result.stdout
         assert "Mystery Show" in result.stdout
         assert "Another Series" in result.stdout
@@ -76,7 +85,8 @@ class TestListCommand:
         # Count actual files in the test directory
         test_dir = fountain_scripts[0].parent
         expected_count = len(list(test_dir.glob("**/*.fountain")))
-        assert f"Found {expected_count} scripts" in result.stdout
+        clean_stdout = strip_ansi_codes(result.stdout)
+        assert f"Found {expected_count} scripts" in clean_stdout
 
     def test_list_alias_ls(self, runner, fountain_scripts):
         """Test that 'ls' alias works for list command."""
@@ -86,7 +96,8 @@ class TestListCommand:
         assert result.exit_code == 0
         # Count actual files in the test directory (not fixtures)
         expected_count = len(list(test_dir.glob("**/*.fountain")))
-        assert f"Found {expected_count} scripts" in result.stdout
+        clean_stdout = strip_ansi_codes(result.stdout)
+        assert f"Found {expected_count} scripts" in clean_stdout
 
     def test_list_series_detection(self, runner, fountain_scripts):
         """Test that series episodes are properly detected and grouped."""
@@ -112,7 +123,8 @@ class TestListCommand:
         assert result.exit_code == 0
         # Count only root-level scripts in the test directory
         expected_count = len(list(test_dir.glob("*.fountain")))
-        assert f"Found {expected_count} scripts" in result.stdout
+        clean_stdout = strip_ansi_codes(result.stdout)
+        assert f"Found {expected_count} scripts" in clean_stdout
         assert "The Great Adventure" in result.stdout
         assert "Another Series" in result.stdout
         # These are in subdirectory
@@ -128,7 +140,8 @@ class TestListCommand:
         result = runner.invoke(app, ["list", str(great_adventure)])
 
         assert result.exit_code == 0
-        assert "Found 1 script" in result.stdout
+        clean_stdout = strip_ansi_codes(result.stdout)
+        assert "Found 1 script" in clean_stdout
         assert "The Great Adventure" in result.stdout
         assert "Jane Doe" in result.stdout
 
@@ -202,7 +215,8 @@ class TestListCommand:
         result = runner.invoke(app, ["list", str(tmp_path)])
 
         assert result.exit_code == 0
-        assert "Found 5 scripts" in result.stdout
+        clean_stdout = strip_ansi_codes(result.stdout)
+        assert "Found 5 scripts" in clean_stdout
         # Verify episodes are detected (exact format may vary in output)
 
     def test_list_multi_line_title(self, runner, tmp_path):

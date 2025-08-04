@@ -86,8 +86,8 @@ class ScriptRAGSettings(BaseSettings):
     )
     log_format: str = Field(
         default="console",
-        description="Log output format (console, json)",
-        pattern="^(console|json)$",
+        description="Log output format (console, json, structured)",
+        pattern="^(console|json|structured)$",
     )
     log_file: Path | None = Field(
         default=None,

@@ -45,6 +45,19 @@ def configure_logging(settings: ScriptRAGSettings) -> None:
                 add_logger_name,
             ],
         )
+    elif settings.log_format == "structured":
+        # Structured format with key-value pairs
+        formatter = ProcessorFormatter(
+            processor=structlog.processors.KeyValueRenderer(
+                key_order=["timestamp", "level", "logger", "event"],
+                drop_missing=True,
+            ),
+            foreign_pre_chain=[
+                TimeStamper(fmt="iso"),
+                add_log_level,
+                add_logger_name,
+            ],
+        )
     else:
         # Console format for development
         formatter = ProcessorFormatter(
@@ -116,7 +129,7 @@ def configure_logging(settings: ScriptRAGSettings) -> None:
         )
 
     # Add final processors based on format
-    if settings.log_format == "json":
+    if settings.log_format == "json" or settings.log_format == "structured":
         processors.extend(
             [
                 format_exc_info,

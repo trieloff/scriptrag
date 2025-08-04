@@ -60,8 +60,9 @@ class TestListCommand:
 
         assert result.exit_code == 0
         assert "Fountain Scripts" in result.stdout
-        # Count all fountain files from fixtures
-        expected_count = len(list(FIXTURES_DIR.glob("**/*.fountain")))
+        # Count all fountain files in the test directory
+        test_dir = Path.cwd()  # We're in the test directory due to monkeypatch.chdir
+        expected_count = len(list(test_dir.glob("**/*.fountain")))
         assert f"Found {expected_count} scripts" in result.stdout
         assert "The Great Adventure" in result.stdout
         assert "Mystery Show" in result.stdout
@@ -72,15 +73,19 @@ class TestListCommand:
         result = runner.invoke(app, ["list", str(fountain_scripts[0].parent)])
 
         assert result.exit_code == 0
-        expected_count = len(list(FIXTURES_DIR.glob("**/*.fountain")))
+        # Count actual files in the test directory
+        test_dir = fountain_scripts[0].parent
+        expected_count = len(list(test_dir.glob("**/*.fountain")))
         assert f"Found {expected_count} scripts" in result.stdout
 
     def test_list_alias_ls(self, runner, fountain_scripts):
         """Test that 'ls' alias works for list command."""
-        result = runner.invoke(app, ["ls", str(fountain_scripts[0].parent)])
+        test_dir = fountain_scripts[0].parent
+        result = runner.invoke(app, ["ls", str(test_dir)])
 
         assert result.exit_code == 0
-        expected_count = len(list(FIXTURES_DIR.glob("**/*.fountain")))
+        # Count actual files in the test directory (not fixtures)
+        expected_count = len(list(test_dir.glob("**/*.fountain")))
         assert f"Found {expected_count} scripts" in result.stdout
 
     def test_list_series_detection(self, runner, fountain_scripts):
@@ -101,13 +106,12 @@ class TestListCommand:
     def test_list_no_recursive(self, runner, fountain_scripts):
         """Test list command with --no-recursive option."""
         # Only scripts in root should be found, not in series subdirectory
-        result = runner.invoke(
-            app, ["list", str(fountain_scripts[0].parent), "--no-recursive"]
-        )
+        test_dir = fountain_scripts[0].parent
+        result = runner.invoke(app, ["list", str(test_dir), "--no-recursive"])
 
         assert result.exit_code == 0
-        # Count only root-level scripts from fixtures
-        expected_count = len(list(FIXTURES_DIR.glob("standalone/*.fountain")))
+        # Count only root-level scripts in the test directory
+        expected_count = len(list(test_dir.glob("*.fountain")))
         assert f"Found {expected_count} scripts" in result.stdout
         assert "The Great Adventure" in result.stdout
         assert "Another Series" in result.stdout

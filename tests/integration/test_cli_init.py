@@ -136,6 +136,9 @@ class TestInitCommand:
         result = runner.invoke(app, [])
 
         # Check command succeeded
+        if result.exit_code != 0:
+            print(f"Output: {result.stdout}")
+            print(f"Exception: {result.exception}")
         assert result.exit_code == 0
         assert "Database initialized successfully" in result.stdout
 
@@ -179,15 +182,15 @@ class TestInitCommand:
         # Check database was cleaned up
         assert not temp_db_path.exists()
 
-    def test_init_handles_missing_sql_file(self, runner, temp_db_path):
+    def test_init_handles_missing_sql_file(self, runner, temp_db_path, monkeypatch):
         """Test that init handles missing SQL file gracefully."""
-        # Use invalid SQL directory
+        # Mock DatabaseInitializer with non-existent SQL directory
         from scriptrag.api.database import DatabaseInitializer
-        from scriptrag.cli import CLIContext, set_cli_context
 
-        # Create initializer with non-existent SQL directory
-        bad_initializer = DatabaseInitializer(sql_dir=Path("/nonexistent"))
-        set_cli_context(CLIContext(db_initializer=bad_initializer))
+        def mock_init(self, sql_dir=None):  # noqa: ARG001
+            self.sql_dir = Path("/nonexistent")
+
+        monkeypatch.setattr(DatabaseInitializer, "__init__", mock_init)
 
         # Run init command
         result = runner.invoke(app, ["--db-path", str(temp_db_path)])
@@ -195,6 +198,3 @@ class TestInitCommand:
         # Check command failed
         assert result.exit_code == 1
         assert "Failed to initialize database" in result.stdout
-
-        # Reset context
-        set_cli_context(CLIContext())

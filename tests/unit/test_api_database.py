@@ -89,9 +89,10 @@ class TestDatabaseInitializer:
         mock_conn = MockConnection()
         with patch("sqlite3.connect") as mock_connect:
             mock_connect.return_value = mock_conn
-            initializer.initialize_database(db_path)
+            result_path = initializer.initialize_database(db_path)
 
         # Verify
+        assert result_path == db_path
         assert mock_connect.called
         assert mock_conn.executed_scripts == ["CREATE TABLE test (id INTEGER);"]
         assert mock_conn.committed
@@ -125,9 +126,10 @@ class TestDatabaseInitializer:
         mock_conn = MockConnection()
         with patch("sqlite3.connect") as mock_connect:
             mock_connect.return_value = mock_conn
-            initializer.initialize_database(db_path, force=True)
+            result_path = initializer.initialize_database(db_path, force=True)
 
         # Verify database was recreated
+        assert result_path == db_path
         assert mock_conn.executed_scripts == ["CREATE TABLE test (id INTEGER);"]
         assert mock_conn.committed
 
@@ -146,9 +148,10 @@ class TestDatabaseInitializer:
         mock_conn = MockConnection()
         with patch("sqlite3.connect") as mock_connect:
             mock_connect.return_value = mock_conn
-            initializer.initialize_database(db_path)
+            result_path = initializer.initialize_database(db_path)
 
         # Verify parent directories were created
+        assert result_path == db_path
         assert db_path.parent.exists()
 
     def test_initialize_database_with_connection(self, tmp_path):
@@ -164,9 +167,10 @@ class TestDatabaseInitializer:
 
         # Use mock connection
         mock_conn = MockConnection()
-        initializer.initialize_database(db_path, connection=mock_conn)
+        result_path = initializer.initialize_database(db_path, connection=mock_conn)
 
         # Verify - should not create/close connection
+        assert result_path == db_path
         assert mock_conn.executed_scripts == ["CREATE TABLE test (id INTEGER);"]
         assert mock_conn.committed
         assert not mock_conn.closed  # Should not close provided connection
@@ -213,9 +217,10 @@ class TestDatabaseInitializer:
         mock_conn = MockConnection()
 
         # Initialize with provided connection
-        initializer.initialize_database(db_path, connection=mock_conn)
+        result_path = initializer.initialize_database(db_path, connection=mock_conn)
 
         # Verify connection was used but not closed
+        assert result_path == db_path
         assert mock_conn.executed_scripts == ["CREATE TABLE test (id INTEGER);"]
         assert mock_conn.committed
         assert not mock_conn.closed  # Should not close provided connection

@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 from typing import Protocol
 
-from scriptrag.config import get_logger
+from scriptrag.config import ScriptRAGSettings, get_logger
 
 logger = get_logger(__name__)
 
@@ -61,29 +61,51 @@ class DatabaseInitializer:
 
     def initialize_database(
         self,
-        db_path: Path,
+        db_path: Path | None = None,
         force: bool = False,
+        settings: ScriptRAGSettings | None = None,
         connection: DatabaseConnection | None = None,
-    ) -> None:
+    ) -> Path:
         """Initialize SQLite database with schema.
 
         Args:
-            db_path: Path to the SQLite database file.
+            db_path: Path to the SQLite database file. If None, uses settings.
             force: If True, overwrite existing database.
+            settings: Configuration settings. If None, uses global settings.
             connection: Optional database connection for testing.
+
+        Returns:
+            Path to the initialized database.
 
         Raises:
             FileExistsError: If database exists and force is False.
             RuntimeError: If database initialization fails.
         """
+        # Get settings if not provided
+        if settings is None:
+            from scriptrag.config import get_settings
+
+            settings = get_settings()
+
+        # Determine database path from precedence:
+        # 1. CLI argument (db_path)
+        # 2. Settings (from config file/env vars)
+        # 3. Default (already in settings)
+        if db_path is None:
+            db_path = settings.database_path
+
+        # Resolve to absolute path
+        db_path = db_path.resolve()
         # Check if database exists
         if db_path.exists() and not force:
             raise FileExistsError(
                 f"Database already exists at {db_path}. Use --force to overwrite."
             )
 
-        # Remove existing database if force is True
+        # Handle force with confirmation
         if db_path.exists() and force:
+            # In API layer, we don't do interactive confirmation
+            # That's the CLI's responsibility
             logger.warning("Removing existing database", path=str(db_path))
             db_path.unlink()
 
@@ -104,6 +126,7 @@ class DatabaseInitializer:
                 self._initialize_with_connection(connection)
 
             logger.info("Database initialized successfully", path=str(db_path))
+            return db_path
 
         except Exception as e:
             # Clean up on failure

@@ -24,7 +24,9 @@ class TestInitCommand:
             mock_class.return_value = mock_initializer
 
             runner = CliRunner()
-            result = runner.invoke(app, ["--db-path", str(tmp_path / "test.db")])
+            result = runner.invoke(
+                app, ["init", "--db-path", str(tmp_path / "test.db")]
+            )
 
             # Should exit with code 1 and show error
             assert result.exit_code == 1
@@ -36,7 +38,9 @@ class TestInitCommand:
         db_path.touch()
 
         runner = CliRunner()
-        result = runner.invoke(app, ["--db-path", str(db_path), "--force"], input="n\n")
+        result = runner.invoke(
+            app, ["init", "--db-path", str(db_path), "--force"], input="n\n"
+        )
 
         # Should exit with code 0
         assert result.exit_code == 0
@@ -55,7 +59,9 @@ class TestInitCommand:
             mock_class.return_value = mock_initializer
 
             runner = CliRunner()
-            result = runner.invoke(app, ["--db-path", str(tmp_path / "test.db")])
+            result = runner.invoke(
+                app, ["init", "--db-path", str(tmp_path / "test.db")]
+            )
 
             # Should exit with code 1 and show error
             assert result.exit_code == 1

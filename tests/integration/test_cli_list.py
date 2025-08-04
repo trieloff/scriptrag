@@ -67,15 +67,15 @@ class TestListCommand:
         result = runner.invoke(app, ["list"])
 
         assert result.exit_code == 0
-        assert "Fountain Scripts" in result.stdout
+        clean_stdout = strip_ansi_codes(result.stdout)
+        assert "Fountain Scripts" in clean_stdout
         # Count all fountain files in the test directory
         test_dir = Path.cwd()  # We're in the test directory due to monkeypatch.chdir
         expected_count = len(list(test_dir.glob("**/*.fountain")))
-        clean_stdout = strip_ansi_codes(result.stdout)
         assert f"Found {expected_count} scripts" in clean_stdout
-        assert "The Great Adventure" in result.stdout
-        assert "Mystery Show" in result.stdout
-        assert "Another Series" in result.stdout
+        assert "The Great Adventure" in clean_stdout
+        assert "Mystery Show" in clean_stdout
+        assert "Another Series" in clean_stdout
 
     def test_list_scripts_with_path(self, runner, fountain_scripts):
         """Test list command with specified path."""
@@ -104,15 +104,12 @@ class TestListCommand:
         result = runner.invoke(app, ["list", str(fountain_scripts[0].parent)])
 
         assert result.exit_code == 0
+        clean_stdout = strip_ansi_codes(result.stdout)
         # Check series episodes are shown with season/episode info
-        assert "S01E01" in result.stdout or (
-            "1" in result.stdout and "1" in result.stdout
-        )
-        assert "S01E02" in result.stdout or (
-            "1" in result.stdout and "2" in result.stdout
-        )
+        assert "S01E01" in clean_stdout or ("1" in clean_stdout and "1" in clean_stdout)
+        assert "S01E02" in clean_stdout or ("1" in clean_stdout and "2" in clean_stdout)
         # Episode parsed from filename
-        assert "2" in result.stdout and "3" in result.stdout  # S2E3
+        assert "2" in clean_stdout and "3" in clean_stdout  # S2E3
 
     def test_list_no_recursive(self, runner, fountain_scripts):
         """Test list command with --no-recursive option."""
@@ -125,11 +122,13 @@ class TestListCommand:
         expected_count = len(list(test_dir.glob("*.fountain")))
         clean_stdout = strip_ansi_codes(result.stdout)
         assert f"Found {expected_count} scripts" in clean_stdout
-        assert "The Great Adventure" in result.stdout
-        assert "Another Series" in result.stdout
-        # These are in subdirectory
-        assert "S01E01" not in result.stdout
-        assert "S01E02" not in result.stdout
+        # With --no-recursive, only root-level files should be found
+        # The Great Adventure is in standalone/ subdirectory, so it shouldn't appear
+        assert "Another Series" in clean_stdout  # This is in root
+        # These are in subdirectories and should not appear
+        assert "S01E01" not in clean_stdout
+        assert "S01E02" not in clean_stdout
+        assert "The Great Adventure" not in clean_stdout  # This is in standalone/
 
     def test_list_single_file(self, runner, fountain_scripts):
         """Test list command with a single file path."""
@@ -142,8 +141,8 @@ class TestListCommand:
         assert result.exit_code == 0
         clean_stdout = strip_ansi_codes(result.stdout)
         assert "Found 1 script" in clean_stdout
-        assert "The Great Adventure" in result.stdout
-        assert "Jane Doe" in result.stdout
+        assert "The Great Adventure" in clean_stdout
+        assert "Jane Doe" in clean_stdout
 
     def test_list_non_fountain_file(self, runner, tmp_path):
         """Test list command with non-fountain file."""

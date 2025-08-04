@@ -78,6 +78,7 @@ dev = [
     "safety>=3.0.0",        # Dependency vulnerability scanner
     "vulture>=2.10",        # Dead code detection
     "pylint>=3.0.0",        # Additional linting (optional with ruff)
+    "sqlfluff>=3.0.0",      # SQL linting
 
     # Documentation
     "mkdocs>=1.5.0",

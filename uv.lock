@@ -569,6 +569,21 @@ wheels = [
 ]
 
 [[package]]
+name = "diff-cover"
+version = "9.6.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "chardet" },
+    { name = "jinja2" },
+    { name = "pluggy" },
+    { name = "pygments" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4c/81/0496938bb72606231b2518b6fd404a5adfde3c1b60a97d0dc39a92b25570/diff_cover-9.6.0.tar.gz", hash = "sha256:75e5bc056dcaa68c6c87c9fb4e07c9e60daef15b6e8d034d56d2da9e2c84a872", size = 99756, upload-time = "2025-07-17T02:18:44.286Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/c5/5f3b69c74328c6a3a3a52a084afbd0c2d15c4b95e7784b752072c133f01d/diff_cover-9.6.0-py3-none-any.whl", hash = "sha256:29fbeb52d77a0b8c811e5580d5dbf41801a838da2ed54319a599da8f7233c547", size = 55671, upload-time = "2025-07-17T02:18:42.572Z" },
+]
+
+[[package]]
 name = "dill"
 version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3172,6 +3187,7 @@ dev = [
     { name = "pytest-xdist" },
     { name = "ruff" },
     { name = "safety" },
+    { name = "sqlfluff" },
     { name = "tox" },
     { name = "twine" },
     { name = "types-pyyaml" },
@@ -3247,6 +3263,7 @@ requires-dist = [
     { name = "safety", marker = "extra == 'dev'", specifier = ">=3.0.0" },
     { name = "scipy", specifier = ">=1.11.0" },
     { name = "sqlalchemy", specifier = ">=2.0.0" },
+    { name = "sqlfluff", marker = "extra == 'dev'", specifier = ">=3.0.0" },
     { name = "sqlite-vec", specifier = ">=0.1.0" },
     { name = "structlog", specifier = ">=23.2.0" },
     { name = "tenacity", specifier = ">=8.2.0" },
@@ -3374,6 +3391,29 @@ wheels = [
 ]
 
 [[package]]
+name = "sqlfluff"
+version = "3.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "chardet" },
+    { name = "click" },
+    { name = "colorama" },
+    { name = "diff-cover" },
+    { name = "jinja2" },
+    { name = "pathspec" },
+    { name = "platformdirs" },
+    { name = "pytest" },
+    { name = "pyyaml" },
+    { name = "regex" },
+    { name = "tblib" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a9/43/871e42d09ceddf510c976d7a0daa7c04c643b0f428c563c5f6b5337076f9/sqlfluff-3.4.2.tar.gz", hash = "sha256:1777272e4fdac5adef1b89ec25675426e77285d4dc95a055b12bd24181e33f40", size = 903626, upload-time = "2025-07-11T20:23:13.72Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7c/8f/3550d1663fbc16dbf2bd706ecb10ab18c7be0e14a712108f0ec3258a2ade/sqlfluff-3.4.2-py3-none-any.whl", hash = "sha256:14109d858da448a4bd0be5a107f4e48de33b1749e6cfc8cc03ec6c045bc9b8ad", size = 906359, upload-time = "2025-07-11T20:23:12.165Z" },
+]
+
+[[package]]
 name = "sqlite-vec"
 version = "0.1.6"
 source = { registry = "https://pypi.org/simple" }
@@ -3452,6 +3492,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ec/fe/802052aecb21e3797b8f7902564ab6ea0d60ff8ca23952079064155d1ae1/tabulate-0.9.0.tar.gz", hash = "sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c", size = 81090, upload-time = "2022-10-06T17:21:48.54Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/40/44/4a5f08c96eb108af5cb50b41f76142f0afa346dfa99d5296fe7202a11854/tabulate-0.9.0-py3-none-any.whl", hash = "sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f", size = 35252, upload-time = "2022-10-06T17:21:44.262Z" },
+]
+
+[[package]]
+name = "tblib"
+version = "3.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/95/4b3044ec4bf248186769629bbfb495a458deb6e4c1f9eff7f298ae1e336e/tblib-3.1.0.tar.gz", hash = "sha256:06404c2c9f07f66fee2d7d6ad43accc46f9c3361714d9b8426e7f47e595cd652", size = 30766, upload-time = "2025-03-31T12:58:27.473Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/27/44/aa5c8b10b2cce7a053018e0d132bd58e27527a0243c4985383d5b6fd93e9/tblib-3.1.0-py3-none-any.whl", hash = "sha256:670bb4582578134b3d81a84afa1b016128b429f3d48e6cbbaecc9d15675e984e", size = 12552, upload-time = "2025-03-31T12:58:26.142Z" },
 ]
 
 [[package]]

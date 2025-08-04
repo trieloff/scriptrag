@@ -78,6 +78,7 @@ dev = [
     "safety>=3.0.0",        # Dependency vulnerability scanner
     "vulture>=2.10",        # Dead code detection
     "pylint>=3.0.0",        # Additional linting (optional with ruff)
+    "sqlfluff>=3.0.0",      # SQL linting
 
     # Documentation
     "mkdocs>=1.5.0",
@@ -291,6 +292,7 @@ color = true
 exclude = ["tests/", "docs/", ".venv/", "build/", "dist/"]
 min_confidence = 80
 paths = ["src/scriptrag"]
+ignore_names = ["sql"]  # Ignore Protocol method parameters
 
 [tool.pylint.messages_control]
 disable = [

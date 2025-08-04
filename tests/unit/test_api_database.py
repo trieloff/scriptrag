@@ -195,9 +195,9 @@ class TestDatabaseInitializer:
             with pytest.raises(RuntimeError) as exc_info:
                 initializer.initialize_database(db_path)
 
-        # Verify error message
-        assert "Failed to initialize database" in str(exc_info.value)
-        assert "SQL error" in str(exc_info.value)
+        # Verify error message - validation happens before SQL execution
+        assert "SQL validation error" in str(exc_info.value)
+        assert "INVALID SQL" in str(exc_info.value)
 
         # Verify cleanup - database should not exist
         assert not db_path.exists()
@@ -224,3 +224,124 @@ class TestDatabaseInitializer:
         assert mock_conn.executed_scripts == ["CREATE TABLE test (id INTEGER);"]
         assert mock_conn.committed
         assert not mock_conn.closed  # Should not close provided connection
+
+    def test_sql_validation_file_too_large(self, tmp_path):
+        """Test that oversized SQL files are rejected."""
+        # Setup
+        sql_dir = tmp_path / "sql"
+        sql_dir.mkdir()
+        sql_file = sql_dir / "init_database.sql"
+        # Create file larger than 5MB
+        large_content = "-- " + "x" * (5 * 1024 * 1024 + 1)
+        sql_file.write_text(large_content)
+
+        db_path = tmp_path / "test.db"
+        initializer = DatabaseInitializer(sql_dir=sql_dir)
+
+        # Should fail with validation error
+        with pytest.raises(RuntimeError) as exc_info:
+            initializer.initialize_database(db_path)
+        assert "SQL validation error" in str(exc_info.value)
+        assert "exceeds maximum allowed size" in str(exc_info.value)
+
+    def test_sql_validation_disallowed_statements(self, tmp_path):
+        """Test that SQL files with disallowed statements are rejected."""
+        # Setup
+        sql_dir = tmp_path / "sql"
+        sql_dir.mkdir()
+        sql_file = sql_dir / "init_database.sql"
+        sql_file.write_text("""
+        CREATE TABLE users (id INTEGER);
+        DELETE FROM users WHERE id = 1;
+        """)
+
+        db_path = tmp_path / "test.db"
+        initializer = DatabaseInitializer(sql_dir=sql_dir)
+
+        # Should fail with validation error
+        with pytest.raises(RuntimeError) as exc_info:
+            initializer.initialize_database(db_path)
+        assert "SQL validation error" in str(exc_info.value)
+        assert "Disallowed SQL pattern" in str(exc_info.value)
+
+    def test_sql_validation_non_ddl_statements(self, tmp_path):
+        """Test that SQL files with non-DDL statements are rejected."""
+        # Setup
+        sql_dir = tmp_path / "sql"
+        sql_dir.mkdir()
+        sql_file = sql_dir / "init_database.sql"
+        sql_file.write_text("""
+        CREATE TABLE users (id INTEGER, name TEXT);
+        SELECT * FROM users;
+        """)
+
+        db_path = tmp_path / "test.db"
+        initializer = DatabaseInitializer(sql_dir=sql_dir)
+
+        # Should fail with validation error
+        with pytest.raises(RuntimeError) as exc_info:
+            initializer.initialize_database(db_path)
+        assert "SQL validation error" in str(exc_info.value)
+        assert "not a recognized DDL statement" in str(exc_info.value)
+
+    def test_database_path_validation_invalid_extension(self, tmp_path):
+        """Test that database paths with invalid extensions are rejected."""
+        # Setup
+        sql_dir = tmp_path / "sql"
+        sql_dir.mkdir()
+        sql_file = sql_dir / "init_database.sql"
+        sql_file.write_text("CREATE TABLE test (id INTEGER);")
+
+        db_path = tmp_path / "test.txt"  # Invalid extension
+        initializer = DatabaseInitializer(sql_dir=sql_dir)
+
+        # Should fail with validation error
+        with pytest.raises(RuntimeError) as exc_info:
+            initializer.initialize_database(db_path)
+        assert "Invalid database path" in str(exc_info.value)
+        assert "must have one of these extensions" in str(exc_info.value)
+
+    def test_database_path_validation_path_traversal(self, tmp_path):
+        """Test that database paths with path traversal are rejected."""
+        # Setup
+        sql_dir = tmp_path / "sql"
+        sql_dir.mkdir()
+        sql_file = sql_dir / "init_database.sql"
+        sql_file.write_text("CREATE TABLE test (id INTEGER);")
+
+        db_path = tmp_path / ".." / "etc" / "test.db"
+        initializer = DatabaseInitializer(sql_dir=sql_dir)
+
+        # Should fail with validation error
+        with pytest.raises(RuntimeError) as exc_info:
+            initializer.initialize_database(db_path)
+        assert "Invalid database path" in str(exc_info.value)
+        assert "path traversal attempt" in str(exc_info.value)
+
+    def test_sql_validation_with_schema_version_allowed(self, tmp_path):
+        """Test that INSERT INTO schema_version is allowed."""
+        # Setup
+        sql_dir = tmp_path / "sql"
+        sql_dir.mkdir()
+        sql_file = sql_dir / "init_database.sql"
+        sql_file.write_text("""
+        CREATE TABLE schema_version (
+            version INTEGER PRIMARY KEY,
+            description TEXT
+        );
+        INSERT INTO schema_version (version, description)
+        VALUES (1, 'Initial schema');
+        """)
+
+        db_path = tmp_path / "test.db"
+        initializer = DatabaseInitializer(sql_dir=sql_dir)
+
+        # Mock sqlite3.connect
+        mock_conn = MockConnection()
+        with patch("sqlite3.connect") as mock_connect:
+            mock_connect.return_value = mock_conn
+            result_path = initializer.initialize_database(db_path)
+
+        # Should succeed
+        assert result_path == db_path
+        assert len(mock_conn.executed_scripts) == 1

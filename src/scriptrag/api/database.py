@@ -4,6 +4,7 @@ import sqlite3
 from pathlib import Path
 from typing import Protocol
 
+from scriptrag.api.sql_validator import SQLValidationError, SQLValidator
 from scriptrag.config import ScriptRAGSettings, get_logger
 
 logger = get_logger(__name__)
@@ -41,9 +42,10 @@ class DatabaseInitializer:
         if sql_dir is None:
             sql_dir = Path(__file__).parent.parent / "storage" / "database" / "sql"
         self.sql_dir = sql_dir
+        self.validator = SQLValidator()
 
     def _read_sql_file(self, filename: str) -> str:
-        """Read SQL file content.
+        """Read SQL file content with validation.
 
         Args:
             filename: Name of the SQL file to read.
@@ -53,11 +55,22 @@ class DatabaseInitializer:
 
         Raises:
             FileNotFoundError: If SQL file not found.
+            SQLValidationError: If SQL file fails validation.
         """
         sql_path = self.sql_dir / filename
         if not sql_path.exists():
             raise FileNotFoundError(f"SQL file not found: {sql_path}")
-        return sql_path.read_text(encoding="utf-8")
+
+        # Validate file size
+        self.validator.validate_file_size(sql_path)
+
+        # Read content
+        content = sql_path.read_text(encoding="utf-8")
+
+        # Validate SQL content
+        self.validator.validate_sql_content(content, filename)
+
+        return content
 
     def initialize_database(
         self,
@@ -94,6 +107,12 @@ class DatabaseInitializer:
         if db_path is None:
             db_path = settings.database_path
 
+        # Validate database path for security
+        try:
+            self.validator.validate_database_path(db_path)
+        except SQLValidationError as e:
+            raise RuntimeError(f"Invalid database path: {e}") from e
+
         # Resolve to absolute path
         db_path = db_path.resolve()
         # Check if database exists
@@ -128,8 +147,23 @@ class DatabaseInitializer:
             logger.info("Database initialized successfully", path=str(db_path))
             return db_path
 
+        except SQLValidationError as e:
+            # SQL validation error - don't clean up database
+            logger.error("SQL validation failed", error=str(e))
+            raise RuntimeError(f"SQL validation error: {e}") from e
+        except FileNotFoundError as e:
+            # SQL file not found
+            logger.error("SQL file not found", error=str(e))
+            raise RuntimeError(f"Missing SQL file: {e}") from e
+        except sqlite3.Error as e:
+            # SQLite-specific error
+            logger.error("SQLite error during initialization", error=str(e))
+            if db_path.exists() and connection is None:
+                db_path.unlink()
+            raise RuntimeError(f"Database error: {e}") from e
         except Exception as e:
-            # Clean up on failure
+            # Other unexpected errors
+            logger.error("Unexpected error during initialization", error=str(e))
             if db_path.exists() and connection is None:
                 db_path.unlink()
             raise RuntimeError(f"Failed to initialize database: {e}") from e

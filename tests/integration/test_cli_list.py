@@ -200,3 +200,17 @@ class TestListCommand:
         assert result.exit_code == 0
         assert "Found 5 scripts" in result.stdout
         # Verify episodes are detected (exact format may vary in output)
+
+    def test_list_multi_line_title(self, runner, tmp_path):
+        """Test that multi-line titles with formatting are handled correctly."""
+        # Copy the multi-line title fixture
+        src = FIXTURES_DIR / "standalone" / "multi_line_title.fountain"
+        if src.exists():
+            shutil.copy2(src, tmp_path / "multi_line_title.fountain")
+
+        result = runner.invoke(app, ["list", str(tmp_path)])
+
+        assert result.exit_code == 0
+        assert "BRICK & STEEL" in result.stdout
+        assert "FULL RETIRED" in result.stdout
+        assert "Stu Maschwitz" in result.stdout

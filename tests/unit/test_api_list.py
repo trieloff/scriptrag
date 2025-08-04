@@ -206,6 +206,48 @@ This is all one block without clear separation."""
         assert info["title"] == "My Script"
         assert info["author"] == "John Doe"
 
+    def test_extract_title_page_multi_line_values(self, lister):
+        """Test extracting multi-line indented values."""
+        content = """Title:
+    Line One
+    Line Two
+Author: Jane Smith
+Contact:
+    123 Main Street
+    Suite 100
+    New York, NY 10001
+
+FADE IN:"""
+
+        info = lister._extract_title_page_info(content)
+        assert info["title"] == "Line One\nLine Two"
+        assert info["author"] == "Jane Smith"
+
+    def test_extract_title_page_formatting_marks(self, lister):
+        """Test removing formatting marks from titles."""
+        content = """Title:
+    _**BRICK & STEEL**_
+    _**FULL RETIRED**_
+Author: Stu Maschwitz
+
+FADE IN:"""
+
+        info = lister._extract_title_page_info(content)
+        assert info["title"] == "BRICK & STEEL\nFULL RETIRED"
+        assert info["author"] == "Stu Maschwitz"
+
+    def test_extract_title_page_tab_indentation(self, lister):
+        """Test that tab indentation works for multi-line values."""
+        content = """Title:
+\tPart One
+\tPart Two
+Author: Test Author
+
+FADE IN:"""
+
+        info = lister._extract_title_page_info(content)
+        assert info["title"] == "Part One\nPart Two"
+
     def test_extract_from_filename_s_e_format(self, lister):
         """Test extracting from S##E## filename format."""
         info = lister._extract_from_filename("show_S01E05_title")

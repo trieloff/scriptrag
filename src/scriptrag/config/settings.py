@@ -56,7 +56,9 @@ class ScriptRAGSettings(BaseSettings):
         if isinstance(v, Path):
             return v.resolve()
         # Default case - convert to Path
-        return Path(v)
+        return Path(v)  # pragma: no cover
+        # This line is a defensive fallback for unexpected types.
+        # In practice, Pydantic ensures v is always str or Path.
 
     @classmethod
     def from_env(cls) -> "ScriptRAGSettings":

@@ -20,5 +20,7 @@ def main() -> None:
     app()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
+    # This block only runs when the module is executed directly.
+    # The main() function and app are tested through integration tests.
     main()

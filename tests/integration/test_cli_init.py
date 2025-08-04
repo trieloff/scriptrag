@@ -7,6 +7,15 @@ import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli import app
+from scriptrag.config import set_settings
+
+
+@pytest.fixture(autouse=True)
+def clean_settings():
+    """Reset settings before and after each test."""
+    set_settings(None)
+    yield
+    set_settings(None)
 
 
 @pytest.fixture
@@ -139,6 +148,14 @@ class TestInitCommand:
         if result.exit_code != 0:
             print(f"Output: {result.stdout}")
             print(f"Exception: {result.exception}")
+            if result.exception:
+                import traceback
+
+                traceback.print_exception(
+                    type(result.exception),
+                    result.exception,
+                    result.exception.__traceback__,
+                )
         assert result.exit_code == 0
         assert "Database initialized successfully" in result.stdout
 

@@ -89,10 +89,12 @@ class TestInitCommand:
 
         # Check command failed
         assert result.exit_code == 1
-        # Remove newlines from output to handle line wrapping on macOS
-        output_single_line = result.stdout.replace("\n", " ")
-        assert "Database already exists" in output_single_line
-        assert "Use --force to overwrite" in output_single_line
+        # Normalize whitespace to handle line wrapping on macOS
+        import re
+
+        output_normalized = re.sub(r"\s+", " ", result.stdout)
+        assert "Database already exists" in output_normalized
+        assert "Use --force to overwrite" in output_normalized
 
     def test_init_force_overwrites_database(self, runner, temp_db_path):
         """Test that init --force overwrites existing database."""

@@ -310,3 +310,55 @@ FADE IN:""")
         metadata = lister._parse_fountain_metadata(script)
         assert metadata.episode_number == 10  # From title page, not filename
         assert metadata.season_number == 2  # From title page, not filename
+
+    def test_list_scripts_default_path(self, lister, tmp_path, monkeypatch):
+        """Test listing scripts with default path (current directory)."""
+        # Create scripts in temp directory
+        script1 = tmp_path / "test1.fountain"
+        script1.write_text("Title: Test Script 1")
+
+        # Change to temp directory
+        monkeypatch.chdir(tmp_path)
+
+        # Call without path argument
+        result = lister.list_scripts()
+        assert len(result) == 1
+        assert result[0].title == "Test Script 1"
+        assert result[0].file_path == script1
+
+    def test_extract_title_page_no_final_blank_line(self, lister):
+        """Test title page extraction when content ends without blank line."""
+        content = """Title: My Script
+Author: Jane Doe
+Draft: First Draft"""  # No blank line or content after
+
+        info = lister._extract_title_page_info(content)
+        assert info["title"] == "My Script"
+        assert info["author"] == "Jane Doe"
+        # Draft field is not processed, but last value should still be handled
+
+    def test_extract_title_page_episode_season_no_numbers(self, lister):
+        """Test episode/season fields without numbers."""
+        content = """Title: My Series
+Episode: Pilot
+Season: One
+
+FADE IN:"""
+
+        info = lister._extract_title_page_info(content)
+        assert info["title"] == "My Series"
+        assert info.get("episode_number") is None  # No number found
+        assert info.get("season_number") is None  # No number found
+
+    def test_extract_title_page_episode_season_with_text(self, lister):
+        """Test episode/season fields with numbers embedded in text."""
+        content = """Title: My Series
+Episode: Chapter 3 - The Beginning
+Season: Year 2 Collection
+
+FADE IN:"""
+
+        info = lister._extract_title_page_info(content)
+        assert info["title"] == "My Series"
+        assert info["episode_number"] == 3  # Extracted from "Chapter 3"
+        assert info["season_number"] == 2  # Extracted from "Year 2"

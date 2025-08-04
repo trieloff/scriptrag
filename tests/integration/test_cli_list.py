@@ -214,3 +214,20 @@ class TestListCommand:
         assert "BRICK & STEEL" in result.stdout
         assert "FULL RETIRED" in result.stdout
         assert "Stu Maschwitz" in result.stdout
+
+    def test_list_command_handles_exceptions(self, runner, tmp_path, monkeypatch):
+        """Test that CLI command handles exceptions gracefully."""
+        from scriptrag.api import ScriptLister
+
+        # Mock the list_scripts method to raise an exception
+        def mock_list_scripts(*args, **kwargs):  # noqa: ARG001
+            raise RuntimeError("Database connection failed")
+
+        monkeypatch.setattr(ScriptLister, "list_scripts", mock_list_scripts)
+
+        result = runner.invoke(app, ["list", str(tmp_path)])
+
+        assert result.exit_code == 1
+        assert "Error:" in result.stdout
+        assert "Failed to list scripts" in result.stdout
+        assert "Database connection failed" in result.stdout

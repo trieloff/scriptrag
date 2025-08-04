@@ -55,7 +55,10 @@ class TestScriptRAGSettings:
         # Test environment variable expansion
         with patch.dict(os.environ, {"TEST_VAR": "/custom/path"}):
             settings = ScriptRAGSettings(database_path="$TEST_VAR/scriptrag.db")
-            assert settings.database_path == Path("/custom/path/scriptrag.db")
+            # Use str comparison to avoid Windows drive letter issues
+            assert str(settings.database_path) == str(
+                Path("/custom/path/scriptrag.db").resolve()
+            )
 
     def test_get_set_settings(self):
         """Test global settings getter and setter."""

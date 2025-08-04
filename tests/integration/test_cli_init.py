@@ -89,6 +89,7 @@ class TestInitCommand:
 
         # Check command failed
         assert result.exit_code == 1
+        # Use 'in' check to handle potential line wrapping in long paths
         assert "Database already exists" in result.stdout
         assert "Use --force to overwrite" in result.stdout
 

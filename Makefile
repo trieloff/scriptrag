@@ -104,7 +104,7 @@ lint: install ## Run all linters (ruff, mypy, bandit, etc.)
 	@echo "🔍 Checking docstring coverage..."
 	uv run interrogate -c pyproject.toml
 	@echo "🔍 Checking for dead code..."
-	uv run vulture src/ --min-confidence 80
+	uv run vulture --config pyproject.toml
 	@echo "✅ All linting checks passed"
 
 .PHONY: type-check

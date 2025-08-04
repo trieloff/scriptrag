@@ -123,12 +123,12 @@ class TestListCommand:
         clean_stdout = strip_ansi_codes(result.stdout)
         assert f"Found {expected_count} scripts" in clean_stdout
         # With --no-recursive, only root-level files should be found
-        # The Great Adventure is in standalone/ subdirectory, so it shouldn't appear
-        assert "Another Series" in clean_stdout  # This is in root
-        # These are in subdirectories and should not appear
+        # The Great Adventure gets copied to root by fixture, so it should appear
+        assert "The Great Adventure" in clean_stdout  # This is copied to root
+        assert "Another Series" in clean_stdout  # This is also copied to root
+        # These are in the series/ subdirectory and should not appear
         assert "S01E01" not in clean_stdout
         assert "S01E02" not in clean_stdout
-        assert "The Great Adventure" not in clean_stdout  # This is in standalone/
 
     def test_list_single_file(self, runner, fountain_scripts):
         """Test list command with a single file path."""

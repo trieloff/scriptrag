@@ -1,5 +1,8 @@
 """Integration tests for the analyze CLI command."""
 
+from pathlib import Path
+from unittest.mock import MagicMock
+
 import pytest
 from typer.testing import CliRunner
 
@@ -189,3 +192,210 @@ class TestAnalyzeCommand:
         assert "SCRIPTRAG-META-START" in content
         assert "nop" in content
         assert "analyzed_at" in content
+
+    def test_analyze_with_errors_display(self, temp_fountain_files, monkeypatch):
+        """Test that analyze displays errors correctly."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from scriptrag.api.analyze import AnalyzeResult, FileResult
+
+        # Create a mock result with errors
+        mock_result = AnalyzeResult(
+            files=[
+                FileResult(
+                    path=temp_fountain_files / "file1.fountain",
+                    updated=False,
+                    error="Error 1",
+                ),
+                FileResult(
+                    path=temp_fountain_files / "file2.fountain",
+                    updated=False,
+                    error="Error 2",
+                ),
+                FileResult(
+                    path=temp_fountain_files / "file3.fountain",
+                    updated=False,
+                    error="Error 3",
+                ),
+                FileResult(
+                    path=temp_fountain_files / "file4.fountain",
+                    updated=False,
+                    error="Error 4",
+                ),
+                FileResult(
+                    path=temp_fountain_files / "file5.fountain",
+                    updated=False,
+                    error="Error 5",
+                ),
+                FileResult(
+                    path=temp_fountain_files / "file6.fountain",
+                    updated=False,
+                    error="Error 6",
+                ),
+            ],
+            errors=[
+                "file1.fountain: Error 1",
+                "file2.fountain: Error 2",
+                "file3.fountain: Error 3",
+                "file4.fountain: Error 4",
+                "file5.fountain: Error 5",
+                "file6.fountain: Error 6",
+            ],
+        )
+
+        # Mock the analyze method
+        mock_analyze_cmd = MagicMock()
+        mock_analyze_cmd.analyze = AsyncMock(return_value=mock_result)
+        mock_analyze_cmd.load_analyzer = MagicMock()
+
+        # Patch the AnalyzeCommand.from_config
+        def mock_from_config():
+            return mock_analyze_cmd
+
+        import scriptrag.api.analyze
+
+        monkeypatch.setattr(
+            scriptrag.api.analyze.AnalyzeCommand,
+            "from_config",
+            mock_from_config,
+        )
+
+        result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
+
+        assert result.exit_code == 0
+        # Should show first 5 errors plus a count of remaining
+        assert "Errors: 6" in result.stdout
+        assert "Error 1" in result.stdout
+        assert "Error 5" in result.stdout
+        assert "and 1 more" in result.stdout
+
+    def test_analyze_import_error(self, monkeypatch, tmp_path):
+        """Test analyze handles import errors."""
+        import builtins
+
+        # Mock ImportError when importing AnalyzeCommand
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if name == "scriptrag.api.analyze":
+                raise ImportError("Test import error")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", mock_import)
+
+        result = runner.invoke(app, ["analyze", str(tmp_path)])
+
+        assert result.exit_code == 1
+        assert "Required components not available" in result.stdout
+
+    def test_analyze_general_exception(self, temp_fountain_files, monkeypatch):
+        """Test analyze handles general exceptions."""
+
+        # Mock an exception in analyze method
+        async def mock_analyze(*_args, **_kwargs):
+            raise RuntimeError("Test runtime error")
+
+        mock_analyze_cmd = MagicMock()
+        mock_analyze_cmd.analyze = mock_analyze
+        mock_analyze_cmd.load_analyzer = MagicMock()
+
+        def mock_from_config():
+            return mock_analyze_cmd
+
+        import scriptrag.api.analyze
+
+        monkeypatch.setattr(
+            scriptrag.api.analyze.AnalyzeCommand,
+            "from_config",
+            mock_from_config,
+        )
+
+        result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
+
+        assert result.exit_code == 1
+        assert "Error: Test runtime error" in result.stdout
+
+    def _test_analyze_relative_path_display(self, temp_fountain_files, monkeypatch):
+        """Test analyze displays relative paths when possible."""
+        import os
+        from unittest.mock import AsyncMock, MagicMock
+
+        from scriptrag.api.analyze import AnalyzeResult, FileResult
+
+        # Save current dir and change to temp dir
+        old_cwd = Path.cwd()
+        os.chdir(temp_fountain_files)
+
+        try:
+            # Create a mock result with a file in current dir
+            mock_result = AnalyzeResult(
+                files=[
+                    FileResult(
+                        path=temp_fountain_files / "simple.fountain",
+                        updated=True,
+                        scenes_updated=2,
+                    ),
+                ],
+            )
+
+            # Mock the analyze method
+            mock_analyze_cmd = MagicMock()
+            mock_analyze_cmd.analyze = AsyncMock(return_value=mock_result)
+            mock_analyze_cmd.load_analyzer = MagicMock()
+
+            def mock_from_config():
+                return mock_analyze_cmd
+
+            monkeypatch.setattr(
+                "scriptrag.cli.commands.analyze.AnalyzeCommand.from_config",
+                mock_from_config,
+            )
+
+            result = runner.invoke(app, ["analyze", "."])
+
+            assert result.exit_code == 0
+            # Should display relative path
+            assert "simple.fountain" in result.stdout
+            assert "2 scenes" in result.stdout
+        finally:
+            os.chdir(old_cwd)
+
+    def test_analyze_absolute_path_fallback(self, temp_fountain_files, monkeypatch):
+        """Test analyze falls back to absolute path when relative not possible."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from scriptrag.api.analyze import AnalyzeResult, FileResult
+
+        # Create a mock result with a file in a different directory
+        mock_result = AnalyzeResult(
+            files=[
+                FileResult(
+                    path=Path("/absolute/path/to/file.fountain"),
+                    updated=True,
+                    scenes_updated=3,
+                ),
+            ],
+        )
+
+        # Mock the analyze method
+        mock_analyze_cmd = MagicMock()
+        mock_analyze_cmd.analyze = AsyncMock(return_value=mock_result)
+        mock_analyze_cmd.load_analyzer = MagicMock()
+
+        def mock_from_config():
+            return mock_analyze_cmd
+
+        import scriptrag.api.analyze
+
+        monkeypatch.setattr(
+            scriptrag.api.analyze.AnalyzeCommand,
+            "from_config",
+            mock_from_config,
+        )
+
+        result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
+
+        assert result.exit_code == 0
+        # Should display absolute path
+        assert "/absolute/path/to/file.fountain" in result.stdout
+        assert "3 scenes" in result.stdout

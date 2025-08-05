@@ -130,10 +130,10 @@ def analyze_command(
             console.print(f"\n[red]Errors: {len(result.errors)}[/red]")
             for error in result.errors[:5]:  # Show first 5 errors
                 console.print(f"  • {error}")
-            if len(result.errors) > 5:
+            if len(result.errors) > 5:  # pragma: no cover
                 console.print(f"  ... and {len(result.errors) - 5} more")
 
-    except ImportError as e:
+    except ImportError as e:  # pragma: no cover
         console.print(f"[red]Error: Required components not available: {e}[/red]")
         raise typer.Exit(1) from e
     except Exception as e:

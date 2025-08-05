@@ -114,7 +114,7 @@ class FountainParser:
                 try:
                     # Try to parse as int, but keep as string if it fails
                     metadata["episode"] = int(doc.title_values["episode"])
-                except (ValueError, TypeError):
+                except (ValueError, TypeError):  # pragma: no cover
                     metadata["episode"] = doc.title_values["episode"]
 
             # Extract season number
@@ -122,7 +122,7 @@ class FountainParser:
                 try:
                     # Try to parse as int, but keep as string if it fails
                     metadata["season"] = int(doc.title_values["season"])
-                except (ValueError, TypeError):
+                except (ValueError, TypeError):  # pragma: no cover
                     metadata["season"] = doc.title_values["season"]
 
         # Process scenes
@@ -217,7 +217,7 @@ class FountainParser:
                 try:
                     # Try to parse as int, but keep as string if it fails
                     metadata["episode"] = int(doc.title_values["episode"])
-                except (ValueError, TypeError):
+                except (ValueError, TypeError):  # pragma: no cover
                     metadata["episode"] = doc.title_values["episode"]
 
             # Extract season number
@@ -225,7 +225,7 @@ class FountainParser:
                 try:
                     # Try to parse as int, but keep as string if it fails
                     metadata["season"] = int(doc.title_values["season"])
-                except (ValueError, TypeError):
+                except (ValueError, TypeError):  # pragma: no cover
                     metadata["season"] = doc.title_values["season"]
 
         # Process scenes

@@ -226,3 +226,80 @@ FADE IN:""")
         assert len(result) == 1
         assert result[0].title == "Test Script 1"
         assert result[0].file_path == script1
+
+    def test_parse_fountain_with_markdown_title(self, lister, tmp_path):
+        """Test parsing fountain with markdown formatted title."""
+        script = tmp_path / "test.fountain"
+        script.write_text("""Title: _**My Script**_
+Author: Test Author
+
+FADE IN:""")
+
+        metadata = lister._parse_fountain_metadata(script)
+        # Note: Currently markdown is not stripped in title extraction
+        assert metadata.title == "_**My Script**_"
+
+    def test_parse_fountain_extract_season_from_title(self, lister, tmp_path):
+        """Test extracting season from title with markdown."""
+        script = tmp_path / "test.fountain"
+        script.write_text("""Title: _**My Show Season 3**_
+Episode: 5
+
+FADE IN:""")
+
+        metadata = lister._parse_fountain_metadata(script)
+        assert metadata.season_number == 3  # Markdown is stripped for season extraction
+        assert metadata.episode_number == 5
+
+    def test_parse_with_fallback_no_blank_line(self, lister, tmp_path):
+        """Test fallback parsing when no blank line after title page."""
+        script = tmp_path / "test.fountain"
+        script.write_text("Title: My Script\nAuthor: Test Author")
+
+        with patch("scriptrag.api.list.FountainParser") as mock_parser:
+            mock_parser.return_value.parse_file.side_effect = Exception("Parse failed")
+            metadata = lister._parse_fountain_metadata(script)
+
+        assert metadata.title == "My Script"
+        assert metadata.author == "Test Author"
+
+    def test_parse_with_fallback_different_author_formats(self, lister, tmp_path):
+        """Test fallback parsing with different author format variations."""
+        test_cases = [
+            ("Authors: John Doe", "John Doe"),
+            ("Written by: Jane Smith", "Jane Smith"),
+            ("Writer: Bob Johnson", "Bob Johnson"),
+            ("Writers: Alice & Bob", "Alice & Bob"),
+        ]
+
+        for author_line, expected_author in test_cases:
+            script = tmp_path / f"test_{expected_author.replace(' ', '_')}.fountain"
+            script.write_text(f"Title: Test\n{author_line}\n\nFADE IN:")
+
+            with patch("scriptrag.api.list.FountainParser") as mock_parser:
+                mock_parser.return_value.parse_file.side_effect = Exception(
+                    "Parse failed"
+                )
+                metadata = lister._parse_fountain_metadata(script)
+
+            assert metadata.author == expected_author, f"Failed for: {author_line}"
+
+    def test_parse_fountain_filename_season_extraction(self, lister, tmp_path):
+        """Test that season is extracted from filename when not in metadata."""
+        # This tests the line 162-163 that was marked as not covered
+        script = tmp_path / "show_S02E05.fountain"
+        script.write_text("""Title: My Show
+
+FADE IN:""")
+
+        # Mock the parser to return metadata without season but with episode
+        with patch("scriptrag.api.list.FountainParser") as mock_parser:
+            mock_script = mock_parser.return_value.parse_file.return_value
+            mock_script.metadata = {"episode": 5}  # Has episode but not season
+            mock_script.title = "My Show"
+            mock_script.author = None
+
+            metadata = lister._parse_fountain_metadata(script)
+
+        assert metadata.episode_number == 5  # From metadata
+        assert metadata.season_number == 2  # From filename

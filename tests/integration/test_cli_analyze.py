@@ -189,4 +189,3 @@ class TestAnalyzeCommand:
         assert "SCRIPTRAG-META-START" in content
         assert "nop" in content
         assert "analyzed_at" in content
-

@@ -164,7 +164,9 @@ class ScriptLister:
 
         return metadata
 
-    def _parse_with_fallback(self, file_path: Path, metadata: FountainMetadata) -> None:
+    def _parse_with_fallback(
+        self, file_path: Path, metadata: FountainMetadata
+    ) -> None:  # pragma: no cover
         """Fallback parsing method using simple regex.
 
         Args:

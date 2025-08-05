@@ -275,3 +275,240 @@ class TestAnalyzeResult:
 
         assert result.total_files_updated == 2
         assert result.total_scenes_updated == 5
+
+
+class TestAnalyzeCommandBranchCoverage:
+    """Test edge cases and branch coverage for AnalyzeCommand."""
+
+    @pytest.mark.asyncio
+    async def test_analyze_exception_handling(self, analyze_command, tmp_path):
+        """Test analyze handles exceptions during operation."""
+        # Mock the lister to raise an exception
+        with patch("scriptrag.api.analyze.ScriptLister") as mock_lister:
+            mock_lister.return_value.list_scripts.side_effect = RuntimeError(
+                "Listing failed"
+            )
+
+            result = await analyze_command.analyze(path=tmp_path)
+
+            assert len(result.errors) == 1
+            assert "Analyze failed: Listing failed" in result.errors[0]
+
+    @pytest.mark.asyncio
+    async def test_analyzer_with_initialize_and_cleanup(self, temp_fountain_file):
+        """Test analyzer with initialize and cleanup methods."""
+
+        class AnalyzerWithLifecycle(BaseSceneAnalyzer):
+            name = "lifecycle"
+            initialized = False
+            cleaned_up = False
+
+            async def initialize(self):
+                self.initialized = True
+
+            async def analyze(self, _scene: dict) -> dict:
+                return {"initialized": self.initialized}
+
+            async def cleanup(self):
+                self.cleaned_up = True
+
+        analyzer = AnalyzerWithLifecycle()
+        cmd = AnalyzeCommand(analyzers=[analyzer])
+
+        result = await cmd.analyze(
+            path=temp_fountain_file.parent,
+            force=True,
+        )
+
+        assert analyzer.initialized
+        assert analyzer.cleaned_up
+        assert result.files[0].updated
+
+    @pytest.mark.asyncio
+    async def test_analyzer_with_version(self, temp_fountain_file):
+        """Test analyzer with version attribute."""
+
+        class AnalyzerWithVersion(BaseSceneAnalyzer):
+            name = "versioned"
+            version = "1.2.3"
+
+            async def analyze(self, _scene: dict) -> dict:
+                return {"test": True}
+
+        analyzer = AnalyzerWithVersion()
+        cmd = AnalyzeCommand(analyzers=[analyzer])
+
+        await cmd.analyze(
+            path=temp_fountain_file.parent,
+            force=True,
+        )
+
+        # Check that version was included in metadata
+        content = temp_fountain_file.read_text()
+        assert "1.2.3" in content
+
+    @pytest.mark.asyncio
+    async def test_analyzer_failure_handling(self, temp_fountain_file):
+        """Test handling of analyzer failures."""
+
+        class FailingAnalyzer(BaseSceneAnalyzer):
+            name = "failing"
+
+            async def analyze(self, _scene: dict) -> dict:
+                raise RuntimeError("Analyzer failed")
+
+        analyzer = FailingAnalyzer()
+        cmd = AnalyzeCommand(analyzers=[analyzer])
+
+        # Should still complete without errors in result
+        result = await cmd.analyze(
+            path=temp_fountain_file.parent,
+            force=True,
+        )
+
+        assert len(result.errors) == 0  # Analyzer errors are logged but not returned
+        assert result.files[0].updated  # File should still be processed
+
+    def test_file_needs_update_with_script(self, analyze_command):
+        """Test _file_needs_update with Script object."""
+        from scriptrag.parser import Scene, Script
+
+        # Create scenes with and without metadata
+        scene1 = Scene(
+            number=1,
+            heading="INT. TEST - DAY",
+            content="Test content",
+            original_text="Test",
+            content_hash="abc123",
+            boneyard_metadata=None,  # No metadata
+        )
+        scene2 = Scene(
+            number=2,
+            heading="EXT. TEST - NIGHT",
+            content="Test content 2",
+            original_text="Test 2",
+            content_hash="def456",
+            boneyard_metadata={"analyzed_at": "2024-01-01"},  # Has metadata
+        )
+
+        script = Script(
+            title="Test Script",
+            author="Test Author",
+            scenes=[scene1, scene2],
+        )
+
+        # Should return True because scene1 needs update
+        assert analyze_command._file_needs_update(Path("test.fountain"), script) is True
+
+    def test_file_needs_update_all_scenes_updated(self, analyze_command):
+        """Test _file_needs_update when all scenes are up to date."""
+        from scriptrag.parser import Scene, Script
+
+        scene = Scene(
+            number=1,
+            heading="INT. TEST - DAY",
+            content="Test content",
+            original_text="Test",
+            content_hash="abc123",
+            boneyard_metadata={"analyzed_at": "2024-01-01", "analyzers": {}},
+        )
+
+        script = Script(
+            title="Test Script",
+            author="Test Author",
+            scenes=[scene],
+        )
+
+        # Should return False because all scenes are up to date
+        assert (
+            analyze_command._file_needs_update(Path("test.fountain"), script) is False
+        )
+
+    def test_file_needs_update_non_script(self, analyze_command):
+        """Test _file_needs_update with non-Script object."""
+        # Should return False for non-Script objects
+        assert (
+            analyze_command._file_needs_update(Path("test.fountain"), "not a script")
+            is False
+        )
+
+    def test_scene_needs_update_non_scene(self, analyze_command):
+        """Test _scene_needs_update with non-Scene object."""
+        # Should return False for non-Scene objects
+        assert analyze_command._scene_needs_update("not a scene") is False
+
+    def test_scene_needs_update_no_analyzers_in_metadata(self, analyze_command):
+        """Test _scene_needs_update when metadata has no analyzers key."""
+        from scriptrag.parser import Scene
+
+        analyze_command.analyzers.append(MockAnalyzer())
+
+        scene = Scene(
+            number=1,
+            heading="INT. TEST - DAY",
+            content="Test content",
+            original_text="Test",
+            content_hash="abc123",
+            boneyard_metadata={"analyzed_at": "2024-01-01"},  # No 'analyzers' key
+        )
+
+        # Should return False since there's no analyzers key to check
+        assert analyze_command._scene_needs_update(scene) is False
+
+    def test_load_analyzer_import_error(self, analyze_command, monkeypatch):
+        """Test load_analyzer when builtin analyzers can't be imported."""
+        import builtins
+
+        # Mock ImportError when importing builtin analyzers
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if "scriptrag.analyzers" in name:
+                raise ImportError("Cannot import analyzers")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", mock_import)
+
+        with pytest.raises(ValueError, match="Unknown analyzer: nop"):
+            analyze_command.load_analyzer("nop")
+
+    @pytest.mark.asyncio
+    async def test_process_file_exception(self, analyze_command, tmp_path):
+        """Test _process_file exception handling."""
+        bad_file = tmp_path / "bad.fountain"
+        bad_file.write_text("Invalid content")
+
+        with patch("scriptrag.api.analyze.FountainParser") as mock_parser:
+            mock_parser.return_value.parse_file.side_effect = RuntimeError(
+                "Parse failed"
+            )
+
+            with pytest.raises(RuntimeError, match="Parse failed"):
+                await analyze_command._process_file(
+                    bad_file, force=False, dry_run=False
+                )
+
+
+class TestBaseSceneAnalyzer:
+    """Test BaseSceneAnalyzer properties."""
+
+    def test_requires_llm_default(self):
+        """Test that requires_llm returns False by default."""
+        analyzer = MockAnalyzer()
+        assert analyzer.requires_llm is False
+
+    def test_version_default(self):
+        """Test that version returns default value."""
+        analyzer = MockAnalyzer()
+        assert analyzer.version == "1.0.0"
+
+    def test_config_initialization(self):
+        """Test analyzer config initialization."""
+        # Test with no config
+        analyzer1 = MockAnalyzer()
+        assert analyzer1.config == {}
+
+        # Test with config
+        config = {"key": "value"}
+        analyzer2 = MockAnalyzer(config=config)
+        assert analyzer2.config == config

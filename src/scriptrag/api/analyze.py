@@ -288,7 +288,7 @@ class AnalyzeCommand:
             logger.error(f"Error processing {file_path}: {e}")
             raise
 
-    def _file_needs_update(self, file_path: Path, script: Script) -> bool:
+    def _file_needs_update(self, _file_path: Path, script: Script) -> bool:
         """Check if a file needs updating.
 
         Args:

@@ -293,7 +293,8 @@ class FountainParser:
                 i += 1
 
         # Get original scene text from content
-        # This is a simplified approach - in production you might want to track line numbers
+        # This is a simplified approach - in production you might want to 
+        # track line numbers
         scene_start = full_content.find(heading)
         if scene_start == -1:
             original_text = heading

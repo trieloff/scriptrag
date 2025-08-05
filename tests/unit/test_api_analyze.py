@@ -150,7 +150,9 @@ class TestAnalyzeCommand:
         assert "SCRIPTRAG-META-START" not in content
 
     @pytest.mark.asyncio
-    async def test_analyze_with_progress_callback(self, analyze_command, temp_fountain_file):
+    async def test_analyze_with_progress_callback(
+        self, analyze_command, temp_fountain_file
+    ):
         """Test analyze with progress callback."""
         progress_calls = []
 

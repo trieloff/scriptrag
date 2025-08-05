@@ -61,7 +61,7 @@ def analyze_command(
     Note: This command does not update the database.
     """
     try:
-        from ...api.analyze import AnalyzeCommand
+        from scriptrag.api.analyze import AnalyzeCommand
 
         # Initialize components
         analyze_cmd = AnalyzeCommand.from_config()
@@ -86,7 +86,7 @@ def analyze_command(
         ) as progress:
             task = progress.add_task("Analyzing screenplay files...", total=None)
 
-            def update_progress(pct: float, msg: str) -> None:
+            def update_progress(_pct: float, msg: str) -> None:
                 progress.update(task, description=msg)
 
             result = asyncio.run(

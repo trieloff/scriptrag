@@ -84,9 +84,10 @@ class FountainParser:
             Parsed Script object with scenes
         """
         # Parse using jouvence
+        # Note: jouvence 0.4.2 has a bug where parse() with file objects
+        # references an undefined variable 'fp'. Use parseString() instead.
         parser = JouvenceParser()
-        # Create a StringIO object from the content string
-        doc = parser.parse(StringIO(content))
+        doc = parser.parseString(content)
 
         # Extract title and author from metadata
         title = doc.title_values.get("title") if doc.title_values else None
@@ -134,12 +135,31 @@ class FountainParser:
         Returns:
             Parsed Script object
         """
-        # Parse using jouvence directly with file path
-        parser = JouvenceParser()
-        doc = parser.parse(str(file_path))
-
         # Get the full content for scene processing
         content = file_path.read_text(encoding="utf-8")
+        
+        # Workaround for jouvence bug: temporarily remove ALL boneyard comments
+        # to prevent infinite loop in boneyard parsing
+        # This is a broader pattern that catches all /* */ comments
+        boneyard_pattern = re.compile(r"/\*.*?\*/", re.DOTALL)
+        scriptrag_metadata_blocks = []
+        cleaned_content = content
+        
+        # First, save our ScriptRAG metadata blocks
+        for match in self.BONEYARD_PATTERN.finditer(content):
+            scriptrag_metadata_blocks.append((match.start(), match.end(), match.group(0)))
+        
+        # Then remove ALL boneyard comments to avoid the jouvence bug
+        cleaned_content = boneyard_pattern.sub("", cleaned_content)
+        
+        # Parse using jouvence with parseString to avoid file path issues
+        logger.debug(f"Parsing fountain file: {file_path}")
+        parser = JouvenceParser()
+        try:
+            doc = parser.parseString(cleaned_content)
+        except Exception as e:
+            logger.error(f"Jouvence parser failed: {e}")
+            raise
 
         # Extract title and author from metadata
         title = doc.title_values.get("title") if doc.title_values else None

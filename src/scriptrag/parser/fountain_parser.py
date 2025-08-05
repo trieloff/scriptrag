@@ -6,9 +6,15 @@ import re
 from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
+from typing import Any
 
+from jouvence.document import (
+    TYPE_ACTION,
+    TYPE_CHARACTER,
+    TYPE_DIALOG,
+    TYPE_PARENTHETICAL,
+)
 from jouvence.parser import JouvenceParser
-from jouvence.document import JouvenceDocument, JouvenceSceneElement, TYPE_CHARACTER, TYPE_DIALOG, TYPE_PARENTHETICAL, TYPE_ACTION
 
 from scriptrag.config import get_logger
 
@@ -81,11 +87,11 @@ class FountainParser:
         parser = JouvenceParser()
         # Create a StringIO object from the content string
         doc = parser.parse(StringIO(content))
-        
+
         # Extract title and author from metadata
         title = doc.title_values.get("title") if doc.title_values else None
         author = doc.title_values.get("author") if doc.title_values else None
-        
+
         # Extract additional metadata
         metadata = {}
         if doc.title_values:
@@ -96,7 +102,7 @@ class FountainParser:
                     metadata["episode"] = int(doc.title_values["episode"])
                 except (ValueError, TypeError):
                     metadata["episode"] = doc.title_values["episode"]
-            
+
             # Extract season number
             if "season" in doc.title_values:
                 try:
@@ -104,7 +110,7 @@ class FountainParser:
                     metadata["season"] = int(doc.title_values["season"])
                 except (ValueError, TypeError):
                     metadata["season"] = doc.title_values["season"]
-        
+
         # Process scenes
         scenes = []
         scene_number = 0
@@ -114,7 +120,7 @@ class FountainParser:
                 scene_number += 1
                 scene = self._process_jouvence_scene(scene_number, jouvence_scene, content)
                 scenes.append(scene)
-        
+
         return Script(title=title, author=author, scenes=scenes, metadata=metadata)
 
     def parse_file(self, file_path: Path) -> Script:
@@ -129,14 +135,14 @@ class FountainParser:
         # Parse using jouvence directly with file path
         parser = JouvenceParser()
         doc = parser.parse(str(file_path))
-        
+
         # Get the full content for scene processing
         content = file_path.read_text(encoding="utf-8")
-        
+
         # Extract title and author from metadata
         title = doc.title_values.get("title") if doc.title_values else None
         author = doc.title_values.get("author") if doc.title_values else None
-        
+
         # Extract additional metadata
         metadata = {}
         if doc.title_values:
@@ -147,7 +153,7 @@ class FountainParser:
                     metadata["episode"] = int(doc.title_values["episode"])
                 except (ValueError, TypeError):
                     metadata["episode"] = doc.title_values["episode"]
-            
+
             # Extract season number
             if "season" in doc.title_values:
                 try:
@@ -155,7 +161,7 @@ class FountainParser:
                     metadata["season"] = int(doc.title_values["season"])
                 except (ValueError, TypeError):
                     metadata["season"] = doc.title_values["season"]
-        
+
         # Process scenes
         scenes = []
         scene_number = 0
@@ -165,9 +171,9 @@ class FountainParser:
                 scene_number += 1
                 scene = self._process_jouvence_scene(scene_number, jouvence_scene, content)
                 scenes.append(scene)
-        
+
         script = Script(title=title, author=author, scenes=scenes, metadata=metadata)
-        
+
         # Add file metadata
         script.metadata["source_file"] = str(file_path)
 
@@ -206,17 +212,17 @@ class FountainParser:
     def _process_jouvence_scene(
         self,
         number: int,
-        jouvence_scene,
+        jouvence_scene: Any,
         full_content: str,
     ) -> Scene:
         """Process a jouvence scene into our Scene object."""
         heading = jouvence_scene.header if jouvence_scene.header else ""
-        
+
         # Parse scene type and location from heading
         scene_type = "INT"
         location = ""
         time_of_day = ""
-        
+
         heading_upper = heading.upper()
         if heading_upper.startswith("INT."):
             scene_type = "INT"
@@ -229,28 +235,28 @@ class FountainParser:
             rest = heading[9:].strip() if heading_upper.startswith("INT./EXT.") else heading[4:].strip()
         else:
             rest = heading
-            
+
         # Split location and time of day
         if " - " in rest:
             location, time_of_day = rest.rsplit(" - ", 1)
         else:
             location = rest
-        
+
         # Extract dialogue and action lines
         dialogue_lines = []
         action_lines = []
-        
+
         # Process scene elements
         i = 0
         elements = jouvence_scene.paragraphs
         while i < len(elements):
             element = elements[i]
-            
+
             if element.type == TYPE_CHARACTER:
                 character = element.text
                 parenthetical = None
                 dialogue_text = []
-                
+
                 # Look for parenthetical and dialogue
                 j = i + 1
                 while j < len(elements):
@@ -263,7 +269,7 @@ class FountainParser:
                         j += 1
                     else:
                         break
-                
+
                 if dialogue_text:
                     dialogue_lines.append(
                         Dialogue(
@@ -278,7 +284,7 @@ class FountainParser:
                 i += 1
             else:
                 i += 1
-        
+
         # Get original scene text from content
         # This is a simplified approach - in production you might want to track line numbers
         scene_start = full_content.find(heading)
@@ -290,7 +296,7 @@ class FountainParser:
             match = next_scene_pattern.search(full_content, scene_start + len(heading))
             scene_end = match.start() if match else len(full_content)
             original_text = full_content[scene_start:scene_end].rstrip()
-        
+
         # Extract boneyard metadata if present
         boneyard_metadata = None
         boneyard_match = self.BONEYARD_PATTERN.search(original_text)
@@ -299,7 +305,7 @@ class FountainParser:
                 boneyard_metadata = json.loads(boneyard_match.group(1))
             except json.JSONDecodeError as e:
                 logger.warning(f"Failed to parse boneyard JSON: {e}")
-        
+
         # Build full content (for analysis)
         content_lines_list = [heading]
         content_lines_list.extend(action_lines)
@@ -308,11 +314,11 @@ class FountainParser:
             if dialogue.parenthetical:
                 content_lines_list.append(dialogue.parenthetical)
             content_lines_list.append(dialogue.text)
-        
+
         # Calculate content hash (excluding boneyard)
         content_for_hash = re.sub(self.BONEYARD_PATTERN, "", original_text).strip()
         content_hash = hashlib.sha256(content_for_hash.encode()).hexdigest()[:16]
-        
+
         return Scene(
             number=number,
             heading=heading,

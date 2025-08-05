@@ -1,14 +1,17 @@
 """Script analyze API module for ScriptRAG."""
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from scriptrag.analyzers.base import BaseSceneAnalyzer
 
 from scriptrag.api.list import ScriptLister
-from scriptrag.config import get_logger, get_settings
+from scriptrag.config import get_logger
 from scriptrag.parser import FountainParser, Scene, Script
-from scriptrag.synchronizer import GitChangeDetector
 
 logger = get_logger(__name__)
 
@@ -59,7 +62,7 @@ class AnalyzeCommand:
 
     def __init__(
         self,
-        analyzers: list[SceneAnalyzer] | None = None,
+        analyzers: list[SceneAnalyzer | Any] | None = None,
     ):
         """Initialize analyze command.
 
@@ -67,7 +70,7 @@ class AnalyzeCommand:
             analyzers: Optional list of scene analyzers
         """
         self.analyzers = analyzers or []
-        self._analyzer_registry: dict[str, type[SceneAnalyzer]] = {}
+        self._analyzer_registry: dict[str, type[SceneAnalyzer | BaseSceneAnalyzer]] = {}
 
     @classmethod
     def from_config(cls) -> "AnalyzeCommand":
@@ -96,7 +99,7 @@ class AnalyzeCommand:
         if any(a.name == name for a in self.analyzers):
             logger.debug(f"Analyzer {name} already loaded")
             return
-            
+
         if name not in self._analyzer_registry:
             # Try to load from built-in analyzers
             try:
@@ -112,8 +115,7 @@ class AnalyzeCommand:
 
             raise ValueError(f"Unknown analyzer: {name}")
 
-        analyzer_class = self._analyzer_registry[name]
-        self.analyzers.append(analyzer_class())
+        self.analyzers.append(self._analyzer_registry[name]())
         logger.info(f"Loaded registered analyzer: {name}")
 
     async def analyze(
@@ -164,7 +166,7 @@ class AnalyzeCommand:
                     result.files.append(file_result)
                 except Exception as e:
                     logger.error(
-                        f"Failed to process {script_meta.file_path}: {str(e)}"
+                        f"Failed to process {script_meta.file_path}: {e!s}"
                     )
                     result.files.append(
                         FileResult(
@@ -176,8 +178,8 @@ class AnalyzeCommand:
                     result.errors.append(f"{script_meta.file_path}: {e}")
 
         except Exception as e:
-            logger.error(f"Analyze operation failed: {str(e)}")
-            result.errors.append(f"Analyze failed: {str(e)}")
+            logger.error(f"Analyze operation failed: {e!s}")
+            result.errors.append(f"Analyze failed: {e!s}")
 
         return result
 
@@ -210,7 +212,8 @@ class AnalyzeCommand:
 
             # Initialize analyzers
             for analyzer in self.analyzers:
-                await analyzer.initialize()
+                if hasattr(analyzer, "initialize"):
+                    await analyzer.initialize()
 
             # Process each scene
             updated_scenes = []
@@ -231,7 +234,7 @@ class AnalyzeCommand:
                     }
 
                     # Run analyzers
-                    metadata = {
+                    metadata: dict[str, Any] = {
                         "content_hash": scene.content_hash,
                         "analyzed_at": datetime.now().isoformat(),
                         "analyzers": {},
@@ -240,10 +243,12 @@ class AnalyzeCommand:
                     for analyzer in self.analyzers:
                         try:
                             result = await analyzer.analyze(scene_data)
-                            metadata["analyzers"][analyzer.name] = {
-                                "version": analyzer.version,
+                            analyzer_result = {
                                 "result": result,
                             }
+                            if hasattr(analyzer, "version"):
+                                analyzer_result["version"] = analyzer.version
+                            metadata["analyzers"][analyzer.name] = analyzer_result
                         except Exception as e:
                             logger.error(
                                 f"Analyzer {analyzer.name} failed on scene {scene.number}: {e}"
@@ -255,7 +260,8 @@ class AnalyzeCommand:
 
             # Clean up analyzers
             for analyzer in self.analyzers:
-                await analyzer.cleanup()
+                if hasattr(analyzer, "cleanup"):
+                    await analyzer.cleanup()
 
             # In dry run mode, just report what would happen
             if dry_run:
@@ -294,7 +300,7 @@ class AnalyzeCommand:
             for scene in script.scenes:
                 if self._scene_needs_update(scene):
                     return True
-        
+
         return False
 
     def _scene_needs_update(self, scene: Scene) -> bool:
@@ -308,14 +314,14 @@ class AnalyzeCommand:
         """
         if not isinstance(scene, Scene):
             return False
-            
+
         # No metadata yet
         if scene.boneyard_metadata is None:
             return True
 
         # Check if metadata is outdated (e.g., missing analyzer results)
         metadata = scene.boneyard_metadata
-        
+
         # Check if analyzed_at exists and is recent
         if "analyzed_at" not in metadata:
             return True

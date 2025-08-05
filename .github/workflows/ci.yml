@@ -25,6 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       python: ${{ steps.filter.outputs.python }}
+      sql: ${{ steps.filter.outputs.sql }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -37,6 +38,9 @@ jobs:
               - 'setup.py'
               - 'setup.cfg'
               - 'requirements*.txt'
+            sql:
+              - '**/*.sql'
+              - '.sqlfluff'
 
   lint:
     name: Lint & Code Quality
@@ -128,6 +132,31 @@ jobs:
         with:
           name: safety-report
           path: .safety-report.json
+
+  sql-lint:
+    name: SQL Linting
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.sql == 'true' || needs.changes.outputs.python == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Run SQLFluff linting
+        run: make sql-lint
 
   # Canary test - fast, minimal test run to catch obvious failures early
   test-canary:

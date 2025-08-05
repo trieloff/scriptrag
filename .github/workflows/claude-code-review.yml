@@ -21,7 +21,7 @@ on:
     #   - "src/**/*.tsx"
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
-  
+
   # Also allow manual triggering after all checks pass
   workflow_run:
     workflows: ["CI"]
@@ -33,10 +33,10 @@ jobs:
     # Skip only for known problematic bots
     # For workflow_run trigger, only run if the CI workflow succeeded
     if: |
-      (github.event_name == 'pull_request' && 
+      (github.event_name == 'pull_request' &&
        github.event.pull_request.user.login != 'dependabot[bot]' &&
        github.event.pull_request.user.login != 'renovate[bot]') ||
-      (github.event_name == 'workflow_run' && 
+      (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-latest
@@ -57,7 +57,7 @@ jobs:
             // Get the PR associated with this workflow run
             const workflowRun = context.payload.workflow_run;
             const headSha = workflowRun.head_sha;
-            
+
             // Find PRs associated with this commit
             const { data: prs } = await github.rest.pulls.list({
               owner: context.repo.owner,
@@ -65,13 +65,13 @@ jobs:
               state: 'open',
               head: `${workflowRun.head_repository.owner.login}:${workflowRun.head_branch}`
             });
-            
+
             if (prs.length === 0) {
               console.log('No open PR found for this workflow run');
               core.setOutput('skip', 'true');
               return;
             }
-            
+
             const pr = prs[0];
             core.setOutput('pr_number', pr.number);
             core.setOutput('pr_head_ref', pr.head.ref);
@@ -121,7 +121,7 @@ jobs:
           github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
           script: |
             const reviewOutcome = '${{ steps.claude-review.outcome }}';
-            
+
             // Determine PR number based on event type
             let prNumber;
             if (context.eventName === 'pull_request') {
@@ -129,7 +129,7 @@ jobs:
             } else if (context.eventName === 'workflow_run') {
               prNumber = parseInt('${{ steps.pr-info.outputs.pr_number }}');
             }
-            
+
             if (!prNumber) {
               console.log('Could not determine PR number, skipping comment');
               return;

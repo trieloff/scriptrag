@@ -9,7 +9,6 @@ from typer.testing import CliRunner
 from scriptrag.cli import app
 from tests.utils import strip_ansi_codes
 
-
 # Path to fixture files
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "fountain"
 

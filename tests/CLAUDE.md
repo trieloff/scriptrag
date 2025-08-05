@@ -19,10 +19,10 @@ from tests.utils import strip_ansi_codes
 
 def test_cli_command(self):
     result = runner.invoke(app, ["command", "--help"])
-    
+
     # ❌ BAD - Will fail in CI due to ANSI codes
     assert "--force" in result.stdout
-    
+
     # ✅ GOOD - Strips ANSI codes before matching
     clean_output = strip_ansi_codes(result.stdout)
     assert "--force" in clean_output
@@ -47,7 +47,7 @@ def test_analyze_help(self):
     """Test analyze command help."""
     result = runner.invoke(app, ["analyze", "--help"])
     assert result.exit_code == 0
-    
+
     # Strip ANSI escape codes for reliable string matching
     clean_output = strip_ansi_codes(result.stdout)
     assert "Analyze Fountain files" in clean_output

@@ -86,7 +86,7 @@ class FountainParser:
         # See parse_file() for detailed explanation of this workaround
         boneyard_pattern = re.compile(r"/\*.*?\*/", re.DOTALL)
         cleaned_content = boneyard_pattern.sub("", content)
-        
+
         # Parse using jouvence
         # Note: jouvence 0.4.2 has a bug where parse() with file objects
         # references an undefined variable 'fp'. Use parseString() instead.
@@ -152,7 +152,7 @@ class FountainParser:
         content = file_path.read_text(encoding="utf-8")
 
         # WORKAROUND for jouvence v0.4.2 infinite loop bug:
-        # 
+        #
         # ISSUE: The jouvence parser (v0.4.2) has a bug where it enters an infinite
         # loop when parsing certain boneyard comments. Specifically, when the parser
         # encounters boneyard comments like our SCRIPTRAG-META blocks, it gets stuck
@@ -173,7 +173,7 @@ class FountainParser:
         # This workaround can be removed once jouvence fixes the boneyard parsing bug.
         # The metadata remains intact in the original files - we only strip it during
         # the parsing phase to avoid triggering the jouvence bug.
-        
+
         boneyard_pattern = re.compile(r"/\*.*?\*/", re.DOTALL)
         scriptrag_metadata_blocks = []
         cleaned_content = content

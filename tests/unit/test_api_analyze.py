@@ -87,10 +87,10 @@ class TestAnalyzeCommand:
 
     def test_load_analyzer_builtin(self, analyze_command):
         """Test loading a built-in analyzer."""
-        analyze_command.load_analyzer("emotional_tone")
+        analyze_command.load_analyzer("nop")
         
         assert len(analyze_command.analyzers) == 1
-        assert analyze_command.analyzers[0].name == "emotional_tone"
+        assert analyze_command.analyzers[0].name == "nop"
 
     def test_load_analyzer_unknown(self, analyze_command):
         """Test loading an unknown analyzer."""
@@ -99,8 +99,8 @@ class TestAnalyzeCommand:
 
     def test_load_analyzer_duplicate(self, analyze_command):
         """Test loading the same analyzer twice."""
-        analyze_command.load_analyzer("emotional_tone")
-        analyze_command.load_analyzer("emotional_tone")
+        analyze_command.load_analyzer("nop")
+        analyze_command.load_analyzer("nop")
         
         # Should only be loaded once
         assert len(analyze_command.analyzers) == 1

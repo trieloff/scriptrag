@@ -4,10 +4,11 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
+from io import StringIO
 from pathlib import Path
 
-import jouvence
-from jouvence.parser import FountainElement
+from jouvence.parser import JouvenceParser
+from jouvence.document import JouvenceDocument, JouvenceSceneElement, TYPE_CHARACTER, TYPE_DIALOG, TYPE_PARENTHETICAL, TYPE_ACTION
 
 from scriptrag.config import get_logger
 
@@ -77,53 +78,23 @@ class FountainParser:
             Parsed Script object with scenes
         """
         # Parse using jouvence
-        fountain_doc = jouvence.Fountain(content)
+        parser = JouvenceParser()
+        # Create a StringIO object from the content string
+        doc = parser.parse(StringIO(content))
         
         # Extract title and author from metadata
-        title = fountain_doc.title_page.get("Title") if fountain_doc.title_page else None
-        author = fountain_doc.title_page.get("Author") if fountain_doc.title_page else None
+        title = doc.title_values.get("title") if doc.title_values else None
+        author = doc.title_values.get("author") if doc.title_values else None
         
-        # Find all scene headings and process scenes
+        # Process scenes
         scenes = []
         scene_number = 0
-        current_scene_elements = []
-        current_scene_heading = None
-        current_scene_start_pos = 0
-        
-        for i, element in enumerate(fountain_doc.elements):
-            if element.element_type == "Scene Heading":
-                # Process previous scene if exists
-                if current_scene_heading is not None:
-                    scene = self._process_scene_elements(
-                        scene_number,
-                        current_scene_heading,
-                        current_scene_elements,
-                        content,
-                        current_scene_start_pos,
-                        element.original_line,
-                    )
-                    scenes.append(scene)
-                
-                # Start new scene
+        for jouvence_scene in doc.scenes:
+            # Skip scenes without headers (like FADE IN sections)
+            if jouvence_scene.header:
                 scene_number += 1
-                current_scene_heading = element
-                current_scene_elements = []
-                current_scene_start_pos = element.original_line
-            else:
-                # Add element to current scene
-                current_scene_elements.append(element)
-        
-        # Don't forget the last scene
-        if current_scene_heading is not None:
-            scene = self._process_scene_elements(
-                scene_number,
-                current_scene_heading,
-                current_scene_elements,
-                content,
-                current_scene_start_pos,
-                len(content.splitlines()),
-            )
-            scenes.append(scene)
+                scene = self._process_jouvence_scene(scene_number, jouvence_scene, content)
+                scenes.append(scene)
         
         return Script(title=title, author=author, scenes=scenes)
 
@@ -136,9 +107,29 @@ class FountainParser:
         Returns:
             Parsed Script object
         """
+        # Parse using jouvence directly with file path
+        parser = JouvenceParser()
+        doc = parser.parse(str(file_path))
+        
+        # Get the full content for scene processing
         content = file_path.read_text(encoding="utf-8")
-        script = self.parse(content)
-
+        
+        # Extract title and author from metadata
+        title = doc.title_values.get("title") if doc.title_values else None
+        author = doc.title_values.get("author") if doc.title_values else None
+        
+        # Process scenes
+        scenes = []
+        scene_number = 0
+        for jouvence_scene in doc.scenes:
+            # Skip scenes without headers (like FADE IN sections)
+            if jouvence_scene.header:
+                scene_number += 1
+                scene = self._process_jouvence_scene(scene_number, jouvence_scene, content)
+                scenes.append(scene)
+        
+        script = Script(title=title, author=author, scenes=scenes)
+        
         # Add file metadata
         script.metadata["source_file"] = str(file_path)
 
@@ -174,17 +165,14 @@ class FountainParser:
         file_path.write_text(content, encoding="utf-8")
         logger.info(f"Updated {len(updated_scenes)} scenes in {file_path}")
 
-    def _process_scene_elements(
+    def _process_jouvence_scene(
         self,
         number: int,
-        heading_element: FountainElement,
-        elements: list[FountainElement],
+        jouvence_scene,
         full_content: str,
-        scene_start_line: int,
-        scene_end_line: int,
     ) -> Scene:
-        """Process scene elements into a Scene object."""
-        heading = heading_element.element_text
+        """Process a jouvence scene into our Scene object."""
+        heading = jouvence_scene.header if jouvence_scene.header else ""
         
         # Parse scene type and location from heading
         scene_type = "INT"
@@ -214,12 +202,14 @@ class FountainParser:
         dialogue_lines = []
         action_lines = []
         
+        # Process scene elements
         i = 0
+        elements = jouvence_scene.paragraphs
         while i < len(elements):
             element = elements[i]
             
-            if element.element_type == "Character":
-                character = element.element_text
+            if element.type == TYPE_CHARACTER:
+                character = element.text
                 parenthetical = None
                 dialogue_text = []
                 
@@ -227,11 +217,11 @@ class FountainParser:
                 j = i + 1
                 while j < len(elements):
                     next_elem = elements[j]
-                    if next_elem.element_type == "Parenthetical":
-                        parenthetical = next_elem.element_text
+                    if next_elem.type == TYPE_PARENTHETICAL:
+                        parenthetical = next_elem.text
                         j += 1
-                    elif next_elem.element_type == "Dialogue":
-                        dialogue_text.append(next_elem.element_text)
+                    elif next_elem.type == TYPE_DIALOG:
+                        dialogue_text.append(next_elem.text)
                         j += 1
                     else:
                         break
@@ -245,16 +235,23 @@ class FountainParser:
                         )
                     )
                 i = j
-            elif element.element_type == "Action":
-                action_lines.append(element.element_text)
+            elif element.type == TYPE_ACTION:
+                action_lines.append(element.text)
                 i += 1
             else:
                 i += 1
         
         # Get original scene text from content
-        content_lines = full_content.splitlines()
-        scene_lines = content_lines[scene_start_line:scene_end_line]
-        original_text = "\n".join(scene_lines)
+        # This is a simplified approach - in production you might want to track line numbers
+        scene_start = full_content.find(heading)
+        if scene_start == -1:
+            original_text = heading
+        else:
+            # Find the next scene heading or end of file
+            next_scene_pattern = re.compile(r"^(INT\.|EXT\.|EST\.|INT\./EXT\.|I/E\.)", re.MULTILINE)
+            match = next_scene_pattern.search(full_content, scene_start + len(heading))
+            scene_end = match.start() if match else len(full_content)
+            original_text = full_content[scene_start:scene_end].rstrip()
         
         # Extract boneyard metadata if present
         boneyard_metadata = None

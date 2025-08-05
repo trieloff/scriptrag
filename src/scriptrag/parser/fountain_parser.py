@@ -90,7 +90,16 @@ class FountainParser:
 
         # Extract title and author from metadata
         title = doc.title_values.get("title") if doc.title_values else None
-        author = doc.title_values.get("author") if doc.title_values else None
+        
+        # Check various author field variations
+        author = None
+        if doc.title_values:
+            # Check all common variations of author fields
+            author_fields = ["author", "authors", "writer", "writers", "written by"]
+            for field in author_fields:
+                if field in doc.title_values:
+                    author = doc.title_values[field]
+                    break
 
         # Extract additional metadata
         metadata = {}
@@ -164,7 +173,16 @@ class FountainParser:
 
         # Extract title and author from metadata
         title = doc.title_values.get("title") if doc.title_values else None
-        author = doc.title_values.get("author") if doc.title_values else None
+        
+        # Check various author field variations
+        author = None
+        if doc.title_values:
+            # Check all common variations of author fields
+            author_fields = ["author", "authors", "writer", "writers", "written by"]
+            for field in author_fields:
+                if field in doc.title_values:
+                    author = doc.title_values[field]
+                    break
 
         # Extract additional metadata
         metadata = {}

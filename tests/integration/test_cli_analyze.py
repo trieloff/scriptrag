@@ -40,9 +40,9 @@ A scene with existing metadata.
     "content_hash": "abc123",
     "analyzed_at": "2024-01-01T00:00:00",
     "analyzers": {
-        "emotional_tone": {
+        "nop": {
             "version": "1.0.0",
-            "result": {"primary_emotion": "neutral"}
+            "result": {}
         }
     }
 }
@@ -176,7 +176,7 @@ class TestAnalyzeCommand:
         # Run analyze with force to ensure processing
         result = runner.invoke(
             app,
-            ["analyze", str(simple_file), "--force", "--analyzer", "emotional_tone"],
+            ["analyze", str(simple_file), "--force", "--analyzer", "nop"],
         )
 
         assert result.exit_code == 0
@@ -184,7 +184,7 @@ class TestAnalyzeCommand:
         # Check that metadata was added
         content = simple_file.read_text()
         assert "SCRIPTRAG-META-START" in content
-        assert "emotional_tone" in content
+        assert "nop" in content
         assert "analyzed_at" in content
 
     @pytest.mark.skipif(not Path(".git").exists(), reason="Not in a git repository")

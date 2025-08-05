@@ -103,7 +103,7 @@ repos:
         args: ['--baseline', '.secrets.baseline']
         exclude: |
           ^(poetry\.lock|package-lock\.json|yarn\.lock|
-          pnpm-lock\.yaml|\.secrets\.baseline)$
+          pnpm-lock\.yaml|\.secrets\.baseline|.*\.fountain)$
 
   # Markdown linting - now enabled
   - repo: https://github.com/igorshubovych/markdownlint-cli

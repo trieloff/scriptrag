@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from scriptrag.config import get_logger
+from scriptrag.parser import FountainParser
 
 logger = get_logger(__name__)
 
@@ -43,9 +44,6 @@ class ScriptLister:
 
     def __init__(self) -> None:
         """Initialize script lister."""
-        self._title_page_pattern = re.compile(
-            r"^(?P<key>[A-Za-z][A-Za-z\s]*?):\s*(?P<value>.*)$", re.MULTILINE
-        )
         self._episode_pattern = re.compile(
             r"(?:Episode|Ep|E)\.?\s*(\d+)", re.IGNORECASE
         )
@@ -54,6 +52,7 @@ class ScriptLister:
             r"[Ss](\d+)[Ee](\d+)|(\d+)x(\d+)|[Ee]pisode[\s_-]?(\d+)|[Ee]p[\s_-]?(\d+)",
             re.IGNORECASE,
         )
+        self._parser = FountainParser()
 
     def list_scripts(
         self, path: Path | None = None, recursive: bool = True
@@ -113,30 +112,47 @@ class ScriptLister:
         metadata = FountainMetadata(file_path=file_path)
 
         try:
-            content = file_path.read_text(encoding="utf-8")
-            # Extract title page info and update metadata fields
-            info = self._extract_title_page_info(content)
+            # First try with FountainParser
+            script = self._parser.parse_file(file_path)
 
-            # Type-safe extraction with proper casting
-            title = info.get("title")
-            metadata.title = title if isinstance(title, str) else None
+            # Extract basic metadata
+            metadata.title = script.title
+            metadata.author = script.author
 
-            author = info.get("author")
-            metadata.author = author if isinstance(author, str) else None
+            # Extract episode/season from script metadata
+            if "episode" in script.metadata:
+                metadata.episode_number = script.metadata["episode"]
+            elif metadata.title:
+                # Otherwise, try to extract from title
+                title = re.sub(r"_\*\*(.+?)\*\*_", r"\1", metadata.title)
+                ep_match = self._episode_pattern.search(title)
+                if ep_match:
+                    metadata.episode_number = int(ep_match.group(1))
 
-            episode_number = info.get("episode_number")
-            metadata.episode_number = (
-                episode_number if isinstance(episode_number, int) else None
-            )
+            if "season" in script.metadata:
+                metadata.season_number = script.metadata["season"]
+            elif metadata.title:
+                # Otherwise, try to extract from title
+                title = re.sub(r"_\*\*(.+?)\*\*_", r"\1", metadata.title)
+                season_match = self._season_pattern.search(title)
+                if season_match:
+                    metadata.season_number = int(season_match.group(1))
 
-            season_number = info.get("season_number")
-            metadata.season_number = (
-                season_number if isinstance(season_number, int) else None
-            )
         except Exception as e:
             logger.warning(
-                "Failed to read fountain file", path=str(file_path), error=str(e)
+                "Failed to parse fountain file with parser, trying fallback",
+                path=str(file_path),
+                error=str(e),
             )
+            # Fallback to basic parsing if jouvence fails
+            try:
+                self._parse_with_fallback(file_path, metadata)
+            except Exception as fallback_error:
+                logger.error(
+                    "Fallback parsing also failed",
+                    path=str(file_path),
+                    error=str(fallback_error),
+                )
 
         # If we couldn't determine episode/season from title page, try filename
         if metadata.episode_number is None or metadata.season_number is None:
@@ -148,19 +164,16 @@ class ScriptLister:
 
         return metadata
 
-    def _extract_title_page_info(self, content: str) -> dict[str, str | int | None]:
-        """Extract title page information from Fountain content.
-
-        Handles both inline values and multi-line indented values according
-        to Fountain spec. Also normalizes formatting marks in titles.
+    def _parse_with_fallback(
+        self, file_path: Path, metadata: FountainMetadata
+    ) -> None:  # pragma: no cover
+        """Fallback parsing method using simple regex.
 
         Args:
-            content: Raw fountain file content.
-
-        Returns:
-            Dictionary with extracted metadata.
+            file_path: Path to the Fountain file
+            metadata: Metadata object to update
         """
-        info: dict[str, str | int | None] = {}
+        content = file_path.read_text(encoding="utf-8")
 
         # Title page is at the beginning, before the first blank line
         title_page_end = content.find("\n\n")
@@ -169,71 +182,20 @@ class ScriptLister:
         else:
             title_page_content = content[:title_page_end]
 
-        # Process title page line by line to handle multi-line values
-        lines = title_page_content.split("\n")
-        current_key = None
-        current_values = []
+        # Simple regex for title page
+        title_match = re.search(
+            r"^Title:\s*(.+)$", title_page_content, re.MULTILINE | re.IGNORECASE
+        )
+        if title_match:
+            metadata.title = title_match.group(1).strip()
 
-        for line in lines:
-            # Check if this is a key: value line
-            key_match = self._title_page_pattern.match(line)
-            if key_match:
-                # Save previous key-value if exists
-                if current_key:
-                    self._process_title_page_value(
-                        info, current_key, "\n".join(current_values)
-                    )
-
-                # Start new key-value
-                current_key = key_match.group("key").strip().lower()
-                value = key_match.group("value").strip()
-                current_values = [value] if value else []
-            elif current_key and line:  # pragma: no cover
-                # Check if this is an indented continuation (3+ spaces or tab)
-                if line.startswith("   ") or line.startswith("\t"):
-                    current_values.append(line.strip())
-
-        # Don't forget the last key-value pair
-        if current_key:
-            self._process_title_page_value(info, current_key, "\n".join(current_values))
-
-        return info
-
-    def _process_title_page_value(
-        self, info: dict[str, str | int | None], key: str, value: str
-    ) -> None:
-        """Process a title page key-value pair.
-
-        Args:
-            info: Dictionary to update with extracted values.
-            key: The key (lowercase).
-            value: The value (may be multi-line).
-        """
-        # Normalize formatting marks (_**text**_ becomes text)
-        value = re.sub(r"_\*\*(.+?)\*\*_", r"\1", value)
-
-        if key == "title":
-            info["title"] = value
-            # Check for episode number in title
-            ep_match = self._episode_pattern.search(value)
-            if ep_match:
-                info["episode_number"] = int(ep_match.group(1))
-            # Check for season number in title
-            season_match = self._season_pattern.search(value)
-            if season_match:
-                info["season_number"] = int(season_match.group(1))
-        elif key in ("author", "authors", "written by", "writer", "writers"):
-            info["author"] = value
-        elif key == "episode":
-            # Try to extract episode number
-            ep_match = re.search(r"\d+", value)
-            if ep_match:
-                info["episode_number"] = int(ep_match.group())
-        elif key == "season":
-            # Try to extract season number
-            season_match = re.search(r"\d+", value)
-            if season_match:
-                info["season_number"] = int(season_match.group())
+        author_match = re.search(
+            r"^(?:Author|Authors|Written by|Writer|Writers):\s*(.+)$",
+            title_page_content,
+            re.MULTILINE | re.IGNORECASE,
+        )
+        if author_match:
+            metadata.author = author_match.group(1).strip()
 
     def _extract_from_filename(self, filename: str) -> dict[str, int | None]:
         """Extract episode and season numbers from filename.

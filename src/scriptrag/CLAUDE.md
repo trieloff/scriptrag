@@ -14,7 +14,6 @@ The scriptrag module serves as the main package that orchestrates all components
 - `parser/`: Fountain file parsing
 - `extractor/`: Content extraction with LLM
 - `embeddings/`: Vector embedding generation
-- `synchronizer/`: Git operations and hooks
 - `indexer/`: Database indexing
 - `query/`: Query engine for search
 - `storage/`: Storage layer implementations

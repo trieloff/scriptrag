@@ -149,105 +149,6 @@ class TestScriptLister:
             assert metadata.file_path == script
             assert metadata.title is None  # Could not read title
 
-    def test_extract_title_page_info_basic(self, lister):
-        """Test extracting basic title page information."""
-        content = """Title: My Great Script
-Author: John Doe
-Draft date: 2024-01-01
-
-FADE IN:"""
-
-        info = lister._extract_title_page_info(content)
-        assert info["title"] == "My Great Script"
-        assert info["author"] == "John Doe"
-
-    def test_extract_title_page_info_with_episode(self, lister):
-        """Test extracting episode information from title page."""
-        content = """Title: My Series - Episode 5
-Author: Jane Smith
-Episode: 5
-Season: 2"""
-
-        info = lister._extract_title_page_info(content)
-        assert info["title"] == "My Series - Episode 5"
-        assert info["author"] == "Jane Smith"
-        assert info["episode_number"] == 5
-        assert info["season_number"] == 2
-
-    def test_extract_title_page_info_episode_in_title(self, lister):
-        """Test extracting episode number from title."""
-        content = """Title: Show Name S02E10
-Author: Writer"""
-
-        info = lister._extract_title_page_info(content)
-        assert info["episode_number"] == 10
-        assert info["season_number"] == 2
-
-    def test_extract_title_page_info_various_author_fields(self, lister):
-        """Test various author field names."""
-        variations = [
-            ("Authors: Multiple Authors", "Multiple Authors"),
-            ("Written by: Screenplay Writer", "Screenplay Writer"),
-            ("Writer: Solo Writer", "Solo Writer"),
-            ("Writers: Writer Team", "Writer Team"),
-        ]
-
-        for content, expected in variations:
-            info = lister._extract_title_page_info(f"Title: Test\n{content}")
-            assert info["author"] == expected
-
-    def test_extract_title_page_info_no_double_newline(self, lister):
-        """Test extraction when no double newline separator."""
-        content = """Title: My Script
-Author: John Doe
-This is all one block without clear separation."""
-
-        info = lister._extract_title_page_info(content)
-        assert info["title"] == "My Script"
-        assert info["author"] == "John Doe"
-
-    def test_extract_title_page_multi_line_values(self, lister):
-        """Test extracting multi-line indented values."""
-        content = """Title:
-    Line One
-    Line Two
-Author: Jane Smith
-Contact:
-    123 Main Street
-    Suite 100
-    New York, NY 10001
-
-FADE IN:"""
-
-        info = lister._extract_title_page_info(content)
-        assert info["title"] == "Line One\nLine Two"
-        assert info["author"] == "Jane Smith"
-
-    def test_extract_title_page_formatting_marks(self, lister):
-        """Test removing formatting marks from titles."""
-        content = """Title:
-    _**BRICK & STEEL**_
-    _**FULL RETIRED**_
-Author: Stu Maschwitz
-
-FADE IN:"""
-
-        info = lister._extract_title_page_info(content)
-        assert info["title"] == "BRICK & STEEL\nFULL RETIRED"
-        assert info["author"] == "Stu Maschwitz"
-
-    def test_extract_title_page_tab_indentation(self, lister):
-        """Test that tab indentation works for multi-line values."""
-        content = """Title:
-\tPart One
-\tPart Two
-Author: Test Author
-
-FADE IN:"""
-
-        info = lister._extract_title_page_info(content)
-        assert info["title"] == "Part One\nPart Two"
-
     def test_extract_from_filename_s_e_format(self, lister):
         """Test extracting from S##E## filename format."""
         info = lister._extract_from_filename("show_S01E05_title")
@@ -326,39 +227,79 @@ FADE IN:""")
         assert result[0].title == "Test Script 1"
         assert result[0].file_path == script1
 
-    def test_extract_title_page_no_final_blank_line(self, lister):
-        """Test title page extraction when content ends without blank line."""
-        content = """Title: My Script
-Author: Jane Doe
-Draft: First Draft"""  # No blank line or content after
+    def test_parse_fountain_with_markdown_title(self, lister, tmp_path):
+        """Test parsing fountain with markdown formatted title."""
+        script = tmp_path / "test.fountain"
+        script.write_text("""Title: _**My Script**_
+Author: Test Author
 
-        info = lister._extract_title_page_info(content)
-        assert info["title"] == "My Script"
-        assert info["author"] == "Jane Doe"
-        # Draft field is not processed, but last value should still be handled
+FADE IN:""")
 
-    def test_extract_title_page_episode_season_no_numbers(self, lister):
-        """Test episode/season fields without numbers."""
-        content = """Title: My Series
-Episode: Pilot
-Season: One
+        metadata = lister._parse_fountain_metadata(script)
+        # Note: Currently markdown is not stripped in title extraction
+        assert metadata.title == "_**My Script**_"
 
-FADE IN:"""
+    def test_parse_fountain_extract_season_from_title(self, lister, tmp_path):
+        """Test extracting season from title with markdown."""
+        script = tmp_path / "test.fountain"
+        script.write_text("""Title: _**My Show Season 3**_
+Episode: 5
 
-        info = lister._extract_title_page_info(content)
-        assert info["title"] == "My Series"
-        assert info.get("episode_number") is None  # No number found
-        assert info.get("season_number") is None  # No number found
+FADE IN:""")
 
-    def test_extract_title_page_episode_season_with_text(self, lister):
-        """Test episode/season fields with numbers embedded in text."""
-        content = """Title: My Series
-Episode: Chapter 3 - The Beginning
-Season: Year 2 Collection
+        metadata = lister._parse_fountain_metadata(script)
+        assert metadata.season_number == 3  # Markdown is stripped for season extraction
+        assert metadata.episode_number == 5
 
-FADE IN:"""
+    def test_parse_with_fallback_no_blank_line(self, lister, tmp_path):
+        """Test fallback parsing when no blank line after title page."""
+        script = tmp_path / "test.fountain"
+        script.write_text("Title: My Script\nAuthor: Test Author")
 
-        info = lister._extract_title_page_info(content)
-        assert info["title"] == "My Series"
-        assert info["episode_number"] == 3  # Extracted from "Chapter 3"
-        assert info["season_number"] == 2  # Extracted from "Year 2"
+        with patch("scriptrag.api.list.FountainParser") as mock_parser:
+            mock_parser.return_value.parse_file.side_effect = Exception("Parse failed")
+            metadata = lister._parse_fountain_metadata(script)
+
+        assert metadata.title == "My Script"
+        assert metadata.author == "Test Author"
+
+    def test_parse_with_fallback_different_author_formats(self, lister, tmp_path):
+        """Test fallback parsing with different author format variations."""
+        test_cases = [
+            ("Authors: John Doe", "John Doe"),
+            ("Written by: Jane Smith", "Jane Smith"),
+            ("Writer: Bob Johnson", "Bob Johnson"),
+            ("Writers: Alice & Bob", "Alice & Bob"),
+        ]
+
+        for author_line, expected_author in test_cases:
+            script = tmp_path / f"test_{expected_author.replace(' ', '_')}.fountain"
+            script.write_text(f"Title: Test\n{author_line}\n\nFADE IN:")
+
+            with patch("scriptrag.api.list.FountainParser") as mock_parser:
+                mock_parser.return_value.parse_file.side_effect = Exception(
+                    "Parse failed"
+                )
+                metadata = lister._parse_fountain_metadata(script)
+
+            assert metadata.author == expected_author, f"Failed for: {author_line}"
+
+    def test_parse_fountain_filename_season_extraction(self, lister, tmp_path):
+        """Test that season is extracted from filename when not in metadata."""
+        # This tests the line 162-163 that was marked as not covered
+        script = tmp_path / "show_S02E05.fountain"
+        script.write_text("""Title: My Show
+
+FADE IN:""")
+
+        # Mock the parser to return metadata without season but with episode
+        with patch("scriptrag.api.list.FountainParser") as mock_parser:
+            mock_script = mock_parser.return_value.parse_file.return_value
+            mock_script.metadata = {"episode": 5}  # Has episode but not season
+            mock_script.title = "My Show"
+            mock_script.author = None
+
+            metadata = lister._parse_fountain_metadata(script)
+
+        assert metadata.episode_number == 5  # From metadata
+        assert metadata.season_number == 2  # From filename

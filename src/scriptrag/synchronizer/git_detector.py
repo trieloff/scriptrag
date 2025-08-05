@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any, cast
 
 try:
     import git
@@ -92,12 +93,14 @@ class GitChangeDetector:
             relative_path = file_path
 
         # Get commit history for file
-        kwargs = {"paths": str(relative_path), "follow": True}
+        # Build arguments for iter_commits
+        paths = [str(relative_path)]
+        kwargs: dict[str, Any] = {"follow": True}
         if since:
             kwargs["since"] = since.isoformat()
 
         try:
-            commits = list(self.repo.iter_commits(**kwargs))
+            commits = list(self.repo.iter_commits(paths=paths, **kwargs))
         except git.GitCommandError as e:
             logger.warning(f"Failed to get git log for {file_path}: {e}")
             return []
@@ -119,7 +122,13 @@ class GitChangeDetector:
 
                 if diff.diff:
                     # Parse the diff text
-                    lines = diff.diff.decode("utf-8", errors="replace").split("\n")
+                    # Handle both str and bytes types
+                    diff_content = diff.diff
+                    if isinstance(diff_content, bytes):
+                        decoded = diff_content.decode("utf-8", errors="replace")
+                        lines = decoded.split("\n")
+                    else:
+                        lines = diff_content.split("\n")
                     line_num = 0
 
                     for line in lines:
@@ -144,7 +153,9 @@ class GitChangeDetector:
                             path=file_path,
                             commit_hash=commit.hexsha,
                             timestamp=datetime.fromtimestamp(commit.committed_date),
-                            author=commit.author.name,
+                            author=str(
+                                commit.author.name if commit.author else "Unknown"
+                            ),
                             added_lines=added_lines,
                             removed_lines=removed_lines,
                         )
@@ -178,11 +189,24 @@ class GitChangeDetector:
             # Get blame information
             blame_data = self.repo.blame("HEAD", str(relative_path))
 
+            if not blame_data:
+                return None
+
             scene_commits: dict[str, BlameInfo] = {}
 
-            # Process blame data
+            # Process blame data - GitPython returns list of tuples
             current_line = 1
-            for commit, lines in blame_data:
+            for blame_entry in blame_data:
+                # Each entry is (commit, lines)
+                if not blame_entry or len(blame_entry) < 2:
+                    continue
+
+                # Cast to proper types - GitPython returns (Commit, list[str])
+                commit = cast(git.Commit, blame_entry[0])
+                lines = cast(list[str | bytes], blame_entry[1])
+
+                if not lines:
+                    continue
                 for _line in lines:
                     if scene_start_line <= current_line <= scene_end_line:
                         # This line is part of our scene
@@ -191,7 +215,9 @@ class GitChangeDetector:
                         if commit_hash not in scene_commits:
                             scene_commits[commit_hash] = BlameInfo(
                                 commit_hash=commit_hash,
-                                author=commit.author.name,
+                                author=str(
+                                    commit.author.name if commit.author else "Unknown"
+                                ),
                                 timestamp=datetime.fromtimestamp(commit.committed_date),
                                 lines=[],
                             )

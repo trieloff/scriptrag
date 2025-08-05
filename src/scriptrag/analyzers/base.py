@@ -33,7 +33,7 @@ class BaseSceneAnalyzer(ABC):
         Returns:
             Dictionary of analysis results to be merged into scene metadata
         """
-        pass
+        pass  # pragma: no cover
 
     @property
     @abstractmethod
@@ -42,7 +42,7 @@ class BaseSceneAnalyzer(ABC):
 
         This name is used in the metadata to identify results from this analyzer.
         """
-        pass
+        pass  # pragma: no cover
 
     @property
     def version(self) -> str:
@@ -60,18 +60,18 @@ class BaseSceneAnalyzer(ABC):
         """
         return False
 
-    async def initialize(self) -> None:
+    async def initialize(self) -> None:  # noqa: B027
         """Initialize any resources needed by the analyzer.
 
         Called once before processing begins.
         Override if you need to set up connections, load models, etc.
         """
-        pass
+        pass  # pragma: no cover
 
-    async def cleanup(self) -> None:
+    async def cleanup(self) -> None:  # noqa: B027
         """Clean up any resources used by the analyzer.
 
         Called once after processing completes.
         Override if you need to close connections, free memory, etc.
         """
-        pass
+        pass  # pragma: no cover

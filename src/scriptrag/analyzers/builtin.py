@@ -13,7 +13,7 @@ class NOPAnalyzer(BaseSceneAnalyzer):
 
     name = "nop"
 
-    async def analyze(self, scene: dict) -> dict:
+    async def analyze(self, scene: dict) -> dict:  # noqa: ARG002
         """Perform no analysis and return empty results.
 
         Args:

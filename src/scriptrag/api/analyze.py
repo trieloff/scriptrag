@@ -155,7 +155,9 @@ class AnalyzeCommand:
             for i, script_meta in enumerate(scripts):
                 if progress_callback:
                     progress = (i + 1) / len(scripts)
-                    progress_callback(progress, f"Processing {script_meta.file_path.name}")
+                    progress_callback(
+                        progress, f"Processing {script_meta.file_path.name}"
+                    )
 
                 try:
                     file_result = await self._process_file(
@@ -251,7 +253,8 @@ class AnalyzeCommand:
                             metadata["analyzers"][analyzer.name] = analyzer_result
                         except Exception as e:
                             logger.error(
-                                f"Analyzer {analyzer.name} failed on scene {scene.number}: {e}"
+                                f"Analyzer {analyzer.name} failed on "
+                                f"scene {scene.number}: {e}"
                             )
 
                     # Update scene metadata

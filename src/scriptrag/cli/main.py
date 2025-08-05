@@ -2,7 +2,7 @@
 
 import typer
 
-from scriptrag.cli.commands import init_command, list_command, analyze_command
+from scriptrag.cli.commands import analyze_command, init_command, list_command
 
 app = typer.Typer(
     name="scriptrag",

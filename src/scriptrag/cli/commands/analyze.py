@@ -20,7 +20,9 @@ app = typer.Typer()
 def analyze_command(
     path: Annotated[
         Path | None,
-        typer.Argument(help="Path to search for Fountain files (default: current directory)"),
+        typer.Argument(
+            help="Path to search for Fountain files (default: current directory)"
+        ),
     ] = None,
     force: Annotated[
         bool,
@@ -28,15 +30,24 @@ def analyze_command(
     ] = False,
     dry_run: Annotated[
         bool,
-        typer.Option("--dry-run", "-n", help="Show what would be updated without making changes"),
+        typer.Option(
+            "--dry-run", "-n",
+            help="Show what would be updated without making changes"
+        ),
     ] = False,
     no_recursive: Annotated[
         bool,
-        typer.Option("--no-recursive", help="Don't search recursively in subdirectories"),
+        typer.Option(
+            "--no-recursive",
+            help="Don't search recursively in subdirectories"
+        ),
     ] = False,
     analyzer: Annotated[
         list[str] | None,
-        typer.Option("--analyzer", "-a", help="Additional analyzers to run (can be specified multiple times)"),
+        typer.Option(
+            "--analyzer", "-a",
+            help="Additional analyzers to run (can be specified multiple times)"
+        ),
     ] = None,
 ) -> None:
     """Analyze Fountain files and update their metadata.

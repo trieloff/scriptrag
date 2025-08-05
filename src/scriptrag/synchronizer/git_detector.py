@@ -8,7 +8,9 @@ try:
     import git
     from git import Repo
 except ImportError as e:
-    raise ImportError("GitPython is required for git integration. Install with: pip install gitpython") from e
+    raise ImportError(
+        "GitPython is required for git integration. Install with: pip install gitpython"
+    ) from e
 
 from scriptrag.config import get_logger
 
@@ -81,43 +83,45 @@ class GitChangeDetector:
             List of changes to the file
         """
         changes = []
-        
+
         # Make path relative to repo root
         try:
             relative_path = file_path.relative_to(self.repo.working_dir)
         except ValueError:
             # If file is not in repo, try as-is
             relative_path = file_path
-        
+
         # Get commit history for file
         kwargs = {"paths": str(relative_path), "follow": True}
         if since:
             kwargs["since"] = since.isoformat()
-        
+
         try:
             commits = list(self.repo.iter_commits(**kwargs))
         except git.GitCommandError as e:
             logger.warning(f"Failed to get git log for {file_path}: {e}")
             return []
-        
+
         # Process each commit
         for commit in commits:
             # Get the diff for this commit
             if commit.parents:
-                diffs = commit.parents[0].diff(commit, paths=str(relative_path), create_patch=True)
+                diffs = commit.parents[0].diff(
+                    commit, paths=str(relative_path), create_patch=True
+                )
             else:
                 # Initial commit
                 diffs = commit.diff(None, paths=str(relative_path), create_patch=True)
-            
+
             for diff in diffs:
                 added_lines = []
                 removed_lines = []
-                
+
                 if diff.diff:
                     # Parse the diff text
                     lines = diff.diff.decode("utf-8", errors="replace").split("\n")
                     line_num = 0
-                    
+
                     for line in lines:
                         if line.startswith("@@"):
                             # Parse line numbers from diff header
@@ -132,7 +136,7 @@ class GitChangeDetector:
                             removed_lines.append((line_num, line[1:]))
                         elif not line.startswith("-"):
                             line_num += 1
-                
+
                 if added_lines or removed_lines:
                     changes.append(
                         FileChange(
@@ -144,7 +148,7 @@ class GitChangeDetector:
                             removed_lines=removed_lines,
                         )
                     )
-        
+
         return changes
 
     def get_scene_blame(
@@ -169,20 +173,20 @@ class GitChangeDetector:
                 relative_path = file_path.relative_to(self.repo.working_dir)
             except ValueError:
                 relative_path = file_path
-            
+
             # Get blame information
             blame_data = self.repo.blame("HEAD", str(relative_path))
-            
+
             scene_commits: dict[str, BlameInfo] = {}
-            
+
             # Process blame data
             current_line = 1
             for commit, lines in blame_data:
-                for line in lines:
+                for _line in lines:
                     if scene_start_line <= current_line <= scene_end_line:
                         # This line is part of our scene
                         commit_hash = commit.hexsha
-                        
+
                         if commit_hash not in scene_commits:
                             scene_commits[commit_hash] = BlameInfo(
                                 commit_hash=commit_hash,
@@ -191,28 +195,28 @@ class GitChangeDetector:
                                 lines=[],
                             )
                         scene_commits[commit_hash].lines.append(current_line)
-                    
+
                     current_line += 1
-                    
+
                     # Stop if we've passed the scene
                     if current_line > scene_end_line:
                         break
-                        
+
                 if current_line > scene_end_line:
                     break
-            
+
             if not scene_commits:
                 return None
-            
+
             # Find most recent modification
             most_recent = max(scene_commits.values(), key=lambda b: b.timestamp)
-            
+
             return SceneBlame(
                 last_modified=most_recent.timestamp,
                 last_author=most_recent.author,
                 commit_history=list(scene_commits.values()),
             )
-            
+
         except git.GitCommandError as e:
             logger.warning(f"Failed to get git blame for {file_path}: {e}")
             return None

@@ -78,7 +78,7 @@ class TestAnalyzeCommand:
     def test_analyze_basic(self, temp_fountain_files):
         """Test basic analyze command."""
         result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
-        
+
         # Should succeed even if no updates needed
         if result.exit_code != 0:
             print(f"STDOUT: {result.stdout}")
@@ -90,22 +90,26 @@ class TestAnalyzeCommand:
     def test_analyze_force(self, temp_fountain_files):
         """Test analyze with force flag."""
         result = runner.invoke(app, ["analyze", str(temp_fountain_files), "--force"])
-        
+
         assert result.exit_code == 0
         assert "Updated:" in result.stdout or "Would update:" in result.stdout
 
     def test_analyze_dry_run(self, temp_fountain_files):
         """Test analyze with dry run."""
-        result = runner.invoke(app, ["analyze", str(temp_fountain_files), "--dry-run", "--force"])
-        
+        result = runner.invoke(
+            app, ["analyze", str(temp_fountain_files), "--dry-run", "--force"]
+        )
+
         assert result.exit_code == 0
         assert "DRY RUN" in result.stdout
         assert "Would update:" in result.stdout
 
     def test_analyze_no_recursive(self, temp_fountain_files):
         """Test analyze without recursive search."""
-        result = runner.invoke(app, ["analyze", str(temp_fountain_files), "--no-recursive", "--force"])
-        
+        result = runner.invoke(
+            app, ["analyze", str(temp_fountain_files), "--no-recursive", "--force"]
+        )
+
         assert result.exit_code == 0
         # Should not include the nested file
         assert "nested.fountain" not in result.stdout
@@ -113,34 +117,34 @@ class TestAnalyzeCommand:
     def test_analyze_with_analyzer(self, temp_fountain_files):
         """Test analyze with specific analyzer."""
         result = runner.invoke(
-            app, 
+            app,
             ["analyze", str(temp_fountain_files), "--force", "--analyzer", "themes"]
         )
-        
+
         assert result.exit_code == 0
 
     def test_analyze_with_multiple_analyzers(self, temp_fountain_files):
         """Test analyze with multiple analyzers."""
         result = runner.invoke(
-            app, 
+            app,
             [
-                "analyze", 
-                str(temp_fountain_files), 
+                "analyze",
+                str(temp_fountain_files),
                 "--force",
                 "--analyzer", "themes",
                 "--analyzer", "character_analysis",
             ]
         )
-        
+
         assert result.exit_code == 0
 
     def test_analyze_with_invalid_analyzer(self, temp_fountain_files):
         """Test analyze with invalid analyzer."""
         result = runner.invoke(
-            app, 
+            app,
             ["analyze", str(temp_fountain_files), "--analyzer", "nonexistent"]
         )
-        
+
         # Should show warning but continue
         assert result.exit_code == 0
         assert "Warning" in result.stdout
@@ -150,9 +154,9 @@ class TestAnalyzeCommand:
         """Test analyze with no fountain files."""
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
-        
+
         result = runner.invoke(app, ["analyze", str(empty_dir)])
-        
+
         assert result.exit_code == 0
         assert "No files needed updating" in result.stdout
         assert "Total: 0 scenes" in result.stdout
@@ -160,22 +164,22 @@ class TestAnalyzeCommand:
     def test_analyze_current_directory(self):
         """Test analyze with no path argument (current directory)."""
         result = runner.invoke(app, ["analyze", "--dry-run"])
-        
+
         # Should at least run without error
         assert result.exit_code == 0
 
     def test_analyze_updates_file(self, temp_fountain_files):
         """Test that analyze actually updates files."""
         simple_file = temp_fountain_files / "simple.fountain"
-        
+
         # Run analyze with force to ensure processing
         result = runner.invoke(
-            app, 
+            app,
             ["analyze", str(simple_file), "--force", "--analyzer", "emotional_tone"]
         )
-        
+
         assert result.exit_code == 0
-        
+
         # Check that metadata was added
         content = simple_file.read_text()
         assert "SCRIPTRAG-META-START" in content
@@ -187,5 +191,5 @@ class TestAnalyzeCommand:
         """Test analyze with git change detection."""
         # This test only runs if we're in a git repo
         result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
-        
+
         assert result.exit_code == 0

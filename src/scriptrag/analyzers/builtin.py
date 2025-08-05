@@ -12,7 +12,7 @@ class NOPAnalyzer(BaseSceneAnalyzer):
     """
 
     name = "nop"
-    
+
     async def analyze(self, scene: dict) -> dict:
         """Perform no analysis and return empty results.
         

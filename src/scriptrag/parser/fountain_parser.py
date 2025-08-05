@@ -118,7 +118,9 @@ class FountainParser:
             # Skip scenes without headers (like FADE IN sections)
             if jouvence_scene.header:
                 scene_number += 1
-                scene = self._process_jouvence_scene(scene_number, jouvence_scene, content)
+                scene = self._process_jouvence_scene(
+                    scene_number, jouvence_scene, content
+                )
                 scenes.append(scene)
 
         return Script(title=title, author=author, scenes=scenes, metadata=metadata)
@@ -169,7 +171,9 @@ class FountainParser:
             # Skip scenes without headers (like FADE IN sections)
             if jouvence_scene.header:
                 scene_number += 1
-                scene = self._process_jouvence_scene(scene_number, jouvence_scene, content)
+                scene = self._process_jouvence_scene(
+                    scene_number, jouvence_scene, content
+                )
                 scenes.append(scene)
 
         script = Script(title=title, author=author, scenes=scenes, metadata=metadata)
@@ -232,7 +236,10 @@ class FountainParser:
             rest = heading[4:].strip()
         elif heading_upper.startswith("INT./EXT.") or heading_upper.startswith("I/E."):
             scene_type = "INT/EXT"
-            rest = heading[9:].strip() if heading_upper.startswith("INT./EXT.") else heading[4:].strip()
+            if heading_upper.startswith("INT./EXT."):
+                rest = heading[9:].strip()
+            else:
+                rest = heading[4:].strip()
         else:
             rest = heading
 
@@ -292,7 +299,9 @@ class FountainParser:
             original_text = heading
         else:
             # Find the next scene heading or end of file
-            next_scene_pattern = re.compile(r"^(INT\.|EXT\.|EST\.|INT\./EXT\.|I/E\.)", re.MULTILINE)
+            next_scene_pattern = re.compile(
+                r"^(INT\.|EXT\.|EST\.|INT\./EXT\.|I/E\.)", re.MULTILINE
+            )
             match = next_scene_pattern.search(full_content, scene_start + len(heading))
             scene_end = match.start() if match else len(full_content)
             original_text = full_content[scene_start:scene_end].rstrip()
@@ -364,14 +373,21 @@ class FountainParser:
                 pass
 
             # Replace existing boneyard
-            new_boneyard = f"/* SCRIPTRAG-META-START\n{json.dumps(metadata, indent=2)}\nSCRIPTRAG-META-END */"
+            boneyard_json = json.dumps(metadata, indent=2)
+            new_boneyard = (
+                f"/* SCRIPTRAG-META-START\n{boneyard_json}\nSCRIPTRAG-META-END */"
+            )
             new_scene_text = self.BONEYARD_PATTERN.sub(new_boneyard, scene_text)
         else:
             # Insert new boneyard at end of scene
-            new_boneyard = f"\n\n/* SCRIPTRAG-META-START\n{json.dumps(metadata, indent=2)}\nSCRIPTRAG-META-END */"
+            boneyard_json = json.dumps(metadata, indent=2)
+            new_boneyard = (
+                f"\n\n/* SCRIPTRAG-META-START\n{boneyard_json}\nSCRIPTRAG-META-END */"
+            )
             new_scene_text = scene_text.rstrip() + new_boneyard
 
         # Replace in content
-        content = content[:scene_start] + new_scene_text + content[scene_start + len(scene_text):]
-
-        return content
+        return (
+            content[:scene_start] + new_scene_text +
+            content[scene_start + len(scene_text):]
+        )

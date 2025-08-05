@@ -114,11 +114,11 @@ class ScriptLister:
         try:
             # First try with FountainParser
             script = self._parser.parse_file(file_path)
-            
+
             # Extract basic metadata
             metadata.title = script.title
             metadata.author = script.author
-            
+
             # Extract episode/season from script metadata
             if "episode" in script.metadata:
                 metadata.episode_number = script.metadata["episode"]
@@ -128,7 +128,7 @@ class ScriptLister:
                 ep_match = self._episode_pattern.search(title)
                 if ep_match:
                     metadata.episode_number = int(ep_match.group(1))
-                    
+
             if "season" in script.metadata:
                 metadata.season_number = script.metadata["season"]
             elif metadata.title:
@@ -137,7 +137,7 @@ class ScriptLister:
                 season_match = self._season_pattern.search(title)
                 if season_match:
                     metadata.season_number = int(season_match.group(1))
-                    
+
         except Exception as e:
             logger.warning(
                 "Failed to parse fountain file with parser, trying fallback",
@@ -173,19 +173,21 @@ class ScriptLister:
             metadata: Metadata object to update
         """
         content = file_path.read_text(encoding="utf-8")
-        
+
         # Title page is at the beginning, before the first blank line
         title_page_end = content.find("\n\n")
         if title_page_end == -1:
             title_page_content = content
         else:
             title_page_content = content[:title_page_end]
-            
+
         # Simple regex for title page
-        title_match = re.search(r"^Title:\s*(.+)$", title_page_content, re.MULTILINE | re.IGNORECASE)
+        title_match = re.search(
+            r"^Title:\s*(.+)$", title_page_content, re.MULTILINE | re.IGNORECASE
+        )
         if title_match:
             metadata.title = title_match.group(1).strip()
-            
+
         author_match = re.search(
             r"^(?:Author|Authors|Written by|Writer|Writers):\s*(.+)$",
             title_page_content,

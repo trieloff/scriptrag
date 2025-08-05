@@ -1,13 +1,12 @@
 """Unit tests for the analyze API."""
 
-import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from scriptrag.api.analyze import FileResult, AnalyzeCommand, AnalyzeResult
 from scriptrag.analyzers.base import BaseSceneAnalyzer
+from scriptrag.api.analyze import AnalyzeCommand, AnalyzeResult, FileResult
 
 
 class MockAnalyzer(BaseSceneAnalyzer):
@@ -80,7 +79,7 @@ class TestAnalyzeCommand:
         """Test loading a registered analyzer."""
         analyze_command.register_analyzer("test", MockAnalyzer)
         analyze_command.load_analyzer("test")
-        
+
         assert len(analyze_command.analyzers) == 1
         assert isinstance(analyze_command.analyzers[0], MockAnalyzer)
         assert analyze_command.analyzers[0].name == "mock_analyzer"
@@ -88,7 +87,7 @@ class TestAnalyzeCommand:
     def test_load_analyzer_builtin(self, analyze_command):
         """Test loading a built-in analyzer."""
         analyze_command.load_analyzer("nop")
-        
+
         assert len(analyze_command.analyzers) == 1
         assert analyze_command.analyzers[0].name == "nop"
 
@@ -101,7 +100,7 @@ class TestAnalyzeCommand:
         """Test loading the same analyzer twice."""
         analyze_command.load_analyzer("nop")
         analyze_command.load_analyzer("nop")
-        
+
         # Should only be loaded once
         assert len(analyze_command.analyzers) == 1
 
@@ -109,7 +108,7 @@ class TestAnalyzeCommand:
     async def test_analyze_no_files(self, analyze_command, tmp_path):
         """Test analyze with no fountain files."""
         result = await analyze_command.analyze(path=tmp_path)
-        
+
         assert isinstance(result, AnalyzeResult)
         assert result.files == []
         assert result.errors == []
@@ -121,12 +120,12 @@ class TestAnalyzeCommand:
         """Test analyze with a fountain file."""
         # Add a mock analyzer
         analyze_command.analyzers.append(MockAnalyzer())
-        
+
         result = await analyze_command.analyze(
             path=temp_fountain_file.parent,
             force=True,  # Force processing
         )
-        
+
         assert isinstance(result, AnalyzeResult)
         assert len(result.files) == 1
         assert result.files[0].path == temp_fountain_file
@@ -141,11 +140,11 @@ class TestAnalyzeCommand:
             force=True,
             dry_run=True,
         )
-        
+
         assert isinstance(result, AnalyzeResult)
         assert len(result.files) == 1
         assert result.files[0].updated
-        
+
         # File should not have been modified
         content = temp_fountain_file.read_text()
         assert "SCRIPTRAG-META-START" not in content
@@ -154,16 +153,16 @@ class TestAnalyzeCommand:
     async def test_analyze_with_progress_callback(self, analyze_command, temp_fountain_file):
         """Test analyze with progress callback."""
         progress_calls = []
-        
+
         def progress_callback(pct: float, msg: str) -> None:
             progress_calls.append((pct, msg))
-        
+
         await analyze_command.analyze(
             path=temp_fountain_file.parent,
             force=True,
             progress_callback=progress_callback,
         )
-        
+
         assert len(progress_calls) > 0
         assert all(0 <= pct <= 1 for pct, _ in progress_calls)
 
@@ -173,19 +172,19 @@ class TestAnalyzeCommand:
         # Create a file that will cause an error
         bad_file = tmp_path / "bad.fountain"
         bad_file.write_text("This is not a valid fountain file")
-        
+
         with patch("scriptrag.api.analyze.FountainParser") as mock_parser:
             mock_parser.return_value.parse_file.side_effect = Exception("Parse error")
-            
+
             result = await analyze_command.analyze(path=tmp_path)
-            
+
             assert len(result.errors) == 1
             assert "Parse error" in result.errors[0]
 
     def test_scene_needs_update_no_metadata(self, analyze_command):
         """Test _scene_needs_update with no metadata."""
         from scriptrag.parser import Scene
-        
+
         scene = Scene(
             number=1,
             heading="INT. TEST - DAY",
@@ -194,13 +193,13 @@ class TestAnalyzeCommand:
             content_hash="abc123",
             boneyard_metadata=None,
         )
-        
+
         assert analyze_command._scene_needs_update(scene) is True
 
     def test_scene_needs_update_missing_analyzed_at(self, analyze_command):
         """Test _scene_needs_update with missing analyzed_at."""
         from scriptrag.parser import Scene
-        
+
         scene = Scene(
             number=1,
             heading="INT. TEST - DAY",
@@ -209,15 +208,15 @@ class TestAnalyzeCommand:
             content_hash="abc123",
             boneyard_metadata={"some": "data"},
         )
-        
+
         assert analyze_command._scene_needs_update(scene) is True
 
     def test_scene_needs_update_new_analyzer(self, analyze_command):
         """Test _scene_needs_update with new analyzer."""
         from scriptrag.parser import Scene
-        
+
         analyze_command.analyzers.append(MockAnalyzer())
-        
+
         scene = Scene(
             number=1,
             heading="INT. TEST - DAY",
@@ -229,15 +228,15 @@ class TestAnalyzeCommand:
                 "analyzers": {"other_analyzer": {}},
             },
         )
-        
+
         assert analyze_command._scene_needs_update(scene) is True
 
     def test_scene_needs_update_up_to_date(self, analyze_command):
         """Test _scene_needs_update with up-to-date scene."""
         from scriptrag.parser import Scene
-        
+
         analyze_command.analyzers.append(MockAnalyzer())
-        
+
         scene = Scene(
             number=1,
             heading="INT. TEST - DAY",
@@ -249,7 +248,7 @@ class TestAnalyzeCommand:
                 "analyzers": {"mock_analyzer": {}},
             },
         )
-        
+
         assert analyze_command._scene_needs_update(scene) is False
 
 
@@ -271,6 +270,6 @@ class TestAnalyzeResult:
                 FileResult(Path("file3.fountain"), updated=True, scenes_updated=2),
             ]
         )
-        
+
         assert result.total_files_updated == 2
         assert result.total_scenes_updated == 5

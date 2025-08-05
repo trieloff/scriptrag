@@ -2,4 +2,4 @@
 
 from .git_detector import FileChange, GitChangeDetector, SceneBlame
 
-__all__ = ["GitChangeDetector", "FileChange", "SceneBlame"]
+__all__ = ["FileChange", "GitChangeDetector", "SceneBlame"]

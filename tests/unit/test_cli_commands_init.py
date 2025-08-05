@@ -113,6 +113,11 @@ log_level = "DEBUG"
             result = runner.invoke(app, ["--config", str(config_file)])
 
             # Should succeed
+            if result.exit_code != 0:
+                print(f"Exit code: {result.exit_code}")
+                print(f"Stdout: {result.stdout}")
+                print(f"Stderr: {result.stderr}")
+                print(f"Exception: {result.exception}")
             assert result.exit_code == 0
 
             # Verify settings were loaded from config file

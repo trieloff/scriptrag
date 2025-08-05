@@ -7,7 +7,7 @@ from typing import Callable, Protocol
 
 from scriptrag.api.list import ScriptLister
 from scriptrag.config import get_logger, get_settings
-from scriptrag.parser import FountainParser
+from scriptrag.parser import FountainParser, Scene, Script
 from scriptrag.synchronizer import GitChangeDetector
 
 logger = get_logger(__name__)
@@ -279,7 +279,7 @@ class AnalyzeCommand:
             logger.error(f"Error processing {file_path}: {e}")
             raise
 
-    def _file_needs_update(self, file_path: Path, script: object) -> bool:
+    def _file_needs_update(self, file_path: Path, script: Script) -> bool:
         """Check if a file needs updating.
 
         Args:
@@ -290,8 +290,6 @@ class AnalyzeCommand:
             True if file needs processing
         """
         # Check if any scene needs updating
-        from scriptrag.parser import Script
-        
         if isinstance(script, Script):
             for scene in script.scenes:
                 if self._scene_needs_update(scene):
@@ -299,7 +297,7 @@ class AnalyzeCommand:
         
         return False
 
-    def _scene_needs_update(self, scene: object) -> bool:
+    def _scene_needs_update(self, scene: Scene) -> bool:
         """Check if a scene needs updating.
 
         Args:
@@ -308,8 +306,6 @@ class AnalyzeCommand:
         Returns:
             True if scene needs processing
         """
-        from scriptrag.parser import Scene
-        
         if not isinstance(scene, Scene):
             return False
             

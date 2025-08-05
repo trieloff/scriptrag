@@ -82,11 +82,16 @@ class FountainParser:
         Returns:
             Parsed Script object with scenes
         """
+        # Apply the same jouvence boneyard bug workaround as in parse_file()
+        # See parse_file() for detailed explanation of this workaround
+        boneyard_pattern = re.compile(r"/\*.*?\*/", re.DOTALL)
+        cleaned_content = boneyard_pattern.sub("", content)
+        
         # Parse using jouvence
         # Note: jouvence 0.4.2 has a bug where parse() with file objects
         # references an undefined variable 'fp'. Use parseString() instead.
         parser = JouvenceParser()
-        doc = parser.parseString(content)
+        doc = parser.parseString(cleaned_content)
 
         # Extract title and author from metadata
         title = doc.title_values.get("title") if doc.title_values else None
@@ -146,9 +151,29 @@ class FountainParser:
         # Get the full content for scene processing
         content = file_path.read_text(encoding="utf-8")
 
-        # Workaround for jouvence bug: temporarily remove ALL boneyard comments
-        # to prevent infinite loop in boneyard parsing
-        # This is a broader pattern that catches all /* */ comments
+        # WORKAROUND for jouvence v0.4.2 infinite loop bug:
+        # 
+        # ISSUE: The jouvence parser (v0.4.2) has a bug where it enters an infinite
+        # loop when parsing certain boneyard comments. Specifically, when the parser
+        # encounters boneyard comments like our SCRIPTRAG-META blocks, it gets stuck
+        # in the RE_BONEYARD_END pattern matching at parser.py:540 in peekline().
+        # This causes tests to hang indefinitely until they timeout.
+        #
+        # ROOT CAUSE: The jouvence parser's state machine for boneyard parsing has
+        # a logic error that prevents it from properly detecting the end of certain
+        # boneyard comment patterns, causing it to loop forever.
+        #
+        # WORKAROUND: We temporarily strip ALL boneyard comments (/* ... */) from
+        # the content before passing it to jouvence for parsing. This prevents the
+        # infinite loop from occurring. We preserve our SCRIPTRAG-META blocks by:
+        # 1. First saving their locations and content
+        # 2. Removing all boneyard comments for parsing
+        # 3. Re-inserting our metadata after parsing completes
+        #
+        # This workaround can be removed once jouvence fixes the boneyard parsing bug.
+        # The metadata remains intact in the original files - we only strip it during
+        # the parsing phase to avoid triggering the jouvence bug.
+        
         boneyard_pattern = re.compile(r"/\*.*?\*/", re.DOTALL)
         scriptrag_metadata_blocks = []
         cleaned_content = content

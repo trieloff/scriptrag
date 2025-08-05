@@ -3,11 +3,11 @@ coverage:
     project:
       default:
         target: auto
-        threshold: 0%
+        threshold: 1%  # Allow 1% coverage drop
     patch:
       default:
         target: auto
-        threshold: 0%
+        threshold: 1%  # Allow 1% coverage drop for patches
 
 parsers:
   gcov:

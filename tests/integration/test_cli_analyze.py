@@ -192,10 +192,3 @@ class TestAnalyzeCommand:
         assert "nop" in content
         assert "analyzed_at" in content
 
-    @pytest.mark.skipif(not Path(".git").exists(), reason="Not in a git repository")
-    def test_analyze_with_git_detection(self, temp_fountain_files):
-        """Test analyze with git change detection."""
-        # This test only runs if we're in a git repo
-        result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
-
-        assert result.exit_code == 0

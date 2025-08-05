@@ -333,6 +333,5 @@ class AnalyzeCommand:
                 # New analyzers to run
                 return True
 
-        # Could also check git history here
         # For now, consider up to date
         return False

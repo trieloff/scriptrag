@@ -110,14 +110,16 @@ log_level = "DEBUG"
             mock_class.return_value = mock_initializer
 
             runner = CliRunner()
-            result = runner.invoke(app, ["--config", str(config_file)])
+            # When app has multiple commands (like in v2), we need to specify "init"
+            # When app has single command (current branch), init is the default
+            # Try with "init" first for v2 compatibility
+            result = runner.invoke(app, ["init", "--config", str(config_file)])
+
+            # If that fails with "unexpected argument", try without "init"
+            if result.exit_code == 2 and "unexpected extra argument" in result.stderr:
+                result = runner.invoke(app, ["--config", str(config_file)])
 
             # Should succeed
-            if result.exit_code != 0:
-                print(f"Exit code: {result.exit_code}")
-                print(f"Stdout: {result.stdout}")
-                print(f"Stderr: {result.stderr}")
-                print(f"Exception: {result.exception}")
             assert result.exit_code == 0
 
             # Verify settings were loaded from config file

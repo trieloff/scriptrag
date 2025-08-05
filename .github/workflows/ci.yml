@@ -163,10 +163,10 @@ jobs:
         run: make install
 
       - name: Run canary tests (minimal, fail-fast)
-        timeout-minutes: 10
+        timeout-minutes: 3
         run: |
-          echo "🐤 Running canary tests with minimal output and 10 error limit"
-          SCRIPTRAG_LOG_LEVEL=ERROR uv run pytest -x -q --tb=short --maxfail=10 --disable-warnings --junit-xml=junit.xml -o log_cli=false --capture=fd
+          echo "🐤 Running canary tests with minimal output, 10 error limit, and 15s per-test timeout"
+          SCRIPTRAG_LOG_LEVEL=ERROR uv run pytest -x -q --tb=short --maxfail=10 --disable-warnings --junit-xml=junit.xml -o log_cli=false --capture=fd --timeout=15 --timeout-method=thread
         env:
           PYTHONPATH: src
 

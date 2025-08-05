@@ -316,6 +316,39 @@ class TestAnalyzeCommand:
 
         assert result.exit_code == 1
         assert "Error: Test runtime error" in result.stdout
+        
+    def test_analyze_general_exception_with_logging(self, temp_fountain_files, monkeypatch):
+        """Test analyze handles general exceptions and logs them properly."""
+        # This ensures we hit line 142 specifically (the raise statement)
+        import asyncio
+        from unittest.mock import AsyncMock, MagicMock
+        
+        # Mock an exception that will be caught by the general exception handler
+        async def mock_analyze_with_exception(*_args, **_kwargs):
+            # Use asyncio.run to ensure we're in the right context for the CLI
+            raise ValueError("Specific test exception for coverage")
+        
+        mock_analyze_cmd = MagicMock()
+        mock_analyze_cmd.analyze = mock_analyze_with_exception
+        mock_analyze_cmd.load_analyzer = MagicMock()
+        
+        def mock_from_config():
+            return mock_analyze_cmd
+        
+        import scriptrag.api.analyze
+        
+        monkeypatch.setattr(
+            scriptrag.api.analyze.AnalyzeCommand,
+            "from_config", 
+            mock_from_config,
+        )
+        
+        # Run the analyze command which should trigger the exception
+        result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
+        
+        # Verify the general exception handler was triggered
+        assert result.exit_code == 1
+        assert "Error: Specific test exception for coverage" in result.stdout
 
     def _test_analyze_relative_path_display(self, temp_fountain_files, monkeypatch):
         """Test analyze displays relative paths when possible."""

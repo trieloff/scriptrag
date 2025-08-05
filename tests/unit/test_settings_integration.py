@@ -21,8 +21,13 @@ def clean_settings():
 class TestSettingsIntegration:
     """Test settings loading from multiple sources."""
 
-    def test_database_settings_defaults(self):
+    def test_database_settings_defaults(self, monkeypatch):
         """Test default database settings."""
+        # Clear any environment variables that could interfere with defaults
+        for key in list(os.environ.keys()):
+            if key.startswith("SCRIPTRAG_"):
+                monkeypatch.delenv(key, raising=False)
+
         settings = ScriptRAGSettings(_env_file=None)
 
         # Check database settings
@@ -34,8 +39,13 @@ class TestSettingsIntegration:
         assert settings.database_cache_size == -2000
         assert settings.database_temp_store == "MEMORY"
 
-    def test_logging_settings_defaults(self):
+    def test_logging_settings_defaults(self, monkeypatch):
         """Test default logging settings."""
+        # Clear any environment variables that could interfere with defaults
+        for key in list(os.environ.keys()):
+            if key.startswith("SCRIPTRAG_"):
+                monkeypatch.delenv(key, raising=False)
+
         settings = ScriptRAGSettings(_env_file=None)
 
         # Check logging settings

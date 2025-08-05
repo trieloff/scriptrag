@@ -2,13 +2,13 @@
 
 from scriptrag.api.database import DatabaseInitializer
 from scriptrag.api.list import FountainMetadata, ScriptLister
-from scriptrag.api.pull import PullCommand, PullResult, FileResult
+from scriptrag.api.analyze import AnalyzeCommand, AnalyzeResult, FileResult
 
 __all__ = [
     "DatabaseInitializer",
     "FountainMetadata",
     "ScriptLister",
-    "PullCommand",
-    "PullResult",
+    "AnalyzeCommand",
+    "AnalyzeResult",
     "FileResult",
 ]

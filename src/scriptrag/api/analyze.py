@@ -1,4 +1,4 @@
-"""Script pull API module for ScriptRAG."""
+"""Script analyze API module for ScriptRAG."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -24,8 +24,8 @@ class FileResult:
 
 
 @dataclass
-class PullResult:
-    """Result from a pull operation."""
+class AnalyzeResult:
+    """Result from an analyze operation."""
 
     files: list[FileResult] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
@@ -54,14 +54,14 @@ class SceneAnalyzer(Protocol):
         ...
 
 
-class PullCommand:
-    """Orchestrates the pull operation."""
+class AnalyzeCommand:
+    """Orchestrates the analyze operation."""
 
     def __init__(
         self,
         analyzers: list[SceneAnalyzer] | None = None,
     ):
-        """Initialize pull command.
+        """Initialize analyze command.
 
         Args:
             analyzers: Optional list of scene analyzers
@@ -70,8 +70,8 @@ class PullCommand:
         self._analyzer_registry: dict[str, type[SceneAnalyzer]] = {}
 
     @classmethod
-    def from_config(cls) -> "PullCommand":
-        """Create PullCommand from configuration."""
+    def from_config(cls) -> "AnalyzeCommand":
+        """Create AnalyzeCommand from configuration."""
         return cls()
 
     def register_analyzer(self, name: str, analyzer_class: type[SceneAnalyzer]) -> None:
@@ -116,15 +116,15 @@ class PullCommand:
         self.analyzers.append(analyzer_class())
         logger.info(f"Loaded registered analyzer: {name}")
 
-    async def pull(
+    async def analyze(
         self,
         path: Path | None = None,
         recursive: bool = True,
         force: bool = False,
         dry_run: bool = False,
         progress_callback: Callable[[float, str], None] | None = None,
-    ) -> PullResult:
-        """Execute pull operation.
+    ) -> AnalyzeResult:
+        """Execute analyze operation.
 
         Args:
             path: Path to search for Fountain files
@@ -134,9 +134,9 @@ class PullCommand:
             progress_callback: Optional callback for progress updates
 
         Returns:
-            PullResult with details of the operation
+            AnalyzeResult with details of the operation
         """
-        result = PullResult()
+        result = AnalyzeResult()
 
         try:
             # Step 1: Find all Fountain files
@@ -164,8 +164,7 @@ class PullCommand:
                     result.files.append(file_result)
                 except Exception as e:
                     logger.error(
-                        f"Failed to process {script_meta.file_path}: {e}",
-                        exc_info=True,
+                        f"Failed to process {script_meta.file_path}: {str(e)}"
                     )
                     result.files.append(
                         FileResult(
@@ -177,8 +176,8 @@ class PullCommand:
                     result.errors.append(f"{script_meta.file_path}: {e}")
 
         except Exception as e:
-            logger.error(f"Pull operation failed: {e}", exc_info=True)
-            result.errors.append(f"Pull failed: {e}")
+            logger.error(f"Analyze operation failed: {str(e)}")
+            result.errors.append(f"Analyze failed: {str(e)}")
 
         return result
 

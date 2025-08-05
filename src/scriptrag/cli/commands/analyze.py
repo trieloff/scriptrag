@@ -1,4 +1,4 @@
-"""CLI command for scriptrag pull."""
+"""CLI command for scriptrag analyze."""
 
 import asyncio
 from pathlib import Path
@@ -17,7 +17,7 @@ app = typer.Typer()
 
 
 @app.command()
-def pull(
+def analyze(
     path: Annotated[
         Path | None,
         typer.Argument(help="Path to search for Fountain files (default: current directory)"),
@@ -39,26 +39,27 @@ def pull(
         typer.Option("--analyzer", "-a", help="Additional analyzers to run (can be specified multiple times)"),
     ] = None,
 ) -> None:
-    """Pull and update metadata for all Fountain files.
+    """Analyze Fountain files and update their metadata.
 
     This command:
     1. Finds all Fountain files in the specified path
-    2. Uses git history to detect which scenes have changed
-    3. Processes changed scenes to extract/update metadata
+    2. Parses scenes and existing boneyard metadata
+    3. Runs analyzers to extract semantic information
     4. Updates boneyard sections in the Fountain files
-    5. Updates the database index for searching
+    
+    Note: This command does not update the database.
     """
     try:
-        from ...api.pull import PullCommand
+        from ...api.analyze import AnalyzeCommand
         
         # Initialize components
-        pull_cmd = PullCommand.from_config()
+        analyze_cmd = AnalyzeCommand.from_config()
         
         # Load requested analyzers
         if analyzer:
             for analyzer_name in analyzer:
                 try:
-                    pull_cmd.load_analyzer(analyzer_name)
+                    analyze_cmd.load_analyzer(analyzer_name)
                     logger.debug(f"Loaded analyzer: {analyzer_name}")
                 except Exception as e:
                     console.print(f"[yellow]Warning: Failed to load analyzer '{analyzer_name}': {e}[/yellow]")
@@ -69,13 +70,13 @@ def pull(
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            task = progress.add_task("Pulling screenplay updates...", total=None)
+            task = progress.add_task("Analyzing screenplay files...", total=None)
             
             def update_progress(pct: float, msg: str) -> None:
                 progress.update(task, description=msg)
             
             result = asyncio.run(
-                pull_cmd.pull(
+                analyze_cmd.analyze(
                     path=path,
                     recursive=not no_recursive,
                     force=force,
@@ -124,5 +125,5 @@ def pull(
         raise typer.Exit(1) from e
     except Exception as e:
         console.print(f"[red]Error: {e}[/red]")
-        logger.exception("Pull command failed")
+        logger.exception("Analyze command failed")
         raise typer.Exit(1) from e

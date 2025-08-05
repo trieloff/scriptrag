@@ -1,4 +1,4 @@
-"""Scene analyzers for ScriptRAG pull command."""
+"""Scene analyzers for ScriptRAG analyze command."""
 
 from .base import BaseSceneAnalyzer
 from .builtin import BUILTIN_ANALYZERS, EmotionalToneAnalyzer, ThemeAnalyzer

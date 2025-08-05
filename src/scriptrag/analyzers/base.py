@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 class BaseSceneAnalyzer(ABC):
     """Base class for pluggable scene analyzers.
 
-    Scene analyzers are used by the pull command to extract
+    Scene analyzers are used by the analyze command to extract
     additional metadata from scenes beyond the basic extraction.
     """
 

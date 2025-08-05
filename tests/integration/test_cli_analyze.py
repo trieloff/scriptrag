@@ -1,4 +1,4 @@
-"""Integration tests for the pull CLI command."""
+"""Integration tests for the analyze CLI command."""
 
 from pathlib import Path
 
@@ -63,21 +63,21 @@ An outdoor scene.
     return tmp_path
 
 
-class TestPullCommand:
-    """Test the pull CLI command."""
+class TestAnalyzeCommand:
+    """Test the analyze CLI command."""
 
-    def test_pull_help(self):
-        """Test pull command help."""
-        result = runner.invoke(app, ["pull", "--help"])
+    def test_analyze_help(self):
+        """Test analyze command help."""
+        result = runner.invoke(app, ["analyze", "--help"])
         assert result.exit_code == 0
-        assert "Pull and update metadata" in result.stdout
+        assert "Analyze Fountain files" in result.stdout
         assert "--force" in result.stdout
         assert "--dry-run" in result.stdout
         assert "--analyzer" in result.stdout
 
-    def test_pull_basic(self, temp_fountain_files):
-        """Test basic pull command."""
-        result = runner.invoke(app, ["pull", str(temp_fountain_files)])
+    def test_analyze_basic(self, temp_fountain_files):
+        """Test basic analyze command."""
+        result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
         
         # Should succeed even if no updates needed
         if result.exit_code != 0:
@@ -87,44 +87,44 @@ class TestPullCommand:
         assert result.exit_code == 0
         assert "Total:" in result.stdout
 
-    def test_pull_force(self, temp_fountain_files):
-        """Test pull with force flag."""
-        result = runner.invoke(app, ["pull", str(temp_fountain_files), "--force"])
+    def test_analyze_force(self, temp_fountain_files):
+        """Test analyze with force flag."""
+        result = runner.invoke(app, ["analyze", str(temp_fountain_files), "--force"])
         
         assert result.exit_code == 0
         assert "Updated:" in result.stdout or "Would update:" in result.stdout
 
-    def test_pull_dry_run(self, temp_fountain_files):
-        """Test pull with dry run."""
-        result = runner.invoke(app, ["pull", str(temp_fountain_files), "--dry-run", "--force"])
+    def test_analyze_dry_run(self, temp_fountain_files):
+        """Test analyze with dry run."""
+        result = runner.invoke(app, ["analyze", str(temp_fountain_files), "--dry-run", "--force"])
         
         assert result.exit_code == 0
         assert "DRY RUN" in result.stdout
         assert "Would update:" in result.stdout
 
-    def test_pull_no_recursive(self, temp_fountain_files):
-        """Test pull without recursive search."""
-        result = runner.invoke(app, ["pull", str(temp_fountain_files), "--no-recursive", "--force"])
+    def test_analyze_no_recursive(self, temp_fountain_files):
+        """Test analyze without recursive search."""
+        result = runner.invoke(app, ["analyze", str(temp_fountain_files), "--no-recursive", "--force"])
         
         assert result.exit_code == 0
         # Should not include the nested file
         assert "nested.fountain" not in result.stdout
 
-    def test_pull_with_analyzer(self, temp_fountain_files):
-        """Test pull with specific analyzer."""
+    def test_analyze_with_analyzer(self, temp_fountain_files):
+        """Test analyze with specific analyzer."""
         result = runner.invoke(
             app, 
-            ["pull", str(temp_fountain_files), "--force", "--analyzer", "themes"]
+            ["analyze", str(temp_fountain_files), "--force", "--analyzer", "themes"]
         )
         
         assert result.exit_code == 0
 
-    def test_pull_with_multiple_analyzers(self, temp_fountain_files):
-        """Test pull with multiple analyzers."""
+    def test_analyze_with_multiple_analyzers(self, temp_fountain_files):
+        """Test analyze with multiple analyzers."""
         result = runner.invoke(
             app, 
             [
-                "pull", 
+                "analyze", 
                 str(temp_fountain_files), 
                 "--force",
                 "--analyzer", "themes",
@@ -134,11 +134,11 @@ class TestPullCommand:
         
         assert result.exit_code == 0
 
-    def test_pull_with_invalid_analyzer(self, temp_fountain_files):
-        """Test pull with invalid analyzer."""
+    def test_analyze_with_invalid_analyzer(self, temp_fountain_files):
+        """Test analyze with invalid analyzer."""
         result = runner.invoke(
             app, 
-            ["pull", str(temp_fountain_files), "--analyzer", "nonexistent"]
+            ["analyze", str(temp_fountain_files), "--analyzer", "nonexistent"]
         )
         
         # Should show warning but continue
@@ -146,32 +146,32 @@ class TestPullCommand:
         assert "Warning" in result.stdout
         assert "nonexistent" in result.stdout
 
-    def test_pull_no_files(self, tmp_path):
-        """Test pull with no fountain files."""
+    def test_analyze_no_files(self, tmp_path):
+        """Test analyze with no fountain files."""
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
         
-        result = runner.invoke(app, ["pull", str(empty_dir)])
+        result = runner.invoke(app, ["analyze", str(empty_dir)])
         
         assert result.exit_code == 0
         assert "No files needed updating" in result.stdout
         assert "Total: 0 scenes" in result.stdout
 
-    def test_pull_current_directory(self):
-        """Test pull with no path argument (current directory)."""
-        result = runner.invoke(app, ["pull", "--dry-run"])
+    def test_analyze_current_directory(self):
+        """Test analyze with no path argument (current directory)."""
+        result = runner.invoke(app, ["analyze", "--dry-run"])
         
         # Should at least run without error
         assert result.exit_code == 0
 
-    def test_pull_updates_file(self, temp_fountain_files):
-        """Test that pull actually updates files."""
+    def test_analyze_updates_file(self, temp_fountain_files):
+        """Test that analyze actually updates files."""
         simple_file = temp_fountain_files / "simple.fountain"
         
-        # Run pull with force to ensure processing
+        # Run analyze with force to ensure processing
         result = runner.invoke(
             app, 
-            ["pull", str(simple_file), "--force", "--analyzer", "emotional_tone"]
+            ["analyze", str(simple_file), "--force", "--analyzer", "emotional_tone"]
         )
         
         assert result.exit_code == 0
@@ -183,9 +183,9 @@ class TestPullCommand:
         assert "analyzed_at" in content
 
     @pytest.mark.skipif(not Path(".git").exists(), reason="Not in a git repository")
-    def test_pull_with_git_detection(self, temp_fountain_files):
-        """Test pull with git change detection."""
+    def test_analyze_with_git_detection(self, temp_fountain_files):
+        """Test analyze with git change detection."""
         # This test only runs if we're in a git repo
-        result = runner.invoke(app, ["pull", str(temp_fountain_files)])
+        result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
         
         assert result.exit_code == 0

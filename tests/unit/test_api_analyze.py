@@ -1,4 +1,4 @@
-"""Unit tests for the pull API."""
+"""Unit tests for the analyze API."""
 
 import asyncio
 from pathlib import Path
@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from scriptrag.api.pull import FileResult, PullCommand, PullResult
+from scriptrag.api.analyze import FileResult, AnalyzeCommand, AnalyzeResult
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 
 
@@ -21,9 +21,9 @@ class MockAnalyzer(BaseSceneAnalyzer):
 
 
 @pytest.fixture
-def pull_command():
-    """Create a PullCommand instance for testing."""
-    return PullCommand()
+def analyze_command():
+    """Create an AnalyzeCommand instance for testing."""
+    return AnalyzeCommand()
 
 
 @pytest.fixture
@@ -56,93 +56,93 @@ FADE OUT.
     return file_path
 
 
-class TestPullCommand:
-    """Test PullCommand class."""
+class TestAnalyzeCommand:
+    """Test AnalyzeCommand class."""
 
     def test_init(self):
-        """Test PullCommand initialization."""
-        cmd = PullCommand()
+        """Test AnalyzeCommand initialization."""
+        cmd = AnalyzeCommand()
         assert cmd.analyzers == []
         assert cmd._analyzer_registry == {}
 
     def test_from_config(self):
-        """Test creating PullCommand from config."""
-        cmd = PullCommand.from_config()
-        assert isinstance(cmd, PullCommand)
+        """Test creating AnalyzeCommand from config."""
+        cmd = AnalyzeCommand.from_config()
+        assert isinstance(cmd, AnalyzeCommand)
 
-    def test_register_analyzer(self, pull_command):
+    def test_register_analyzer(self, analyze_command):
         """Test registering an analyzer."""
-        pull_command.register_analyzer("test", MockAnalyzer)
-        assert "test" in pull_command._analyzer_registry
-        assert pull_command._analyzer_registry["test"] == MockAnalyzer
+        analyze_command.register_analyzer("test", MockAnalyzer)
+        assert "test" in analyze_command._analyzer_registry
+        assert analyze_command._analyzer_registry["test"] == MockAnalyzer
 
-    def test_load_analyzer_registered(self, pull_command):
+    def test_load_analyzer_registered(self, analyze_command):
         """Test loading a registered analyzer."""
-        pull_command.register_analyzer("test", MockAnalyzer)
-        pull_command.load_analyzer("test")
+        analyze_command.register_analyzer("test", MockAnalyzer)
+        analyze_command.load_analyzer("test")
         
-        assert len(pull_command.analyzers) == 1
-        assert isinstance(pull_command.analyzers[0], MockAnalyzer)
-        assert pull_command.analyzers[0].name == "mock_analyzer"
+        assert len(analyze_command.analyzers) == 1
+        assert isinstance(analyze_command.analyzers[0], MockAnalyzer)
+        assert analyze_command.analyzers[0].name == "mock_analyzer"
 
-    def test_load_analyzer_builtin(self, pull_command):
+    def test_load_analyzer_builtin(self, analyze_command):
         """Test loading a built-in analyzer."""
-        pull_command.load_analyzer("emotional_tone")
+        analyze_command.load_analyzer("emotional_tone")
         
-        assert len(pull_command.analyzers) == 1
-        assert pull_command.analyzers[0].name == "emotional_tone"
+        assert len(analyze_command.analyzers) == 1
+        assert analyze_command.analyzers[0].name == "emotional_tone"
 
-    def test_load_analyzer_unknown(self, pull_command):
+    def test_load_analyzer_unknown(self, analyze_command):
         """Test loading an unknown analyzer."""
         with pytest.raises(ValueError, match="Unknown analyzer: unknown"):
-            pull_command.load_analyzer("unknown")
+            analyze_command.load_analyzer("unknown")
 
-    def test_load_analyzer_duplicate(self, pull_command):
+    def test_load_analyzer_duplicate(self, analyze_command):
         """Test loading the same analyzer twice."""
-        pull_command.load_analyzer("emotional_tone")
-        pull_command.load_analyzer("emotional_tone")
+        analyze_command.load_analyzer("emotional_tone")
+        analyze_command.load_analyzer("emotional_tone")
         
         # Should only be loaded once
-        assert len(pull_command.analyzers) == 1
+        assert len(analyze_command.analyzers) == 1
 
     @pytest.mark.asyncio
-    async def test_pull_no_files(self, pull_command, tmp_path):
-        """Test pull with no fountain files."""
-        result = await pull_command.pull(path=tmp_path)
+    async def test_analyze_no_files(self, analyze_command, tmp_path):
+        """Test analyze with no fountain files."""
+        result = await analyze_command.analyze(path=tmp_path)
         
-        assert isinstance(result, PullResult)
+        assert isinstance(result, AnalyzeResult)
         assert result.files == []
         assert result.errors == []
         assert result.total_files_updated == 0
         assert result.total_scenes_updated == 0
 
     @pytest.mark.asyncio
-    async def test_pull_with_file(self, pull_command, temp_fountain_file):
-        """Test pull with a fountain file."""
+    async def test_analyze_with_file(self, analyze_command, temp_fountain_file):
+        """Test analyze with a fountain file."""
         # Add a mock analyzer
-        pull_command.analyzers.append(MockAnalyzer())
+        analyze_command.analyzers.append(MockAnalyzer())
         
-        result = await pull_command.pull(
+        result = await analyze_command.analyze(
             path=temp_fountain_file.parent,
             force=True,  # Force processing
         )
         
-        assert isinstance(result, PullResult)
+        assert isinstance(result, AnalyzeResult)
         assert len(result.files) == 1
         assert result.files[0].path == temp_fountain_file
         assert result.files[0].updated
         assert result.files[0].scenes_updated == 2  # Two scenes in test file
 
     @pytest.mark.asyncio
-    async def test_pull_dry_run(self, pull_command, temp_fountain_file):
-        """Test pull in dry run mode."""
-        result = await pull_command.pull(
+    async def test_analyze_dry_run(self, analyze_command, temp_fountain_file):
+        """Test analyze in dry run mode."""
+        result = await analyze_command.analyze(
             path=temp_fountain_file.parent,
             force=True,
             dry_run=True,
         )
         
-        assert isinstance(result, PullResult)
+        assert isinstance(result, AnalyzeResult)
         assert len(result.files) == 1
         assert result.files[0].updated
         
@@ -151,14 +151,14 @@ class TestPullCommand:
         assert "SCRIPTRAG-META-START" not in content
 
     @pytest.mark.asyncio
-    async def test_pull_with_progress_callback(self, pull_command, temp_fountain_file):
-        """Test pull with progress callback."""
+    async def test_analyze_with_progress_callback(self, analyze_command, temp_fountain_file):
+        """Test analyze with progress callback."""
         progress_calls = []
         
         def progress_callback(pct: float, msg: str) -> None:
             progress_calls.append((pct, msg))
         
-        await pull_command.pull(
+        await analyze_command.analyze(
             path=temp_fountain_file.parent,
             force=True,
             progress_callback=progress_callback,
@@ -168,21 +168,21 @@ class TestPullCommand:
         assert all(0 <= pct <= 1 for pct, _ in progress_calls)
 
     @pytest.mark.asyncio
-    async def test_pull_with_error(self, pull_command, tmp_path):
-        """Test pull with file processing error."""
+    async def test_analyze_with_error(self, analyze_command, tmp_path):
+        """Test analyze with file processing error."""
         # Create a file that will cause an error
         bad_file = tmp_path / "bad.fountain"
         bad_file.write_text("This is not a valid fountain file")
         
-        with patch("scriptrag.api.pull.FountainParser") as mock_parser:
+        with patch("scriptrag.api.analyze.FountainParser") as mock_parser:
             mock_parser.return_value.parse_file.side_effect = Exception("Parse error")
             
-            result = await pull_command.pull(path=tmp_path)
+            result = await analyze_command.analyze(path=tmp_path)
             
             assert len(result.errors) == 1
             assert "Parse error" in result.errors[0]
 
-    def test_scene_needs_update_no_metadata(self, pull_command):
+    def test_scene_needs_update_no_metadata(self, analyze_command):
         """Test _scene_needs_update with no metadata."""
         from scriptrag.parser import Scene
         
@@ -195,9 +195,9 @@ class TestPullCommand:
             boneyard_metadata=None,
         )
         
-        assert pull_command._scene_needs_update(scene) is True
+        assert analyze_command._scene_needs_update(scene) is True
 
-    def test_scene_needs_update_missing_analyzed_at(self, pull_command):
+    def test_scene_needs_update_missing_analyzed_at(self, analyze_command):
         """Test _scene_needs_update with missing analyzed_at."""
         from scriptrag.parser import Scene
         
@@ -210,13 +210,13 @@ class TestPullCommand:
             boneyard_metadata={"some": "data"},
         )
         
-        assert pull_command._scene_needs_update(scene) is True
+        assert analyze_command._scene_needs_update(scene) is True
 
-    def test_scene_needs_update_new_analyzer(self, pull_command):
+    def test_scene_needs_update_new_analyzer(self, analyze_command):
         """Test _scene_needs_update with new analyzer."""
         from scriptrag.parser import Scene
         
-        pull_command.analyzers.append(MockAnalyzer())
+        analyze_command.analyzers.append(MockAnalyzer())
         
         scene = Scene(
             number=1,
@@ -230,13 +230,13 @@ class TestPullCommand:
             },
         )
         
-        assert pull_command._scene_needs_update(scene) is True
+        assert analyze_command._scene_needs_update(scene) is True
 
-    def test_scene_needs_update_up_to_date(self, pull_command):
+    def test_scene_needs_update_up_to_date(self, analyze_command):
         """Test _scene_needs_update with up-to-date scene."""
         from scriptrag.parser import Scene
         
-        pull_command.analyzers.append(MockAnalyzer())
+        analyze_command.analyzers.append(MockAnalyzer())
         
         scene = Scene(
             number=1,
@@ -250,21 +250,21 @@ class TestPullCommand:
             },
         )
         
-        assert pull_command._scene_needs_update(scene) is False
+        assert analyze_command._scene_needs_update(scene) is False
 
 
-class TestPullResult:
-    """Test PullResult class."""
+class TestAnalyzeResult:
+    """Test AnalyzeResult class."""
 
     def test_empty_result(self):
-        """Test empty PullResult."""
-        result = PullResult()
+        """Test empty AnalyzeResult."""
+        result = AnalyzeResult()
         assert result.total_files_updated == 0
         assert result.total_scenes_updated == 0
 
     def test_result_with_files(self):
-        """Test PullResult with files."""
-        result = PullResult(
+        """Test AnalyzeResult with files."""
+        result = AnalyzeResult(
             files=[
                 FileResult(Path("file1.fountain"), updated=True, scenes_updated=3),
                 FileResult(Path("file2.fountain"), updated=False),

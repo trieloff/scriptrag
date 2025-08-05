@@ -263,11 +263,13 @@ class TestAnalyzeCommand:
         result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
 
         assert result.exit_code == 0
+        # Strip ANSI codes for reliable string matching
+        clean_output = strip_ansi_codes(result.stdout)
         # Should show first 5 errors plus a count of remaining
-        assert "Errors: 6" in result.stdout
-        assert "Error 1" in result.stdout
-        assert "Error 5" in result.stdout
-        assert "and 1 more" in result.stdout
+        assert "Errors: 6" in clean_output
+        assert "Error 1" in clean_output
+        assert "Error 5" in clean_output
+        assert "and 1 more" in clean_output
 
     def test_analyze_import_error(self, monkeypatch, tmp_path):
         """Test analyze handles import errors."""
@@ -396,6 +398,9 @@ class TestAnalyzeCommand:
         result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
 
         assert result.exit_code == 0
-        # Should display absolute path
-        assert "/absolute/path/to/file.fountain" in result.stdout
-        assert "3 scenes" in result.stdout
+        # Strip ANSI codes for reliable string matching
+        clean_output = strip_ansi_codes(result.stdout)
+        # Should display absolute path (check for both Unix and Windows path separators)
+        assert ("file.fountain" in clean_output and
+                ("absolute/path/to" in clean_output or "absolute\\path\\to" in clean_output))
+        assert "3 scenes" in clean_output

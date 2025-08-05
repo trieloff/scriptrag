@@ -1,10 +1,13 @@
-"""Fountain screenplay format parser."""
+"""Fountain screenplay format parser using jouvence library."""
 
 import hashlib
 import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import jouvence
+from jouvence.parser import FountainElement
 
 from scriptrag.config import get_logger
 
@@ -56,19 +59,7 @@ class Script:
 
 
 class FountainParser:
-    """Parse Fountain screenplay format."""
-
-    # Scene heading pattern
-    SCENE_PATTERN = re.compile(
-        r"^(INT\.|EXT\.|EST\.|INT\./EXT\.|I/E\.)\s*(.+?)(?:\s*-\s*(.+))?$",
-        re.IGNORECASE | re.MULTILINE,
-    )
-
-    # Character name pattern (all caps, possibly with extension)
-    CHARACTER_PATTERN = re.compile(r"^([A-Z][A-Z\s]+)(?:\s*\(.+\))?$")
-
-    # Parenthetical pattern
-    PARENTHETICAL_PATTERN = re.compile(r"^\(.+\)$")
+    """Parse Fountain screenplay format using jouvence."""
 
     # Boneyard metadata pattern
     BONEYARD_PATTERN = re.compile(
@@ -85,25 +76,55 @@ class FountainParser:
         Returns:
             Parsed Script object with scenes
         """
-        # Extract title page metadata
-        title, author, title_end = self._parse_title_page(content)
-
-        # Find all scenes
+        # Parse using jouvence
+        fountain_doc = jouvence.Fountain(content)
+        
+        # Extract title and author from metadata
+        title = fountain_doc.title_page.get("Title") if fountain_doc.title_page else None
+        author = fountain_doc.title_page.get("Author") if fountain_doc.title_page else None
+        
+        # Find all scene headings and process scenes
         scenes = []
-        scene_matches = list(self.SCENE_PATTERN.finditer(content[title_end:]))
-
-        for i, match in enumerate(scene_matches):
-            scene_start = match.start() + title_end
-            scene_end = (
-                scene_matches[i + 1].start() + title_end
-                if i + 1 < len(scene_matches)
-                else len(content)
+        scene_number = 0
+        current_scene_elements = []
+        current_scene_heading = None
+        current_scene_start_pos = 0
+        
+        for i, element in enumerate(fountain_doc.elements):
+            if element.element_type == "Scene Heading":
+                # Process previous scene if exists
+                if current_scene_heading is not None:
+                    scene = self._process_scene_elements(
+                        scene_number,
+                        current_scene_heading,
+                        current_scene_elements,
+                        content,
+                        current_scene_start_pos,
+                        element.original_line,
+                    )
+                    scenes.append(scene)
+                
+                # Start new scene
+                scene_number += 1
+                current_scene_heading = element
+                current_scene_elements = []
+                current_scene_start_pos = element.original_line
+            else:
+                # Add element to current scene
+                current_scene_elements.append(element)
+        
+        # Don't forget the last scene
+        if current_scene_heading is not None:
+            scene = self._process_scene_elements(
+                scene_number,
+                current_scene_heading,
+                current_scene_elements,
+                content,
+                current_scene_start_pos,
+                len(content.splitlines()),
             )
-
-            scene_text = content[scene_start:scene_end]
-            scene = self._parse_scene(i + 1, scene_text, match)
             scenes.append(scene)
-
+        
         return Script(title=title, author=author, scenes=scenes)
 
     def parse_file(self, file_path: Path) -> Script:
@@ -153,81 +174,68 @@ class FountainParser:
         file_path.write_text(content, encoding="utf-8")
         logger.info(f"Updated {len(updated_scenes)} scenes in {file_path}")
 
-    def _parse_title_page(self, content: str) -> tuple[str | None, str | None, int]:
-        """Parse title page metadata.
-
-        Returns:
-            Tuple of (title, author, end_position)
-        """
-        title = None
-        author = None
-
-        # Title page ends at first blank line
-        title_page_end = content.find("\n\n")
-        if title_page_end == -1:
-            return None, None, 0
-
-        title_page = content[:title_page_end]
-
-        # Simple pattern matching for title and author
-        for line in title_page.split("\n"):
-            if line.startswith("Title:"):
-                title = line[6:].strip()
-            elif line.startswith("Author:"):
-                author = line[7:].strip()
-
-        return title, author, title_page_end
-
-    def _parse_scene(self, number: int, scene_text: str, match: re.Match) -> Scene:
-        """Parse individual scene."""
-        # Extract scene heading components
-        scene_type = match.group(1).rstrip(".").upper()
-        location = match.group(2).strip() if match.group(2) else ""
-        time_of_day = match.group(3).strip() if match.group(3) else ""
-        heading = match.group(0)
-
-        # Extract boneyard metadata if present
-        boneyard_match = self.BONEYARD_PATTERN.search(scene_text)
-        boneyard_metadata = None
-        if boneyard_match:
-            try:
-                boneyard_metadata = json.loads(boneyard_match.group(1))
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse boneyard JSON: {e}")
-
-        # Parse dialogue and action
+    def _process_scene_elements(
+        self,
+        number: int,
+        heading_element: FountainElement,
+        elements: list[FountainElement],
+        full_content: str,
+        scene_start_line: int,
+        scene_end_line: int,
+    ) -> Scene:
+        """Process scene elements into a Scene object."""
+        heading = heading_element.element_text
+        
+        # Parse scene type and location from heading
+        scene_type = "INT"
+        location = ""
+        time_of_day = ""
+        
+        heading_upper = heading.upper()
+        if heading_upper.startswith("INT."):
+            scene_type = "INT"
+            rest = heading[4:].strip()
+        elif heading_upper.startswith("EXT."):
+            scene_type = "EXT"
+            rest = heading[4:].strip()
+        elif heading_upper.startswith("INT./EXT.") or heading_upper.startswith("I/E."):
+            scene_type = "INT/EXT"
+            rest = heading[9:].strip() if heading_upper.startswith("INT./EXT.") else heading[4:].strip()
+        else:
+            rest = heading
+            
+        # Split location and time of day
+        if " - " in rest:
+            location, time_of_day = rest.rsplit(" - ", 1)
+        else:
+            location = rest
+        
+        # Extract dialogue and action lines
         dialogue_lines = []
         action_lines = []
-
-        lines = scene_text.split("\n")[1:]  # Skip heading
+        
         i = 0
-        while i < len(lines):
-            line = lines[i].strip()
-
-            # Skip empty lines and boneyard
-            if not line or line.startswith("/*"):
-                i += 1
-                continue
-
-            # Check for character name
-            if self.CHARACTER_PATTERN.match(line):
-                character = line
-                i += 1
-
-                # Check for parenthetical
+        while i < len(elements):
+            element = elements[i]
+            
+            if element.element_type == "Character":
+                character = element.element_text
                 parenthetical = None
-                if i < len(lines) and self.PARENTHETICAL_PATTERN.match(
-                    lines[i].strip()
-                ):
-                    parenthetical = lines[i].strip()
-                    i += 1
-
-                # Collect dialogue lines
                 dialogue_text = []
-                while i < len(lines) and lines[i].strip() and not self.CHARACTER_PATTERN.match(lines[i].strip()):
-                    dialogue_text.append(lines[i].strip())
-                    i += 1
-
+                
+                # Look for parenthetical and dialogue
+                j = i + 1
+                while j < len(elements):
+                    next_elem = elements[j]
+                    if next_elem.element_type == "Parenthetical":
+                        parenthetical = next_elem.element_text
+                        j += 1
+                    elif next_elem.element_type == "Dialogue":
+                        dialogue_text.append(next_elem.element_text)
+                        j += 1
+                    else:
+                        break
+                
                 if dialogue_text:
                     dialogue_lines.append(
                         Dialogue(
@@ -236,36 +244,49 @@ class FountainParser:
                             parenthetical=parenthetical,
                         )
                     )
-            else:
-                # It's an action line
-                if line:
-                    action_lines.append(line)
+                i = j
+            elif element.element_type == "Action":
+                action_lines.append(element.element_text)
                 i += 1
-
-        # Calculate content hash (excluding boneyard)
-        content_for_hash = re.sub(
-            self.BONEYARD_PATTERN, "", scene_text
-        ).strip()
-        content_hash = hashlib.sha256(content_for_hash.encode()).hexdigest()[:16]
-
+            else:
+                i += 1
+        
+        # Get original scene text from content
+        content_lines = full_content.splitlines()
+        scene_lines = content_lines[scene_start_line:scene_end_line]
+        original_text = "\n".join(scene_lines)
+        
+        # Extract boneyard metadata if present
+        boneyard_metadata = None
+        boneyard_match = self.BONEYARD_PATTERN.search(original_text)
+        if boneyard_match:
+            try:
+                boneyard_metadata = json.loads(boneyard_match.group(1))
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse boneyard JSON: {e}")
+        
         # Build full content (for analysis)
-        content_lines = [heading]
-        content_lines.extend(action_lines)
+        content_lines_list = [heading]
+        content_lines_list.extend(action_lines)
         for dialogue in dialogue_lines:
-            content_lines.append(dialogue.character)
+            content_lines_list.append(dialogue.character)
             if dialogue.parenthetical:
-                content_lines.append(dialogue.parenthetical)
-            content_lines.append(dialogue.text)
-
+                content_lines_list.append(dialogue.parenthetical)
+            content_lines_list.append(dialogue.text)
+        
+        # Calculate content hash (excluding boneyard)
+        content_for_hash = re.sub(self.BONEYARD_PATTERN, "", original_text).strip()
+        content_hash = hashlib.sha256(content_for_hash.encode()).hexdigest()[:16]
+        
         return Scene(
             number=number,
             heading=heading,
-            content="\n".join(content_lines),
-            original_text=scene_text,
+            content="\n".join(content_lines_list),
+            original_text=original_text,
             content_hash=content_hash,
             type=scene_type,
-            location=location,
-            time_of_day=time_of_day,
+            location=location.strip(),
+            time_of_day=time_of_day.strip(),
             dialogue_lines=dialogue_lines,
             action_lines=action_lines,
             boneyard_metadata=boneyard_metadata,

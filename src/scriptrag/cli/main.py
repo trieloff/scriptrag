@@ -2,7 +2,7 @@
 
 import typer
 
-from scriptrag.cli.commands import init_command, list_command, analyze
+from scriptrag.cli.commands import init_command, list_command, analyze_command
 
 app = typer.Typer(
     name="scriptrag",
@@ -15,7 +15,7 @@ app = typer.Typer(
 app.command(name="init")(init_command)
 app.command(name="list")(list_command)
 app.command(name="ls", hidden=True)(list_command)  # Alias for list
-app.command(name="analyze")(analyze)
+app.command(name="analyze")(analyze_command)
 
 
 def main() -> None:

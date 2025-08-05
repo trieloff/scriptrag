@@ -17,7 +17,7 @@ app = typer.Typer()
 
 
 @app.command()
-def analyze(
+def analyze_command(
     path: Annotated[
         Path | None,
         typer.Argument(help="Path to search for Fountain files (default: current directory)"),

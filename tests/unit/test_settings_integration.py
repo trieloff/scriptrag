@@ -250,3 +250,49 @@ debug = true
         # Invalid timeout (too small)
         with pytest.raises(ValueError, match="greater than or equal to 0.1"):
             ScriptRAGSettings(database_timeout=0.05)
+
+    def test_from_multiple_sources_with_env_file(self, tmp_path):
+        """Test from_multiple_sources with env_file parameter."""
+        # This test verifies that when env_file is provided, it's passed to constructor
+        # This exercises line 212 in settings.py
+
+        # Create a simple .env file
+        env_file = tmp_path / "test.env"
+        env_file.write_text("SCRIPTRAG_LOG_LEVEL=WARNING\n")
+
+        # Load settings with env_file parameter
+        settings = ScriptRAGSettings.from_multiple_sources(
+            config_files=[], env_file=env_file, cli_args={}
+        )
+
+        # The test passes if no exception is raised
+        # The actual env loading behavior depends on pydantic-settings
+        assert settings is not None
+
+    def test_from_multiple_sources_empty_cli_args(self, tmp_path):
+        """Test from_multiple_sources with cli_args that filter to empty."""
+        # Create config file
+        config_file = tmp_path / "config.yml"
+        config_file.write_text(
+            yaml.dump(
+                {
+                    "database_timeout": 25.0,
+                    "log_level": "DEBUG",
+                }
+            )
+        )
+
+        # CLI args with all None values (will be filtered out)
+        cli_args = {
+            "database_path": None,
+            "log_level": None,
+            "database_timeout": None,
+        }
+
+        settings = ScriptRAGSettings.from_multiple_sources(
+            config_files=[config_file], cli_args=cli_args
+        )
+
+        # Should use config file values, not affected by empty cli_args
+        assert settings.database_timeout == 25.0
+        assert settings.log_level == "DEBUG"

@@ -1,5 +1,6 @@
 """Unit tests for init command."""
 
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from typer.testing import CliRunner
@@ -77,3 +78,44 @@ class TestInitCommand:
 
             # Verify initializer was called
             mock_initializer.initialize_database.assert_called_once()
+
+    def test_init_with_config_file(self, tmp_path):
+        """Test init command with config file parameter."""
+        config_file = tmp_path / "config.toml"
+        config_file.write_text("""
+[scriptrag]
+database_path = "/custom/path/from/config.db"
+database_timeout = 60.0
+log_level = "DEBUG"
+""")
+
+        # Mock the initializer
+        mock_initializer = Mock()
+        mock_initializer.initialize_database.return_value = tmp_path / "test.db"
+
+        # Mock get_settings to capture the settings object
+        with (
+            patch("scriptrag.cli.commands.init.DatabaseInitializer") as mock_class,
+            patch(
+                "scriptrag.config.ScriptRAGSettings.from_multiple_sources"
+            ) as mock_from_sources,
+        ):
+            # Create expected settings
+            expected_settings = Mock(
+                database_timeout=60.0,
+                log_level="DEBUG",
+                database_path=Path("/custom/path/from/config.db"),
+            )
+            mock_from_sources.return_value = expected_settings
+            mock_class.return_value = mock_initializer
+
+            runner = CliRunner()
+            result = runner.invoke(app, ["--config", str(config_file)])
+
+            # Should succeed
+            assert result.exit_code == 0
+
+            # Verify settings were loaded from config file
+            mock_from_sources.assert_called_once()
+            call_args = mock_from_sources.call_args
+            assert call_args[1]["config_files"] == [config_file]

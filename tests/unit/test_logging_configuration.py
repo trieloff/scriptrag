@@ -228,3 +228,39 @@ class TestLoggingConfiguration:
         # Check configuration
         assert handler.maxBytes == 10 * 1024 * 1024  # 10MB
         assert handler.backupCount == 5
+
+    def test_configure_logging_console_format_debug_false(self):
+        """Test logging configuration with console format and debug=False."""
+        settings = ScriptRAGSettings(
+            log_level="INFO",
+            log_format="console",
+            debug=False,  # This should not add callsite info
+        )
+
+        configure_logging(settings)
+        logger = get_logger("test")
+
+        # Capture log output
+        import io
+
+        # Create a string buffer to capture console output
+        buffer = io.StringIO()
+
+        # Get root logger and add a stream handler
+        root_logger = logging.getLogger()
+        handler = logging.StreamHandler(buffer)
+        root_logger.addHandler(handler)
+
+        # Log a message
+        logger.info("test message without debug info")
+
+        # Get the output
+        output = buffer.getvalue()
+
+        # When debug=False and format=console, callsite info should NOT be included
+        assert "filename=" not in output
+        assert "lineno=" not in output
+        assert "func_name=" not in output
+
+        # Clean up
+        root_logger.removeHandler(handler)

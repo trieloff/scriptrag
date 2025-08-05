@@ -70,7 +70,7 @@ class FountainParser:
 
     # Boneyard metadata pattern
     BONEYARD_PATTERN = re.compile(
-        r"/\*\s*SCRIPTRAG-META-START\s*\n(.*?)\nSCRIPTRAG-META-END\s*\*/",
+        r"/\*\s*SCRIPTRAG-META-START\s*\n(.*?)\nSCRIPTRAG-META-END\s*\*/\n?",
         re.DOTALL,
     )
 
@@ -209,7 +209,9 @@ class FountainParser:
                         updated_scene.boneyard_metadata,
                     )
 
-        # Write back
+        # Write back with proper end-of-file newline
+        if content and not content.endswith("\n"):
+            content += "\n"
         file_path.write_text(content, encoding="utf-8")
         logger.info(f"Updated {len(updated_scenes)} scenes in {file_path}")
 
@@ -376,7 +378,7 @@ class FountainParser:
             # Replace existing boneyard
             boneyard_json = json.dumps(metadata, indent=2)
             new_boneyard = (
-                f"/* SCRIPTRAG-META-START\n{boneyard_json}\nSCRIPTRAG-META-END */"
+                f"/* SCRIPTRAG-META-START\n{boneyard_json}\nSCRIPTRAG-META-END */\n"
             )
             new_scene_text = self.BONEYARD_PATTERN.sub(new_boneyard, scene_text)
         else:

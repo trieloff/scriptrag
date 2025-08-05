@@ -162,8 +162,10 @@ class TestAnalyzeCommand:
         result = runner.invoke(app, ["analyze", str(empty_dir)])
 
         assert result.exit_code == 0
-        assert "No files needed updating" in result.stdout
-        assert "Total: 0 scenes" in result.stdout
+        # Strip ANSI escape codes for reliable string matching
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "No files needed updating" in clean_output
+        assert "Total: 0 scenes" in clean_output
 
     def test_analyze_current_directory(self):
         """Test analyze with no path argument (current directory)."""

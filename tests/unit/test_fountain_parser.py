@@ -184,9 +184,11 @@ SCRIPTRAG-META-END */
         content = """Title: Test
 
 INT. ROOM - DAY
+
 Interior scene.
 
 EXT. PARK - NIGHT
+
 Exterior scene.
 """
         script = parser.parse(content)
@@ -201,9 +203,11 @@ Exterior scene.
         content = """Title: Test
 
 INT. ROOM - DAY
+
 A basic scene.
 
 INT. KITCHEN
+
 A scene without time of day.
 """
         script = parser.parse(content)

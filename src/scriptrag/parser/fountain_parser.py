@@ -289,7 +289,7 @@ class FountainParser:
         heading = jouvence_scene.header if jouvence_scene.header else ""
 
         # Parse scene type and location from heading
-        scene_type = "INT"
+        scene_type = ""
         location = ""
         time_of_day = ""
 
@@ -307,6 +307,7 @@ class FountainParser:
             else:
                 rest = heading[4:].strip()
         else:
+            # No recognized scene type prefix, treat whole heading as location
             rest = heading
 
         # Split location and time of day

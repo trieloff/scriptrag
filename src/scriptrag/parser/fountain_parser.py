@@ -90,7 +90,7 @@ class FountainParser:
 
         # Extract title and author from metadata
         title = doc.title_values.get("title") if doc.title_values else None
-        
+
         # Check various author field variations
         author = None
         if doc.title_values:
@@ -173,7 +173,7 @@ class FountainParser:
 
         # Extract title and author from metadata
         title = doc.title_values.get("title") if doc.title_values else None
-        
+
         # Check various author field variations
         author = None
         if doc.title_values:

@@ -31,22 +31,21 @@ def analyze_command(
     dry_run: Annotated[
         bool,
         typer.Option(
-            "--dry-run", "-n",
-            help="Show what would be updated without making changes"
+            "--dry-run", "-n", help="Show what would be updated without making changes"
         ),
     ] = False,
     no_recursive: Annotated[
         bool,
         typer.Option(
-            "--no-recursive",
-            help="Don't search recursively in subdirectories"
+            "--no-recursive", help="Don't search recursively in subdirectories"
         ),
     ] = False,
     analyzer: Annotated[
         list[str] | None,
         typer.Option(
-            "--analyzer", "-a",
-            help="Additional analyzers to run (can be specified multiple times)"
+            "--analyzer",
+            "-a",
+            help="Additional analyzers to run (can be specified multiple times)",
         ),
     ] = None,
 ) -> None:
@@ -57,7 +56,7 @@ def analyze_command(
     2. Parses scenes and existing boneyard metadata
     3. Runs analyzers to extract semantic information
     4. Updates boneyard sections in the Fountain files
-    
+
     Note: This command does not update the database.
     """
     try:

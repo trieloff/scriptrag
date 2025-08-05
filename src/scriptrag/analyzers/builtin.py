@@ -5,7 +5,7 @@ from .base import BaseSceneAnalyzer
 
 class NOPAnalyzer(BaseSceneAnalyzer):
     """No-operation analyzer that does nothing.
-    
+
     This is a minimal analyzer implementation that returns empty results.
     It serves as a starting point for the analyze command without any
     actual analysis functionality.
@@ -15,10 +15,10 @@ class NOPAnalyzer(BaseSceneAnalyzer):
 
     async def analyze(self, scene: dict) -> dict:
         """Perform no analysis and return empty results.
-        
+
         Args:
             scene: Scene data (ignored)
-            
+
         Returns:
             Empty dictionary
         """

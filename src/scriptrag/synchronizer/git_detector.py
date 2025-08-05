@@ -126,6 +126,7 @@ class GitChangeDetector:
                         if line.startswith("@@"):
                             # Parse line numbers from diff header
                             import re
+
                             match = re.search(r"@@ -\d+,?\d* \+(\d+)", line)
                             if match:
                                 line_num = int(match.group(1)) - 1

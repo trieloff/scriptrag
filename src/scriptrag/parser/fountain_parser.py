@@ -293,7 +293,7 @@ class FountainParser:
                 i += 1
 
         # Get original scene text from content
-        # This is a simplified approach - in production you might want to 
+        # This is a simplified approach - in production you might want to
         # track line numbers
         scene_start = full_content.find(heading)
         if scene_start == -1:
@@ -389,6 +389,7 @@ class FountainParser:
 
         # Replace in content
         return (
-            content[:scene_start] + new_scene_text +
-            content[scene_start + len(scene_text):]
+            content[:scene_start]
+            + new_scene_text
+            + content[scene_start + len(scene_text) :]
         )

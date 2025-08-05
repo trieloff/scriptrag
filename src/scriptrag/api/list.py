@@ -164,10 +164,9 @@ class ScriptLister:
 
         return metadata
 
-
     def _parse_with_fallback(self, file_path: Path, metadata: FountainMetadata) -> None:
         """Fallback parsing method using simple regex.
-        
+
         Args:
             file_path: Path to the Fountain file
             metadata: Metadata object to update
@@ -191,7 +190,7 @@ class ScriptLister:
         author_match = re.search(
             r"^(?:Author|Authors|Written by|Writer|Writers):\s*(.+)$",
             title_page_content,
-            re.MULTILINE | re.IGNORECASE
+            re.MULTILINE | re.IGNORECASE,
         )
         if author_match:
             metadata.author = author_match.group(1).strip()

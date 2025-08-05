@@ -167,9 +167,7 @@ class AnalyzeCommand:
                     )
                     result.files.append(file_result)
                 except Exception as e:
-                    logger.error(
-                        f"Failed to process {script_meta.file_path}: {e!s}"
-                    )
+                    logger.error(f"Failed to process {script_meta.file_path}: {e!s}")
                     result.files.append(
                         FileResult(
                             path=script_meta.file_path,
@@ -230,9 +228,7 @@ class AnalyzeCommand:
                             for d in scene.dialogue_lines
                         ],
                         "action": scene.action_lines,
-                        "characters": list(
-                            {d.character for d in scene.dialogue_lines}
-                        ),
+                        "characters": list({d.character for d in scene.dialogue_lines}),
                     }
 
                     # Run analyzers

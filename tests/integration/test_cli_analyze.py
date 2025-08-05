@@ -118,7 +118,7 @@ class TestAnalyzeCommand:
         """Test analyze with specific analyzer."""
         result = runner.invoke(
             app,
-            ["analyze", str(temp_fountain_files), "--force", "--analyzer", "themes"]
+            ["analyze", str(temp_fountain_files), "--force", "--analyzer", "themes"],
         )
 
         assert result.exit_code == 0
@@ -131,9 +131,11 @@ class TestAnalyzeCommand:
                 "analyze",
                 str(temp_fountain_files),
                 "--force",
-                "--analyzer", "themes",
-                "--analyzer", "character_analysis",
-            ]
+                "--analyzer",
+                "themes",
+                "--analyzer",
+                "character_analysis",
+            ],
         )
 
         assert result.exit_code == 0
@@ -141,8 +143,7 @@ class TestAnalyzeCommand:
     def test_analyze_with_invalid_analyzer(self, temp_fountain_files):
         """Test analyze with invalid analyzer."""
         result = runner.invoke(
-            app,
-            ["analyze", str(temp_fountain_files), "--analyzer", "nonexistent"]
+            app, ["analyze", str(temp_fountain_files), "--analyzer", "nonexistent"]
         )
 
         # Should show warning but continue
@@ -175,7 +176,7 @@ class TestAnalyzeCommand:
         # Run analyze with force to ensure processing
         result = runner.invoke(
             app,
-            ["analyze", str(simple_file), "--force", "--analyzer", "emotional_tone"]
+            ["analyze", str(simple_file), "--force", "--analyzer", "emotional_tone"],
         )
 
         assert result.exit_code == 0

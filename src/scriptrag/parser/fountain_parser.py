@@ -4,7 +4,6 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass, field
-from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -137,21 +136,23 @@ class FountainParser:
         """
         # Get the full content for scene processing
         content = file_path.read_text(encoding="utf-8")
-        
+
         # Workaround for jouvence bug: temporarily remove ALL boneyard comments
         # to prevent infinite loop in boneyard parsing
         # This is a broader pattern that catches all /* */ comments
         boneyard_pattern = re.compile(r"/\*.*?\*/", re.DOTALL)
         scriptrag_metadata_blocks = []
         cleaned_content = content
-        
+
         # First, save our ScriptRAG metadata blocks
         for match in self.BONEYARD_PATTERN.finditer(content):
-            scriptrag_metadata_blocks.append((match.start(), match.end(), match.group(0)))
-        
+            scriptrag_metadata_blocks.append(
+                (match.start(), match.end(), match.group(0))
+            )
+
         # Then remove ALL boneyard comments to avoid the jouvence bug
         cleaned_content = boneyard_pattern.sub("", cleaned_content)
-        
+
         # Parse using jouvence with parseString to avoid file path issues
         logger.debug(f"Parsing fountain file: {file_path}")
         parser = JouvenceParser()

@@ -86,6 +86,25 @@ class FountainParser:
         title = doc.title_values.get("title") if doc.title_values else None
         author = doc.title_values.get("author") if doc.title_values else None
         
+        # Extract additional metadata
+        metadata = {}
+        if doc.title_values:
+            # Extract episode number
+            if "episode" in doc.title_values:
+                try:
+                    # Try to parse as int, but keep as string if it fails
+                    metadata["episode"] = int(doc.title_values["episode"])
+                except (ValueError, TypeError):
+                    metadata["episode"] = doc.title_values["episode"]
+            
+            # Extract season number
+            if "season" in doc.title_values:
+                try:
+                    # Try to parse as int, but keep as string if it fails
+                    metadata["season"] = int(doc.title_values["season"])
+                except (ValueError, TypeError):
+                    metadata["season"] = doc.title_values["season"]
+        
         # Process scenes
         scenes = []
         scene_number = 0
@@ -96,7 +115,7 @@ class FountainParser:
                 scene = self._process_jouvence_scene(scene_number, jouvence_scene, content)
                 scenes.append(scene)
         
-        return Script(title=title, author=author, scenes=scenes)
+        return Script(title=title, author=author, scenes=scenes, metadata=metadata)
 
     def parse_file(self, file_path: Path) -> Script:
         """Parse a Fountain file.
@@ -118,6 +137,25 @@ class FountainParser:
         title = doc.title_values.get("title") if doc.title_values else None
         author = doc.title_values.get("author") if doc.title_values else None
         
+        # Extract additional metadata
+        metadata = {}
+        if doc.title_values:
+            # Extract episode number
+            if "episode" in doc.title_values:
+                try:
+                    # Try to parse as int, but keep as string if it fails
+                    metadata["episode"] = int(doc.title_values["episode"])
+                except (ValueError, TypeError):
+                    metadata["episode"] = doc.title_values["episode"]
+            
+            # Extract season number
+            if "season" in doc.title_values:
+                try:
+                    # Try to parse as int, but keep as string if it fails
+                    metadata["season"] = int(doc.title_values["season"])
+                except (ValueError, TypeError):
+                    metadata["season"] = doc.title_values["season"]
+        
         # Process scenes
         scenes = []
         scene_number = 0
@@ -128,7 +166,7 @@ class FountainParser:
                 scene = self._process_jouvence_scene(scene_number, jouvence_scene, content)
                 scenes.append(scene)
         
-        script = Script(title=title, author=author, scenes=scenes)
+        script = Script(title=title, author=author, scenes=scenes, metadata=metadata)
         
         # Add file metadata
         script.metadata["source_file"] = str(file_path)

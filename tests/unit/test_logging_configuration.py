@@ -88,6 +88,38 @@ class TestLoggingConfiguration:
 
         assert isinstance(handler.formatter, ProcessorFormatter)
 
+    def test_configure_logging_structured_format(self):
+        """Test logging configuration with structured format."""
+        settings = ScriptRAGSettings(
+            log_level="INFO",
+            log_format="structured",
+        )
+
+        configure_logging(settings)
+
+        # Check that logging was configured
+        root_logger = logging.getLogger()
+        assert root_logger.level == logging.INFO
+
+        # Check that handlers are configured
+        assert len(root_logger.handlers) >= 1
+
+        # Check that the first handler has the correct formatter
+        handler = root_logger.handlers[0]
+        assert hasattr(handler, "formatter")
+
+        # The formatter should be ProcessorFormatter for structured format
+        from structlog.stdlib import ProcessorFormatter
+
+        assert isinstance(handler.formatter, ProcessorFormatter)
+
+        # Test that the ProcessorFormatter is configured with KeyValueRenderer
+        # by checking the processor chain
+        logger = get_logger("test")
+
+        # Just verify we can log without errors in structured format
+        logger.info("test structured format", key1="value1", key2="value2")
+
     def test_configure_logging_file_handler(self, tmp_path):
         """Test logging configuration with file handler."""
         log_file = tmp_path / "logs" / "test.log"

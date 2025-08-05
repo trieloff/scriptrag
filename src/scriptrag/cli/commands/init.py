@@ -29,13 +29,43 @@ def init_command(
             help="Force initialization, overwriting existing database",
         ),
     ] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
+    ] = None,
 ) -> None:
     """Initialize the ScriptRAG SQLite database.
 
     This command creates a new SQLite database with the ScriptRAG schema.
     If the database already exists, it will fail unless --force is specified.
     """
-    settings = get_settings()
+    # Load settings with proper precedence
+    from scriptrag.config.settings import ScriptRAGSettings
+
+    # Prepare CLI args (only non-None values)
+    cli_args = {}
+    if db_path is not None:
+        cli_args["database_path"] = db_path
+
+    # Load settings from multiple sources
+    if config:
+        settings = ScriptRAGSettings.from_multiple_sources(
+            config_files=[config],
+            cli_args=cli_args,
+        )
+    else:
+        # Use default settings with CLI overrides
+        settings = get_settings()
+        if cli_args:
+            # Apply CLI overrides
+            updated_data = settings.model_dump()
+            updated_data.update(cli_args)
+            settings = ScriptRAGSettings(**updated_data)
+
     initializer = DatabaseInitializer()
 
     try:

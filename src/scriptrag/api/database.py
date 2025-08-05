@@ -115,9 +115,11 @@ class DatabaseInitializer:
         # Initialize database
         try:
             if connection is None:
-                # Create new connection
-                conn = sqlite3.connect(str(db_path))
+                # Create new connection with timeout from settings
+                conn = sqlite3.connect(str(db_path), timeout=settings.database_timeout)
                 try:
+                    # Configure connection with settings
+                    self._configure_connection(conn, settings)
                     self._initialize_with_connection(conn)  # type: ignore[arg-type]
                 finally:
                     conn.close()
@@ -148,3 +150,34 @@ class DatabaseInitializer:
         conn.commit()
 
         logger.debug("Database schema created successfully")
+
+    def _configure_connection(
+        self, conn: sqlite3.Connection, settings: ScriptRAGSettings
+    ) -> None:
+        """Configure SQLite connection with settings.
+
+        Args:
+            conn: SQLite connection to configure.
+            settings: Configuration settings.
+        """
+        # Set pragmas based on settings
+        pragmas = [
+            f"PRAGMA journal_mode = {settings.database_journal_mode}",
+            f"PRAGMA synchronous = {settings.database_synchronous}",
+            f"PRAGMA cache_size = {settings.database_cache_size}",
+            f"PRAGMA temp_store = {settings.database_temp_store}",
+        ]
+
+        if settings.database_foreign_keys:
+            pragmas.append("PRAGMA foreign_keys = ON")
+
+        for pragma in pragmas:
+            conn.execute(pragma)
+
+        logger.debug(
+            "Database connection configured",
+            journal_mode=settings.database_journal_mode,
+            synchronous=settings.database_synchronous,
+            cache_size=settings.database_cache_size,
+            foreign_keys=settings.database_foreign_keys,
+        )

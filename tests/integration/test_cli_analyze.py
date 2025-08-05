@@ -1,7 +1,5 @@
 """Integration tests for the analyze CLI command."""
 
-from pathlib import Path
-
 import pytest
 from typer.testing import CliRunner
 

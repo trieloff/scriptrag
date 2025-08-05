@@ -1,21 +1,44 @@
+# Claude Code Review Workflow
+#
+# This workflow runs Claude Code review on pull requests with two trigger mechanisms:
+# 1. Automatically when a new PR is opened (immediate feedback)
+# 2. After all CI checks pass (via workflow_run trigger)
+#
+# This ensures Claude reviews are:
+# - Provided early for new PRs
+# - Only run on green builds to avoid reviewing broken code
+# - Not triggered on every push (reducing noise)
+
 name: Claude Code Review
 
 on:
+  # Only run on new PRs
   pull_request:
-    types: [opened, synchronize]
+    types: [opened]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.ts"
     #   - "src/**/*.tsx"
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
+  
+  # Also allow manual triggering after all checks pass
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: ["*"]
 
 jobs:
   claude-review:
     # Skip only for known problematic bots
+    # For workflow_run trigger, only run if the CI workflow succeeded
     if: |
-      github.event.pull_request.user.login != 'dependabot[bot]' &&
-      github.event.pull_request.user.login != 'renovate[bot]'
+      (github.event_name == 'pull_request' && 
+       github.event.pull_request.user.login != 'dependabot[bot]' &&
+       github.event.pull_request.user.login != 'renovate[bot]') ||
+      (github.event_name == 'workflow_run' && 
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -23,13 +46,48 @@ jobs:
       issues: read
       id-token: write
     steps:
+      # Get PR information when triggered by workflow_run
+      - name: Get PR Information
+        if: github.event_name == 'workflow_run'
+        id: pr-info
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
+          script: |
+            // Get the PR associated with this workflow run
+            const workflowRun = context.payload.workflow_run;
+            const headSha = workflowRun.head_sha;
+            
+            // Find PRs associated with this commit
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${workflowRun.head_repository.owner.login}:${workflowRun.head_branch}`
+            });
+            
+            if (prs.length === 0) {
+              console.log('No open PR found for this workflow run');
+              core.setOutput('skip', 'true');
+              return;
+            }
+            
+            const pr = prs[0];
+            core.setOutput('pr_number', pr.number);
+            core.setOutput('pr_head_ref', pr.head.ref);
+            core.setOutput('skip', 'false');
+
       - name: Checkout repository
+        if: github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
+          # For workflow_run, checkout the PR branch
+          ref: ${{ github.event_name == 'workflow_run' && steps.pr-info.outputs.pr_head_ref || '' }}
 
       - name: Run Claude Code Review
+        if: github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true'
         id: claude-review
         continue-on-error: true
         uses: anthropics/claude-code-action@beta
@@ -37,6 +95,8 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Use dedicated GitHub token for Claude to bypass OIDC issues
           github_token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
+          # For workflow_run events, specify the PR number
+          pr_number: ${{ github.event_name == 'workflow_run' && steps.pr-info.outputs.pr_number || '' }}
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
           # model: "claude-opus-4-20250514"
@@ -55,12 +115,25 @@ jobs:
             please tag @terragon-labs in your review comment to ensure they are notified.
 
       - name: Report Claude Code Review Status
-        if: always()
+        if: always() && (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true')
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
           script: |
             const reviewOutcome = '${{ steps.claude-review.outcome }}';
+            
+            // Determine PR number based on event type
+            let prNumber;
+            if (context.eventName === 'pull_request') {
+              prNumber = context.issue.number;
+            } else if (context.eventName === 'workflow_run') {
+              prNumber = parseInt('${{ steps.pr-info.outputs.pr_number }}');
+            }
+            
+            if (!prNumber) {
+              console.log('Could not determine PR number, skipping comment');
+              return;
+            }
 
             if (reviewOutcome === 'failure') {
               const comment = [
@@ -79,7 +152,7 @@ jobs:
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.issue.number,
+                issue_number: prNumber,
                 body: comment
               });
 

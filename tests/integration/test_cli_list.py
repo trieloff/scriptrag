@@ -1,6 +1,5 @@
 """Integration tests for scriptrag list command."""
 
-import re
 import shutil
 from pathlib import Path
 
@@ -8,12 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli import app
-
-
-def strip_ansi_codes(text: str) -> str:
-    """Strip ANSI escape sequences from text."""
-    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
-    return ansi_escape.sub("", text)
+from tests.utils import strip_ansi_codes
 
 
 # Path to fixture files

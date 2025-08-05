@@ -6,6 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
+from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
 
@@ -70,12 +71,12 @@ class TestAnalyzeCommand:
         """Test analyze command help."""
         result = runner.invoke(app, ["analyze", "--help"])
         assert result.exit_code == 0
-        assert "Analyze Fountain files" in result.stdout
-        # Skip checking for --force due to ANSI escape code issues in CI
-        # The option exists and works, but the test fails in CI environment
-        # assert "--force" in result.stdout
-        assert "--dry-run" in result.stdout
-        assert "--analyzer" in result.stdout
+        # Strip ANSI escape codes for reliable string matching
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "Analyze Fountain files" in clean_output
+        assert "--force" in clean_output
+        assert "--dry-run" in clean_output
+        assert "--analyzer" in clean_output
 
     def test_analyze_basic(self, temp_fountain_files):
         """Test basic analyze command."""

@@ -436,6 +436,7 @@ class TestAnalyzeCommand:
         clean_output = strip_ansi_codes(result.stdout)
         # Should display absolute path (check for both Unix and Windows path separators)
         assert "file.fountain" in clean_output
-        assert ("absolute/path/to" in clean_output or
-                "absolute\\path\\to" in clean_output)
+        assert (
+            "absolute/path/to" in clean_output or "absolute\\path\\to" in clean_output
+        )
         assert "3 scenes" in clean_output

@@ -460,5 +460,3 @@ Another action line.
 
         # The only way to reach that branch would be if something started with
         # "INT./EXT." but not "INT." - which is impossible due to string matching
-
-

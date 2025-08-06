@@ -2,11 +2,38 @@
 #
 # This workflow is triggered after successful CI runs to perform additional
 # actions like Claude Code Review and other post-build tasks.
-# Using workflow_dispatch for more reliable triggering than workflow_run.
+# Supports both workflow_call (from other workflows) and workflow_dispatch (manual trigger).
 
 name: Post-CI Actions
 
 on:
+  # Allow this workflow to be called from other workflows
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'Pull Request number'
+        required: true
+        type: string
+      pr_head_ref:
+        description: 'Pull Request head branch'
+        required: true
+        type: string
+      pr_head_sha:
+        description: 'Pull Request head SHA'
+        required: true
+        type: string
+      trigger_claude_review:
+        description: 'Trigger Claude Code Review'
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      GH_TOKEN_FOR_CLAUDE:
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+
+  # Also allow manual triggering
   workflow_dispatch:
     inputs:
       pr_number:

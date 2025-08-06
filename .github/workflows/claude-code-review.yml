@@ -2,10 +2,10 @@
 #
 # This workflow runs Claude Code review on pull requests:
 # 1. Automatically when a new PR is opened (immediate feedback)
-# 2. Can be triggered via workflow_dispatch for manual runs
+# 2. Can be called from other workflows (e.g., after CI passes)
+# 3. Can be triggered manually via workflow_dispatch
 #
-# Note: The post-CI.yml workflow now handles triggering Claude reviews
-# after successful CI runs using workflow_dispatch for better reliability.
+# This is a reusable workflow that can be called from CI after all checks pass.
 
 name: Claude Code Review
 
@@ -16,6 +16,19 @@ on:
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.py"
+
+  # Allow this workflow to be called from other workflows
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to review'
+        required: true
+        type: string
+    secrets:
+      GH_TOKEN_FOR_CLAUDE:
+        required: false
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
 
   # Allow manual triggering
   workflow_dispatch:
@@ -32,7 +45,8 @@ jobs:
       (github.event_name == 'pull_request' &&
        github.event.pull_request.user.login != 'dependabot[bot]' &&
        github.event.pull_request.user.login != 'renovate[bot]') ||
-      github.event_name == 'workflow_dispatch'
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'workflow_call'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -41,9 +55,9 @@ jobs:
       id-token: write
       models: read  # Enable GitHub Models for AI inference
     steps:
-      # Get PR information when triggered by workflow_dispatch
+      # Get PR information when triggered by workflow_dispatch or workflow_call
       - name: Get PR Information
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call'
         id: pr-info
         uses: actions/github-script@v7
         with:
@@ -51,7 +65,7 @@ jobs:
           script: |
             const prNumber = '${{ inputs.pr_number }}';
             if (!prNumber) {
-              console.log('No PR number provided for workflow_dispatch');
+              console.log('No PR number provided');
               core.setOutput('skip', 'true');
               return;
             }
@@ -73,8 +87,8 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
-          # For workflow_dispatch, checkout the PR branch
-          ref: ${{ github.event_name == 'workflow_dispatch' && steps.pr-info.outputs.pr_head_ref || '' }}
+          # For workflow_dispatch or workflow_call, checkout the PR branch
+          ref: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && steps.pr-info.outputs.pr_head_ref || '' }}
 
       - name: Run Claude Code Review
         if: github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true'
@@ -85,8 +99,8 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Use dedicated GitHub token for Claude to bypass OIDC issues
           github_token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
-          # For workflow_dispatch events, specify the PR number
-          pr_number: ${{ github.event_name == 'workflow_dispatch' && steps.pr-info.outputs.pr_number || '' }}
+          # For workflow_dispatch or workflow_call events, specify the PR number
+          pr_number: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && steps.pr-info.outputs.pr_number || '' }}
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
           # model: "claude-opus-4-20250514"
@@ -116,7 +130,7 @@ jobs:
             let prNumber;
             if (context.eventName === 'pull_request') {
               prNumber = context.issue.number;
-            } else if (context.eventName === 'workflow_dispatch') {
+            } else if (context.eventName === 'workflow_dispatch' || context.eventName === 'workflow_call') {
               prNumber = parseInt('${{ steps.pr-info.outputs.pr_number }}');
             }
 

@@ -547,55 +547,24 @@ jobs:
               body: comment
             });
 
-  trigger-post-ci:
-    name: Trigger Post-CI Actions
-    runs-on: ubuntu-latest
+  # Call the reusable Claude Code Review workflow after CI passes
+  claude-review-after-ci:
+    name: Claude Code Review (Post-CI)
     needs: [all-checks]
     if: |
       github.event_name == 'pull_request' &&
-      needs.all-checks.outputs.all_passed == 'true' &&
       needs.all-checks.result == 'success'
     permissions:
-      actions: write
-      pull-requests: read
-    steps:
-      - name: Extract PR Information
-        id: pr-info
-        run: |
-          echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
-          echo "pr_head_ref=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
-          echo "pr_head_sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
-
-      - name: Trigger Post-CI Workflow
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || secrets.GITHUB_TOKEN }}
-          script: |
-            const prNumber = '${{ steps.pr-info.outputs.pr_number }}';
-            const prHeadRef = '${{ steps.pr-info.outputs.pr_head_ref }}';
-            const prHeadSha = '${{ steps.pr-info.outputs.pr_head_sha }}';
-
-            console.log(`Triggering post-CI actions for PR #${prNumber}`);
-
-            try {
-              const result = await github.rest.actions.createWorkflowDispatch({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                workflow_id: 'post-ci.yml',
-                ref: prHeadRef,
-                inputs: {
-                  pr_number: prNumber,
-                  pr_head_ref: prHeadRef,
-                  pr_head_sha: prHeadSha,
-                  trigger_claude_review: 'true'
-                }
-              });
-
-              console.log('Successfully triggered post-CI workflow');
-            } catch (error) {
-              console.error('Failed to trigger post-CI workflow:', error);
-              // Don't fail the CI if we can't trigger post-CI actions
-            }
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+    uses: ./.github/workflows/claude-code-review.yml
+    with:
+      pr_number: "${{ github.event.pull_request.number }}"
+    secrets:
+      GH_TOKEN_FOR_CLAUDE: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
   vibe-badge:
     name: Generate Vibe Badge

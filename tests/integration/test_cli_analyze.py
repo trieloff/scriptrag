@@ -42,7 +42,7 @@ A scene with existing metadata.
     "content_hash": "abc123",
     "analyzed_at": "2024-01-01T00:00:00",
     "analyzers": {
-        "nop": {
+        "test_analyzer": {
             "version": "1.0.0",
             "result": {}
         }
@@ -177,12 +177,13 @@ class TestAnalyzeCommand:
 
     def test_analyze_updates_file(self, temp_fountain_files):
         """Test that analyze actually updates files."""
+        runner = CliRunner()
         simple_file = temp_fountain_files / "simple.fountain"
 
         # Run analyze with force to ensure processing
         result = runner.invoke(
             app,
-            ["analyze", str(simple_file), "--force", "--analyzer", "nop"],
+            ["analyze", str(simple_file), "--force"],
         )
 
         assert result.exit_code == 0
@@ -190,7 +191,6 @@ class TestAnalyzeCommand:
         # Check that metadata was added
         content = simple_file.read_text()
         assert "SCRIPTRAG-META-START" in content
-        assert "nop" in content
         assert "analyzed_at" in content
 
     def test_analyze_with_errors_display(self, temp_fountain_files, monkeypatch):

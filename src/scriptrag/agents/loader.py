@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import frontmatter
 import jsonschema
 from jsonschema import ValidationError
+from markdown_it import MarkdownIt
 
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.config import get_logger
@@ -80,94 +82,74 @@ class AgentSpec:
         if not metadata:
             raise ValueError(f"No frontmatter found in {markdown_path}")
 
-        required_fields = ["name", "property", "description", "version"]
+        # Derive agent name from filename if not in metadata
+        agent_name = metadata.get("name", markdown_path.stem)
+
+        # Check for required fields (name is derived so not required in metadata)
+        required_fields = ["property", "description", "version"]
         for field in required_fields:
             if field not in metadata:
                 raise ValueError(f"Missing required field '{field}' in frontmatter")
 
-        # Parse the content sections
-        content = post.content
-        sections = cls._parse_sections(content)
+        # Extract code blocks from content using proper markdown parser
+        code_blocks = cls._extract_code_blocks(post.content)
 
-        # Extract required sections
-        if "Context Query" not in sections:
-            raise ValueError("Missing 'Context Query' section")
-        if "Output Schema" not in sections:
-            raise ValueError("Missing 'Output Schema' section")
-        if "Analysis Prompt" not in sections:
-            raise ValueError("Missing 'Analysis Prompt' section")
+        # Find context query block (SQL)
+        context_query = ""
+        for block in code_blocks:
+            if block["lang"] == "sql":
+                context_query = block["content"]
+                break
 
-        # Parse the output schema JSON
-        try:
-            output_schema = json.loads(sections["Output Schema"])
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON in Output Schema: {e}") from e
+        # Find output schema block (JSON)
+        output_schema = {}
+        for block in code_blocks:
+            if block["lang"] == "json":
+                try:
+                    output_schema = json.loads(block["content"])
+                    break
+                except json.JSONDecodeError:
+                    continue
+
+        if not output_schema:
+            raise ValueError("No valid JSON schema found in code blocks")
+
+        # The full content becomes the analysis prompt
+        analysis_prompt = post.content
 
         return cls(
-            name=metadata["name"],
+            name=agent_name,
             property=metadata["property"],
             description=metadata["description"],
             version=str(metadata["version"]),  # Ensure version is string
             requires_llm=metadata.get("requires_llm", True),
-            context_query=sections["Context Query"].strip(),
+            context_query=context_query,
             output_schema=output_schema,
-            analysis_prompt=sections["Analysis Prompt"].strip(),
+            analysis_prompt=analysis_prompt,
         )
 
     @staticmethod
-    def _parse_sections(content: str) -> dict[str, str]:
-        """Parse markdown content into sections.
+    def _extract_code_blocks(content: str) -> list[dict[str, str]]:
+        """Extract code blocks from markdown content using proper parser.
 
         Args:
             content: Markdown content
 
         Returns:
-            Dictionary mapping section names to content
+            List of code blocks with language and content
         """
-        sections = {}
-        current_section = None
-        current_content: list[str] = []
-        in_code_block = False
-        code_block_content: list[str] = []
+        # Use markdown-it-py to parse the markdown
+        md = MarkdownIt()
+        tokens = md.parse(content)
 
-        lines = content.split("\n")
-        i = 0
-        while i < len(lines):
-            line = lines[i]
+        code_blocks = []
+        for token in tokens:
+            if token.type == "fence" and token.content:
+                # Extract language from info string (e.g., "json" from "```json")
+                lang = token.info.strip() if token.info else ""
+                code_blocks.append({"lang": lang, "content": token.content.rstrip()})
 
-            # Handle code blocks
-            if line.startswith("```"):
-                if not in_code_block:
-                    in_code_block = True
-                    # Skip the opening ``` line
-                else:
-                    # End of code block
-                    in_code_block = False
-                    if current_section:
-                        # Add the code block content to the current section
-                        current_content.extend(code_block_content)
-                    code_block_content = []
-            elif in_code_block:
-                code_block_content.append(line)
-            elif line.startswith("## "):
-                # Save previous section
-                if current_section:
-                    sections[current_section] = "\n".join(current_content).strip()
-                # Start new section
-                current_section = line[3:].strip()
-                current_content = []
-            elif current_section:
-                current_content.append(line)
-
-            i += 1
-
-        # Save the last section
-        if current_section:
-            if code_block_content:
-                current_content.extend(code_block_content)
-            sections[current_section] = "\n".join(current_content).strip()
-
-        return sections
+        return code_blocks
 
 
 class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
@@ -349,7 +331,7 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
         return "\n".join(parts)
 
     def _parse_llm_response(self, response: str) -> dict[str, Any]:
-        """Parse LLM response as JSON.
+        """Parse LLM response as JSON with improved error handling.
 
         Args:
             response: Raw LLM response
@@ -358,41 +340,57 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
             Parsed dictionary
         """
         response = response.strip()
+        json_str = response
 
-        # Extract JSON from code blocks if present
-        if "```json" in response:
-            import re
+        # Strategy 1: Extract from markdown code blocks
+        if "```" in response:
+            # Look for ```json blocks first
+            if "```json" in response:
+                match = re.search(r"```json\s*\n?(.+?)\n?```", response, re.DOTALL)
+                if match:
+                    json_str = match.group(1).strip()
+            # Then try any code block
+            else:
+                match = re.search(r"```\s*\n?(.+?)\n?```", response, re.DOTALL)
+                if match:
+                    json_str = match.group(1).strip()
 
-            match = re.search(r"```json\n(.*?)\n```", response, re.DOTALL)
+        # Strategy 2: Find JSON object in response
+        if not json_str.startswith("{"):
+            match = re.search(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", response, re.DOTALL)
             if match:
-                response = match.group(1)
-        elif "```" in response:
-            import re
+                json_str = match.group(0)
 
-            match = re.search(r"```\n(.*?)\n```", response, re.DOTALL)
-            if match:
-                response = match.group(1)
-
+        # Try to parse the extracted string
         try:
-            return dict(json.loads(response))
-        except json.JSONDecodeError:
-            # Try to find JSON object in response
-            import re
-
-            match = re.search(r"\{.*\}", response, re.DOTALL)
-            if match:
-                return dict(json.loads(match.group()))
+            result = json.loads(json_str)
+            # Ensure it's a dict
+            if isinstance(result, dict):
+                return result
+            logger.warning(f"LLM response was not a dict for agent {self.spec.name}")
+            return {}
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"Failed to parse LLM response as JSON for agent {self.spec.name}",
+                error=str(e),
+                response_preview=json_str[:500] if json_str else response[:500],
+            )
             return {}
 
 
 class AgentLoader:
     """Loads and manages markdown-based agents."""
 
-    def __init__(self, agents_dir: Path | None = None) -> None:
+    def __init__(
+        self,
+        agents_dir: Path | None = None,
+        max_cache_size: int = 100,
+    ) -> None:
         """Initialize the agent loader.
 
         Args:
             agents_dir: Directory containing agent markdown files
+            max_cache_size: Maximum number of agents to cache (default 100)
         """
         if agents_dir is None:
             # Default to src/scriptrag/agents/builtin
@@ -403,6 +401,8 @@ class AgentLoader:
 
         self.agents_dir = agents_dir
         self._cache: dict[str, AgentSpec] = {}
+        self._max_cache_size = max_cache_size
+        self._cache_order: list[str] = []  # Track order for LRU eviction
 
     def load_agent(self, name: str) -> MarkdownAgentAnalyzer:
         """Load an agent by name.
@@ -419,15 +419,27 @@ class AgentLoader:
         # Check cache first
         if name in self._cache:
             spec = self._cache[name]
+            # Move to end of LRU order
+            if name in self._cache_order:
+                self._cache_order.remove(name)
+                self._cache_order.append(name)
         else:
             # Look for markdown file
             agent_file = self.agents_dir / f"{name}.md"
             if not agent_file.exists():
                 raise ValueError(f"Agent '{name}' not found in {self.agents_dir}")
 
-            # Load and cache the spec
+            # Load and cache the spec with LRU eviction
             spec = AgentSpec.from_markdown(agent_file)
+
+            # Implement LRU cache eviction
+            if len(self._cache) >= self._max_cache_size and self._cache_order:
+                # Remove least recently used item
+                oldest = self._cache_order.pop(0)
+                del self._cache[oldest]
+
             self._cache[name] = spec
+            self._cache_order.append(name)
 
         return MarkdownAgentAnalyzer(spec)
 
@@ -443,9 +455,30 @@ class AgentLoader:
         agents = []
         for path in self.agents_dir.glob("*.md"):
             try:
-                spec = AgentSpec.from_markdown(path)
-                agents.append(spec.name)
+                # Use stem as agent name directly to avoid parsing all files
+                agent_name = path.stem
+                # Validate the name to prevent security issues
+                if self._is_valid_agent_name(agent_name):
+                    agents.append(agent_name)
+                else:
+                    logger.warning(f"Invalid agent name: {agent_name}")
             except Exception as e:
-                logger.warning(f"Failed to load agent from {path}: {e}")
+                logger.warning(f"Failed to process agent file {path}: {e}")
 
-        return sorted(agents)
+        # Sort with input validation
+        return sorted(agents, key=lambda x: x.lower())
+
+    @staticmethod
+    def _is_valid_agent_name(name: str) -> bool:
+        """Validate agent name for security.
+
+        Args:
+            name: Agent name to validate
+
+        Returns:
+            True if valid, False otherwise
+        """
+        # Only allow alphanumeric, underscore, and dash
+        import re
+
+        return bool(re.match(r"^[a-zA-Z0-9_-]+$", name)) and len(name) < 100

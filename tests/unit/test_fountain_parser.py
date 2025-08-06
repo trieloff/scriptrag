@@ -147,7 +147,7 @@ A room with metadata.
     "content_hash": "abc123",
     "analyzed_at": "2024-01-01",
     "analyzers": {
-        "nop": {
+        "test_analyzer": {
             "result": {}
         }
     }
@@ -159,7 +159,7 @@ SCRIPTRAG-META-END */
 
         assert scene.boneyard_metadata is not None
         assert scene.boneyard_metadata["content_hash"] == "abc123"
-        assert "nop" in scene.boneyard_metadata["analyzers"]
+        assert "test_analyzer" in scene.boneyard_metadata["analyzers"]
 
     def test_parse_with_invalid_boneyard_json(self, parser):
         """Test parsing with invalid JSON in boneyard."""

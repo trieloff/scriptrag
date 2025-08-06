@@ -1,0 +1,68 @@
+[sqlfluff]
+# Supported dialects: https://docs.sqlfluff.com/en/stable/dialects.html
+# SQLite dialect for ScriptRAG
+dialect = sqlite
+
+# Comma separated list of rules to exclude
+# See https://docs.sqlfluff.com/en/stable/rules.html
+exclude_rules = L034, L044
+
+# Below controls SQLFluff output
+output_line_length = 88
+verbose = 1
+
+# Indentation configuration
+[sqlfluff:indentation]
+# See https://docs.sqlfluff.com/en/stable/indentation.html
+indented_joins = False
+indented_using_on = True
+template_blocks_indent = True
+
+[sqlfluff:layout:type:comma]
+# Trailing comma enforcement
+spacing_before = touch
+line_position = trailing
+
+[sqlfluff:rules]
+# Aliasing preference for tables
+[sqlfluff:rules:aliasing.table]
+aliasing = implicit
+
+# Aliasing preference for columns
+[sqlfluff:rules:aliasing.column]
+aliasing = implicit
+
+# Line length
+[sqlfluff:rules:layout.long_lines]
+max_line_length = 120
+
+# References must be qualified if select has multiple sources
+[sqlfluff:rules:references.consistent]
+single_table_references = qualified
+
+# Keywords should be upper case
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = upper
+
+# Function names
+[sqlfluff:rules:capitalisation.functions]
+capitalisation_policy = upper
+
+# Null & Boolean Literals
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = upper
+
+# Special characters in identifiers
+[sqlfluff:rules:references.special_chars]
+unquoted_identifiers_policy = all
+quoted_identifiers_policy = all
+allow_space_in_identifier = False
+
+# Spaces around operators
+[sqlfluff:rules:layout.spacing]
+# Operators that should have spaces around them
+operator_spacing = both
+
+# Identifiers should be lower case
+[sqlfluff:rules:capitalisation.identifiers]
+capitalisation_policy = lower

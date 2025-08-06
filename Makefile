@@ -88,13 +88,14 @@ update: install ## Update all dependencies to latest versions
 
 # Code quality
 .PHONY: format
-format: install ## Format code with ruff
+format: install ## Format code with ruff and sqlfluff
 	uv run ruff check --fix src/ tests/
 	uv run ruff format src/ tests/
+	uv run sqlfluff fix --dialect sqlite || echo "⚠️  SQLFluff fix failed (check SQL files manually)"
 	@echo "✅ Code formatted"
 
 .PHONY: lint
-lint: install ## Run all linters (ruff, mypy, bandit, etc.)
+lint: install ## Run all linters (ruff, mypy, bandit, sqlfluff, etc.)
 	@echo "🔍 Running Ruff..."
 	uv run ruff check src/ tests/
 	@echo "🔍 Running MyPy..."
@@ -104,12 +105,25 @@ lint: install ## Run all linters (ruff, mypy, bandit, etc.)
 	@echo "🔍 Checking docstring coverage..."
 	uv run interrogate -c pyproject.toml
 	@echo "🔍 Checking for dead code..."
-	uv run vulture src/ --min-confidence 80
+	uv run vulture --config pyproject.toml
+	@echo "🔍 Running SQLFluff..."
+	uv run sqlfluff lint --dialect sqlite || echo "⚠️  SQLFluff found issues (non-blocking)"
 	@echo "✅ All linting checks passed"
 
 .PHONY: type-check
 type-check: install ## Run type checking with mypy
 	uv run mypy src/ --show-error-codes --pretty
+
+.PHONY: sql-lint
+sql-lint: install ## Lint SQL files with SQLFluff
+	uv run sqlfluff lint --dialect sqlite
+
+.PHONY: sql-fix
+sql-fix: install ## Fix SQL files with SQLFluff
+	uv run sqlfluff fix --dialect sqlite
+
+.PHONY: sql-format
+sql-format: sql-fix ## Alias for sql-fix
 
 .PHONY: security
 security: install ## Run security checks (bandit, safety, pip-audit)

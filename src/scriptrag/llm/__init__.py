@@ -1,6 +1,23 @@
 """LLM integration module for ScriptRAG."""
 
-from .client import LLMClient, LLMClientError
-from .factory import create_llm_client
+from scriptrag.llm.client import LLMClient
+from scriptrag.llm.models import (
+    CompletionRequest,
+    CompletionResponse,
+    EmbeddingRequest,
+    EmbeddingResponse,
+    LLMProvider,
+    Model,
+)
+from scriptrag.llm.registry import ProviderRegistry
 
-__all__ = ["LLMClient", "LLMClientError", "create_llm_client"]
+__all__ = [
+    "CompletionRequest",
+    "CompletionResponse",
+    "EmbeddingRequest",
+    "EmbeddingResponse",
+    "LLMClient",
+    "LLMProvider",
+    "Model",
+    "ProviderRegistry",
+]

@@ -10,8 +10,9 @@
 name: Claude Code Review
 
 on:
+  # Only run on new PRs
   pull_request:
-    types: [opened, synchronize]
+    types: [opened]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.py"
@@ -52,6 +53,7 @@ jobs:
       pull-requests: write  # Changed from read to write for PR comments
       issues: read
       id-token: write
+      models: read  # Enable GitHub Models for AI inference
     steps:
       # Get PR information when triggered by workflow_dispatch or workflow_call
       - name: Get PR Information

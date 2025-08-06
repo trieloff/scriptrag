@@ -34,6 +34,20 @@ repos:
       - id: check-builtin-literals
       - id: check-docstring-first
 
+  # Custom hook to check Python file sizes
+  - repo: local
+    hooks:
+      - id: check-python-file-size
+        name: Check Python file size limits
+        entry: python3 scripts/check_file_size.py
+        language: system
+        types: [python]
+        pass_filenames: true
+        description: |
+          Enforces file size limits to ensure MCP tool compatibility:
+          - Regular files: 1000 lines (warning), 1500 lines (error)
+          - Test files: 2000 lines (error)
+
   # Python linting and import sorting with Ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.12.5
@@ -89,7 +103,7 @@ repos:
         args: ['--baseline', '.secrets.baseline']
         exclude: |
           ^(poetry\.lock|package-lock\.json|yarn\.lock|
-          pnpm-lock\.yaml|\.secrets\.baseline)$
+          pnpm-lock\.yaml|\.secrets\.baseline|.*\.fountain)$
 
   # Markdown linting - now enabled
   - repo: https://github.com/igorshubovych/markdownlint-cli
@@ -97,7 +111,7 @@ repos:
     hooks:
       - id: markdownlint
         args: ['--fix', '--config', '.markdownlint.yaml']
-        exclude: '^\.github/.*\.md$'
+        exclude: '^(\.github/.*\.md|.*CLAUDE\.md|\.claude/.*)$'
 
   # YAML linting
   - repo: https://github.com/adrienverge/yamllint
@@ -105,6 +119,15 @@ repos:
     hooks:
       - id: yamllint
         args: ['-c', '.yamllint.yaml']
+
+  # SQL linting with SQLFluff
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 3.3.0
+    hooks:
+      - id: sqlfluff-lint
+        args: ['--dialect', 'sqlite']
+      - id: sqlfluff-fix
+        args: ['--dialect', 'sqlite']
 
   # Python dependency safety check using pip-audit instead of safety
   - repo: https://github.com/pypa/pip-audit

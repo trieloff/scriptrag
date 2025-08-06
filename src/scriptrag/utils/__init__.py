@@ -10,6 +10,7 @@ from scriptrag.utils.llm_client import (
     Model,
 )
 from scriptrag.utils.llm_factory import create_llm_client, get_default_llm_client
+from scriptrag.utils.screenplay import ScreenplayUtils
 
 __all__ = [
     "CompletionRequest",
@@ -19,6 +20,7 @@ __all__ = [
     "LLMClient",
     "LLMProvider",
     "Model",
+    "ScreenplayUtils",
     "create_llm_client",
     "get_default_llm_client",
 ]

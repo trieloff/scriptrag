@@ -303,3 +303,30 @@ FADE IN:""")
 
         assert metadata.episode_number == 5  # From metadata
         assert metadata.season_number == 2  # From filename
+
+    def test_parse_fountain_extract_episode_from_title(self, tmp_path):
+        """Test extracting episode number from title when in markdown format."""
+        lister = ScriptLister()
+
+        # Create a script with episode in title using markdown
+        test_file = tmp_path / "script.fountain"
+        test_file.write_text("""Title: _**Show Name - Episode 5**_
+Author: Test Author
+
+INT. OFFICE - DAY
+
+The scene content.
+""")
+
+        # Mock the parser to return the script with markdown title
+        with patch("scriptrag.api.list.FountainParser") as mock_parser:
+            mock_script = mock_parser.return_value.parse_file.return_value
+            mock_script.metadata = {}  # No episode in metadata
+            mock_script.title = "_**Show Name - Episode 5**_"
+            mock_script.author = "Test Author"
+
+            metadata = lister._parse_fountain_metadata(test_file)
+
+        assert metadata.title == "_**Show Name - Episode 5**_"
+        # The episode number should be extracted from the title (line 139)
+        assert metadata.episode_number == 5

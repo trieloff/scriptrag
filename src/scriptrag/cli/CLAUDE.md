@@ -27,171 +27,28 @@ cli/
 └── styles.py           # Rich styles and themes
 ```
 
-## Implementation Pattern
-
-Each command file should follow this pattern:
-
-```python
-"""Script-related CLI commands."""
-
-import typer
-from pathlib import Path
-from rich.console import Console
-from rich.table import Table
-
-from ..api import ScriptRAGAPI
-from ..models import Script
-from .utils import handle_errors, format_script
-
-app = typer.Typer(help="Script management commands")
-console = Console()
-
-
-@app.command()
-@handle_errors
-def import_script(
-    path: Path = typer.Argument(
-        ...,
-        help="Path to Fountain file",
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True
-    ),
-    series: str = typer.Option(
-        None,
-        "--series", "-s",
-        help="Series ID to associate with"
-    )
-):
-    """Import a Fountain screenplay into ScriptRAG."""
-    api = ScriptRAGAPI()
-
-    with console.status(f"Importing {path.name}..."):
-        script_id = api.import_script(path, series_id=series)
-
-    console.print(f"✅ Imported script: {script_id}", style="success")
-
-
-@app.command()
-@handle_errors
-def list_scripts(
-    series: str = typer.Option(None, "--series", "-s", help="Filter by series"),
-    limit: int = typer.Option(10, "--limit", "-l", help="Number of results")
-):
-    """List all scripts in the database."""
-    api = ScriptRAGAPI()
-    scripts = api.list_scripts(series_id=series)
-
-    table = Table(title="Scripts")
-    table.add_column("ID", style="cyan")
-    table.add_column("Title", style="magenta")
-    table.add_column("Series", style="green")
-    table.add_column("Episodes/Scenes", justify="right")
-
-    for script in scripts[:limit]:
-        table.add_row(
-            script.id,
-            script.title,
-            script.series_id or "-",
-            str(len(script.scenes))
-        )
-
-    console.print(table)
-```
 
 ## Key Patterns
 
 ### 1. Error Handling
 
-Use the `@handle_errors` decorator to catch and format API errors:
-
-```python
-from functools import wraps
-from ..exceptions import ScriptRAGError
-
-def handle_errors(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except ScriptRAGError as e:
-            console.print(f"❌ Error: {e}", style="error")
-            raise typer.Exit(1)
-        except Exception as e:
-            console.print(f"❌ Unexpected error: {e}", style="error")
-            if console.is_debug:
-                console.print_exception()
-            raise typer.Exit(2)
-    return wrapper
-```
+Use decorators to catch and format API errors with appropriate exit codes.
 
 ### 2. Output Formatting
 
-Use Rich for beautiful terminal output:
-
-```python
-# Tables for lists
-table = Table(title="Search Results", show_lines=True)
-
-# Progress bars for long operations
-with Progress() as progress:
-    task = progress.add_task("Processing...", total=100)
-
-# Styled output
-console.print("[bold green]Success![/bold green]")
-console.print(Panel("Scene content here", title="Scene 42"))
-```
+Use Rich for beautiful terminal output including tables, progress bars, and styled text.
 
 ### 3. Input Validation
 
-Typer provides built-in validation:
-
-```python
-path: Path = typer.Argument(
-    ...,
-    exists=True,  # Must exist
-    file_okay=True,  # Can be a file
-    dir_okay=False,  # Cannot be a directory
-    readable=True,  # Must be readable
-    resolve_path=True  # Resolve to absolute
-)
-```
+Typer provides built-in validation for paths, ensuring files exist and are accessible.
 
 ### 4. Interactive Features
 
-For complex inputs:
-
-```python
-if not series_id:
-    series_id = typer.prompt("Enter series ID")
-
-if typer.confirm("Are you sure?"):
-    # Proceed with operation
-```
+Use interactive prompts and confirmations for complex user inputs.
 
 ## Command Structure
 
-```bash
-scriptrag script import path/to/script.fountain
-scriptrag script list --series breaking-bad
-scriptrag script show s01e01
-
-scriptrag scene list s01e01
-scriptrag scene show <content-hash>
-scriptrag scene reprocess <content-hash>
-
-scriptrag search dialogue "I am the one who knocks"
-scriptrag search character WALTER --limit 20
-scriptrag search semantic "tense confrontation"
-
-scriptrag character list breaking-bad
-scriptrag character show breaking-bad:WALTER
-scriptrag character update-bible breaking-bad:WALTER docs/walter.md
-
-scriptrag agent list
-scriptrag agent run emotional_beats <content-hash>
-```
+The CLI provides hierarchical commands organized by functionality: script management, scene operations, search commands, character management, and agent execution.
 
 ## Configuration
 
@@ -209,13 +66,7 @@ Each command group should have tests:
 - `test_search_commands.py`
 - etc.
 
-Use Typer's testing utilities:
-
-```python
-from typer.testing import CliRunner
-runner = CliRunner()
-result = runner.invoke(app, ["import", "test.fountain"])
-```
+Use Typer's testing utilities with CliRunner for automated command testing.
 
 ## Rich Integration
 

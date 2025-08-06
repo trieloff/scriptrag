@@ -16,6 +16,7 @@ from jouvence.document import (
 from jouvence.parser import JouvenceParser
 
 from scriptrag.config import get_logger
+from scriptrag.utils import ScreenplayUtils
 
 logger = get_logger(__name__)
 
@@ -288,33 +289,13 @@ class FountainParser:
         """Process a jouvence scene into our Scene object."""
         heading = jouvence_scene.header if jouvence_scene.header else ""
 
-        # Parse scene type and location from heading
-        scene_type = ""
-        location = ""
-        time_of_day = ""
+        # Parse scene type and location from heading using ScreenplayUtils
+        scene_type, location, time_of_day = ScreenplayUtils.parse_scene_heading(heading)
 
-        heading_upper = heading.upper()
-        if heading_upper.startswith("INT."):
-            scene_type = "INT"
-            rest = heading[4:].strip()
-        elif heading_upper.startswith("EXT."):
-            scene_type = "EXT"
-            rest = heading[4:].strip()
-        elif heading_upper.startswith("INT./EXT.") or heading_upper.startswith("I/E."):
-            scene_type = "INT/EXT"
-            if heading_upper.startswith("INT./EXT."):
-                rest = heading[9:].strip()
-            else:
-                rest = heading[4:].strip()
-        else:
-            # No recognized scene type prefix, treat whole heading as location
-            rest = heading
-
-        # Split location and time of day
-        if " - " in rest:
-            location, time_of_day = rest.rsplit(" - ", 1)
-        else:
-            location = rest
+        # Ensure we have default values if None was returned
+        scene_type = scene_type or ""
+        location = location or ""
+        time_of_day = time_of_day or ""
 
         # Extract dialogue and action lines
         dialogue_lines = []

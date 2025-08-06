@@ -71,6 +71,14 @@ class ScriptRAGSettings(BaseSettings):
         default="scriptrag",
         description="Application name",
     )
+    metadata_scan_size: int = Field(
+        default=10240,
+        description=(
+            "Number of bytes to read from end of file when scanning for metadata "
+            "(0 = read entire file)"
+        ),
+        ge=0,
+    )
 
     # Debug settings
     debug: bool = Field(

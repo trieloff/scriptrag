@@ -553,7 +553,7 @@ jobs:
     needs: [all-checks]
     if: |
       github.event_name == 'pull_request' &&
-      needs.all-checks.result == 'success'
+      needs.all-checks.outputs.all_passed == 'true'
     permissions:
       contents: read
       pull-requests: write

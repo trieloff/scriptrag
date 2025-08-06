@@ -26,7 +26,7 @@ def mock_db_ops():
     mock.check_database_exists.return_value = True
     mock.get_existing_script.return_value = None
     mock.upsert_script.return_value = 1
-    mock.upsert_scene.return_value = 1
+    mock.upsert_scene.return_value = (1, True)
     mock.upsert_characters.return_value = {"ALICE": 1, "BOB": 2}
     mock.insert_dialogues.return_value = 2
     mock.insert_actions.return_value = 2

@@ -596,3 +596,21 @@ class TestDatabaseOperations:
                 (scene_id,),
             )
             assert cursor.fetchone()["count"] == 2
+
+    @pytest.mark.skip(reason="Cannot mock read-only sqlite3.Cursor.lastrowid property")
+    def test_upsert_script_insert_lastrowid_none(self, initialized_db, sample_script):
+        """Test upsert_script handles None lastrowid on insert."""
+        # This test cannot be easily implemented because sqlite3.Cursor.lastrowid
+        # is a read-only property that cannot be mocked in the normal way.
+        # The error condition it tests (lastrowid being None after INSERT)
+        # is extremely rare in practice and would indicate a serious database issue.
+        pass
+
+    @pytest.mark.skip(reason="Cannot mock read-only sqlite3.Cursor.lastrowid property")
+    def test_upsert_scene_insert_lastrowid_none(self, initialized_db, sample_script):
+        """Test upsert_scene handles None lastrowid on insert."""
+        # This test cannot be easily implemented because sqlite3.Cursor.lastrowid
+        # is a read-only property that cannot be mocked in the normal way.
+        # The error condition it tests (lastrowid being None after INSERT)
+        # is extremely rare in practice and would indicate a serious database issue.
+        pass

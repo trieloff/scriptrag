@@ -110,6 +110,38 @@ class ScriptRAGSettings(BaseSettings):
         description="Log file retention period",
     )
 
+    # LLM settings
+    llm_provider: str | None = Field(
+        default=None,
+        description="Preferred LLM provider: claude_code, github_models, openai",
+    )
+    llm_endpoint: str | None = Field(
+        default=None,
+        description="OpenAI-compatible API endpoint URL",
+    )
+    llm_api_key: str | None = Field(
+        default=None,
+        description="API key for OpenAI-compatible endpoint",
+    )
+    llm_model: str | None = Field(
+        default=None,
+        description="Default model to use for completions",
+    )
+    llm_embedding_model: str | None = Field(
+        default=None,
+        description="Default model to use for embeddings",
+    )
+    llm_temperature: float = Field(
+        default=0.7,
+        description="Default temperature for completions",
+        ge=0.0,
+        le=2.0,
+    )
+    llm_max_tokens: int | None = Field(
+        default=None,
+        description="Default max tokens for completions",
+    )
+
     @field_validator("database_path", "log_file", mode="before")
     @classmethod
     def expand_path(cls, v: Any) -> Path | None:

@@ -36,8 +36,17 @@ class ScreenplayUtils:
         # Extract location (everything before " - " if present)
         if " - " in rest:
             location, _ = rest.rsplit(" - ", 1)
-            return location.strip() if location.strip() else None
-        return rest.strip() if rest.strip() else None
+            location = location.strip()
+            # If location is empty or just whitespace, return None
+            return location if location else None
+
+        # Handle case where rest starts with "- " (time only, no location)
+        if rest.strip().startswith("- "):
+            return None
+
+        # If no " - " separator, the rest is the location
+        rest = rest.strip()
+        return rest if rest else None
 
     @staticmethod
     def extract_time(heading: str) -> str | None:

@@ -159,7 +159,7 @@ def _display_results(
     if verbose and result.scripts:
         console.print("\n[bold]Script Details:[/bold]")
         for script_result in result.scripts:
-            if script_result.indexed:
+            if script_result.indexed or script_result.error:
                 # Try to make path relative for display
                 try:
                     display_path = script_result.path.relative_to(Path.cwd())
@@ -193,7 +193,9 @@ def _display_results(
             console.print(f"  ... and {len(result.errors) - 10} more errors")
 
     # Show helpful next steps
-    if not dry_run and result.total_scripts_indexed > 0:
+    if not dry_run and (
+        result.total_scripts_indexed > 0 or result.total_scripts_updated > 0
+    ):
         console.print("\n[dim]Next steps:[/dim]")
         console.print("  • Use 'scriptrag query' to search the indexed data")
         console.print("  • Use 'scriptrag stats' to view database statistics")

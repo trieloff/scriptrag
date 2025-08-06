@@ -1,11 +1,12 @@
 """Unit tests for index API module."""
 
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
 from scriptrag.api.index import IndexCommand, IndexOperationResult, IndexResult
+from scriptrag.api.list import FountainMetadata
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.parser import Dialogue, Scene, Script
 
@@ -634,3 +635,224 @@ class TestIndexOperationResult:
         assert result.total_characters_indexed == 15
         assert result.total_dialogues_indexed == 30
         assert result.total_actions_indexed == 23
+
+
+class TestIndexCommandMissingCoverage:
+    """Test missing coverage lines in IndexCommand."""
+
+    @pytest.mark.asyncio
+    async def test_index_with_batch_error_collection(self):
+        """Test that errors from batch processing are collected properly."""
+        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        mock_db_ops = Mock()
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        # Create mock scripts with errors
+        scripts = [
+            FountainMetadata(
+                file_path=Path("script1.fountain"),
+                title="Script 1",
+            ),
+            FountainMetadata(
+                file_path=Path("script2.fountain"),
+                title="Script 2",
+            ),
+        ]
+
+        # Mock the discover and filter methods
+        indexer._discover_scripts = AsyncMock(return_value=scripts)
+        indexer._filter_scripts_for_indexing = AsyncMock(return_value=scripts)
+
+        # Mock process_scripts_batch to return results with errors
+        batch_result_1 = IndexResult(
+            path=Path("script1.fountain"),
+            error="Failed to parse script 1",
+        )
+        batch_result_2 = IndexResult(
+            path=Path("script2.fountain"),
+            error="Failed to parse script 2",
+        )
+
+        indexer._process_scripts_batch = AsyncMock(
+            return_value=[batch_result_1, batch_result_2]
+        )
+
+        # Run index
+        result = await indexer.index(Path(), batch_size=2)
+
+        # Verify errors were collected
+        assert len(result.errors) == 2
+        assert "script1.fountain: Failed to parse script 1" in result.errors
+        assert "script2.fountain: Failed to parse script 2" in result.errors
+
+    @pytest.mark.asyncio
+    async def test_discover_scripts_default_path(self):
+        """Test _discover_scripts with default path."""
+        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        mock_db_ops = Mock()
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        # Mock the lister instance on the indexer
+        with patch.object(indexer.lister, "list_scripts", return_value=[]) as mock_list:
+            # Test with None path (should use current directory)
+            await indexer._discover_scripts(None, recursive=True)
+            mock_list.assert_called_once_with(None, True)
+
+    @pytest.mark.asyncio
+    async def test_filter_scripts_skip_metadata_condition(self):
+        """Test _filter_scripts_for_indexing with skip_metadata condition."""
+        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        mock_db_ops = Mock()
+        # Add context manager support for transaction
+        mock_conn = Mock()
+        mock_context_manager = Mock()
+        mock_context_manager.__enter__ = Mock(return_value=mock_conn)
+        mock_context_manager.__exit__ = Mock(return_value=None)
+        mock_db_ops.transaction.return_value = mock_context_manager
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        # Create test scripts
+        scripts = [
+            FountainMetadata(
+                file_path=Path("script1.fountain"),
+                title="Script 1",
+            ),
+        ]
+
+        # Mock database to return existing script with last_indexed metadata
+        existing_script = Mock()
+        existing_script.content_hash = "hash1"
+        existing_script.metadata = {"last_indexed": "2024-01-01T00:00:00Z"}
+        mock_db_ops.get_existing_script.return_value = existing_script
+
+        # Test _filter_scripts_for_indexing (method only takes scripts parameter)
+        filtered = await indexer._filter_scripts_for_indexing(scripts)
+        # Since script exists in database, it should be filtered out
+        assert len(filtered) == 0
+
+    @pytest.mark.asyncio
+    async def test_process_scripts_batch_exception_handling(self):
+        """Test _process_scripts_batch exception handling."""
+        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        mock_db_ops = Mock()
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        # Create test scripts
+        scripts = [
+            FountainMetadata(
+                file_path=Path("script1.fountain"),
+                title="Script 1",
+            ),
+        ]
+
+        # Mock _index_single_script to raise exception
+        indexer._index_single_script = AsyncMock(side_effect=Exception("Test error"))
+
+        # Process batch - should catch exception and add to errors
+        results = await indexer._process_scripts_batch(
+            scripts, force=False, dry_run=False
+        )
+        assert len(results) == 1
+        assert results[0].error == "Test error"
+
+    @pytest.mark.asyncio
+    async def test_index_single_script_parser_error(self):
+        """Test _index_single_script with parser error."""
+        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        mock_db_ops = Mock()
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        script_metadata = FountainMetadata(
+            file_path=Path("test.fountain"),
+            title="Test Script",
+        )
+
+        # Mock parser to raise exception
+        mock_parser = Mock()
+        mock_parser.parse_file.side_effect = Exception("Parse error")
+        indexer.parser = mock_parser
+
+        # Test indexing - should raise exception
+        with pytest.raises(Exception, match="Parse error"):
+            await indexer._index_single_script(
+                script_metadata.file_path, force=False, dry_run=False
+            )
+
+    @pytest.mark.asyncio
+    async def test_index_single_script_database_error(self):
+        """Test _index_single_script with database error."""
+        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        mock_db_ops = Mock()
+        # Mock transaction to raise database error
+        mock_db_ops.transaction.side_effect = Exception("Database error")
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        script_metadata = FountainMetadata(
+            file_path=Path("test.fountain"),
+            title="Test Script",
+        )
+
+        # Mock parsing
+        mock_parser = Mock()
+        mock_script = Mock()
+        mock_script.title = "Test Script"
+        mock_script.author = "Test Author"
+        mock_script.scenes = []
+        mock_parser.parse_file.return_value = mock_script
+        indexer.parser = mock_parser
+
+        # Test indexing - should raise database error
+        with pytest.raises(Exception, match="Database error"):
+            await indexer._index_single_script(
+                script_metadata.file_path, force=False, dry_run=False
+            )
+
+    @pytest.mark.asyncio
+    async def test_index_single_script_update_case(self):
+        """Test _index_single_script update case."""
+        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        mock_db_ops = Mock()
+        # Add context manager support for transaction
+        mock_conn = Mock()
+        mock_context_manager = Mock()
+        mock_context_manager.__enter__ = Mock(return_value=mock_conn)
+        mock_context_manager.__exit__ = Mock(return_value=None)
+        mock_db_ops.transaction.return_value = mock_context_manager
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        script_metadata = FountainMetadata(
+            file_path=Path("test.fountain"),
+            title="Test Script",
+        )
+
+        # Mock parsing
+        mock_parser = Mock()
+        mock_script = Mock()
+        mock_script.title = "Test Script"
+        mock_script.author = "Test Author"
+        mock_script.scenes = []
+        mock_parser.parse_file.return_value = mock_script
+        indexer.parser = mock_parser
+
+        # Mock database operations - existing script
+        mock_db_ops.check_database.return_value = True
+        mock_connection = Mock()
+        mock_db_ops.get_connection.return_value = mock_connection
+        existing_script = Mock()
+        existing_script.id = 1
+        existing_script.metadata = {}
+        mock_db_ops.get_existing_script.return_value = existing_script
+        mock_db_ops.upsert_script.return_value = 1
+        mock_db_ops.get_script_stats.return_value = {
+            "scenes": 3,
+            "characters": 2,
+            "dialogues": 5,
+            "actions": 4,
+        }
+
+        # Test updating
+        result = await indexer._index_single_script(
+            script_metadata.file_path, force=False, dry_run=False
+        )
+        assert result.indexed is True
+        assert result.updated is True

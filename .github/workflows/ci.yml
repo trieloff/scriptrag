@@ -553,7 +553,8 @@ jobs:
     needs: [all-checks]
     if: |
       github.event_name == 'pull_request' &&
-      needs.all-checks.outputs.all_passed == 'true'
+      needs.all-checks.outputs.all_passed == 'true' &&
+      needs.all-checks.result == 'success'
     permissions:
       actions: write
       pull-requests: read
@@ -568,7 +569,7 @@ jobs:
       - name: Trigger Post-CI Workflow
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || secrets.GITHUB_TOKEN }}
           script: |
             const prNumber = '${{ steps.pr-info.outputs.pr_number }}';
             const prHeadRef = '${{ steps.pr-info.outputs.pr_head_ref }}';

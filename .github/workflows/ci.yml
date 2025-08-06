@@ -448,7 +448,7 @@ jobs:
             grep -oE 'https://www\.terragonlabs\.com/task/[a-f0-9-]+' | head -1)
           if [ -n "$TASK_URL" ]; then
             TASK_ID=$(echo "$TASK_URL" | \
-              grep -oE '[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+-[a-f0-9-]+$')
+              grep -oE '[a-f0-9-]+$')
             echo "task_id=$TASK_ID" >> $GITHUB_OUTPUT
             echo "task_url=$TASK_URL" >> $GITHUB_OUTPUT
             echo "found=true" >> $GITHUB_OUTPUT

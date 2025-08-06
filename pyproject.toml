@@ -45,6 +45,8 @@ dependencies = [
     "pyyaml>=6.0.1",
     "structlog>=23.2.0",
     "tenacity>=8.2.0",
+    "python-frontmatter>=1.0.0",  # For parsing agent markdown files
+    "jsonschema>=4.25.0",  # For validating agent output schemas
     # MCP server
     "mcp>=0.1.0",
     # LLM integration

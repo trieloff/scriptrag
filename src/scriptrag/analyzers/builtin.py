@@ -1,6 +1,7 @@
 """Built-in scene analyzers for ScriptRAG."""
 
 from .base import BaseSceneAnalyzer
+from .props_inventory import PropsInventoryAnalyzer
 
 
 class NOPAnalyzer(BaseSceneAnalyzer):
@@ -25,7 +26,8 @@ class NOPAnalyzer(BaseSceneAnalyzer):
         return {}
 
 
-# Registry of built-in analyzers - starting with just NOP
+# Registry of built-in analyzers
 BUILTIN_ANALYZERS: dict[str, type[BaseSceneAnalyzer]] = {
     "nop": NOPAnalyzer,
+    "props_inventory": PropsInventoryAnalyzer,
 }

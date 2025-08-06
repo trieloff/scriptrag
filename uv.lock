@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -2539,6 +2539,18 @@ wheels = [
 ]
 
 [[package]]
+name = "python-frontmatter"
+version = "1.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/96/de/910fa208120314a12f9a88ea63e03707261692af782c99283f1a2c8a5e6f/python-frontmatter-1.1.0.tar.gz", hash = "sha256:7118d2bd56af9149625745c58c9b51fb67e8d1294a0c76796dafdc72c36e5f6d", size = 16256, upload-time = "2024-01-16T18:50:04.052Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/49/87/3c8da047b3ec5f99511d1b4d7a5bc72d4b98751c7e78492d14dc736319c5/python_frontmatter-1.1.0-py3-none-any.whl", hash = "sha256:335465556358d9d0e6c98bbeb69b1c969f2a4a21360587b9873bfc3b213407c1", size = 9834, upload-time = "2024-01-16T18:50:00.911Z" },
+]
+
+[[package]]
 name = "python-json-logger"
 version = "3.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3165,6 +3177,7 @@ dependencies = [
     { name = "gitpython" },
     { name = "httpx" },
     { name = "jouvence" },
+    { name = "jsonschema" },
     { name = "mcp" },
     { name = "networkx" },
     { name = "numpy" },
@@ -3173,6 +3186,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "python-frontmatter" },
     { name = "pyyaml" },
     { name = "requests" },
     { name = "rich" },
@@ -3249,6 +3263,7 @@ requires-dist = [
     { name = "ipython", marker = "extra == 'dev'", specifier = ">=8.18.0" },
     { name = "isort", marker = "extra == 'dev'", specifier = ">=5.13.0" },
     { name = "jouvence", specifier = ">=0.4.2" },
+    { name = "jsonschema", specifier = ">=4.25.0" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "mcp", specifier = ">=0.1.0" },
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.5.0" },
@@ -3282,6 +3297,7 @@ requires-dist = [
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.5.0" },
     { name = "pytest-xdist", marker = "extra == 'test'", specifier = ">=3.5.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "python-frontmatter", specifier = ">=1.0.0" },
     { name = "pyyaml", specifier = ">=6.0.1" },
     { name = "requests", specifier = ">=2.31.0" },
     { name = "rich", specifier = ">=13.7.0" },

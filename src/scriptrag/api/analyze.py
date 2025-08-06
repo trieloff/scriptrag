@@ -113,6 +113,18 @@ class AnalyzeCommand:
             except ImportError:
                 pass
 
+            # Try to load as markdown-based agent
+            try:
+                from scriptrag.agents import AgentLoader
+
+                loader = AgentLoader()
+                agent_analyzer = loader.load_agent(name)
+                self.analyzers.append(agent_analyzer)
+                logger.info(f"Loaded markdown agent: {name}")
+                return
+            except (ImportError, ValueError):
+                pass
+
             raise ValueError(f"Unknown analyzer: {name}")
 
         self.analyzers.append(self._analyzer_registry[name]())

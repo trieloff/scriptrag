@@ -84,7 +84,7 @@ class TestClaudeCodeProvider:
             yield mock_message
 
         with patch(
-            "scriptrag.utils.llm_client.ClaudeCodeProvider.complete"
+            "scriptrag.llm.providers.claude_code.ClaudeCodeProvider.complete"
         ) as mock_complete:
             mock_complete.return_value = CompletionResponse(
                 id="test-id",

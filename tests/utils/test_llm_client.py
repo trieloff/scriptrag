@@ -554,8 +554,8 @@ class TestLLMClient:
         """Test completion with specific model."""
         client = LLMClient()
 
-        # Mock provider
-        mock_provider = MagicMock()
+        # Mock provider - use AsyncMock for the provider itself
+        mock_provider = AsyncMock()
         mock_provider.provider_type = LLMProvider.GITHUB_MODELS
         mock_response = CompletionResponse(
             id="test",
@@ -566,18 +566,9 @@ class TestLLMClient:
         mock_provider.complete = AsyncMock(return_value=mock_response)
         mock_provider.is_available = AsyncMock(return_value=True)
 
-        # Replace the provider in the client's providers dict and set as current
-        client.providers[LLMProvider.GITHUB_MODELS] = mock_provider
+        # Replace all providers with mock ones to ensure isolation
+        client.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
         client.current_provider = mock_provider
-
-        # Mock other providers to return unavailable to prevent fallback
-        for provider_type in client.providers:
-            if provider_type != LLMProvider.GITHUB_MODELS:
-                provider = client.providers[provider_type]
-                provider.is_available = AsyncMock(return_value=False)
-                provider.complete = AsyncMock(
-                    side_effect=Exception("Should not be called")
-                )
 
         response = await client.complete(
             messages=[{"role": "user", "content": "Hello"}],

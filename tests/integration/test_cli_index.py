@@ -609,7 +609,7 @@ New dialogue.
         test_result.errors = [f"Error {i}" for i in range(15)]
 
         with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
-            mock_instance = mock_index_command.return_value
+            mock_instance = mock_index_command.from_config.return_value
             mock_instance.index = AsyncMock(return_value=test_result)
 
             result = runner.invoke(app, ["index", str(tmp_path), "--verbose"])
@@ -646,13 +646,13 @@ New dialogue.
         ]
 
         with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
-            mock_instance = mock_index_command.return_value
+            mock_instance = mock_index_command.from_config.return_value
             mock_instance.index = AsyncMock(return_value=test_result)
 
             result = runner.invoke(app, ["index", str(tmp_path)])
 
             # Check that updates are shown in summary
-            assert "Scripts updated: 1" in result.output
+            assert "Scripts Updated" in result.output and "1" in result.output
             assert (
                 "Next steps:" in result.output
             )  # Help text should not show for updates
@@ -669,7 +669,7 @@ New dialogue.
         test_result.scripts = []
 
         with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
-            mock_instance = mock_index_command.return_value
+            mock_instance = mock_index_command.from_config.return_value
             mock_instance.index = AsyncMock(return_value=test_result)
 
             # Run with verbose to enable progress

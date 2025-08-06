@@ -703,6 +703,12 @@ class TestIndexCommandMissingCoverage:
         """Test _filter_scripts_for_indexing with skip_metadata condition."""
         settings = ScriptRAGSettings(database_path=Path("test.db"))
         mock_db_ops = Mock()
+        # Add context manager support for transaction
+        mock_conn = Mock()
+        mock_context_manager = Mock()
+        mock_context_manager.__enter__ = Mock(return_value=mock_conn)
+        mock_context_manager.__exit__ = Mock(return_value=None)
+        mock_db_ops.transaction.return_value = mock_context_manager
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Create test scripts
@@ -713,8 +719,11 @@ class TestIndexCommandMissingCoverage:
             ),
         ]
 
-        # Mock database to return existing script with same hash
-        mock_db_ops.get_existing_script.return_value = {"content_hash": "hash1"}
+        # Mock database to return existing script with last_indexed metadata
+        existing_script = Mock()
+        existing_script.content_hash = "hash1"
+        existing_script.metadata = {"last_indexed": "2024-01-01T00:00:00Z"}
+        mock_db_ops.get_existing_script.return_value = existing_script
 
         # Test _filter_scripts_for_indexing (method only takes scripts parameter)
         filtered = await indexer._filter_scripts_for_indexing(scripts)
@@ -763,18 +772,19 @@ class TestIndexCommandMissingCoverage:
         mock_parser.parse_file.side_effect = Exception("Parse error")
         indexer.parser = mock_parser
 
-        # Test indexing - should catch exception
-        result = await indexer._index_single_script(
-            script_metadata.file_path, force=False, dry_run=False
-        )
-        assert result.error == "Parse error"
-        assert result.indexed == 0
+        # Test indexing - should raise exception
+        with pytest.raises(Exception, match="Parse error"):
+            await indexer._index_single_script(
+                script_metadata.file_path, force=False, dry_run=False
+            )
 
     @pytest.mark.asyncio
     async def test_index_single_script_database_error(self):
         """Test _index_single_script with database error."""
         settings = ScriptRAGSettings(database_path=Path("test.db"))
         mock_db_ops = Mock()
+        # Mock transaction to raise database error
+        mock_db_ops.transaction.side_effect = Exception("Database error")
         indexer = IndexCommand(settings, mock_db_ops)
 
         script_metadata = FountainMetadata(
@@ -791,20 +801,23 @@ class TestIndexCommandMissingCoverage:
         mock_parser.parse_file.return_value = mock_script
         indexer.parser = mock_parser
 
-        # Mock database to raise error
-        mock_db_ops.check_database.side_effect = Exception("Database error")
-
-        # Test indexing - should catch database error
-        result = await indexer._index_single_script(
-            script_metadata.file_path, force=False, dry_run=False
-        )
-        assert result.error == "Database error"
+        # Test indexing - should raise database error
+        with pytest.raises(Exception, match="Database error"):
+            await indexer._index_single_script(
+                script_metadata.file_path, force=False, dry_run=False
+            )
 
     @pytest.mark.asyncio
     async def test_index_single_script_update_case(self):
         """Test _index_single_script update case."""
         settings = ScriptRAGSettings(database_path=Path("test.db"))
         mock_db_ops = Mock()
+        # Add context manager support for transaction
+        mock_conn = Mock()
+        mock_context_manager = Mock()
+        mock_context_manager.__enter__ = Mock(return_value=mock_conn)
+        mock_context_manager.__exit__ = Mock(return_value=None)
+        mock_db_ops.transaction.return_value = mock_context_manager
         indexer = IndexCommand(settings, mock_db_ops)
 
         script_metadata = FountainMetadata(
@@ -825,12 +838,21 @@ class TestIndexCommandMissingCoverage:
         mock_db_ops.check_database.return_value = True
         mock_connection = Mock()
         mock_db_ops.get_connection.return_value = mock_connection
-        mock_db_ops.get_existing_script.return_value = {"id": 1}  # Existing script
+        existing_script = Mock()
+        existing_script.id = 1
+        existing_script.metadata = {}
+        mock_db_ops.get_existing_script.return_value = existing_script
         mock_db_ops.upsert_script.return_value = 1
+        mock_db_ops.get_script_stats.return_value = {
+            "scenes": 3,
+            "characters": 2,
+            "dialogues": 5,
+            "actions": 4,
+        }
 
         # Test updating
         result = await indexer._index_single_script(
             script_metadata.file_path, force=False, dry_run=False
         )
-        assert result.indexed == 0
-        assert result.updated == 1
+        assert result.indexed is True
+        assert result.updated is True

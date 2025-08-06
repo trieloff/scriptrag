@@ -53,92 +53,24 @@ api/
     └── run_agent.py
 ```
 
-## Implementation Pattern
-
-Each operation file should follow this pattern:
-
-```python
-"""Operation: import_script - Import a Fountain screenplay into ScriptRAG."""
-
-from pathlib import Path
-from typing import Optional
-
-from ..base import BaseAPI, api_operation
-from ...models import Script, ScriptID
-from ...parser import FountainParser
-from ...storage import StorageManager
-
-
-class ImportScriptAPI(BaseAPI):
-    """Import script operation."""
-
-    @api_operation
-    def execute(
-        self,
-        fountain_path: Path,
-        series_id: Optional[str] = None
-    ) -> ScriptID:
-        """Import a Fountain screenplay.
-
-        Args:
-            fountain_path: Path to the fountain file
-            series_id: Optional series to associate with
-
-        Returns:
-            ScriptID of the imported script
-
-        Raises:
-            FileNotFoundError: If fountain file doesn't exist
-            ParsingError: If fountain file is invalid
-            StorageError: If storage operation fails
-        """
-        # Implementation here
-        pass
-```
 
 ## Key Patterns
 
 ### 1. Input Validation
 
-```python
-@api_operation  # Decorator handles common validation
-def execute(self, path: Path) -> Result:
-    # Path validation handled by decorator
-    # Business logic here
-```
+Use decorators to handle common validation patterns across API operations.
 
 ### 2. Error Handling
 
-```python
-from ...exceptions import ScriptRAGError, ParsingError
-
-try:
-    result = self.parser.parse(path)
-except FountainParseError as e:
-    raise ParsingError(f"Failed to parse {path}: {e}") from e
-```
+Convert internal exceptions to appropriate ScriptRAG error types with proper error chaining.
 
 ### 3. Dependency Injection
 
-```python
-class SearchAPI(BaseAPI):
-    def __init__(self, storage: Optional[StorageManager] = None):
-        super().__init__()
-        self.storage = storage or StorageManager()
-```
+Use optional dependency injection for testability and flexibility.
 
 ### 4. Result Types
 
-Use explicit result types from models:
-
-```python
-from ...models import (
-    ScriptID,
-    Scene,
-    SearchResult,
-    Character
-)
-```
+Use explicit result types from models for type safety and clear interfaces.
 
 ## Testing
 

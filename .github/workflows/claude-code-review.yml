@@ -1,13 +1,11 @@
 # Claude Code Review Workflow
 #
-# This workflow runs Claude Code review on pull requests with two trigger mechanisms:
+# This workflow runs Claude Code review on pull requests:
 # 1. Automatically when a new PR is opened (immediate feedback)
-# 2. After all CI checks pass (via workflow_run trigger)
+# 2. Can be triggered via workflow_dispatch for manual runs
 #
-# This ensures Claude reviews are:
-# - Provided early for new PRs
-# - Only run on green builds to avoid reviewing broken code
-# - Not triggered on every push (reducing noise)
+# Note: The post-CI.yml workflow now handles triggering Claude reviews
+# after successful CI runs using workflow_dispatch for better reliability.
 
 name: Claude Code Review
 
@@ -17,28 +15,24 @@ on:
     types: [opened]
     # Optional: Only run on specific file changes
     # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+    #   - "src/**/*.py"
 
-  # Also allow manual triggering after all checks pass
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
-    branches: ["*"]
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number to review'
+        required: false
+        type: string
 
 jobs:
   claude-review:
     # Skip only for known problematic bots
-    # For workflow_run trigger, only run if the CI workflow succeeded
     if: |
       (github.event_name == 'pull_request' &&
        github.event.pull_request.user.login != 'dependabot[bot]' &&
        github.event.pull_request.user.login != 'renovate[bot]') ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'pull_request')
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -47,33 +41,28 @@ jobs:
       id-token: write
       models: read  # Enable GitHub Models for AI inference
     steps:
-      # Get PR information when triggered by workflow_run
+      # Get PR information when triggered by workflow_dispatch
       - name: Get PR Information
-        if: github.event_name == 'workflow_run'
+        if: github.event_name == 'workflow_dispatch'
         id: pr-info
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
           script: |
-            // Get the PR associated with this workflow run
-            const workflowRun = context.payload.workflow_run;
-            const headSha = workflowRun.head_sha;
-
-            // Find PRs associated with this commit
-            const { data: prs } = await github.rest.pulls.list({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              state: 'open',
-              head: `${workflowRun.head_repository.owner.login}:${workflowRun.head_branch}`
-            });
-
-            if (prs.length === 0) {
-              console.log('No open PR found for this workflow run');
+            const prNumber = '${{ inputs.pr_number }}';
+            if (!prNumber) {
+              console.log('No PR number provided for workflow_dispatch');
               core.setOutput('skip', 'true');
               return;
             }
 
-            const pr = prs[0];
+            // Get the PR details
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: parseInt(prNumber)
+            });
+
             core.setOutput('pr_number', pr.number);
             core.setOutput('pr_head_ref', pr.head.ref);
             core.setOutput('skip', 'false');
@@ -84,8 +73,8 @@ jobs:
         with:
           fetch-depth: 1
           token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
-          # For workflow_run, checkout the PR branch
-          ref: ${{ github.event_name == 'workflow_run' && steps.pr-info.outputs.pr_head_ref || '' }}
+          # For workflow_dispatch, checkout the PR branch
+          ref: ${{ github.event_name == 'workflow_dispatch' && steps.pr-info.outputs.pr_head_ref || '' }}
 
       - name: Run Claude Code Review
         if: github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true'
@@ -96,8 +85,8 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Use dedicated GitHub token for Claude to bypass OIDC issues
           github_token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
-          # For workflow_run events, specify the PR number
-          pr_number: ${{ github.event_name == 'workflow_run' && steps.pr-info.outputs.pr_number || '' }}
+          # For workflow_dispatch events, specify the PR number
+          pr_number: ${{ github.event_name == 'workflow_dispatch' && steps.pr-info.outputs.pr_number || '' }}
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
           # model: "claude-opus-4-20250514"
@@ -127,7 +116,7 @@ jobs:
             let prNumber;
             if (context.eventName === 'pull_request') {
               prNumber = context.issue.number;
-            } else if (context.eventName === 'workflow_run') {
+            } else if (context.eventName === 'workflow_dispatch') {
               prNumber = parseInt('${{ steps.pr-info.outputs.pr_number }}');
             }
 

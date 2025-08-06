@@ -445,21 +445,27 @@ jobs:
     runs-on: ubuntu-latest
     needs: [changes, lint, type-check, security, test-canary, test-matrix, docs, build, pre-commit]
     if: always()
+    outputs:
+      all_passed: ${{ steps.check.outputs.all_passed }}
     steps:
       - name: Check if all jobs passed
+        id: check
         run: |
           # If no Python changes, automatically pass
           if [[ "${{ needs.changes.outputs.python }}" != "true" ]]; then
             echo "No Python files changed - skipping checks"
+            echo "all_passed=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           # Check for failures only if Python files were changed
           if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
             echo "One or more jobs failed"
+            echo "all_passed=false" >> $GITHUB_OUTPUT
             exit 1
           else
             echo "All jobs passed successfully"
+            echo "all_passed=true" >> $GITHUB_OUTPUT
           fi
 
   notify-terry:
@@ -540,6 +546,56 @@ jobs:
               issue_number: context.issue.number,
               body: comment
             });
+
+  trigger-post-ci:
+    name: Trigger Post-CI Actions
+    runs-on: ubuntu-latest
+    needs: [all-checks]
+    if: |
+      github.event_name == 'pull_request' &&
+      needs.all-checks.outputs.all_passed == 'true' &&
+      needs.all-checks.result == 'success'
+    permissions:
+      actions: write
+      pull-requests: read
+    steps:
+      - name: Extract PR Information
+        id: pr-info
+        run: |
+          echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "pr_head_ref=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+          echo "pr_head_sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Trigger Post-CI Workflow
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = '${{ steps.pr-info.outputs.pr_number }}';
+            const prHeadRef = '${{ steps.pr-info.outputs.pr_head_ref }}';
+            const prHeadSha = '${{ steps.pr-info.outputs.pr_head_sha }}';
+
+            console.log(`Triggering post-CI actions for PR #${prNumber}`);
+
+            try {
+              const result = await github.rest.actions.createWorkflowDispatch({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'post-ci.yml',
+                ref: prHeadRef,
+                inputs: {
+                  pr_number: prNumber,
+                  pr_head_ref: prHeadRef,
+                  pr_head_sha: prHeadSha,
+                  trigger_claude_review: 'true'
+                }
+              });
+
+              console.log('Successfully triggered post-CI workflow');
+            } catch (error) {
+              console.error('Failed to trigger post-CI workflow:', error);
+              // Don't fail the CI if we can't trigger post-CI actions
+            }
 
   vibe-badge:
     name: Generate Vibe Badge

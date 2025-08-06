@@ -285,19 +285,28 @@ class TestDatabaseOperations:
             assert metadata["boneyard"]["analyzed"] is True
             assert metadata["content_hash"] == "hash123"
 
-            # Update scene
+            # Update scene heading (metadata only - content hash unchanged)
             scene.heading = "INT. COFFEE SHOP - MORNING"
             updated_id, content_changed = initialized_db.upsert_scene(
                 conn, scene, script_id
             )
             assert updated_id == scene_id
-            assert content_changed  # Content was updated
+            assert not content_changed  # Only metadata updated, content hash unchanged
 
             # Verify update
             cursor = conn.execute(
                 "SELECT heading FROM scenes WHERE id = ?", (scene_id,)
             )
             assert cursor.fetchone()["heading"] == "INT. COFFEE SHOP - MORNING"
+
+            # Test actual content change (hash changes)
+            scene.content = "Updated scene content"
+            scene.content_hash = "new_hash_456"
+            content_updated_id, content_changed = initialized_db.upsert_scene(
+                conn, scene, script_id
+            )
+            assert content_updated_id == scene_id
+            assert content_changed  # Content hash changed, so content_changed = True
 
     def test_upsert_characters(self, initialized_db, sample_script):
         """Test inserting and updating characters."""

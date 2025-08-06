@@ -202,12 +202,38 @@ class IndexCommand:
         analyzed_scripts = []
         for script_meta in all_scripts:
             try:
-                # Quick check if file has boneyard metadata
-                content = script_meta.file_path.read_text(encoding="utf-8")
-                if "SCRIPTRAG-META-START" in content:
+                # Optimized check: read configured bytes from end for metadata
+                # Boneyard metadata is always at the end of the file
+                file_size = script_meta.file_path.stat().st_size
+                scan_size = self.settings.metadata_scan_size
+
+                # If scan_size is 0, read entire file
+                read_size = file_size if scan_size == 0 else min(scan_size, file_size)
+
+                with script_meta.file_path.open("rb") as f:
+                    if file_size > read_size:
+                        f.seek(-read_size, 2)  # Seek from end of file
+                    content_bytes = f.read()
+                    content_tail = content_bytes.decode("utf-8", errors="ignore")
+
+                if "SCRIPTRAG-META-START" in content_tail:
                     analyzed_scripts.append(script_meta)
+            except PermissionError:
+                logger.warning(
+                    f"Permission denied reading {script_meta.file_path}, skipping"
+                )
+            except UnicodeDecodeError as e:
+                logger.warning(
+                    f"Encoding error in {script_meta.file_path}: {e}, skipping"
+                )
+            except OSError as e:
+                logger.warning(
+                    f"OS error reading {script_meta.file_path}: {e}, skipping"
+                )
             except Exception as e:
-                logger.warning(f"Failed to check {script_meta.file_path}: {e}")
+                logger.warning(
+                    f"Unexpected error checking {script_meta.file_path}: {e}, skipping"
+                )
 
         return analyzed_scripts
 
@@ -333,29 +359,26 @@ class IndexCommand:
 
                 for scene in script.scenes:
                     # Clear existing scene content if updating
-                    if is_update and not force:
-                        existing_scene = conn.execute(
-                            "SELECT id FROM scenes "
-                            "WHERE script_id = ? AND scene_number = ?",
-                            (script_id, scene.number),
-                        ).fetchone()
-                        if existing_scene:
-                            self.db_ops.clear_scene_content(conn, existing_scene["id"])
-
-                    # Upsert scene
-                    scene_id = self.db_ops.upsert_scene(conn, scene, script_id)
-
-                    # Insert dialogues
-                    dialogue_count = self.db_ops.insert_dialogues(
-                        conn, scene_id, scene.dialogue_lines, character_map
+                    # Upsert scene and check if content changed
+                    scene_id, content_changed = self.db_ops.upsert_scene(
+                        conn, scene, script_id
                     )
-                    total_dialogues += dialogue_count
 
-                    # Insert actions
-                    action_count = self.db_ops.insert_actions(
-                        conn, scene_id, scene.action_lines
-                    )
-                    total_actions += action_count
+                    # Only clear and re-insert content if it has changed or if forced
+                    if content_changed or force:
+                        self.db_ops.clear_scene_content(conn, scene_id)
+
+                        # Insert dialogues
+                        dialogue_count = self.db_ops.insert_dialogues(
+                            conn, scene_id, scene.dialogue_lines, character_map
+                        )
+                        total_dialogues += dialogue_count
+
+                        # Insert actions
+                        action_count = self.db_ops.insert_actions(
+                            conn, scene_id, scene.action_lines
+                        )
+                        total_actions += action_count
 
                 # Get final stats
                 stats = self.db_ops.get_script_stats(conn, script_id)

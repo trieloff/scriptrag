@@ -2,7 +2,7 @@
 
 import asyncio
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -15,6 +15,7 @@ from rich.progress import (
 )
 from rich.table import Table
 
+from scriptrag.api.index import IndexOperationResult
 from scriptrag.config import get_logger
 
 logger = get_logger(__name__)
@@ -120,7 +121,9 @@ def index_command(
         raise typer.Exit(1) from e
 
 
-def _display_results(result: Any, dry_run: bool, verbose: bool) -> None:
+def _display_results(
+    result: IndexOperationResult, dry_run: bool, verbose: bool
+) -> None:
     """Display indexing results.
 
     Args:

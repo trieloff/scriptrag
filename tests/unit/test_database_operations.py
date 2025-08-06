@@ -9,6 +9,7 @@ import pytest
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.parser import Dialogue, Scene, Script
+from scriptrag.utils import ScreenplayUtils
 
 
 @pytest.fixture
@@ -223,7 +224,7 @@ class TestDatabaseOperations:
 
             # Insert scenes
             for scene in sample_script.scenes:
-                initialized_db.upsert_scene(conn, scene, script_id)
+                initialized_db.upsert_scene(conn, scene, script_id)[0]
 
             # Verify scenes exist
             cursor = conn.execute(
@@ -251,8 +252,11 @@ class TestDatabaseOperations:
 
             # Insert scene
             scene = sample_script.scenes[0]
-            scene_id = initialized_db.upsert_scene(conn, scene, script_id)
+            scene_id, content_changed = initialized_db.upsert_scene(
+                conn, scene, script_id
+            )
             assert scene_id > 0
+            assert content_changed  # New scene, so content has changed
 
             # Verify scene was inserted
             cursor = conn.execute("SELECT * FROM scenes WHERE id = ?", (scene_id,))
@@ -268,8 +272,11 @@ class TestDatabaseOperations:
 
             # Update scene
             scene.heading = "INT. COFFEE SHOP - MORNING"
-            updated_id = initialized_db.upsert_scene(conn, scene, script_id)
+            updated_id, content_changed = initialized_db.upsert_scene(
+                conn, scene, script_id
+            )
             assert updated_id == scene_id
+            assert content_changed  # Content was updated
 
             # Verify update
             cursor = conn.execute(
@@ -314,7 +321,7 @@ class TestDatabaseOperations:
         with initialized_db.transaction() as conn:
             script_id = initialized_db.upsert_script(conn, sample_script, file_path)
             scene = sample_script.scenes[0]
-            scene_id = initialized_db.upsert_scene(conn, scene, script_id)
+            scene_id, _ = initialized_db.upsert_scene(conn, scene, script_id)
 
             # Create characters
             characters = {d.character for d in scene.dialogue_lines}
@@ -352,7 +359,7 @@ class TestDatabaseOperations:
         with initialized_db.transaction() as conn:
             script_id = initialized_db.upsert_script(conn, sample_script, file_path)
             scene = sample_script.scenes[0]
-            scene_id = initialized_db.upsert_scene(conn, scene, script_id)
+            scene_id, _ = initialized_db.upsert_scene(conn, scene, script_id)
 
             # Insert actions
             count = initialized_db.insert_actions(conn, scene_id, scene.action_lines)
@@ -375,7 +382,7 @@ class TestDatabaseOperations:
         with initialized_db.transaction() as conn:
             script_id = initialized_db.upsert_script(conn, sample_script, file_path)
             scene = sample_script.scenes[0]
-            scene_id = initialized_db.upsert_scene(conn, scene, script_id)
+            scene_id, _ = initialized_db.upsert_scene(conn, scene, script_id)
 
             # Add content
             characters = {d.character for d in scene.dialogue_lines}
@@ -414,21 +421,23 @@ class TestDatabaseOperations:
             )
             assert cursor.fetchone()["count"] == 0
 
-    def test_extract_location(self, db_ops):
+    def test_extract_location(self):
         """Test extracting location from scene heading."""
-        assert db_ops._extract_location("INT. COFFEE SHOP - DAY") == "COFFEE SHOP"
-        assert db_ops._extract_location("EXT. PARK - NIGHT") == "PARK"
-        assert db_ops._extract_location("INT./EXT. CAR - MOVING") == "/EXT. CAR"
-        assert db_ops._extract_location("I/E CAR - DAY") == "CAR"
-        assert db_ops._extract_location("COFFEE SHOP") == "COFFEE SHOP"
+        assert (
+            ScreenplayUtils.extract_location("INT. COFFEE SHOP - DAY") == "COFFEE SHOP"
+        )
+        assert ScreenplayUtils.extract_location("EXT. PARK - NIGHT") == "PARK"
+        assert ScreenplayUtils.extract_location("INT./EXT. CAR - MOVING") == "CAR"
+        assert ScreenplayUtils.extract_location("I/E CAR - DAY") == "CAR"
+        assert ScreenplayUtils.extract_location("COFFEE SHOP") == "COFFEE SHOP"
 
-    def test_extract_time(self, db_ops):
+    def test_extract_time(self):
         """Test extracting time of day from scene heading."""
-        assert db_ops._extract_time("INT. COFFEE SHOP - DAY") == "DAY"
-        assert db_ops._extract_time("EXT. PARK - NIGHT") == "NIGHT"
-        assert db_ops._extract_time("INT. OFFICE - MORNING") == "MORNING"
-        assert db_ops._extract_time("EXT. STREET - CONTINUOUS") == "CONTINUOUS"
-        assert db_ops._extract_time("INT. HOUSE") is None
+        assert ScreenplayUtils.extract_time("INT. COFFEE SHOP - DAY") == "DAY"
+        assert ScreenplayUtils.extract_time("EXT. PARK - NIGHT") == "NIGHT"
+        assert ScreenplayUtils.extract_time("INT. OFFICE - MORNING") == "MORNING"
+        assert ScreenplayUtils.extract_time("EXT. STREET - CONTINUOUS") == "CONTINUOUS"
+        assert ScreenplayUtils.extract_time("INT. HOUSE") is None
 
     def test_get_script_stats(self, initialized_db, sample_script):
         """Test getting script statistics."""
@@ -440,7 +449,7 @@ class TestDatabaseOperations:
             # Add all data
             characters = set()
             for scene in sample_script.scenes:
-                scene_id = initialized_db.upsert_scene(conn, scene, script_id)
+                scene_id, _ = initialized_db.upsert_scene(conn, scene, script_id)
                 for dialogue in scene.dialogue_lines:
                     characters.add(dialogue.character)
 

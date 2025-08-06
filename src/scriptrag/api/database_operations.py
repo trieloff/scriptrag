@@ -11,6 +11,7 @@ from typing import Any
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.parser import Dialogue, Scene, Script
+from scriptrag.utils import ScreenplayUtils
 
 logger = get_logger(__name__)
 
@@ -187,7 +188,7 @@ class DatabaseOperations:
 
     def upsert_scene(
         self, conn: sqlite3.Connection, scene: Scene, script_id: int
-    ) -> int:
+    ) -> tuple[int, bool]:
         """Insert or update scene record.
 
         Args:
@@ -196,16 +197,19 @@ class DatabaseOperations:
             script_id: ID of the parent script
 
         Returns:
-            ID of the inserted or updated scene
+            Tuple of (scene_id, content_changed) where content_changed is True
+            if the scene content has changed
         """
         # Extract location and time from heading
         location = (
-            scene.location if scene.location else self._extract_location(scene.heading)
+            scene.location
+            if scene.location
+            else ScreenplayUtils.extract_location(scene.heading)
         )
         time_of_day = (
             scene.time_of_day
             if scene.time_of_day
-            else self._extract_time(scene.heading)
+            else ScreenplayUtils.extract_time(scene.heading)
         )
 
         # Prepare metadata
@@ -216,13 +220,22 @@ class DatabaseOperations:
 
         # Check if scene exists
         cursor = conn.execute(
-            "SELECT id FROM scenes WHERE script_id = ? AND scene_number = ?",
+            "SELECT id, metadata FROM scenes WHERE script_id = ? AND scene_number = ?",
             (script_id, scene.number),
         )
         existing = cursor.fetchone()
 
         scene_id: int
+        content_changed = False
+
         if existing:
+            # Check if content has actually changed by comparing hashes
+            existing_metadata = (
+                json.loads(existing["metadata"]) if existing["metadata"] else {}
+            )
+            existing_hash = existing_metadata.get("content_hash")
+            content_changed = existing_hash != scene.content_hash
+
             # Update existing scene
             conn.execute(
                 """
@@ -241,7 +254,10 @@ class DatabaseOperations:
                 ),
             )
             scene_id = int(existing["id"])
-            logger.debug(f"Updated scene {scene_id}: {scene.heading}")
+            logger.debug(
+                f"Updated scene {scene_id}: {scene.heading}, "
+                f"content_changed={content_changed}"
+            )
         else:
             # Insert new scene
             cursor = conn.execute(
@@ -264,9 +280,10 @@ class DatabaseOperations:
             if lastrowid is None:
                 raise RuntimeError("Failed to get scene ID after insert")
             scene_id = lastrowid
+            content_changed = True  # New scene, so content has "changed"
             logger.debug(f"Inserted scene {scene_id}: {scene.heading}")
 
-        return scene_id
+        return scene_id, content_changed
 
     def upsert_characters(
         self, conn: sqlite3.Connection, script_id: int, characters: set[str]
@@ -338,7 +355,10 @@ class DatabaseOperations:
         count = 0
         for order, dialogue in enumerate(dialogues):
             if dialogue.character not in character_map:
-                # Skip dialogues for unknown characters
+                # Skip dialogues for unknown characters - this can happen when a
+                # dialogue is attributed to a character that wasn't properly
+                # extracted during character discovery phase, possibly due to
+                # formatting issues in the screenplay
                 logger.warning(f"Unknown character in dialogue: {dialogue.character}")
                 continue
 
@@ -394,59 +414,6 @@ class DatabaseOperations:
 
         logger.debug(f"Inserted {count} actions for scene {scene_id}")
         return count
-
-    def _extract_location(self, heading: str) -> str | None:
-        """Extract location from scene heading.
-
-        Args:
-            heading: Scene heading text
-
-        Returns:
-            Extracted location or None
-        """
-        # Basic extraction - can be enhanced
-        parts = heading.split(" - ")
-        if len(parts) > 0:
-            # Remove INT./EXT. prefix
-            location = parts[0]
-            for prefix in ["INT.", "EXT.", "INT", "EXT", "I/E"]:
-                if location.startswith(prefix):
-                    location = location[len(prefix) :].strip()
-                    break
-            return location if location else None
-        return None
-
-    def _extract_time(self, heading: str) -> str | None:
-        """Extract time of day from scene heading.
-
-        Args:
-            heading: Scene heading text
-
-        Returns:
-            Extracted time or None
-        """
-        # Look for common time indicators at the end
-        heading_upper = heading.upper()
-        time_indicators = [
-            "DAY",
-            "NIGHT",
-            "MORNING",
-            "AFTERNOON",
-            "EVENING",
-            "DAWN",
-            "DUSK",
-            "CONTINUOUS",
-            "LATER",
-            "MOMENTS LATER",
-        ]
-
-        for indicator in time_indicators:
-            if heading_upper.endswith(indicator):
-                return indicator
-            if f"- {indicator}" in heading_upper:
-                return indicator
-
-        return None
 
     def get_script_stats(
         self, conn: sqlite3.Connection, script_id: int

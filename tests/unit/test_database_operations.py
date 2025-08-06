@@ -497,3 +497,102 @@ class TestDatabaseOperations:
             assert stats["characters"] == 2  # ALICE and BOB
             assert stats["dialogues"] == 3  # 2 in scene 1, 1 in scene 2
             assert stats["actions"] == 3  # 2 in scene 1, 1 in scene 2
+
+    def test_get_connection_with_foreign_keys_disabled(self, tmp_path):
+        """Test get_connection with foreign keys disabled."""
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            database_foreign_keys=False,  # Foreign keys disabled
+        )
+        db_ops = DatabaseOperations(settings)
+
+        # Initialize database first
+        from scriptrag.api.database import DatabaseInitializer
+
+        initializer = DatabaseInitializer()
+        initializer.initialize_database(db_path=db_ops.db_path, force=True)
+
+        conn = db_ops.get_connection()
+
+        # Check that foreign keys are disabled
+        cursor = conn.execute("PRAGMA foreign_keys")
+        assert cursor.fetchone()[0] == 0
+
+        conn.close()
+
+    def test_check_database_exists_with_error(self, tmp_path):
+        """Test check_database_exists handles SQLite errors."""
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+        )
+        db_ops = DatabaseOperations(settings)
+
+        # Create a corrupted database file
+        db_ops.db_path.write_text("not a database")
+
+        # Should return False on SQLite error
+        assert not db_ops.check_database_exists()
+
+    def test_insert_dialogues_with_unknown_character(
+        self, initialized_db, sample_script, caplog
+    ):
+        """Test inserting dialogues with unknown character logs warning."""
+        import logging
+
+        file_path = Path("/test/script.fountain")
+
+        with initialized_db.transaction() as conn:
+            script_id = initialized_db.upsert_script(conn, sample_script, file_path)
+            scene = sample_script.scenes[0]
+            scene_id, _ = initialized_db.upsert_scene(conn, scene, script_id)
+
+            # First insert ALICE character properly
+            alice_cursor = conn.execute(
+                "INSERT INTO characters (script_id, name) VALUES (?, ?)",
+                (script_id, "ALICE"),
+            )
+            alice_id = alice_cursor.lastrowid
+
+            # Create character map with only ALICE (BOB is missing)
+            char_map = {"ALICE": alice_id}  # BOB is missing
+
+            # Capture logs to check for warning
+            with caplog.at_level(logging.WARNING):
+                # Insert dialogues - should skip BOB's dialogue and log warning
+                count = initialized_db.insert_dialogues(
+                    conn, scene_id, scene.dialogue_lines, char_map
+                )
+
+            # Only ALICE's dialogue should be inserted
+            assert count == 1
+
+            # Verify warning was logged about unknown character
+            assert any(
+                "Unknown character in dialogue: BOB" in record.message
+                for record in caplog.records
+            )
+
+    def test_insert_actions_with_empty_action(self, initialized_db, sample_script):
+        """Test inserting actions with empty action text."""
+        file_path = Path("/test/script.fountain")
+
+        with initialized_db.transaction() as conn:
+            script_id = initialized_db.upsert_script(conn, sample_script, file_path)
+            scene = sample_script.scenes[0]
+            scene_id, _ = initialized_db.upsert_scene(conn, scene, script_id)
+
+            # Include empty action
+            actions = ["First action", "  ", "Third action"]
+
+            # Insert actions - should skip empty one
+            count = initialized_db.insert_actions(conn, scene_id, actions)
+
+            # Only non-empty actions should be inserted
+            assert count == 2
+
+            # Verify only two actions were inserted
+            cursor = conn.execute(
+                "SELECT COUNT(*) as count FROM actions WHERE scene_id = ?",
+                (scene_id,),
+            )
+            assert cursor.fetchone()["count"] == 2

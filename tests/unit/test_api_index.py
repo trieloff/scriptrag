@@ -159,8 +159,26 @@ class TestIndexCommand:
         assert result.total_actions_indexed == 2
 
     @pytest.mark.asyncio
+    async def test_index_with_force_mode(
+        self, settings, mock_db_ops, sample_script, sample_script_metadata
+    ):
+        """Test force re-indexing all scripts."""
+        cmd = IndexCommand(settings=settings, db_ops=mock_db_ops)
+
+        # Mock methods - with force=True, no filtering occurs
+        with (
+            patch.object(cmd, "_discover_scripts", return_value=sample_script_metadata),
+            patch.object(cmd.parser, "parse_file", return_value=sample_script),
+        ):
+            result = await cmd.index(force=True)  # Force mode skips filtering
+
+        assert result.total_scripts_indexed == 2  # Both scripts indexed
+        assert result.total_scenes_indexed == 2
+        assert result.total_characters_indexed == 4
+
+    @pytest.mark.asyncio
     async def test_index_with_progress_callback(
-        self, settings, mock_db_ops, sample_script_metadata
+        self, settings, mock_db_ops, sample_script, sample_script_metadata
     ):
         """Test index with progress callback."""
         cmd = IndexCommand(settings=settings, db_ops=mock_db_ops)
@@ -172,15 +190,21 @@ class TestIndexCommand:
         with (
             patch.object(cmd, "_discover_scripts", return_value=sample_script_metadata),
             patch.object(
-                cmd, "_filter_scripts_for_indexing", return_value=[]
-            ),  # No scripts to process
+                cmd, "_filter_scripts_for_indexing", return_value=sample_script_metadata
+            ),
+            patch.object(cmd.parser, "parse_file", return_value=sample_script),
         ):
             await cmd.index(progress_callback=progress_callback)
 
-        # Should have at least discovery progress
-        assert len(progress_calls) > 0
+        # Should have discovery, processing, and completion progress
+        assert len(progress_calls) >= 3
         assert progress_calls[0][0] == 0.1
         assert "Discovering" in progress_calls[0][1]
+        # Check batch processing progress
+        assert any("batch" in msg.lower() for pct, msg in progress_calls)
+        # Check completion
+        assert progress_calls[-1][0] == 1.0
+        assert "complete" in progress_calls[-1][1].lower()
 
     @pytest.mark.asyncio
     async def test_index_dry_run(self, settings, mock_db_ops, sample_script):
@@ -368,6 +392,21 @@ class TestIndexCommand:
         assert result.indexed
         assert result.updated
 
+    @pytest.mark.asyncio
+    async def test_index_exception_handling(self, settings, mock_db_ops):
+        """Test exception handling in index method."""
+        cmd = IndexCommand(settings=settings, db_ops=mock_db_ops)
+
+        # Simulate an exception during discovery
+        with patch.object(
+            cmd, "_discover_scripts", side_effect=Exception("Discovery failed")
+        ):
+            result = await cmd.index()
+
+        assert len(result.errors) == 1
+        assert "Index operation failed: Discovery failed" in result.errors[0]
+        assert result.total_scripts_indexed == 0
+
 
 class TestIndexResult:
     """Test IndexResult dataclass."""
@@ -408,6 +447,135 @@ class TestIndexResult:
         assert result.dialogues_indexed == 50
         assert result.actions_indexed == 30
         assert result.error == "Some error"
+
+    @pytest.mark.asyncio
+    async def test_discover_scripts_with_errors(self, settings, mock_db_ops, tmp_path):
+        """Test discovering scripts handles various errors."""
+        cmd = IndexCommand(settings=settings, db_ops=mock_db_ops)
+
+        # Create test files with different error conditions
+        script1 = tmp_path / "script1.fountain"
+        script1.write_text(
+            "/* SCRIPTRAG-META-START\n{}\nSCRIPTRAG-META-END */\nContent"
+        )
+
+        # Create a file that will cause permission error
+        script2 = tmp_path / "script2.fountain"
+        script2.write_text("/* SCRIPTRAG-META-START\n{}\nSCRIPTRAG-META-END */")
+
+        # Mock lister to return both files
+        from scriptrag.api.list import FountainMetadata
+
+        mock_scripts = [
+            FountainMetadata(file_path=script1, title="Script 1"),
+            FountainMetadata(file_path=script2, title="Script 2"),
+        ]
+
+        # Test with file size optimization (non-zero scan size)
+        settings.metadata_scan_size = 1024
+        with patch.object(cmd.lister, "list_scripts", return_value=mock_scripts):
+            result = await cmd._discover_scripts(tmp_path, recursive=True)
+
+        # Both scripts should be discovered
+        assert len(result) == 2
+
+        # Test with full file scan (scan_size = 0)
+        settings.metadata_scan_size = 0
+        with patch.object(cmd.lister, "list_scripts", return_value=mock_scripts):
+            result = await cmd._discover_scripts(tmp_path, recursive=True)
+
+        assert len(result) == 2
+
+    @pytest.mark.asyncio
+    async def test_filter_scripts_no_metadata(
+        self, settings, mock_db_ops, sample_script_metadata
+    ):
+        """Test filtering scripts with no last_indexed metadata."""
+        cmd = IndexCommand(settings=settings, db_ops=mock_db_ops)
+
+        # Script exists but has no last_indexed metadata
+        def get_existing_side_effect(_conn, path):
+            if "script1" in str(path):
+                return MagicMock(metadata={})  # No last_indexed key
+            return None
+
+        mock_db_ops.get_existing_script.side_effect = get_existing_side_effect
+
+        result = await cmd._filter_scripts_for_indexing(sample_script_metadata[:1])
+
+        # Script should need indexing since no last_indexed
+        assert len(result) == 1
+        assert "script1" in str(result[0].file_path)
+
+    @pytest.mark.asyncio
+    async def test_index_single_script_with_no_characters(self, settings, mock_db_ops):
+        """Test indexing a script with no characters (only actions)."""
+        from scriptrag.parser import Scene, Script
+
+        # Create a script with only action lines, no dialogue
+        scene = Scene(
+            number=1,
+            heading="INT. EMPTY ROOM - DAY",
+            content="The scene content",
+            original_text="Original text",
+            content_hash="hash123",
+            dialogue_lines=[],  # No dialogues
+            action_lines=["The room is empty.", "A door creaks."],
+            boneyard_metadata={"analyzed": True},
+        )
+
+        action_only_script = Script(
+            title="Action Script",
+            author="Test Author",
+            scenes=[scene],
+            metadata={"genre": "thriller"},
+        )
+
+        cmd = IndexCommand(settings=settings, db_ops=mock_db_ops)
+        file_path = Path("/test/action_script.fountain")
+
+        # Mock to return empty character map when no characters
+        mock_db_ops.upsert_characters.return_value = {}
+        # Update get_script_stats to reflect no characters
+        mock_db_ops.get_script_stats.return_value = {
+            "scenes": 1,
+            "characters": 0,  # No characters
+            "dialogues": 0,
+            "actions": 2,
+        }
+
+        with patch.object(cmd.parser, "parse_file", return_value=action_only_script):
+            result = await cmd._index_single_script(
+                file_path, force=False, dry_run=False
+            )
+
+        assert result.indexed
+        assert result.scenes_indexed == 1
+        assert result.characters_indexed == 0  # No characters
+        assert result.actions_indexed == 2
+
+    @pytest.mark.asyncio
+    async def test_index_single_script_update_no_content_change(
+        self, settings, mock_db_ops, sample_script
+    ):
+        """Test updating a script when content hasn't changed."""
+        cmd = IndexCommand(settings=settings, db_ops=mock_db_ops)
+        file_path = Path("/test/script.fountain")
+
+        # Setup existing script
+        mock_db_ops.get_existing_script.return_value = MagicMock(id=1)
+        # Scene exists with same content hash (no change)
+        mock_db_ops.upsert_scene.return_value = (1, False)  # content_changed=False
+
+        with patch.object(cmd.parser, "parse_file", return_value=sample_script):
+            result = await cmd._index_single_script(
+                file_path, force=False, dry_run=False
+            )
+
+        assert result.indexed
+        assert result.updated  # Script was updated
+        # clear_scene_content should NOT be called when content unchanged and not forced
+        mock_db_ops.clear_scene_content.assert_not_called()
 
 
 class TestIndexOperationResult:

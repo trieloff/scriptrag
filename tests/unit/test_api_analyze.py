@@ -512,3 +512,76 @@ class TestBaseSceneAnalyzer:
         config = {"key": "value"}
         analyzer2 = MockAnalyzer(config=config)
         assert analyzer2.config == config
+
+
+class TestAnalyzeCommandMissingCoverage:
+    """Tests to cover missing lines and branches."""
+
+    @pytest.fixture
+    def settings(self, tmp_path):
+        """Create test settings."""
+        from scriptrag.config import ScriptRAGSettings
+
+        return ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            database_timeout=5.0,
+        )
+
+    @pytest.mark.asyncio
+    async def test_process_file_skip_when_up_to_date(self, settings, tmp_path):
+        """Test that file is skipped when it doesn't need update (line 211)."""
+        from scriptrag.api.analyze import AnalyzeCommand
+        from scriptrag.parser import Scene, Script
+
+        cmd = AnalyzeCommand(settings=settings)
+
+        # Register an analyzer
+        from scriptrag.api.analyze import BaseSceneAnalyzer
+
+        class TestAnalyzer(BaseSceneAnalyzer):
+            @property
+            def name(self):
+                return "test"
+
+            @property
+            def version(self):
+                return "1.0"
+
+            async def analyze_scene(self, scene, script_metadata):  # noqa: ARG002
+                return {"test": "data"}
+
+        cmd.register_analyzer("test", TestAnalyzer())
+
+        # Create test file
+        test_file = tmp_path / "test_script.fountain"
+        test_file.write_text("Script content")
+
+        # Create a script with scenes that have up-to-date metadata
+        scene = Scene(
+            number=1,
+            heading="INT. OFFICE - DAY",
+            content="Scene content",
+            original_text="Original",
+            content_hash="hash1",
+            boneyard_metadata={
+                "analyzed_at": "2024-01-01T00:00:00",
+                "analyzers": {"test": {"version": "1.0"}},
+            },
+        )
+
+        script = Script(
+            title="Test Script",
+            author="Test Author",
+            scenes=[scene],
+        )
+
+        # Mock parser to return the script with up-to-date metadata
+        with patch("scriptrag.api.analyze.FountainParser") as mock_parser:
+            mock_parser.return_value.parse_file.return_value = script
+
+            # Process without force - should skip (line 211)
+            result = await cmd._process_file(test_file, force=False)
+
+            # File should NOT be updated
+            assert not result.updated
+            assert result.errors == 0

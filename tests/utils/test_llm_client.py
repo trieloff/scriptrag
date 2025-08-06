@@ -1,0 +1,638 @@
+"""Tests for the multi-provider LLM client."""
+
+import os
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from scriptrag.utils.llm_client import (
+    ClaudeCodeProvider,
+    CompletionRequest,
+    CompletionResponse,
+    EmbeddingRequest,
+    EmbeddingResponse,
+    GitHubModelsProvider,
+    LLMClient,
+    LLMProvider,
+    Model,
+    OpenAICompatibleProvider,
+)
+
+
+@pytest.fixture
+def mock_env_vars(monkeypatch):
+    """Mock environment variables for testing."""
+    monkeypatch.setenv("GITHUB_TOKEN", "test-github-token")
+    monkeypatch.setenv("SCRIPTRAG_LLM_ENDPOINT", "https://api.openai.com/v1")
+    monkeypatch.setenv("SCRIPTRAG_LLM_API_KEY", "test-api-key")
+
+
+class TestClaudeCodeProvider:
+    """Tests for Claude Code SDK provider."""
+
+    @pytest.mark.asyncio
+    async def test_is_available_without_sdk(self):
+        """Test availability check when SDK is not installed."""
+        provider = ClaudeCodeProvider()
+        provider.sdk_available = False
+        assert await provider.is_available() is False
+
+    @pytest.mark.asyncio
+    async def test_is_available_with_sdk_no_env(self):
+        """Test availability check with SDK but not in Claude environment."""
+        provider = ClaudeCodeProvider()
+        with patch.object(provider, "sdk_available", True):
+            with patch.dict(os.environ, {}, clear=True):
+                assert await provider.is_available() is False
+
+    @pytest.mark.asyncio
+    async def test_is_available_in_claude_env(self):
+        """Test availability check in Claude Code environment."""
+        provider = ClaudeCodeProvider()
+        # Test with SDK available and Claude env set
+        with patch.object(provider, "sdk_available", True):
+            with patch.dict(
+                os.environ, {"CLAUDE_CODE_SESSION": "test-session"}, clear=True
+            ):
+                # In Claude env with SDK available, should return True
+                assert await provider.is_available() is True
+
+    @pytest.mark.asyncio
+    async def test_list_models(self):
+        """Test listing Claude models."""
+        provider = ClaudeCodeProvider()
+        models = await provider.list_models()
+
+        assert len(models) == 3
+        assert all(isinstance(m, Model) for m in models)
+        assert all(m.provider == LLMProvider.CLAUDE_CODE for m in models)
+        assert any("opus" in m.id for m in models)
+        assert any("sonnet" in m.id for m in models)
+        assert any("haiku" in m.id for m in models)
+
+    @pytest.mark.asyncio
+    async def test_complete_not_available(self):
+        """Test completion when SDK is not available."""
+        provider = ClaudeCodeProvider()
+        provider.sdk_available = False
+
+        request = CompletionRequest(
+            model="claude-3-opus",
+            messages=[{"role": "user", "content": "Hello"}],
+        )
+
+        with pytest.raises(ImportError):
+            await provider.complete(request)
+
+    @pytest.mark.asyncio
+    async def test_embed_not_implemented(self):
+        """Test that embedding raises NotImplementedError."""
+        provider = ClaudeCodeProvider()
+        request = EmbeddingRequest(model="claude", input="test")
+
+        with pytest.raises(NotImplementedError):
+            await provider.embed(request)
+
+    def test_messages_to_prompt(self):
+        """Test message conversion to prompt."""
+        provider = ClaudeCodeProvider()
+        messages = [
+            {"role": "system", "content": "You are helpful"},
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there"},
+            {"role": "user", "content": "How are you?"},
+        ]
+
+        prompt = provider._messages_to_prompt(messages)
+        assert "System: You are helpful" in prompt
+        assert "User: Hello" in prompt
+        assert "Assistant: Hi there" in prompt
+        assert "User: How are you?" in prompt
+
+
+class TestGitHubModelsProvider:
+    """Tests for GitHub Models provider."""
+
+    @pytest.mark.asyncio
+    async def test_is_available_no_token(self):
+        """Test availability when no token is set."""
+        with patch.dict(os.environ, {}, clear=True):
+            provider = GitHubModelsProvider()
+            assert await provider.is_available() is False
+
+    @pytest.mark.asyncio
+    async def test_is_available_with_token(self, mock_env_vars):
+        """Test availability with valid token."""
+        provider = GitHubModelsProvider()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        with patch.object(
+            provider.client, "get", return_value=mock_response
+        ) as mock_get:
+            assert await provider.is_available() is True
+            mock_get.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_is_available_invalid_token(self, mock_env_vars):
+        """Test availability with invalid token."""
+        provider = GitHubModelsProvider()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+
+        with patch.object(provider.client, "get", return_value=mock_response):
+            assert await provider.is_available() is False
+
+    @pytest.mark.asyncio
+    async def test_list_models_success(self, mock_env_vars):
+        """Test successful model listing."""
+        provider = GitHubModelsProvider()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "data": [
+                {"id": "gpt-4", "name": "GPT-4"},
+                {"id": "llama-3", "friendly_name": "Llama 3"},
+                {"id": "text-embedding-ada", "name": "Ada Embeddings"},
+            ]
+        }
+
+        with patch.object(provider.client, "get", return_value=mock_response):
+            models = await provider.list_models()
+
+            assert len(models) == 3
+            assert all(isinstance(m, Model) for m in models)
+            assert all(m.provider == LLMProvider.GITHUB_MODELS for m in models)
+            assert any("gpt-4" in m.id for m in models)
+            assert any("llama" in m.id for m in models)
+
+    @pytest.mark.asyncio
+    async def test_list_models_no_token(self):
+        """Test model listing without token."""
+        with patch.dict(os.environ, {}, clear=True):
+            provider = GitHubModelsProvider()
+            models = await provider.list_models()
+            assert models == []
+
+    @pytest.mark.asyncio
+    async def test_complete_success(self, mock_env_vars):
+        """Test successful completion."""
+        provider = GitHubModelsProvider()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "chat-123",
+            "model": "gpt-4",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Hello!"},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        }
+
+        request = CompletionRequest(
+            model="gpt-4",
+            messages=[{"role": "user", "content": "Hi"}],
+        )
+
+        with patch.object(provider.client, "post", return_value=mock_response):
+            response = await provider.complete(request)
+
+            assert isinstance(response, CompletionResponse)
+            assert response.model == "gpt-4"
+            assert response.provider == LLMProvider.GITHUB_MODELS
+            assert len(response.choices) == 1
+            assert response.choices[0]["message"]["content"] == "Hello!"
+
+    @pytest.mark.asyncio
+    async def test_complete_no_token(self):
+        """Test completion without token."""
+        with patch.dict(os.environ, {}, clear=True):
+            provider = GitHubModelsProvider()
+            request = CompletionRequest(
+                model="gpt-4",
+                messages=[{"role": "user", "content": "Hi"}],
+            )
+
+            with pytest.raises(ValueError, match="GitHub token not configured"):
+                await provider.complete(request)
+
+    @pytest.mark.asyncio
+    async def test_embed_success(self, mock_env_vars):
+        """Test successful embedding."""
+        provider = GitHubModelsProvider()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "model": "text-embedding-ada",
+            "data": [
+                {"index": 0, "embedding": [0.1, 0.2, 0.3]},
+            ],
+            "usage": {"prompt_tokens": 5, "total_tokens": 5},
+        }
+
+        request = EmbeddingRequest(
+            model="text-embedding-ada",
+            input="test text",
+        )
+
+        with patch.object(provider.client, "post", return_value=mock_response):
+            response = await provider.embed(request)
+
+            assert isinstance(response, EmbeddingResponse)
+            assert response.model == "text-embedding-ada"
+            assert response.provider == LLMProvider.GITHUB_MODELS
+            assert len(response.data) == 1
+
+
+class TestOpenAICompatibleProvider:
+    """Tests for OpenAI-compatible provider."""
+
+    @pytest.mark.asyncio
+    async def test_is_available_no_config(self):
+        """Test availability without configuration."""
+        with patch.dict(os.environ, {}, clear=True):
+            provider = OpenAICompatibleProvider()
+            assert await provider.is_available() is False
+
+    @pytest.mark.asyncio
+    async def test_is_available_with_config(self, mock_env_vars):
+        """Test availability with configuration."""
+        provider = OpenAICompatibleProvider()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        with patch.object(provider.client, "get", return_value=mock_response):
+            assert await provider.is_available() is True
+
+    @pytest.mark.asyncio
+    async def test_list_models_success(self, mock_env_vars):
+        """Test successful model listing."""
+        provider = OpenAICompatibleProvider()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "data": [
+                {"id": "gpt-3.5-turbo"},
+                {"id": "text-embedding-3-small"},
+            ]
+        }
+
+        with patch.object(provider.client, "get", return_value=mock_response):
+            models = await provider.list_models()
+
+            assert len(models) == 2
+            assert all(isinstance(m, Model) for m in models)
+            assert all(m.provider == LLMProvider.OPENAI_COMPATIBLE for m in models)
+
+    @pytest.mark.asyncio
+    async def test_complete_success(self, mock_env_vars):
+        """Test successful completion."""
+        provider = OpenAICompatibleProvider()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "chat-456",
+            "model": "gpt-3.5-turbo",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Response"},
+                }
+            ],
+            "usage": {"total_tokens": 20},
+        }
+
+        request = CompletionRequest(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": "Test"}],
+        )
+
+        with patch.object(provider.client, "post", return_value=mock_response):
+            response = await provider.complete(request)
+
+            assert isinstance(response, CompletionResponse)
+            assert response.provider == LLMProvider.OPENAI_COMPATIBLE
+
+    @pytest.mark.asyncio
+    async def test_embed_success(self, mock_env_vars):
+        """Test successful embedding."""
+        provider = OpenAICompatibleProvider()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "model": "text-embedding-3-small",
+            "data": [{"embedding": [0.5, 0.6]}],
+            "usage": {"total_tokens": 10},
+        }
+
+        request = EmbeddingRequest(
+            model="text-embedding-3-small",
+            input="embed this",
+        )
+
+        with patch.object(provider.client, "post", return_value=mock_response):
+            response = await provider.embed(request)
+
+            assert isinstance(response, EmbeddingResponse)
+            assert response.provider == LLMProvider.OPENAI_COMPATIBLE
+
+
+class TestLLMClient:
+    """Tests for the main LLM client."""
+
+    @pytest.mark.asyncio
+    async def test_initialization(self):
+        """Test client initialization."""
+        client = LLMClient()
+
+        assert len(client.providers) == 3
+        assert LLMProvider.CLAUDE_CODE in client.providers
+        assert LLMProvider.GITHUB_MODELS in client.providers
+        assert LLMProvider.OPENAI_COMPATIBLE in client.providers
+
+    @pytest.mark.asyncio
+    async def test_provider_selection_preferred(self, mock_env_vars):
+        """Test selection of preferred provider."""
+        client = LLMClient(preferred_provider=LLMProvider.GITHUB_MODELS)
+
+        # Mock GitHub provider as available
+        mock_github = client.providers[LLMProvider.GITHUB_MODELS]
+        with patch.object(mock_github, "is_available", return_value=True):
+            await client._select_provider()
+
+            assert client.current_provider == mock_github
+            assert client.get_current_provider() == LLMProvider.GITHUB_MODELS
+
+    @pytest.mark.asyncio
+    async def test_provider_selection_fallback(self):
+        """Test fallback provider selection."""
+        client = LLMClient(
+            preferred_provider=LLMProvider.CLAUDE_CODE,
+            fallback_order=[
+                LLMProvider.CLAUDE_CODE,
+                LLMProvider.GITHUB_MODELS,
+                LLMProvider.OPENAI_COMPATIBLE,
+            ],
+        )
+
+        # Mock providers - only OpenAI available
+        with patch.object(
+            client.providers[LLMProvider.CLAUDE_CODE],
+            "is_available",
+            return_value=False,
+        ):
+            with patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS],
+                "is_available",
+                return_value=False,
+            ):
+                with patch.object(
+                    client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                    "is_available",
+                    return_value=True,
+                ):
+                    await client._select_provider()
+
+                    assert (
+                        client.get_current_provider() == LLMProvider.OPENAI_COMPATIBLE
+                    )
+
+    @pytest.mark.asyncio
+    async def test_no_provider_available(self):
+        """Test when no provider is available."""
+        client = LLMClient()
+
+        # Mock all providers as unavailable
+        with patch.object(
+            client.providers[LLMProvider.CLAUDE_CODE],
+            "is_available",
+            return_value=False,
+        ):
+            with patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS],
+                "is_available",
+                return_value=False,
+            ):
+                with patch.object(
+                    client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                    "is_available",
+                    return_value=False,
+                ):
+                    await client._select_provider()
+                    assert client.current_provider is None
+
+        # Test ensure_provider raises error when no provider available
+        client.current_provider = None
+        with pytest.raises(RuntimeError, match="No LLM provider available"):
+            await client.ensure_provider()
+
+    @pytest.mark.asyncio
+    async def test_list_models_all_providers(self):
+        """Test listing models from all available providers."""
+        client = LLMClient()
+
+        # Mock providers
+        mock_models = {
+            LLMProvider.CLAUDE_CODE: [
+                Model(
+                    id="claude-1",
+                    name="Claude 1",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ],
+            LLMProvider.GITHUB_MODELS: [
+                Model(
+                    id="gpt-4",
+                    name="GPT-4",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["chat"],
+                )
+            ],
+            LLMProvider.OPENAI_COMPATIBLE: [
+                Model(
+                    id="custom",
+                    name="Custom",
+                    provider=LLMProvider.OPENAI_COMPATIBLE,
+                    capabilities=["chat"],
+                )
+            ],
+        }
+
+        for provider_type, models in mock_models.items():
+            provider = client.providers[provider_type]
+            with patch.object(provider, "is_available", return_value=True):
+                with patch.object(provider, "list_models", return_value=models):
+                    pass
+
+        # Need to run this in the same context
+        with patch.object(
+            client.providers[LLMProvider.CLAUDE_CODE], "is_available", return_value=True
+        ):
+            with patch.object(
+                client.providers[LLMProvider.CLAUDE_CODE],
+                "list_models",
+                return_value=mock_models[LLMProvider.CLAUDE_CODE],
+            ):
+                with patch.object(
+                    client.providers[LLMProvider.GITHUB_MODELS],
+                    "is_available",
+                    return_value=True,
+                ):
+                    with patch.object(
+                        client.providers[LLMProvider.GITHUB_MODELS],
+                        "list_models",
+                        return_value=mock_models[LLMProvider.GITHUB_MODELS],
+                    ):
+                        with patch.object(
+                            client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                            "is_available",
+                            return_value=True,
+                        ):
+                            with patch.object(
+                                client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                                "list_models",
+                                return_value=mock_models[LLMProvider.OPENAI_COMPATIBLE],
+                            ):
+                                all_models = await client.list_models()
+
+        assert len(all_models) == 3
+        assert any(m.id == "claude-1" for m in all_models)
+        assert any(m.id == "gpt-4" for m in all_models)
+        assert any(m.id == "custom" for m in all_models)
+
+    @pytest.mark.asyncio
+    async def test_complete_with_model(self):
+        """Test completion with specific model."""
+        client = LLMClient()
+
+        # Mock provider
+        mock_provider = MagicMock()
+        mock_provider.provider_type = LLMProvider.GITHUB_MODELS
+        mock_response = CompletionResponse(
+            id="test",
+            model="gpt-4",
+            choices=[{"message": {"content": "Test response"}}],
+            provider=LLMProvider.GITHUB_MODELS,
+        )
+        mock_provider.complete = AsyncMock(return_value=mock_response)
+
+        client.current_provider = mock_provider
+
+        response = await client.complete(
+            messages=[{"role": "user", "content": "Hello"}],
+            model="gpt-4",
+            temperature=0.5,
+        )
+
+        assert response.model == "gpt-4"
+        assert response.provider == LLMProvider.GITHUB_MODELS
+        mock_provider.complete.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_complete_without_model(self):
+        """Test completion without specifying model."""
+        client = LLMClient()
+
+        # Mock provider with models
+        mock_provider = MagicMock()
+        mock_provider.provider_type = LLMProvider.GITHUB_MODELS
+        mock_provider.list_models = AsyncMock(
+            return_value=[
+                Model(
+                    id="gpt-4",
+                    name="GPT-4",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["chat"],
+                )
+            ]
+        )
+        mock_response = CompletionResponse(
+            id="test",
+            model="gpt-4",
+            choices=[{"message": {"content": "Test"}}],
+            provider=LLMProvider.GITHUB_MODELS,
+        )
+        mock_provider.complete = AsyncMock(return_value=mock_response)
+
+        client.current_provider = mock_provider
+
+        response = await client.complete(
+            messages=[{"role": "user", "content": "Hello"}],
+        )
+
+        assert response.model == "gpt-4"
+        mock_provider.complete.assert_called_once()
+        # Check that the model was set to gpt-4
+        call_args = mock_provider.complete.call_args[0][0]
+        assert call_args.model == "gpt-4"
+
+    @pytest.mark.asyncio
+    async def test_embed_with_model(self):
+        """Test embedding with specific model."""
+        client = LLMClient()
+
+        # Mock provider
+        mock_provider = MagicMock()
+        mock_provider.provider_type = LLMProvider.OPENAI_COMPATIBLE
+        mock_response = EmbeddingResponse(
+            model="text-embedding",
+            data=[{"embedding": [0.1, 0.2]}],
+            provider=LLMProvider.OPENAI_COMPATIBLE,
+        )
+        mock_provider.embed = AsyncMock(return_value=mock_response)
+
+        client.current_provider = mock_provider
+
+        response = await client.embed(
+            text="Test text",
+            model="text-embedding",
+        )
+
+        assert response.model == "text-embedding"
+        assert response.provider == LLMProvider.OPENAI_COMPATIBLE
+        mock_provider.embed.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_switch_provider_success(self):
+        """Test switching to a different provider."""
+        client = LLMClient()
+
+        # Mock GitHub provider as available
+        with patch.object(
+            client.providers[LLMProvider.GITHUB_MODELS],
+            "is_available",
+            return_value=True,
+        ):
+            success = await client.switch_provider(LLMProvider.GITHUB_MODELS)
+
+            assert success is True
+            assert client.get_current_provider() == LLMProvider.GITHUB_MODELS
+
+    @pytest.mark.asyncio
+    async def test_switch_provider_failure(self):
+        """Test switching to unavailable provider."""
+        client = LLMClient()
+
+        # Mock provider as unavailable
+        with patch.object(
+            client.providers[LLMProvider.CLAUDE_CODE],
+            "is_available",
+            return_value=False,
+        ):
+            success = await client.switch_provider(LLMProvider.CLAUDE_CODE)
+
+            assert success is False

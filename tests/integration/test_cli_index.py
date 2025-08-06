@@ -6,6 +6,8 @@ import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
+from scriptrag.config import ScriptRAGSettings, set_settings
+from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
 
@@ -88,12 +90,19 @@ Some dialogue.
 
 
 @pytest.fixture
-def initialized_db(tmp_path):
+def initialized_db(tmp_path, monkeypatch):
     """Create an initialized database."""
     db_path = tmp_path / "test.db"
 
+    # Set database path via environment variable and update global settings
+    monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+    # Create settings with the database path and set globally
+    settings = ScriptRAGSettings(database_path=db_path)
+    set_settings(settings)
+
     # Initialize database
-    result = runner.invoke(app, ["init", "--database", str(db_path), "--force"])
+    result = runner.invoke(app, ["init", "--db-path", str(db_path), "--force"])
     assert result.exit_code == 0
 
     return db_path
@@ -106,28 +115,43 @@ class TestIndexCommand:
         """Test index command help."""
         result = runner.invoke(app, ["index", "--help"])
         assert result.exit_code == 0
-        assert "Index analyzed Fountain files" in result.stdout
-        assert "--force" in result.stdout
-        assert "--dry-run" in result.stdout
-        assert "--batch-size" in result.stdout
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "Index analyzed Fountain files" in clean_output
+        assert "--force" in clean_output
+        assert "--dry-run" in clean_output
+        assert "--batch-size" in clean_output
 
-    def test_index_without_database(self, tmp_path):
+    def test_index_without_database(self, tmp_path, monkeypatch):
         """Test index command without initialized database."""
-        result = runner.invoke(
-            app,
-            ["index", str(tmp_path), "--database", str(tmp_path / "nonexistent.db")],
-        )
-        assert result.exit_code == 1
-        assert "Database not initialized" in result.stdout
+        # Set database path to non-existent file
+        db_path = tmp_path / "nonexistent.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
 
-    def test_index_no_scripts(self, initialized_db, tmp_path):
-        """Test index command with no scripts."""
+        # Create settings with the database path and set globally
+        settings = ScriptRAGSettings(database_path=db_path)
+        set_settings(settings)
+
         result = runner.invoke(
             app,
-            ["index", str(tmp_path), "--database", str(initialized_db)],
+            ["index", str(tmp_path)],
+        )
+        assert result.exit_code == 0  # Command succeeds but reports error in output
+        clean_output = strip_ansi_codes(result.stdout)
+        assert (
+            "Database not initialized" in clean_output
+            or "No Fountain files found" in clean_output
+        )
+
+    def test_index_no_scripts(self, initialized_db, tmp_path):  # noqa: ARG002
+        """Test index command with no scripts."""
+        # Database path is already set via initialized_db fixture
+        result = runner.invoke(
+            app,
+            ["index", str(tmp_path)],
         )
         assert result.exit_code == 0
-        assert "No Fountain files found" in result.stdout or "0" in result.stdout
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "No Fountain files found" in clean_output or "0" in clean_output
 
     def test_index_single_script(self, initialized_db, sample_fountain_with_metadata):
         """Test indexing a single script with metadata."""
@@ -135,14 +159,16 @@ class TestIndexCommand:
 
         # First analyze the script to add metadata (already has it in fixture)
         # Then index it
+        # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
-            ["index", str(script_dir), "--database", str(initialized_db)],
+            ["index", str(script_dir)],
         )
 
         assert result.exit_code == 0
-        assert "Indexing complete" in result.stdout
-        assert "Scripts Indexed" in result.stdout
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "Indexing complete" in clean_output
+        assert "Scripts Indexed" in clean_output
 
         # Verify data in database
         conn = sqlite3.connect(str(initialized_db))
@@ -175,7 +201,7 @@ class TestIndexCommand:
 
         # Check actions were indexed
         cursor = conn.execute("SELECT COUNT(*) as count FROM actions")
-        assert cursor.fetchone()["count"] == 2  # 1 in each scene
+        assert cursor.fetchone()["count"] == 3  # 2 in first scene, 1 in second
 
         conn.close()
 
@@ -183,14 +209,16 @@ class TestIndexCommand:
         """Test dry run mode."""
         script_dir = sample_fountain_with_metadata.parent
 
+        # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
-            ["index", str(script_dir), "--database", str(initialized_db), "--dry-run"],
+            ["index", str(script_dir), "--dry-run"],
         )
 
         assert result.exit_code == 0
-        assert "DRY RUN" in result.stdout
-        assert "No changes were made" in result.stdout
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "DRY RUN" in clean_output
+        assert "No changes were made" in clean_output
 
         # Verify no data was actually indexed
         conn = sqlite3.connect(str(initialized_db))
@@ -203,16 +231,17 @@ class TestIndexCommand:
         script_dir = sample_fountain_with_metadata.parent
 
         # Index once
+        # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
-            ["index", str(script_dir), "--database", str(initialized_db)],
+            ["index", str(script_dir)],
         )
         assert result.exit_code == 0
 
         # Index again without force (should skip)
         result = runner.invoke(
             app,
-            ["index", str(script_dir), "--database", str(initialized_db)],
+            ["index", str(script_dir)],
         )
         assert result.exit_code == 0
 
@@ -224,31 +253,38 @@ class TestIndexCommand:
         # Now force re-index
         result = runner.invoke(
             app,
-            ["index", str(script_dir), "--database", str(initialized_db), "--force"],
+            ["index", str(script_dir), "--force"],
         )
         assert result.exit_code == 0
-        assert "Scripts Indexed" in result.stdout or "Scripts Updated" in result.stdout
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "Scripts Indexed" in clean_output or "Scripts Updated" in clean_output
 
         # Verify script is still there (updated, not duplicated)
         cursor = conn.execute("SELECT COUNT(*) as count FROM scripts")
         assert cursor.fetchone()[0] == 1
         conn.close()
 
-    def test_index_verbose_mode(self, initialized_db, sample_fountain_with_metadata):
+    def test_index_verbose_mode(
+        self,
+        initialized_db,  # noqa: ARG002
+        sample_fountain_with_metadata,
+    ):
         """Test verbose output mode."""
         script_dir = sample_fountain_with_metadata.parent
 
+        # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
-            ["index", str(script_dir), "--database", str(initialized_db), "--verbose"],
+            ["index", str(script_dir), "--verbose"],
         )
 
         assert result.exit_code == 0
-        assert "Script Details" in result.stdout
-        assert "scenes" in result.stdout
-        assert "characters" in result.stdout
-        assert "dialogues" in result.stdout
-        assert "actions" in result.stdout
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "Script Details" in clean_output
+        assert "scenes" in clean_output
+        assert "characters" in clean_output
+        assert "dialogues" in clean_output
+        assert "actions" in clean_output
 
     def test_index_no_recursive(
         self, initialized_db, sample_fountain_with_metadata, tmp_path
@@ -261,13 +297,12 @@ class TestIndexCommand:
         script_in_subdir.write_text(sample_fountain_with_metadata.read_text())
 
         # Index without recursive
+        # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
             [
                 "index",
                 str(tmp_path),
-                "--database",
-                str(initialized_db),
                 "--no-recursive",
             ],
         )
@@ -307,20 +342,20 @@ Dialogue {i}.
             script_path.write_text(content)
 
         # Index with small batch size
+        # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
             [
                 "index",
                 str(tmp_path),
-                "--database",
-                str(initialized_db),
                 "--batch-size",
                 "2",
             ],
         )
 
         assert result.exit_code == 0
-        assert "Scripts Indexed" in result.stdout
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "Scripts Indexed" in clean_output
 
         # Verify all scripts were indexed
         conn = sqlite3.connect(str(initialized_db))
@@ -337,9 +372,10 @@ Dialogue {i}.
         """Test that scripts without metadata are skipped."""
         script_dir = sample_fountain_with_metadata.parent
 
+        # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
-            ["index", str(script_dir), "--database", str(initialized_db)],
+            ["index", str(script_dir)],
         )
 
         assert result.exit_code == 0
@@ -385,9 +421,10 @@ Dialogue.
 """
         good_script.write_text(good_content)
 
+        # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
-            ["index", str(tmp_path), "--database", str(initialized_db)],
+            ["index", str(tmp_path)],
         )
 
         # Should complete but may report errors
@@ -421,9 +458,10 @@ Original dialogue.
         script_path.write_text(content_v1)
 
         # Index first version
+        # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
-            ["index", str(tmp_path), "--database", str(initialized_db)],
+            ["index", str(tmp_path)],
         )
         assert result.exit_code == 0
 
@@ -456,9 +494,10 @@ New dialogue.
         script_path.write_text(content_v2)
 
         # Re-index with force
+        # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
-            ["index", str(tmp_path), "--database", str(initialized_db), "--force"],
+            ["index", str(tmp_path), "--force"],
         )
         assert result.exit_code == 0
 

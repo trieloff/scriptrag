@@ -1,6 +1,5 @@
 """Multi-provider LLM client with automatic fallback."""
 
-import asyncio
 import os
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -677,16 +676,15 @@ class LLMClient:
         self.fallback_order = fallback_order
         self.timeout = timeout
 
-        # Store credentials
-        self._github_token = github_token
-        self._openai_endpoint = openai_endpoint
-        self._openai_api_key = openai_api_key
+        # Store credentials (also expose as public for testing)
+        self.github_token = self._github_token = github_token
+        self.openai_endpoint = self._openai_endpoint = openai_endpoint
+        self.openai_api_key = self._openai_api_key = openai_api_key
 
         # Initialize providers
         self._init_providers()
 
-        # Select best available provider
-        self._provider_task = asyncio.create_task(self._select_provider())
+        # Provider selection is done lazily via ensure_provider()
 
     def _init_providers(self) -> None:
         """Initialize all provider instances."""

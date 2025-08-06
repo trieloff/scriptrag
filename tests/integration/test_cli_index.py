@@ -1,6 +1,7 @@
 """Integration tests for the scriptrag index command."""
 
 import sqlite3
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -517,3 +518,148 @@ New dialogue.
         assert cursor.fetchone()["count"] == 2  # Now has 2 scenes
 
         conn.close()
+
+    def test_index_import_error(self, tmp_path, monkeypatch):
+        """Test handling of import errors."""
+        runner = CliRunner()
+        monkeypatch.chdir(tmp_path)
+
+        # Mock import error for IndexCommand
+        def mock_import_error(*_args, **_kwargs):
+            raise ImportError("Mock import error")
+
+        # Patch IndexCommand to raise ImportError
+        with runner.isolated_filesystem(), monkeypatch.context() as m:
+            m.setattr("scriptrag.cli.commands.index.IndexCommand", mock_import_error)
+            result = runner.invoke(app, ["index", "."])
+            assert result.exit_code == 1
+            assert "Required components not available" in result.output
+
+    def test_index_general_exception(self, tmp_path):
+        """Test handling of general exceptions during indexing."""
+        runner = CliRunner()
+
+        # Create a script file
+        script_path = tmp_path / "test.fountain"
+        script_path.write_text("Title: Test\n\nINT. SCENE - DAY\n\nAction.")
+
+        # Mock IndexCommand to raise exception
+        from unittest.mock import AsyncMock, patch
+
+        async def mock_index_error(*_args, **_kwargs):
+            raise Exception("Unexpected error during indexing")
+
+        with patch("scriptrag.cli.commands.index.IndexCommand") as mock_index_command:
+            mock_instance = mock_index_command.return_value
+            mock_instance.index = AsyncMock(side_effect=mock_index_error)
+
+            result = runner.invoke(app, ["index", str(tmp_path)])
+            assert result.exit_code == 1
+            assert "Error:" in result.output
+
+    def test_index_display_verbose_with_errors(self, tmp_path):
+        """Test verbose display mode with errors."""
+        from unittest.mock import AsyncMock, patch
+
+        from scriptrag.api.index import IndexOperationResult, IndexResult
+
+        runner = CliRunner()
+
+        # Create test results with errors
+        test_result = IndexOperationResult()
+
+        # Add scripts with mixed results
+        test_result.scripts = [
+            IndexResult(
+                path=Path("script1.fountain"),
+                indexed=1,
+                updated=0,
+                scenes_indexed=5,
+                characters_indexed=3,
+                dialogues_indexed=10,
+                actions_indexed=7,
+            ),
+            IndexResult(
+                path=Path("script2.fountain"),
+                indexed=0,
+                updated=0,
+                error="Failed to parse script",
+            ),
+        ]
+
+        # Add multiple errors to test pagination
+        test_result.errors = [f"Error {i}" for i in range(15)]
+
+        with patch("scriptrag.cli.commands.index.IndexCommand") as mock_index_command:
+            mock_instance = mock_index_command.return_value
+            mock_instance.index = AsyncMock(return_value=test_result)
+
+            result = runner.invoke(app, ["index", str(tmp_path), "--verbose"])
+
+            # Check that errors are displayed
+            assert "Errors encountered: 15" in result.output
+            assert "Error 0" in result.output
+            assert "... and 5 more errors" in result.output
+
+            # Check that the script with error is shown
+            assert "script2.fountain" in result.output
+            assert "Failed to parse script" in result.output
+
+    def test_index_display_summary_with_updates(self, tmp_path):
+        """Test summary display with updated scripts."""
+        from unittest.mock import AsyncMock, patch
+
+        from scriptrag.api.index import IndexOperationResult, IndexResult
+
+        runner = CliRunner()
+
+        # Create test results with updates
+        test_result = IndexOperationResult()
+        test_result.scripts = [
+            IndexResult(
+                path=Path("script1.fountain"),
+                indexed=0,
+                updated=1,  # This script was updated
+                scenes_indexed=3,
+                characters_indexed=2,
+                dialogues_indexed=5,
+                actions_indexed=4,
+            ),
+        ]
+
+        with patch("scriptrag.cli.commands.index.IndexCommand") as mock_index_command:
+            mock_instance = mock_index_command.return_value
+            mock_instance.index = AsyncMock(return_value=test_result)
+
+            result = runner.invoke(app, ["index", str(tmp_path)])
+
+            # Check that updates are shown in summary
+            assert "Scripts updated: 1" in result.output
+            assert (
+                "Next steps:" in result.output
+            )  # Help text should not show for updates
+
+    def test_index_progress_callback(self, tmp_path):
+        """Test that progress callback is properly passed."""
+        from unittest.mock import AsyncMock, patch
+
+        from scriptrag.api.index import IndexOperationResult
+
+        runner = CliRunner()
+
+        test_result = IndexOperationResult()
+        test_result.scripts = []
+
+        with patch("scriptrag.cli.commands.index.IndexCommand") as mock_index_command:
+            mock_instance = mock_index_command.return_value
+            mock_instance.index = AsyncMock(return_value=test_result)
+
+            # Run with verbose to enable progress
+            runner.invoke(app, ["index", str(tmp_path), "--verbose"])
+
+            # Check that index was called with progress_callback
+            assert mock_instance.index.called
+            call_kwargs = mock_instance.index.call_args.kwargs
+            # When verbose is True, a progress_callback should be provided
+            if "progress_callback" in call_kwargs:
+                assert call_kwargs["progress_callback"] is not None

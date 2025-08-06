@@ -596,3 +596,59 @@ class TestDatabaseOperations:
                 (scene_id,),
             )
             assert cursor.fetchone()["count"] == 2
+
+    def test_upsert_script_insert_lastrowid_none(self, initialized_db, sample_script):
+        """Test upsert_script handles None lastrowid on insert."""
+        db_ops = initialized_db
+        conn = db_ops.get_connection()
+
+        # Mock cursor to return None for lastrowid
+        with (
+            pytest.raises(RuntimeError, match="Failed to get script ID after insert"),
+            conn,
+        ):
+            cursor = conn.cursor()
+            original_execute = cursor.execute
+
+            def mock_execute(*args, **kwargs):
+                result = original_execute(*args, **kwargs)
+                if "INSERT INTO scripts" in args[0]:
+                    cursor.lastrowid = None
+                return result
+
+            cursor.execute = mock_execute
+            conn.cursor = lambda: cursor
+            db_ops.upsert_script(conn, sample_script)
+
+    def test_upsert_scene_insert_lastrowid_none(self, initialized_db, sample_script):
+        """Test upsert_scene handles None lastrowid on insert."""
+        db_ops = initialized_db
+        conn = db_ops.get_connection()
+
+        # First insert the script
+        script_id = db_ops.upsert_script(conn, sample_script)
+
+        # Create a scene
+        scene = Scene(
+            heading="INT. NEW LOCATION - DAY",
+            content="This is a new scene.",
+            scene_number=1,
+        )
+
+        # Mock cursor to return None for lastrowid
+        with (
+            pytest.raises(RuntimeError, match="Failed to get scene ID after insert"),
+            conn,
+        ):
+            cursor = conn.cursor()
+            original_execute = cursor.execute
+
+            def mock_execute(*args, **kwargs):
+                result = original_execute(*args, **kwargs)
+                if "INSERT INTO scenes" in args[0]:
+                    cursor.lastrowid = None
+                return result
+
+            cursor.execute = mock_execute
+            conn.cursor = lambda: cursor
+            db_ops.upsert_scene(conn, script_id, scene)

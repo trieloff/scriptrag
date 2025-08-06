@@ -574,4 +574,4 @@ class TestAnalyzeCommandMissingCoverage:
 
             # File should NOT be updated
             assert not result.updated
-            assert result.errors == 0
+            assert result.error is None

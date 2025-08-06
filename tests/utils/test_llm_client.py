@@ -123,8 +123,9 @@ class TestGitHubModelsProvider:
             assert await provider.is_available() is False
 
     @pytest.mark.asyncio
-    async def test_is_available_with_token(self):
+    async def test_is_available_with_token(self, mock_env_vars):
         """Test availability with valid token."""
+        _ = mock_env_vars  # Fixture sets up environment variables
         provider = GitHubModelsProvider()
 
         mock_response = MagicMock()
@@ -148,8 +149,9 @@ class TestGitHubModelsProvider:
             assert await provider.is_available() is False
 
     @pytest.mark.asyncio
-    async def test_list_models_success(self):
+    async def test_list_models_success(self, mock_env_vars):
         """Test successful model listing."""
+        _ = mock_env_vars  # Fixture sets up environment variables
         provider = GitHubModelsProvider()
 
         mock_response = MagicMock()
@@ -268,8 +270,9 @@ class TestOpenAICompatibleProvider:
             assert await provider.is_available() is False
 
     @pytest.mark.asyncio
-    async def test_is_available_with_config(self):
+    async def test_is_available_with_config(self, mock_env_vars):
         """Test availability with configuration."""
+        _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
 
         mock_response = MagicMock()
@@ -279,8 +282,9 @@ class TestOpenAICompatibleProvider:
             assert await provider.is_available() is True
 
     @pytest.mark.asyncio
-    async def test_list_models_success(self):
+    async def test_list_models_success(self, mock_env_vars):
         """Test successful model listing."""
+        _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
 
         mock_response = MagicMock()

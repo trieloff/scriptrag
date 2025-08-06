@@ -41,21 +41,23 @@ class TestClaudeCodeProvider:
     async def test_is_available_with_sdk_no_env(self):
         """Test availability check with SDK but not in Claude environment."""
         provider = ClaudeCodeProvider()
-        with patch.object(provider, "sdk_available", True):
-            with patch.dict(os.environ, {}, clear=True):
-                assert await provider.is_available() is False
+        with (
+            patch.object(provider, "sdk_available", True),
+            patch.dict(os.environ, {}, clear=True),
+        ):
+            assert await provider.is_available() is False
 
     @pytest.mark.asyncio
     async def test_is_available_in_claude_env(self):
         """Test availability check in Claude Code environment."""
         provider = ClaudeCodeProvider()
         # Test with SDK available and Claude env set
-        with patch.object(provider, "sdk_available", True):
-            with patch.dict(
-                os.environ, {"CLAUDE_CODE_SESSION": "test-session"}, clear=True
-            ):
-                # In Claude env with SDK available, should return True
-                assert await provider.is_available() is True
+        with (
+            patch.object(provider, "sdk_available", True),
+            patch.dict(os.environ, {"CLAUDE_CODE_SESSION": "test-session"}, clear=True),
+        ):
+            # In Claude env with SDK available, should return True
+            assert await provider.is_available() is True
 
     @pytest.mark.asyncio
     async def test_list_models(self):
@@ -121,7 +123,7 @@ class TestGitHubModelsProvider:
             assert await provider.is_available() is False
 
     @pytest.mark.asyncio
-    async def test_is_available_with_token(self, mock_env_vars):
+    async def test_is_available_with_token(self):
         """Test availability with valid token."""
         provider = GitHubModelsProvider()
 
@@ -135,7 +137,7 @@ class TestGitHubModelsProvider:
             mock_get.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_is_available_invalid_token(self, mock_env_vars):
+    async def test_is_available_invalid_token(self):
         """Test availability with invalid token."""
         provider = GitHubModelsProvider()
 
@@ -146,7 +148,7 @@ class TestGitHubModelsProvider:
             assert await provider.is_available() is False
 
     @pytest.mark.asyncio
-    async def test_list_models_success(self, mock_env_vars):
+    async def test_list_models_success(self):
         """Test successful model listing."""
         provider = GitHubModelsProvider()
 
@@ -178,7 +180,7 @@ class TestGitHubModelsProvider:
             assert models == []
 
     @pytest.mark.asyncio
-    async def test_complete_success(self, mock_env_vars):
+    async def test_complete_success(self):
         """Test successful completion."""
         provider = GitHubModelsProvider()
 
@@ -225,7 +227,7 @@ class TestGitHubModelsProvider:
                 await provider.complete(request)
 
     @pytest.mark.asyncio
-    async def test_embed_success(self, mock_env_vars):
+    async def test_embed_success(self):
         """Test successful embedding."""
         provider = GitHubModelsProvider()
 
@@ -264,7 +266,7 @@ class TestOpenAICompatibleProvider:
             assert await provider.is_available() is False
 
     @pytest.mark.asyncio
-    async def test_is_available_with_config(self, mock_env_vars):
+    async def test_is_available_with_config(self):
         """Test availability with configuration."""
         provider = OpenAICompatibleProvider()
 
@@ -275,7 +277,7 @@ class TestOpenAICompatibleProvider:
             assert await provider.is_available() is True
 
     @pytest.mark.asyncio
-    async def test_list_models_success(self, mock_env_vars):
+    async def test_list_models_success(self):
         """Test successful model listing."""
         provider = OpenAICompatibleProvider()
 
@@ -296,7 +298,7 @@ class TestOpenAICompatibleProvider:
             assert all(m.provider == LLMProvider.OPENAI_COMPATIBLE for m in models)
 
     @pytest.mark.asyncio
-    async def test_complete_success(self, mock_env_vars):
+    async def test_complete_success(self):
         """Test successful completion."""
         provider = OpenAICompatibleProvider()
 
@@ -326,7 +328,7 @@ class TestOpenAICompatibleProvider:
             assert response.provider == LLMProvider.OPENAI_COMPATIBLE
 
     @pytest.mark.asyncio
-    async def test_embed_success(self, mock_env_vars):
+    async def test_embed_success(self):
         """Test successful embedding."""
         provider = OpenAICompatibleProvider()
 
@@ -364,7 +366,7 @@ class TestLLMClient:
         assert LLMProvider.OPENAI_COMPATIBLE in client.providers
 
     @pytest.mark.asyncio
-    async def test_provider_selection_preferred(self, mock_env_vars):
+    async def test_provider_selection_preferred(self):
         """Test selection of preferred provider."""
         client = LLMClient(preferred_provider=LLMProvider.GITHUB_MODELS)
 
@@ -389,26 +391,26 @@ class TestLLMClient:
         )
 
         # Mock providers - only OpenAI available
-        with patch.object(
-            client.providers[LLMProvider.CLAUDE_CODE],
-            "is_available",
-            return_value=False,
-        ):
-            with patch.object(
+        with (
+            patch.object(
+                client.providers[LLMProvider.CLAUDE_CODE],
+                "is_available",
+                return_value=False,
+            ),
+            patch.object(
                 client.providers[LLMProvider.GITHUB_MODELS],
                 "is_available",
                 return_value=False,
-            ):
-                with patch.object(
-                    client.providers[LLMProvider.OPENAI_COMPATIBLE],
-                    "is_available",
-                    return_value=True,
-                ):
-                    await client._select_provider()
+            ),
+            patch.object(
+                client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                "is_available",
+                return_value=True,
+            ),
+        ):
+            await client._select_provider()
 
-                    assert (
-                        client.get_current_provider() == LLMProvider.OPENAI_COMPATIBLE
-                    )
+            assert client.get_current_provider() == LLMProvider.OPENAI_COMPATIBLE
 
     @pytest.mark.asyncio
     async def test_no_provider_available(self):
@@ -416,23 +418,25 @@ class TestLLMClient:
         client = LLMClient()
 
         # Mock all providers as unavailable
-        with patch.object(
-            client.providers[LLMProvider.CLAUDE_CODE],
-            "is_available",
-            return_value=False,
-        ):
-            with patch.object(
+        with (
+            patch.object(
+                client.providers[LLMProvider.CLAUDE_CODE],
+                "is_available",
+                return_value=False,
+            ),
+            patch.object(
                 client.providers[LLMProvider.GITHUB_MODELS],
                 "is_available",
                 return_value=False,
-            ):
-                with patch.object(
-                    client.providers[LLMProvider.OPENAI_COMPATIBLE],
-                    "is_available",
-                    return_value=False,
-                ):
-                    await client._select_provider()
-                    assert client.current_provider is None
+            ),
+            patch.object(
+                client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                "is_available",
+                return_value=False,
+            ),
+        ):
+            await client._select_provider()
+            assert client.current_provider is None
 
         # Test ensure_provider raises error when no provider available
         client.current_provider = None
@@ -474,40 +478,46 @@ class TestLLMClient:
 
         for provider_type, models in mock_models.items():
             provider = client.providers[provider_type]
-            with patch.object(provider, "is_available", return_value=True):
-                with patch.object(provider, "list_models", return_value=models):
-                    pass
+            with (
+                patch.object(provider, "is_available", return_value=True),
+                patch.object(provider, "list_models", return_value=models),
+            ):
+                pass
 
         # Need to run this in the same context
-        with patch.object(
-            client.providers[LLMProvider.CLAUDE_CODE], "is_available", return_value=True
-        ):
-            with patch.object(
+        with (
+            patch.object(
+                client.providers[LLMProvider.CLAUDE_CODE],
+                "is_available",
+                return_value=True,
+            ),
+            patch.object(
                 client.providers[LLMProvider.CLAUDE_CODE],
                 "list_models",
                 return_value=mock_models[LLMProvider.CLAUDE_CODE],
-            ):
-                with patch.object(
-                    client.providers[LLMProvider.GITHUB_MODELS],
-                    "is_available",
-                    return_value=True,
-                ):
-                    with patch.object(
-                        client.providers[LLMProvider.GITHUB_MODELS],
-                        "list_models",
-                        return_value=mock_models[LLMProvider.GITHUB_MODELS],
-                    ):
-                        with patch.object(
-                            client.providers[LLMProvider.OPENAI_COMPATIBLE],
-                            "is_available",
-                            return_value=True,
-                        ):
-                            with patch.object(
-                                client.providers[LLMProvider.OPENAI_COMPATIBLE],
-                                "list_models",
-                                return_value=mock_models[LLMProvider.OPENAI_COMPATIBLE],
-                            ):
-                                all_models = await client.list_models()
+            ),
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS],
+                "is_available",
+                return_value=True,
+            ),
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS],
+                "list_models",
+                return_value=mock_models[LLMProvider.GITHUB_MODELS],
+            ),
+            patch.object(
+                client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                "is_available",
+                return_value=True,
+            ),
+            patch.object(
+                client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                "list_models",
+                return_value=mock_models[LLMProvider.OPENAI_COMPATIBLE],
+            ),
+        ):
+            all_models = await client.list_models()
 
         assert len(all_models) == 3
         assert any(m.id == "claude-1" for m in all_models)

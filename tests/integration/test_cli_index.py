@@ -551,7 +551,8 @@ New dialogue.
                 sys.modules["scriptrag.api.index"] = original_module
 
             assert result.exit_code == 1
-            assert "Required components not available" in result.output
+            clean_output = strip_ansi_codes(result.output)
+            assert "Required components not available" in clean_output
 
     def test_index_general_exception(self, tmp_path):
         """Test handling of general exceptions during indexing."""
@@ -573,7 +574,8 @@ New dialogue.
 
             result = runner.invoke(app, ["index", str(tmp_path)])
             assert result.exit_code == 1
-            assert "Error:" in result.output
+            clean_output = strip_ansi_codes(result.output)
+            assert "Error:" in clean_output
 
     def test_index_display_verbose_with_errors(self, tmp_path):
         """Test verbose display mode with errors."""
@@ -615,13 +617,14 @@ New dialogue.
             result = runner.invoke(app, ["index", str(tmp_path), "--verbose"])
 
             # Check that errors are displayed
-            assert "Errors encountered: 15" in result.output
-            assert "Error 0" in result.output
-            assert "... and 5 more errors" in result.output
+            clean_output = strip_ansi_codes(result.output)
+            assert "Errors encountered: 15" in clean_output
+            assert "Error 0" in clean_output
+            assert "... and 5 more errors" in clean_output
 
             # Check that the script with error is shown
-            assert "script2.fountain" in result.output
-            assert "Failed to parse script" in result.output
+            assert "script2.fountain" in clean_output
+            assert "Failed to parse script" in clean_output
 
     def test_index_display_summary_with_updates(self, tmp_path):
         """Test summary display with updated scripts."""
@@ -652,9 +655,10 @@ New dialogue.
             result = runner.invoke(app, ["index", str(tmp_path)])
 
             # Check that updates are shown in summary
-            assert "Scripts Updated" in result.output and "1" in result.output
+            clean_output = strip_ansi_codes(result.output)
+            assert "Scripts Updated" in clean_output and "1" in clean_output
             assert (
-                "Next steps:" in result.output
+                "Next steps:" in clean_output
             )  # Help text should not show for updates
 
     def test_index_progress_callback(self, tmp_path):

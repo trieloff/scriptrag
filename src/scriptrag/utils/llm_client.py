@@ -295,7 +295,7 @@ class GitHubModelsProvider(BaseLLMProvider):
         """Enter async context manager."""
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *_: Any) -> None:
         """Exit async context manager and cleanup."""
         await self.client.aclose()
 
@@ -501,7 +501,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         """Enter async context manager."""
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *_: Any) -> None:
         """Exit async context manager and cleanup."""
         await self.client.aclose()
 
@@ -863,6 +863,6 @@ class LLMClient:
         """Enter async context manager."""
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *_: Any) -> None:
         """Exit async context manager and cleanup."""
         await self.cleanup()

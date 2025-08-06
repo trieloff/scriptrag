@@ -1,6 +1,5 @@
 """Tests for LLM client module."""
 
-import json
 import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -137,8 +136,8 @@ class TestGitHubModelsProvider:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = [
-                {"name": "gpt-4o", "summary": "GPT-4 model"},
-                {"name": "llama-3", "summary": "Llama 3 model"},
+                {"id": "gpt-4o", "name": "gpt-4o", "summary": "GPT-4 model"},
+                {"id": "llama-3", "name": "llama-3", "summary": "Llama 3 model"},
             ]
             mock_client.get = AsyncMock(return_value=mock_response)
 
@@ -155,14 +154,17 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_is_available_without_token(self):
         """Test availability check without token."""
-        provider = GitHubModelsProvider(token=None)
-        assert await provider.is_available() is False
+        # Mock the environment to ensure no token is available
+        with patch.dict(os.environ, {}, clear=True):
+            provider = GitHubModelsProvider(token=None)
+            assert await provider.is_available() is False
 
     @pytest.mark.asyncio
     async def test_complete_success(self, provider):
         """Test successful completion."""
         with patch.object(provider, "client") as mock_client:
             mock_response = MagicMock()
+            mock_response.status_code = 200
             mock_response.json.return_value = {
                 "id": "test-id",
                 "model": "gpt-4o",
@@ -183,6 +185,7 @@ class TestGitHubModelsProvider:
         """Test completion with system message."""
         with patch.object(provider, "client") as mock_client:
             mock_response = MagicMock()
+            mock_response.status_code = 200
             mock_response.json.return_value = {
                 "id": "test-id",
                 "model": "gpt-4o",
@@ -199,7 +202,9 @@ class TestGitHubModelsProvider:
 
             # Verify the system message was added
             call_args = mock_client.post.call_args
-            sent_data = json.loads(call_args[1]["content"])
+            sent_data = call_args.kwargs[
+                "json"
+            ]  # JSON data is passed as keyword argument
             assert sent_data["messages"][0]["role"] == "system"
 
     @pytest.mark.asyncio
@@ -207,6 +212,7 @@ class TestGitHubModelsProvider:
         """Test successful embedding."""
         with patch.object(provider, "client") as mock_client:
             mock_response = MagicMock()
+            mock_response.status_code = 200
             mock_response.json.return_value = {
                 "data": [{"embedding": [0.1, 0.2, 0.3]}],
                 "model": "text-embedding-3-small",
@@ -267,6 +273,7 @@ class TestOpenAICompatibleProvider:
         """Test listing models."""
         with patch.object(provider, "client") as mock_client:
             mock_response = MagicMock()
+            mock_response.status_code = 200
             mock_response.json.return_value = {
                 "data": [
                     {"id": "model-1", "object": "model"},
@@ -293,15 +300,18 @@ class TestOpenAICompatibleProvider:
     @pytest.mark.asyncio
     async def test_is_available_without_credentials(self):
         """Test availability without credentials."""
-        provider = OpenAICompatibleProvider(endpoint=None, api_key=None)
-        # Should return False when missing credentials
-        assert await provider.is_available() is False
+        # Mock environment to ensure no credentials
+        with patch.dict(os.environ, {}, clear=True):
+            provider = OpenAICompatibleProvider(endpoint=None, api_key=None)
+            # Should return False when missing credentials
+            assert await provider.is_available() is False
 
     @pytest.mark.asyncio
     async def test_complete_success(self, provider):
         """Test successful completion."""
         with patch.object(provider, "client") as mock_client:
             mock_response = MagicMock()
+            mock_response.status_code = 200
             mock_response.json.return_value = {
                 "id": "test-id",
                 "model": "custom-model",
@@ -321,6 +331,7 @@ class TestOpenAICompatibleProvider:
         """Test successful embedding."""
         with patch.object(provider, "client") as mock_client:
             mock_response = MagicMock()
+            mock_response.status_code = 200
             mock_response.json.return_value = {
                 "data": [{"embedding": [0.5, 0.6]}],
                 "model": "embed-model",
@@ -426,19 +437,29 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_complete_all_providers_fail(self, client):
         """Test completion when all providers fail."""
+        # Patch all providers simultaneously
+        patches = []
         for provider in client.providers.values():
-            with (
-                patch.object(provider, "is_available") as mock_available,
-                patch.object(provider, "complete") as mock_complete,
-            ):
-                mock_available.return_value = True
-                mock_complete.side_effect = Exception("Provider failed")
+            mock_available = patch.object(provider, "is_available", return_value=True)
+            mock_complete = patch.object(
+                provider, "complete", side_effect=Exception("Provider failed")
+            )
+            patches.extend([mock_available, mock_complete])
 
-        request = CompletionRequest(
-            model="test", messages=[{"role": "user", "content": "Test"}]
-        )
-        with pytest.raises(RuntimeError, match="All LLM providers failed"):
-            await client.complete(request)
+        # Start all patches
+        for p in patches:
+            p.start()
+
+        try:
+            request = CompletionRequest(
+                model="test", messages=[{"role": "user", "content": "Test"}]
+            )
+            with pytest.raises(RuntimeError, match="All LLM providers failed"):
+                await client.complete(request)
+        finally:
+            # Stop all patches
+            for p in patches:
+                p.stop()
 
     @pytest.mark.asyncio
     async def test_embed_with_provider(self, client):
@@ -544,14 +565,24 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_embed_all_providers_fail(self, client):
         """Test embedding when all providers fail."""
+        # Patch all providers simultaneously
+        patches = []
         for provider in client.providers.values():
-            with (
-                patch.object(provider, "is_available") as mock_available,
-                patch.object(provider, "embed") as mock_embed,
-            ):
-                mock_available.return_value = True
-                mock_embed.side_effect = Exception("Embed failed")
+            mock_available = patch.object(provider, "is_available", return_value=True)
+            mock_embed = patch.object(
+                provider, "embed", side_effect=Exception("Embed failed")
+            )
+            patches.extend([mock_available, mock_embed])
 
-        request = EmbeddingRequest(model="test", input="test")
-        with pytest.raises(RuntimeError, match="All LLM providers failed"):
-            await client.embed(request)
+        # Start all patches
+        for p in patches:
+            p.start()
+
+        try:
+            request = EmbeddingRequest(model="test", input="test")
+            with pytest.raises(RuntimeError, match="All LLM providers failed"):
+                await client.embed(request)
+        finally:
+            # Stop all patches
+            for p in patches:
+                p.stop()

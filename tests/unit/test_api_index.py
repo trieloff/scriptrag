@@ -650,14 +650,12 @@ class TestIndexCommandMissingCoverage:
         # Create mock scripts with errors
         scripts = [
             FountainMetadata(
-                path=Path("script1.fountain"),
+                file_path=Path("script1.fountain"),
                 title="Script 1",
-                metadata={},
             ),
             FountainMetadata(
-                path=Path("script2.fountain"),
+                file_path=Path("script2.fountain"),
                 title="Script 2",
-                metadata={},
             ),
         ]
 
@@ -694,15 +692,11 @@ class TestIndexCommandMissingCoverage:
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
-        # Mock ScriptLister
-        with patch("scriptrag.api.index.ScriptLister") as mock_lister_class:
-            mock_lister = Mock()
-            mock_lister.list_scripts.return_value = []
-            mock_lister_class.return_value = mock_lister
-
+        # Mock the lister instance on the indexer
+        with patch.object(indexer.lister, "list_scripts", return_value=[]) as mock_list:
             # Test with None path (should use current directory)
             await indexer._discover_scripts(None, recursive=True)
-            mock_lister.list_scripts.assert_called_once_with(Path(), recursive=True)
+            mock_list.assert_called_once_with(None, True)
 
     @pytest.mark.asyncio
     async def test_filter_scripts_skip_metadata_condition(self):
@@ -714,19 +708,17 @@ class TestIndexCommandMissingCoverage:
         # Create test scripts
         scripts = [
             FountainMetadata(
-                path=Path("script1.fountain"),
+                file_path=Path("script1.fountain"),
                 title="Script 1",
-                metadata={"hash": "hash1"},
             ),
         ]
 
         # Mock database to return existing script with same hash
         mock_db_ops.get_existing_script.return_value = {"content_hash": "hash1"}
 
-        # Test with skip_without_metadata=True (should skip because has same hash)
-        filtered = await indexer._filter_scripts_for_indexing(
-            scripts, force=False, skip_without_metadata=True
-        )
+        # Test _filter_scripts_for_indexing (method only takes scripts parameter)
+        filtered = await indexer._filter_scripts_for_indexing(scripts)
+        # Since script exists in database, it should be filtered out
         assert len(filtered) == 0
 
     @pytest.mark.asyncio
@@ -739,9 +731,8 @@ class TestIndexCommandMissingCoverage:
         # Create test scripts
         scripts = [
             FountainMetadata(
-                path=Path("script1.fountain"),
+                file_path=Path("script1.fountain"),
                 title="Script 1",
-                metadata={},
             ),
         ]
 
@@ -749,7 +740,9 @@ class TestIndexCommandMissingCoverage:
         indexer._index_single_script = AsyncMock(side_effect=Exception("Test error"))
 
         # Process batch - should catch exception and add to errors
-        results = await indexer._process_scripts_batch(scripts, dry_run=False)
+        results = await indexer._process_scripts_batch(
+            scripts, force=False, dry_run=False
+        )
         assert len(results) == 1
         assert results[0].error == "Test error"
 
@@ -761,18 +754,19 @@ class TestIndexCommandMissingCoverage:
         indexer = IndexCommand(settings, mock_db_ops)
 
         script_metadata = FountainMetadata(
-            path=Path("test.fountain"),
+            file_path=Path("test.fountain"),
             title="Test Script",
-            metadata={},
         )
 
         # Mock parser to raise exception
         mock_parser = Mock()
-        mock_parser.parse.side_effect = Exception("Parse error")
+        mock_parser.parse_file.side_effect = Exception("Parse error")
         indexer.parser = mock_parser
 
         # Test indexing - should catch exception
-        result = await indexer._index_single_script(script_metadata, dry_run=False)
+        result = await indexer._index_single_script(
+            script_metadata.file_path, force=False, dry_run=False
+        )
         assert result.error == "Parse error"
         assert result.indexed == 0
 
@@ -784,9 +778,8 @@ class TestIndexCommandMissingCoverage:
         indexer = IndexCommand(settings, mock_db_ops)
 
         script_metadata = FountainMetadata(
-            path=Path("test.fountain"),
+            file_path=Path("test.fountain"),
             title="Test Script",
-            metadata={},
         )
 
         # Mock parsing
@@ -795,14 +788,16 @@ class TestIndexCommandMissingCoverage:
         mock_script.title = "Test Script"
         mock_script.author = "Test Author"
         mock_script.scenes = []
-        mock_parser.parse.return_value = mock_script
+        mock_parser.parse_file.return_value = mock_script
         indexer.parser = mock_parser
 
         # Mock database to raise error
         mock_db_ops.check_database.side_effect = Exception("Database error")
 
         # Test indexing - should catch database error
-        result = await indexer._index_single_script(script_metadata, dry_run=False)
+        result = await indexer._index_single_script(
+            script_metadata.file_path, force=False, dry_run=False
+        )
         assert result.error == "Database error"
 
     @pytest.mark.asyncio
@@ -813,9 +808,8 @@ class TestIndexCommandMissingCoverage:
         indexer = IndexCommand(settings, mock_db_ops)
 
         script_metadata = FountainMetadata(
-            path=Path("test.fountain"),
+            file_path=Path("test.fountain"),
             title="Test Script",
-            metadata={},
         )
 
         # Mock parsing
@@ -824,7 +818,7 @@ class TestIndexCommandMissingCoverage:
         mock_script.title = "Test Script"
         mock_script.author = "Test Author"
         mock_script.scenes = []
-        mock_parser.parse.return_value = mock_script
+        mock_parser.parse_file.return_value = mock_script
         indexer.parser = mock_parser
 
         # Mock database operations - existing script
@@ -835,6 +829,8 @@ class TestIndexCommandMissingCoverage:
         mock_db_ops.upsert_script.return_value = 1
 
         # Test updating
-        result = await indexer._index_single_script(script_metadata, dry_run=False)
+        result = await indexer._index_single_script(
+            script_metadata.file_path, force=False, dry_run=False
+        )
         assert result.indexed == 0
         assert result.updated == 1

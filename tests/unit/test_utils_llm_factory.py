@@ -34,9 +34,9 @@ class TestCreateLLMClient:
         mock_settings.llm_api_key = None
         mock_get_settings.return_value = mock_settings
 
-        client = create_llm_client(preferred_provider="github")
+        client = create_llm_client(preferred_provider="github_models")
         assert isinstance(client, LLMClient)
-        assert client.preferred_provider == LLMProvider.GITHUB
+        assert client.preferred_provider == LLMProvider.GITHUB_MODELS
 
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_invalid_preferred_provider(self, mock_get_settings):
@@ -61,13 +61,13 @@ class TestCreateLLMClient:
         mock_settings.llm_api_key = None
         mock_get_settings.return_value = mock_settings
 
-        fallback_order = ["openai", "github", "mock"]
+        fallback_order = ["openai_compatible", "github_models", "claude_code"]
         client = create_llm_client(fallback_order=fallback_order)
         assert isinstance(client, LLMClient)
         assert client.fallback_order == [
-            LLMProvider.OPENAI,
-            LLMProvider.GITHUB,
-            LLMProvider.MOCK,
+            LLMProvider.OPENAI_COMPATIBLE,
+            LLMProvider.GITHUB_MODELS,
+            LLMProvider.CLAUDE_CODE,
         ]
 
     @patch("scriptrag.utils.llm_factory.get_settings")
@@ -80,10 +80,18 @@ class TestCreateLLMClient:
         mock_get_settings.return_value = mock_settings
 
         # Invalid providers should be skipped
-        fallback_order = ["openai", "invalid", "github", "another_invalid"]
+        fallback_order = [
+            "openai_compatible",
+            "invalid",
+            "github_models",
+            "another_invalid",
+        ]
         client = create_llm_client(fallback_order=fallback_order)
         assert isinstance(client, LLMClient)
-        assert client.fallback_order == [LLMProvider.OPENAI, LLMProvider.GITHUB]
+        assert client.fallback_order == [
+            LLMProvider.OPENAI_COMPATIBLE,
+            LLMProvider.GITHUB_MODELS,
+        ]
 
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_github_token(self, mock_get_settings):
@@ -216,20 +224,20 @@ class TestCreateLLMClient:
     def test_create_with_provider_from_settings(self, mock_get_settings):
         """Test creating client with provider from settings."""
         mock_settings = MagicMock()
-        mock_settings.llm_provider = "openai"
+        mock_settings.llm_provider = "openai_compatible"
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
         mock_get_settings.return_value = mock_settings
 
         client = create_llm_client()
         assert isinstance(client, LLMClient)
-        assert client.preferred_provider == LLMProvider.OPENAI
+        assert client.preferred_provider == LLMProvider.OPENAI_COMPATIBLE
 
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_all_parameters(self, mock_get_settings):
         """Test creating client with all parameters specified."""
         mock_settings = MagicMock()
-        mock_settings.llm_provider = "github"  # Should be overridden
+        mock_settings.llm_provider = "github_models"  # Should be overridden
         mock_settings.llm_endpoint = (
             "https://settings.example.com"  # Should be overridden
         )
@@ -238,8 +246,8 @@ class TestCreateLLMClient:
         mock_get_settings.return_value = mock_settings
 
         client = create_llm_client(
-            preferred_provider="openai",
-            fallback_order=["github", "mock"],
+            preferred_provider="openai_compatible",
+            fallback_order=["github_models", "claude_code"],
             github_token="ghp_custom",  # noqa: S106
             openai_endpoint="https://custom.example.com",
             openai_api_key="sk-custom",  # pragma: allowlist secret
@@ -247,8 +255,11 @@ class TestCreateLLMClient:
         )
 
         assert isinstance(client, LLMClient)
-        assert client.preferred_provider == LLMProvider.OPENAI
-        assert client.fallback_order == [LLMProvider.GITHUB, LLMProvider.MOCK]
+        assert client.preferred_provider == LLMProvider.OPENAI_COMPATIBLE
+        assert client.fallback_order == [
+            LLMProvider.GITHUB_MODELS,
+            LLMProvider.CLAUDE_CODE,
+        ]
         assert client.github_token == "ghp_custom"  # noqa: S105
         assert client.openai_endpoint == "https://custom.example.com"
         assert client.openai_api_key == "sk-custom"  # pragma: allowlist secret

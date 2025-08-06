@@ -524,14 +524,32 @@ New dialogue.
         runner = CliRunner()
         monkeypatch.chdir(tmp_path)
 
-        # Mock import error for IndexCommand
-        def mock_import_error(*_args, **_kwargs):
-            raise ImportError("Mock import error")
+        # Patch the import statement to simulate ImportError
+        import sys
+        from unittest.mock import patch
 
-        # Patch IndexCommand to raise ImportError
-        with runner.isolated_filesystem(), monkeypatch.context() as m:
-            m.setattr("scriptrag.cli.commands.index.IndexCommand", mock_import_error)
-            result = runner.invoke(app, ["index", "."])
+        with runner.isolated_filesystem():
+            # Backup original module if it exists
+            original_module = sys.modules.get("scriptrag.api.index")
+
+            # Remove module from sys.modules to trigger import error
+            if "scriptrag.api.index" in sys.modules:
+                del sys.modules["scriptrag.api.index"]
+
+            # Mock the module to raise ImportError
+            def failing_import(*args, **kwargs):
+                if args and "scriptrag.api.index" in str(args[0]):
+                    raise ImportError("Mock import error")
+                return original_import(*args, **kwargs)
+
+            original_import = __builtins__["__import__"]
+            with patch("builtins.__import__", side_effect=failing_import):
+                result = runner.invoke(app, ["index", "."])
+
+            # Restore original module
+            if original_module:
+                sys.modules["scriptrag.api.index"] = original_module
+
             assert result.exit_code == 1
             assert "Required components not available" in result.output
 
@@ -549,7 +567,7 @@ New dialogue.
         async def mock_index_error(*_args, **_kwargs):
             raise Exception("Unexpected error during indexing")
 
-        with patch("scriptrag.cli.commands.index.IndexCommand") as mock_index_command:
+        with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
             mock_instance = mock_index_command.return_value
             mock_instance.index = AsyncMock(side_effect=mock_index_error)
 
@@ -590,7 +608,7 @@ New dialogue.
         # Add multiple errors to test pagination
         test_result.errors = [f"Error {i}" for i in range(15)]
 
-        with patch("scriptrag.cli.commands.index.IndexCommand") as mock_index_command:
+        with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
             mock_instance = mock_index_command.return_value
             mock_instance.index = AsyncMock(return_value=test_result)
 
@@ -627,7 +645,7 @@ New dialogue.
             ),
         ]
 
-        with patch("scriptrag.cli.commands.index.IndexCommand") as mock_index_command:
+        with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
             mock_instance = mock_index_command.return_value
             mock_instance.index = AsyncMock(return_value=test_result)
 
@@ -650,7 +668,7 @@ New dialogue.
         test_result = IndexOperationResult()
         test_result.scripts = []
 
-        with patch("scriptrag.cli.commands.index.IndexCommand") as mock_index_command:
+        with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
             mock_instance = mock_index_command.return_value
             mock_instance.index = AsyncMock(return_value=test_result)
 

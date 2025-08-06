@@ -733,101 +733,243 @@ class LLMClient:
 
         return self.current_provider
 
-    async def list_models(self) -> list[Model]:
-        """List all available models across all available providers."""
-        all_models = []
+    async def list_models(self, provider: LLMProvider | None = None) -> list[Model]:
+        """List all available models across all available providers.
 
-        for provider_type, provider in self.providers.items():
+        Args:
+            provider: Optional specific provider to list models from.
+
+        Returns:
+            List of available models.
+        """
+        if provider:
+            # List models from specific provider
+            provider_instance = self.providers.get(provider)
+            if provider_instance and await provider_instance.is_available():
+                try:
+                    return await provider_instance.list_models()
+                except Exception as e:
+                    logger.debug(f"Failed to list models from {provider.value}: {e}")
+            return []
+
+        # List models from all available providers
+        all_models = []
+        for provider_type, provider_instance in self.providers.items():
             try:
-                if await provider.is_available():
-                    models = await provider.list_models()
+                if await provider_instance.is_available():
+                    models = await provider_instance.list_models()
                     all_models.extend(models)
             except Exception as e:
                 logger.debug(f"Failed to list models from {provider_type.value}: {e}")
 
         return all_models
 
+    async def get_provider_for_model(self, model_id: str) -> LLMProvider | None:
+        """Get the provider type for a specific model.
+
+        Args:
+            model_id: The model ID to look up.
+
+        Returns:
+            The provider type that supports this model, or None if not found.
+        """
+        all_models = await self.list_models()
+        for model in all_models:
+            if model.id == model_id:
+                return model.provider
+        return None
+
     async def complete(
         self,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, str]] | CompletionRequest,
         model: str | None = None,
         temperature: float = 0.7,
         max_tokens: int | None = None,
         system: str | None = None,
+        provider: LLMProvider | None = None,
     ) -> CompletionResponse:
         """Generate text completion.
 
         Args:
-            messages: List of message dictionaries with 'role' and 'content'.
+            messages: List of message dictionaries with 'role' and 'content',
+                or CompletionRequest.
             model: Model ID to use. If None, uses provider default.
             temperature: Sampling temperature (0-2).
             max_tokens: Maximum tokens to generate.
             system: System prompt to prepend.
+            provider: Specific provider to use, bypassing fallback logic.
 
         Returns:
             Completion response with generated text.
         """
-        provider = await self.ensure_provider()
+        # Handle both signatures: CompletionRequest object or separate parameters
+        if isinstance(messages, CompletionRequest):
+            request = messages
+        else:
+            # Use default model if not specified
+            if not model:
+                # We'll set the model after we select a provider
+                pass
 
-        # Use default model if not specified
-        if not model:
+            request = CompletionRequest(
+                model=model or "gpt-4",  # Temporary fallback
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                system=system,
+            )
+
+        # Try completion with fallback logic
+        if provider:
+            # User specified a specific provider
+            provider_instance = self.providers.get(provider)
+            if provider_instance and await provider_instance.is_available():
+                return await self._try_complete_with_provider(
+                    provider_instance, request
+                )
+            raise RuntimeError(f"Requested provider {provider.value} is not available")
+        # Try providers in fallback order
+        return await self._complete_with_fallback(request)
+
+    async def _try_complete_with_provider(
+        self, provider: BaseLLMProvider, request: CompletionRequest
+    ) -> CompletionResponse:
+        """Try completion with a specific provider, handling model selection."""
+        # Update model if not specified
+        if request.model == "gpt-4":  # Our temporary fallback
             models = await provider.list_models()
             if models:
                 # Pick first chat-capable model
                 for m in models:
                     if "chat" in m.capabilities or "completion" in m.capabilities:
-                        model = m.id
+                        request.model = m.id
                         break
-            if not model:
-                model = "gpt-4"  # Fallback default
-
-        request = CompletionRequest(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            system=system,
-        )
 
         return await provider.complete(request)
 
+    async def _complete_with_fallback(
+        self, request: CompletionRequest
+    ) -> CompletionResponse:
+        """Try completion with providers in fallback order."""
+        errors = []
+
+        # Try preferred provider first
+        if self.preferred_provider:
+            provider = self.providers.get(self.preferred_provider)
+            if provider and await provider.is_available():
+                try:
+                    return await self._try_complete_with_provider(provider, request)
+                except Exception as e:
+                    logger.debug(
+                        f"Preferred provider {self.preferred_provider.value} "
+                        f"failed: {e}"
+                    )
+                    errors.append(f"{self.preferred_provider.value}: {e}")
+
+        # Try fallback providers in order
+        for provider_type in self.fallback_order:
+            if provider_type == self.preferred_provider:
+                continue  # Already tried
+
+            provider = self.providers.get(provider_type)
+            if provider and await provider.is_available():
+                try:
+                    return await self._try_complete_with_provider(provider, request)
+                except Exception as e:
+                    logger.debug(f"Fallback provider {provider_type.value} failed: {e}")
+                    errors.append(f"{provider_type.value}: {e}")
+
+        # All providers failed
+        raise RuntimeError(f"All LLM providers failed: {'; '.join(errors)}")
+
     async def embed(
         self,
-        text: str | list[str],
+        text: str | list[str] | EmbeddingRequest,
         model: str | None = None,
         dimensions: int | None = None,
+        provider: LLMProvider | None = None,
     ) -> EmbeddingResponse:
         """Generate text embeddings.
 
         Args:
-            text: Text or list of texts to embed.
+            text: Text or list of texts to embed, or EmbeddingRequest.
             model: Model ID to use. If None, uses provider default.
             dimensions: Output embedding dimensions.
+            provider: Specific provider to use, bypassing fallback logic.
 
         Returns:
             Embedding response with vector representations.
         """
-        provider = await self.ensure_provider()
+        # Handle both signatures: EmbeddingRequest object or separate parameters
+        if isinstance(text, EmbeddingRequest):
+            request = text
+        else:
+            request = EmbeddingRequest(
+                model=model or "text-embedding-ada-002",  # Temporary fallback
+                input=text,
+                dimensions=dimensions,
+            )
 
-        # Use default embedding model if not specified
-        if not model:
+        # Try embedding with fallback logic
+        if provider:
+            # User specified a specific provider
+            provider_instance = self.providers.get(provider)
+            if provider_instance and await provider_instance.is_available():
+                return await self._try_embed_with_provider(provider_instance, request)
+            raise RuntimeError(f"Requested provider {provider.value} is not available")
+        # Try providers in fallback order
+        return await self._embed_with_fallback(request)
+
+    async def _try_embed_with_provider(
+        self, provider: BaseLLMProvider, request: EmbeddingRequest
+    ) -> EmbeddingResponse:
+        """Try embedding with a specific provider, handling model selection."""
+        # Update model if not specified
+        if request.model == "text-embedding-ada-002":  # Our temporary fallback
             models = await provider.list_models()
             if models:
                 # Pick first embedding-capable model
                 for m in models:
                     if "embedding" in m.capabilities:
-                        model = m.id
+                        request.model = m.id
                         break
-            if not model:
-                model = "text-embedding-ada-002"  # Fallback default
-
-        request = EmbeddingRequest(
-            model=model,
-            input=text,
-            dimensions=dimensions,
-        )
 
         return await provider.embed(request)
+
+    async def _embed_with_fallback(
+        self, request: EmbeddingRequest
+    ) -> EmbeddingResponse:
+        """Try embedding with providers in fallback order."""
+        errors = []
+
+        # Try preferred provider first
+        if self.preferred_provider:
+            provider = self.providers.get(self.preferred_provider)
+            if provider and await provider.is_available():
+                try:
+                    return await self._try_embed_with_provider(provider, request)
+                except Exception as e:
+                    logger.debug(
+                        f"Preferred provider {self.preferred_provider.value} "
+                        f"failed: {e}"
+                    )
+                    errors.append(f"{self.preferred_provider.value}: {e}")
+
+        # Try fallback providers in order
+        for provider_type in self.fallback_order:
+            if provider_type == self.preferred_provider:
+                continue  # Already tried
+
+            provider = self.providers.get(provider_type)
+            if provider and await provider.is_available():
+                try:
+                    return await self._try_embed_with_provider(provider, request)
+                except Exception as e:
+                    logger.debug(f"Fallback provider {provider_type.value} failed: {e}")
+                    errors.append(f"{provider_type.value}: {e}")
+
+        # All providers failed
+        raise RuntimeError(f"All LLM providers failed: {'; '.join(errors)}")
 
     def get_current_provider(self) -> LLMProvider | None:
         """Get the currently active provider type."""

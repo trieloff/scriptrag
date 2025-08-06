@@ -33,11 +33,26 @@ def db_ops(settings):
 
 
 @pytest.fixture
-def initialized_db(db_ops):
+def initialized_db_settings(tmp_path):
+    """Create test settings for initialized database."""
+    return ScriptRAGSettings(
+        database_path=tmp_path / "initialized_test.db",
+        database_timeout=5.0,
+        database_journal_mode="WAL",
+        database_synchronous="NORMAL",
+        database_cache_size=-2000,
+        database_temp_store="MEMORY",
+        database_foreign_keys=True,
+    )
+
+
+@pytest.fixture
+def initialized_db(initialized_db_settings):
     """Create an initialized test database."""
     # Initialize database with schema
     from scriptrag.api.database import DatabaseInitializer
 
+    db_ops = DatabaseOperations(initialized_db_settings)
     initializer = DatabaseInitializer()
     initializer.initialize_database(db_path=db_ops.db_path, force=True)
     return db_ops

@@ -124,31 +124,33 @@ class ClaudeCodeProvider(BaseLLMProvider):
         if not self.sdk_available:
             return False
 
-        # Check for Claude Code environment markers
+        # Primary method: Try to import and use the SDK directly
+        try:
+            from claude_code_sdk import ClaudeCodeOptions  # noqa: F401
+
+            # If import succeeds, we likely have SDK access
+            return True
+        except ImportError:
+            pass  # SDK not available, try fallback detection
+        except Exception as e:
+            logger.debug(f"Claude Code SDK check failed: {e}")
+
+        # Fallback method: Check for Claude Code environment markers
+        # This is less reliable but kept for backward compatibility
         claude_markers = [
             "CLAUDE_CODE_SESSION",
             "CLAUDE_SESSION_ID",
             "CLAUDE_WORKSPACE",
         ]
 
-        in_claude = any(os.getenv(marker) for marker in claude_markers)
-
-        # Also check if we can import and use the SDK
-        if in_claude:
-            try:
-                from claude_code_sdk import ClaudeCodeOptions  # noqa: F401
-
-                return True
-            except Exception as e:
-                logger.debug(f"Claude Code SDK import failed: {e}")
-                return False
-
-        return False
+        return any(os.getenv(marker) for marker in claude_markers)
 
     async def list_models(self) -> list[Model]:
         """List available Claude models."""
-        # Claude Code SDK doesn't provide model listing
-        # Return default available models
+        # TODO: Implement dynamic model discovery when Claude Code SDK supports it
+        # Currently the SDK doesn't provide a way to list available models,
+        # so we return a static list that may become outdated.
+        # This should be updated when the SDK adds model enumeration support.
         return [
             Model(
                 id="claude-3-opus-20240229",
@@ -246,15 +248,32 @@ class GitHubModelsProvider(BaseLLMProvider):
     provider_type = LLMProvider.GITHUB_MODELS
     base_url = "https://models.inference.ai.azure.com"
 
-    def __init__(self) -> None:
-        """Initialize GitHub Models provider."""
-        self.token = os.getenv("GITHUB_TOKEN")
-        self.client = httpx.AsyncClient(timeout=30.0)
+    def __init__(self, token: str | None = None, timeout: float = 30.0) -> None:
+        """Initialize GitHub Models provider.
+
+        Args:
+            token: GitHub token. If not provided, checks GITHUB_TOKEN env var.
+            timeout: HTTP request timeout in seconds.
+        """
+        self.token = token or os.getenv("GITHUB_TOKEN")
+        self.timeout = timeout
+        self.client = httpx.AsyncClient(timeout=timeout)
+        self._availability_cache: bool | None = None
+        self._cache_timestamp: float = 0
 
     async def is_available(self) -> bool:
         """Check if GitHub token is available and valid."""
         if not self.token:
             return False
+
+        # Check cache (valid for 5 minutes)
+        import time
+
+        if (
+            self._availability_cache is not None
+            and (time.time() - self._cache_timestamp) < 300
+        ):
+            return self._availability_cache
 
         try:
             headers = {
@@ -262,10 +281,23 @@ class GitHubModelsProvider(BaseLLMProvider):
                 "Accept": "application/json",
             }
             response = await self.client.get(f"{self.base_url}/models", headers=headers)
-            return bool(response.status_code == 200)
+            result = bool(response.status_code == 200)
+            self._availability_cache = result
+            self._cache_timestamp = time.time()
+            return result
         except Exception as e:
             logger.debug(f"GitHub Models not available: {e}")
+            self._availability_cache = False
+            self._cache_timestamp = time.time()
             return False
+
+    async def __aenter__(self) -> "GitHubModelsProvider":
+        """Enter async context manager."""
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        """Exit async context manager and cleanup."""
+        await self.client.aclose()
 
     async def list_models(self) -> list[Model]:
         """List available models from GitHub Models."""
@@ -415,16 +447,39 @@ class OpenAICompatibleProvider(BaseLLMProvider):
 
     provider_type = LLMProvider.OPENAI_COMPATIBLE
 
-    def __init__(self) -> None:
-        """Initialize OpenAI-compatible provider."""
-        self.base_url = os.getenv("SCRIPTRAG_LLM_ENDPOINT", "")
-        self.api_key = os.getenv("SCRIPTRAG_LLM_API_KEY", "")
-        self.client = httpx.AsyncClient(timeout=30.0)
+    def __init__(
+        self,
+        endpoint: str | None = None,
+        api_key: str | None = None,
+        timeout: float = 30.0,
+    ) -> None:
+        """Initialize OpenAI-compatible provider.
+
+        Args:
+            endpoint: API endpoint URL. If not provided, checks SCRIPTRAG_LLM_ENDPOINT.
+            api_key: API key. If not provided, checks SCRIPTRAG_LLM_API_KEY.
+            timeout: HTTP request timeout in seconds.
+        """
+        self.base_url = endpoint or os.getenv("SCRIPTRAG_LLM_ENDPOINT", "")
+        self.api_key = api_key or os.getenv("SCRIPTRAG_LLM_API_KEY", "")
+        self.timeout = timeout
+        self.client = httpx.AsyncClient(timeout=timeout)
+        self._availability_cache: bool | None = None
+        self._cache_timestamp: float = 0
 
     async def is_available(self) -> bool:
         """Check if endpoint and API key are configured."""
         if not self.base_url or not self.api_key:
             return False
+
+        # Check cache (valid for 5 minutes)
+        import time
+
+        if (
+            self._availability_cache is not None
+            and (time.time() - self._cache_timestamp) < 300
+        ):
+            return self._availability_cache
 
         try:
             headers = {
@@ -432,10 +487,23 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                 "Accept": "application/json",
             }
             response = await self.client.get(f"{self.base_url}/models", headers=headers)
-            return bool(response.status_code == 200)
+            result = bool(response.status_code == 200)
+            self._availability_cache = result
+            self._cache_timestamp = time.time()
+            return result
         except Exception as e:
             logger.debug(f"OpenAI-compatible endpoint not available: {e}")
+            self._availability_cache = False
+            self._cache_timestamp = time.time()
             return False
+
+    async def __aenter__(self) -> "OpenAICompatibleProvider":
+        """Enter async context manager."""
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        """Exit async context manager and cleanup."""
+        await self.client.aclose()
 
     async def list_models(self) -> list[Model]:
         """List available models from OpenAI-compatible endpoint."""
@@ -580,12 +648,20 @@ class LLMClient:
         self,
         preferred_provider: LLMProvider | None = None,
         fallback_order: list[LLMProvider] | None = None,
+        github_token: str | None = None,
+        openai_endpoint: str | None = None,
+        openai_api_key: str | None = None,
+        timeout: float = 30.0,
     ) -> None:
         """Initialize LLM client with provider preferences.
 
         Args:
             preferred_provider: Preferred provider to use if available.
             fallback_order: Order of providers to try if preferred isn't available.
+            github_token: GitHub token for GitHub Models provider.
+            openai_endpoint: Endpoint URL for OpenAI-compatible provider.
+            openai_api_key: API key for OpenAI-compatible provider.
+            timeout: Default timeout for HTTP requests.
         """
         self.providers: dict[LLMProvider, BaseLLMProvider] = {}
         self.current_provider: BaseLLMProvider | None = None
@@ -599,6 +675,12 @@ class LLMClient:
                 LLMProvider.OPENAI_COMPATIBLE,
             ]
         self.fallback_order = fallback_order
+        self.timeout = timeout
+
+        # Store credentials
+        self._github_token = github_token
+        self._openai_endpoint = openai_endpoint
+        self._openai_api_key = openai_api_key
 
         # Initialize providers
         self._init_providers()
@@ -609,8 +691,15 @@ class LLMClient:
     def _init_providers(self) -> None:
         """Initialize all provider instances."""
         self.providers[LLMProvider.CLAUDE_CODE] = ClaudeCodeProvider()
-        self.providers[LLMProvider.GITHUB_MODELS] = GitHubModelsProvider()
-        self.providers[LLMProvider.OPENAI_COMPATIBLE] = OpenAICompatibleProvider()
+        self.providers[LLMProvider.GITHUB_MODELS] = GitHubModelsProvider(
+            token=self._github_token,
+            timeout=self.timeout,
+        )
+        self.providers[LLMProvider.OPENAI_COMPATIBLE] = OpenAICompatibleProvider(
+            endpoint=self._openai_endpoint,
+            api_key=self._openai_api_key,
+            timeout=self.timeout,
+        )
 
     async def _select_provider(self) -> None:
         """Select the best available provider based on preferences."""
@@ -763,3 +852,17 @@ class LLMClient:
             logger.info(f"Switched to provider: {provider_type.value}")
             return True
         return False
+
+    async def cleanup(self) -> None:
+        """Clean up resources for all providers."""
+        for provider in self.providers.values():
+            if hasattr(provider, "client"):
+                await provider.client.aclose()
+
+    async def __aenter__(self) -> "LLMClient":
+        """Enter async context manager."""
+        return self
+
+    async def __aexit__(self, *args: Any) -> None:
+        """Exit async context manager and cleanup."""
+        await self.cleanup()

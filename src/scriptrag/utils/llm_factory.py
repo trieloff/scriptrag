@@ -10,12 +10,20 @@ from scriptrag.utils.llm_client import LLMClient, LLMProvider
 def create_llm_client(
     preferred_provider: str | None = None,
     fallback_order: list[str] | None = None,
+    github_token: str | None = None,
+    openai_endpoint: str | None = None,
+    openai_api_key: str | None = None,
+    timeout: float = 30.0,
 ) -> LLMClient:
     """Create an LLM client using configuration settings.
 
     Args:
         preferred_provider: Override for preferred provider.
         fallback_order: Override for fallback order.
+        github_token: GitHub token for GitHub Models provider.
+        openai_endpoint: Endpoint URL for OpenAI-compatible provider.
+        openai_api_key: API key for OpenAI-compatible provider.
+        timeout: Default timeout for HTTP requests.
 
     Returns:
         Configured LLM client.
@@ -33,12 +41,16 @@ def create_llm_client(
             # Invalid provider name will use defaults
             provider_enum = LLMProvider(preferred_provider)
 
-    # Set up environment variables from settings if not already set
-    if settings.llm_endpoint and not os.getenv("SCRIPTRAG_LLM_ENDPOINT"):
-        os.environ["SCRIPTRAG_LLM_ENDPOINT"] = settings.llm_endpoint
-
-    if settings.llm_api_key and not os.getenv("SCRIPTRAG_LLM_API_KEY"):
-        os.environ["SCRIPTRAG_LLM_API_KEY"] = settings.llm_api_key
+    # Use provided credentials or fall back to settings/env vars
+    # Note: We pass credentials directly to the client instead of
+    # modifying os.environ to avoid exposing them to other processes
+    github_token = github_token or os.getenv("GITHUB_TOKEN")
+    openai_endpoint = (
+        openai_endpoint or settings.llm_endpoint or os.getenv("SCRIPTRAG_LLM_ENDPOINT")
+    )
+    openai_api_key = (
+        openai_api_key or settings.llm_api_key or os.getenv("SCRIPTRAG_LLM_API_KEY")
+    )
 
     # Convert fallback order strings to enums
     fallback_enums = None
@@ -51,10 +63,14 @@ def create_llm_client(
                 # Skip invalid provider names
                 continue
 
-    # Create client
+    # Create client with credentials passed directly
     return LLMClient(
         preferred_provider=provider_enum,
         fallback_order=fallback_enums,
+        github_token=github_token,
+        openai_endpoint=openai_endpoint,
+        openai_api_key=openai_api_key,
+        timeout=timeout,
     )
 
 

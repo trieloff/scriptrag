@@ -60,6 +60,7 @@ permissions:
   issues: write
   checks: write
   models: read  # Enable GitHub Models for AI inference
+  id-token: write
 
 jobs:
   claude-review:

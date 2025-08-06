@@ -180,8 +180,9 @@ class TestGitHubModelsProvider:
             assert models == []
 
     @pytest.mark.asyncio
-    async def test_complete_success(self):
+    async def test_complete_success(self, mock_env_vars):
         """Test successful completion."""
+        _ = mock_env_vars  # Fixture sets up environment variables
         provider = GitHubModelsProvider()
 
         mock_response = MagicMock()
@@ -227,8 +228,9 @@ class TestGitHubModelsProvider:
                 await provider.complete(request)
 
     @pytest.mark.asyncio
-    async def test_embed_success(self):
+    async def test_embed_success(self, mock_env_vars):
         """Test successful embedding."""
+        _ = mock_env_vars  # Fixture sets up environment variables
         provider = GitHubModelsProvider()
 
         mock_response = MagicMock()
@@ -298,8 +300,9 @@ class TestOpenAICompatibleProvider:
             assert all(m.provider == LLMProvider.OPENAI_COMPATIBLE for m in models)
 
     @pytest.mark.asyncio
-    async def test_complete_success(self):
+    async def test_complete_success(self, mock_env_vars):
         """Test successful completion."""
+        _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
 
         mock_response = MagicMock()
@@ -328,8 +331,9 @@ class TestOpenAICompatibleProvider:
             assert response.provider == LLMProvider.OPENAI_COMPATIBLE
 
     @pytest.mark.asyncio
-    async def test_embed_success(self):
+    async def test_embed_success(self, mock_env_vars):
         """Test successful embedding."""
+        _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
 
         mock_response = MagicMock()
@@ -440,7 +444,24 @@ class TestLLMClient:
 
         # Test ensure_provider raises error when no provider available
         client.current_provider = None
-        with pytest.raises(RuntimeError, match="No LLM provider available"):
+        with (
+            patch.object(
+                client.providers[LLMProvider.CLAUDE_CODE],
+                "is_available",
+                return_value=False,
+            ),
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS],
+                "is_available",
+                return_value=False,
+            ),
+            patch.object(
+                client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                "is_available",
+                return_value=False,
+            ),
+            pytest.raises(RuntimeError, match="No LLM provider available"),
+        ):
             await client.ensure_provider()
 
     @pytest.mark.asyncio

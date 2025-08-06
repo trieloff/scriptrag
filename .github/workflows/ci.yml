@@ -17,6 +17,7 @@ permissions:
   pull-requests: write
   issues: write
   checks: write
+  models: read  # Enable GitHub Models for AI inference
 
 jobs:
   # Check if Python files were changed to determine if tests should run

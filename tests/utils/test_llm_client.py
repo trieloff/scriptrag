@@ -5,16 +5,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from scriptrag.utils.llm_client import (
-    ClaudeCodeProvider,
+from scriptrag.llm import (
     CompletionRequest,
     CompletionResponse,
     EmbeddingRequest,
     EmbeddingResponse,
-    GitHubModelsProvider,
     LLMClient,
     LLMProvider,
     Model,
+)
+from scriptrag.llm.providers import (
+    ClaudeCodeProvider,
+    GitHubModelsProvider,
     OpenAICompatibleProvider,
 )
 

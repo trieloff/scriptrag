@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scriptrag.utils.llm_client import LLMClient, LLMProvider
+from scriptrag.llm import LLMClient, LLMProvider
 from scriptrag.utils.llm_factory import create_llm_client, get_default_llm_client
 
 

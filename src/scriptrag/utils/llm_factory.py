@@ -4,7 +4,7 @@ import contextlib
 import os
 
 from scriptrag.config import get_settings
-from scriptrag.utils.llm_client import LLMClient, LLMProvider
+from scriptrag.llm import LLMClient, LLMProvider
 
 
 def create_llm_client(

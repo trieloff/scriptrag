@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test script to check GitHub Models API access."""
 
+import json
 import os
 import sys
 
@@ -39,7 +40,7 @@ def test_github_models_access(token: str | None = None) -> bool:
 
     try:
         # Try to access the models endpoint
-        response = requests.get(f"{api_url}/models", headers=headers, timeout=10)
+        response = requests.get(f"{api_url}/models", headers=headers, timeout=30)
 
         if response.status_code == 200:
             print("✅ Successfully connected to GitHub Models!")
@@ -48,11 +49,47 @@ def test_github_models_access(token: str | None = None) -> bool:
             # Try to parse and show available models
             try:
                 data = response.json()
-                if "data" in data:
-                    print(f"   Available models: {len(data['data'])} models found")
-                    print("\n   First few models:")
-                    for model in data["data"][:5]:
-                        print(f"     - {model.get('id', 'Unknown')}")
+                # Handle both possible response formats
+                if isinstance(data, list):
+                    models = data
+                elif "data" in data:
+                    models = data["data"]
+                else:
+                    models = []
+
+                if models:
+                    print(f"\n   📦 Total models available: {len(models)}")
+                    print("\n   Available AI Models:")
+                    print("   " + "=" * 70)
+
+                    # Group models by publisher/provider
+                    by_publisher: dict[str, list[dict[str, str]]] = {}
+                    for model in models:
+                        name = model.get("friendly_name") or model.get(
+                            "name", "Unknown"
+                        )
+                        publisher = model.get("publisher", "Unknown")
+                        task = model.get("task", "")
+                        model_id = model.get("id", "")
+
+                        if publisher not in by_publisher:
+                            by_publisher[publisher] = []
+                        by_publisher[publisher].append(
+                            {"name": name, "task": task, "id": model_id}
+                        )
+
+                    # Display models grouped by publisher
+                    for publisher in sorted(by_publisher.keys()):
+                        print(f"\n   📂 {publisher}:")
+                        for model in sorted(
+                            by_publisher[publisher], key=lambda x: x["name"]
+                        ):
+                            task_str = f" ({model['task']})" if model["task"] else ""
+                            print(f"      • {model['name']}{task_str}")
+                else:
+                    print("\n   No models found in response")
+                    print("\n   Raw response (first 1000 chars):")
+                    print(json.dumps(data, indent=2)[:1000])
             except Exception as e:
                 print(f"   Response received but couldn't parse models: {e}")
 

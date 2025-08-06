@@ -30,6 +30,8 @@ __author__ = "Your Name"
 __email__ = "your.email@example.com"
 __license__ = "MIT"
 
+# Test: Trigger CI with Python changes
+
 # Package metadata
 __all__ = [
     "FountainParser",

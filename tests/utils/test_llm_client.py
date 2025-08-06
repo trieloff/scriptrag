@@ -567,7 +567,7 @@ class TestLLMClient:
         mock_provider.is_available = AsyncMock(return_value=True)
 
         # Replace all providers with mock ones to ensure isolation
-        client.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
+        client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
         client.current_provider = mock_provider
 
         response = await client.complete(
@@ -608,7 +608,7 @@ class TestLLMClient:
         mock_provider.is_available = AsyncMock(return_value=True)
 
         # Replace the provider in the client's providers dict and set as current
-        client.providers[LLMProvider.GITHUB_MODELS] = mock_provider
+        client.registry.providers[LLMProvider.GITHUB_MODELS] = mock_provider
         client.current_provider = mock_provider
 
         response = await client.complete(
@@ -638,7 +638,7 @@ class TestLLMClient:
         mock_provider.is_available = AsyncMock(return_value=True)
 
         # Replace the provider in the client's providers dict and set as current
-        client.providers[LLMProvider.OPENAI_COMPATIBLE] = mock_provider
+        client.registry.providers[LLMProvider.OPENAI_COMPATIBLE] = mock_provider
         client.current_provider = mock_provider
 
         response = await client.embed(

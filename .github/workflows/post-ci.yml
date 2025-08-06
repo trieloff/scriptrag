@@ -1,0 +1,187 @@
+# Post-CI Actions Workflow
+#
+# This workflow is triggered after successful CI runs to perform additional
+# actions like Claude Code Review and other post-build tasks.
+# Using workflow_dispatch for more reliable triggering than workflow_run.
+
+name: Post-CI Actions
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull Request number'
+        required: true
+        type: string
+      pr_head_ref:
+        description: 'Pull Request head branch'
+        required: true
+        type: string
+      pr_head_sha:
+        description: 'Pull Request head SHA'
+        required: true
+        type: string
+      trigger_claude_review:
+        description: 'Trigger Claude Code Review'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  checks: write
+  models: read  # Enable GitHub Models for AI inference
+
+jobs:
+  claude-review:
+    name: Claude Code Review
+    if: inputs.trigger_claude_review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+      models: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
+          ref: ${{ inputs.pr_head_ref }}
+
+      - name: Run Claude Code Review
+        id: claude-review
+        continue-on-error: true
+        uses: anthropics/claude-code-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
+          pr_number: ${{ inputs.pr_number }}
+          # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
+          # model: "claude-opus-4-20250514"
+          direct_prompt: |
+            Please review this pull request and provide feedback on:
+            - Code quality and best practices
+            - Potential bugs or issues
+            - Performance considerations
+            - Security concerns
+            - Test coverage
+
+            Be constructive and helpful in your feedback.
+
+            IMPORTANT: If you identify any issues that need to be addressed or improvements that should be made,
+            please tag @terragon-labs in your review comment to ensure they are notified.
+
+      - name: Report Claude Code Review Status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
+          script: |
+            const reviewOutcome = '${{ steps.claude-review.outcome }}';
+            const prNumber = parseInt('${{ inputs.pr_number }}');
+
+            if (reviewOutcome === 'failure') {
+              const comment = [
+                '🤖 **Claude Code Review Notice**',
+                '',
+                '⚠️ The Claude Code review could not be completed due to a known issue.',
+                '',
+                'This is related to: https://github.com/anthropics/claude-code-action/issues/351',
+                '',
+                'The review failure does not indicate any problems with your code. This workflow step will continue to fail until the upstream issue is resolved.',
+                '',
+                '---',
+                '_This is an automated message triggered after successful CI checks._'
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: comment
+              });
+
+              console.log('Claude Code Review failed - known upstream issue');
+            } else if (reviewOutcome === 'success') {
+              console.log('Claude Code Review completed successfully');
+
+              // Post success notification
+              const comment = [
+                '✅ **CI Checks Passed & Claude Review Complete**',
+                '',
+                'All CI checks have passed successfully! Claude has completed its code review.',
+                '',
+                'Please check the review comments above for any suggestions or improvements.',
+                '',
+                '---',
+                '_Automated post-CI notification_'
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: comment
+              });
+            } else {
+              console.log(`Claude Code Review outcome: ${reviewOutcome}`);
+            }
+
+  notify-success:
+    name: Notify Success
+    runs-on: ubuntu-latest
+    needs: [claude-review]
+    if: |
+      always() &&
+      !contains(needs.*.result, 'failure')
+    steps:
+      - name: Post Success Summary
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = parseInt('${{ inputs.pr_number }}');
+            const claudeReviewStatus = '${{ needs.claude-review.result }}';
+
+            console.log(`Post-CI actions completed. Claude Review: ${claudeReviewStatus}`);
+
+            // Check if this PR has a Terry task
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+
+            const hasTerragonTask = pr.body && pr.body.includes('terragonlabs.com/task');
+
+            if (hasTerragonTask) {
+              // Extract task URL for notification
+              const taskUrlMatch = pr.body.match(/https:\/\/www\.terragonlabs\.com\/task\/[a-f0-9-]+/);
+              const taskUrl = taskUrlMatch ? taskUrlMatch[0] : null;
+
+              if (taskUrl) {
+                const comment = [
+                  '🎉 **All Checks Complete!**',
+                  '',
+                  '✅ CI checks passed',
+                  claudeReviewStatus === 'success' ? '✅ Claude Code Review completed' : '⚠️ Claude Code Review skipped or failed (non-blocking)',
+                  '',
+                  '@terragon-labs - This PR is ready for your review!',
+                  `- [Terry Task](${taskUrl})`,
+                  '',
+                  '_All automated checks have completed successfully._'
+                ].join('\n');
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: comment
+                });
+              }
+            }

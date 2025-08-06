@@ -517,26 +517,16 @@ class TestBaseSceneAnalyzer:
 class TestAnalyzeCommandMissingCoverage:
     """Tests to cover missing lines and branches."""
 
-    @pytest.fixture
-    def settings(self, tmp_path):
-        """Create test settings."""
-        from scriptrag.config import ScriptRAGSettings
-
-        return ScriptRAGSettings(
-            database_path=tmp_path / "test.db",
-            database_timeout=5.0,
-        )
-
     @pytest.mark.asyncio
-    async def test_process_file_skip_when_up_to_date(self, settings, tmp_path):
+    async def test_process_file_skip_when_up_to_date(self, tmp_path):
         """Test that file is skipped when it doesn't need update (line 211)."""
         from scriptrag.api.analyze import AnalyzeCommand
         from scriptrag.parser import Scene, Script
 
-        cmd = AnalyzeCommand(settings=settings)
+        cmd = AnalyzeCommand()
 
         # Register an analyzer
-        from scriptrag.api.analyze import BaseSceneAnalyzer
+        from scriptrag.analyzers.base import BaseSceneAnalyzer
 
         class TestAnalyzer(BaseSceneAnalyzer):
             @property
@@ -547,7 +537,7 @@ class TestAnalyzeCommandMissingCoverage:
             def version(self):
                 return "1.0"
 
-            async def analyze_scene(self, scene, script_metadata):  # noqa: ARG002
+            async def analyze(self, scene):  # noqa: ARG002
                 return {"test": "data"}
 
         cmd.register_analyzer("test", TestAnalyzer())
@@ -580,7 +570,7 @@ class TestAnalyzeCommandMissingCoverage:
             mock_parser.return_value.parse_file.return_value = script
 
             # Process without force - should skip (line 211)
-            result = await cmd._process_file(test_file, force=False)
+            result = await cmd._process_file(test_file, force=False, dry_run=False)
 
             # File should NOT be updated
             assert not result.updated

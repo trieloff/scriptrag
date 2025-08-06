@@ -71,7 +71,7 @@ class TestIndexCommand:
 
     def test_index_command_success(self, mock_index_command, mock_index_result):
         """Test successful index command execution."""
-        with patch("scriptrag.cli.commands.index.IndexCommand", mock_index_command):
+        with patch("scriptrag.api.index.IndexCommand", mock_index_command):
             mock_index_command.index.side_effect = (
                 lambda *_args, **_kwargs: mock_index_result
             )
@@ -86,7 +86,7 @@ class TestIndexCommand:
 
     def test_index_command_with_options(self, mock_index_command):
         """Test index command with various options."""
-        with patch("scriptrag.cli.commands.index.IndexCommand", mock_index_command):
+        with patch("scriptrag.api.index.IndexCommand", mock_index_command):
             result = runner.invoke(
                 app,
                 [
@@ -114,7 +114,7 @@ class TestIndexCommand:
 
     def test_index_command_dry_run(self, mock_index_command, mock_index_result):
         """Test index command in dry run mode."""
-        with patch("scriptrag.cli.commands.index.IndexCommand", mock_index_command):
+        with patch("scriptrag.api.index.IndexCommand", mock_index_command):
             mock_index_command.index.side_effect = (
                 lambda *_args, **_kwargs: mock_index_result
             )
@@ -127,7 +127,7 @@ class TestIndexCommand:
 
     def test_index_command_verbose_output(self, mock_index_command, mock_index_result):
         """Test verbose output shows script details."""
-        with patch("scriptrag.cli.commands.index.IndexCommand", mock_index_command):
+        with patch("scriptrag.api.index.IndexCommand", mock_index_command):
             mock_index_command.index.side_effect = (
                 lambda *_args, **_kwargs: mock_index_result
             )
@@ -148,7 +148,7 @@ class TestIndexCommand:
             errors=[f"Error {i}" for i in range(15)],  # More than 10 errors
         )
 
-        with patch("scriptrag.cli.commands.index.IndexCommand", mock_index_command):
+        with patch("scriptrag.api.index.IndexCommand", mock_index_command):
             mock_index_command.index.side_effect = (
                 lambda *_args, **_kwargs: error_result
             )
@@ -161,7 +161,7 @@ class TestIndexCommand:
 
     def test_index_command_exception(self, mock_index_command):
         """Test index command handles exceptions."""
-        with patch("scriptrag.cli.commands.index.IndexCommand", mock_index_command):
+        with patch("scriptrag.api.index.IndexCommand", mock_index_command):
             mock_index_command.index.side_effect = Exception(
                 "Database connection failed"
             )
@@ -174,7 +174,7 @@ class TestIndexCommand:
     def test_index_command_import_error(self):
         """Test index command handles import errors."""
         with patch(
-            "scriptrag.cli.commands.index.IndexCommand",
+            "scriptrag.api.index.IndexCommand",
             side_effect=ImportError("Module not found"),
         ):
             result = runner.invoke(app, [])
@@ -255,7 +255,7 @@ class TestIndexCommand:
 
     def test_progress_callback_integration(self, mock_index_command):
         """Test that progress callback is properly integrated."""
-        with patch("scriptrag.cli.commands.index.IndexCommand", mock_index_command):
+        with patch("scriptrag.api.index.IndexCommand", mock_index_command):
             result = runner.invoke(app, [])
 
             assert result.exit_code == 0

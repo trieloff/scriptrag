@@ -434,13 +434,14 @@ Another action line.
         assert no_prefix_scene.heading == "SOMEWHERE - DAY"
 
     def test_unreachable_int_ext_branch_documentation(self, parser):
-        """Document the unreachable INT./EXT. branch issue in the fountain parser.
+        """Test that INT./EXT. scene headings are correctly parsed.
 
-        This test documents that line 306 in fountain_parser.py is unreachable due to
-        the logic order - INT./EXT. will always match INT. first. This suggests a
-        potential bug where the checks should be reordered.
+        This test verifies that the ScreenplayUtils.parse_scene_heading() method
+        correctly handles INT./EXT. prefixes by checking the more specific pattern
+        first,
+        ensuring that "INT./EXT. BEDROOM - NIGHT" returns type "INT/EXT" not just "INT".
         """
-        # Test case 1: Demonstrate the issue - INT./EXT. matches INT. first
+        # Test case 1: Verify INT./EXT. is correctly parsed as "INT/EXT" type
         mock_int_ext_scene = MagicMock()
         mock_int_ext_scene.header = "INT./EXT. BEDROOM - NIGHT"
         mock_int_ext_scene.paragraphs = []
@@ -449,14 +450,11 @@ Another action line.
             1, mock_int_ext_scene, "INT./EXT. BEDROOM - NIGHT"
         )
 
-        # This will be "INT" not "INT/EXT" due to the logic order
-        assert scene.type == "INT"  # Shows the bug - should be "INT/EXT"
-        assert scene.location == "/EXT. BEDROOM"  # Also shows parsing issue
+        # This correctly returns "INT/EXT" due to proper logic order
+        assert scene.type == "INT/EXT"  # Parser correctly handles INT/EXT prefixes
+        assert scene.location == "BEDROOM"  # Location should be correctly extracted
         assert scene.time_of_day == "NIGHT"
 
-        # Test case 2: A scenario that could theoretically hit the INT./EXT. branch
-        # would need a heading that starts with "INT./EXT." but NOT with "INT."
-        # This is logically impossible, making line 306 unreachable code.
-
-        # The only way to reach that branch would be if something started with
-        # "INT./EXT." but not "INT." - which is impossible due to string matching
+        # Test case 2: Demonstrate that logic correctly prioritizes patterns
+        # The ScreenplayUtils.parse_scene_heading() method checks INT./EXT. before INT.
+        # ensuring proper scene type classification for combined scenes.

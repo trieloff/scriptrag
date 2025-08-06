@@ -19,6 +19,8 @@ class FountainMetadata:
     author: str | None = None
     episode_number: int | None = None
     season_number: int | None = None
+    scenes: int = 0
+    has_boneyard: bool = False
 
     @property
     def display_title(self) -> str:
@@ -118,6 +120,13 @@ class ScriptLister:
             # Extract basic metadata
             metadata.title = script.title
             metadata.author = script.author
+            metadata.scenes = len(script.scenes) if hasattr(script, "scenes") else 0
+
+            # Check if any scene has boneyard metadata
+            if hasattr(script, "scenes"):
+                metadata.has_boneyard = any(
+                    scene.boneyard_metadata is not None for scene in script.scenes
+                )
 
             # Extract episode/season from script metadata
             if "episode" in script.metadata:

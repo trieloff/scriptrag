@@ -45,6 +45,7 @@ jobs:
       pull-requests: write  # Changed from read to write for PR comments
       issues: read
       id-token: write
+      models: read  # Enable GitHub Models for AI inference
     steps:
       # Get PR information when triggered by workflow_run
       - name: Get PR Information

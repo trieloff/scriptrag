@@ -24,6 +24,7 @@ jobs:
       issues: write        # Changed from read to write for issue comments
       id-token: write
       actions: read # Required for Claude to read CI results on PRs
+      models: read  # Enable GitHub Models for AI inference
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

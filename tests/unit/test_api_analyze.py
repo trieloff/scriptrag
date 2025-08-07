@@ -27,31 +27,13 @@ def analyze_command():
 
 @pytest.fixture
 def temp_fountain_file(tmp_path):
-    """Create a temporary fountain file."""
-    content = """Title: Test Script
-Author: Test Author
+    """Copy test fountain file to temp directory."""
+    import shutil
 
-FADE IN:
-
-INT. COFFEE SHOP - DAY
-
-A cozy coffee shop. SARAH sits at a table.
-
-SARAH
-This is a test.
-
-JOHN
-(smiling)
-Indeed it is.
-
-EXT. PARK - DAY
-
-John and Sarah walk through the park.
-
-FADE OUT.
-"""
+    fixtures_dir = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
+    source_file = fixtures_dir / "test_script.fountain"
     file_path = tmp_path / "test_script.fountain"
-    file_path.write_text(content)
+    shutil.copy2(source_file, file_path)
     return file_path
 
 

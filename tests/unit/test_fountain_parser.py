@@ -1,10 +1,14 @@
 """Unit tests for FountainParser."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from scriptrag.parser import FountainParser
+
+# Path to fixture files
+FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
 
 
 class TestFountainParser:
@@ -17,33 +21,9 @@ class TestFountainParser:
 
     @pytest.fixture
     def sample_fountain(self):
-        """Sample Fountain content."""
-        return """Title: Test Script
-Author: Test Author
-Episode: 3
-Season: 2
-
-FADE IN:
-
-INT. COFFEE SHOP - DAY
-
-A busy coffee shop. SARAH sits at a table.
-
-SARAH
-(nervously)
-I need to tell you something.
-
-JOHN enters.
-
-JOHN
-What is it?
-
-EXT. PARK - NIGHT
-
-They walk through the park.
-
-FADE OUT.
-"""
+        """Load sample Fountain content from fixture file."""
+        fixture_file = FIXTURES_DIR / "parser_test.fountain"
+        return fixture_file.read_text()
 
     def test_parse_basic_script(self, parser, sample_fountain):
         """Test parsing basic script content."""

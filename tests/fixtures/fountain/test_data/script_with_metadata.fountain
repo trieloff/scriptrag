@@ -1,0 +1,19 @@
+Title: Script with Metadata
+Author: Test Author
+
+INT. ROOM - DAY
+
+A scene with existing metadata.
+
+/* SCRIPTRAG-META-START
+{
+    "content_hash": "abc123",
+    "analyzed_at": "2024-01-01T00:00:00",
+    "analyzers": {
+        "test_analyzer": {
+            "version": "1.0.0",
+            "result": {}
+        }
+    }
+}
+SCRIPTRAG-META-END */

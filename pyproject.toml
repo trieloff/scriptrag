@@ -51,6 +51,7 @@ dependencies = [
     "mcp>=0.1.0",
     # LLM integration
     "openai>=1.0.0",
+    "claude-code-sdk>=0.0.1",
     # Fountain parsing - will need to add specific library later
     # "fountain-parser>=0.1.0",  # placeholder
     "jouvence>=0.4.2",

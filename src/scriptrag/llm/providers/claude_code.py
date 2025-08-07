@@ -128,11 +128,25 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
             # Convert to response format
             response_text = ""
-            if messages:
-                # Extract text content from last message
-                last_msg = messages[-1]
-                if hasattr(last_msg, "content"):
-                    response_text = str(last_msg.content)
+            # Look for AssistantMessage which contains the actual response
+            for msg in messages:
+                if msg.__class__.__name__ == "AssistantMessage" and hasattr(
+                    msg, "content"
+                ):
+                    # Content is a list of TextBlock objects
+                    for block in msg.content:
+                        if hasattr(block, "text"):
+                            response_text += block.text
+                    break
+
+            # Fallback: Check ResultMessage for the result text
+            if not response_text:
+                for msg in messages:
+                    if msg.__class__.__name__ == "ResultMessage" and hasattr(
+                        msg, "result"
+                    ):
+                        response_text = msg.result
+                        break
 
             return CompletionResponse(
                 id=f"claude-code-{os.getpid()}",

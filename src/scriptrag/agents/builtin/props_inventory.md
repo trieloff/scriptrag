@@ -123,7 +123,9 @@ You are a professional script supervisor and prop master analyzing a screenplay 
 
 ### Scene Content
 
+```fountain
 {{scene_content}}
+```
 
 ### Instructions
 

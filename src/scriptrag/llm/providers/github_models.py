@@ -2,7 +2,7 @@
 
 import os
 import time
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 
@@ -25,6 +25,34 @@ class GitHubModelsProvider(BaseLLMProvider):
 
     provider_type = LLMProvider.GITHUB_MODELS
     base_url = "https://models.inference.ai.azure.com"
+
+    # Map Azure registry paths to simple model IDs
+    MODEL_ID_MAP: ClassVar[dict[str, str]] = {
+        (
+            "azureml://registries/azureml-meta/models/Meta-Llama-3-70B-Instruct/"
+            "versions/6"
+        ): "meta-llama-3-70b-instruct",
+        (
+            "azureml://registries/azureml-meta/models/Meta-Llama-3-8B-Instruct/"
+            "versions/6"
+        ): "meta-llama-3-8b-instruct",
+        (
+            "azureml://registries/azureml-meta/models/Meta-Llama-3.1-405B-Instruct/"
+            "versions/1"
+        ): "meta-llama-3.1-405b-instruct",
+        (
+            "azureml://registries/azureml-meta/models/Meta-Llama-3.1-70B-Instruct/"
+            "versions/1"
+        ): "meta-llama-3.1-70b-instruct",
+        (
+            "azureml://registries/azureml-meta/models/Meta-Llama-3.1-8B-Instruct/"
+            "versions/1"
+        ): "meta-llama-3.1-8b-instruct",
+        "azureml://registries/azure-openai/models/gpt-4o-mini/versions/1": (
+            "gpt-4o-mini"
+        ),
+        "azureml://registries/azure-openai/models/gpt-4o/versions/2": "gpt-4o",
+    }
 
     def __init__(self, token: str | None = None, timeout: float = 30.0) -> None:
         """Initialize GitHub Models provider.
@@ -103,8 +131,16 @@ class GitHubModelsProvider(BaseLLMProvider):
 
             models = []
             for model_info in models_data:
-                model_id = model_info.get("id", "")
+                azure_id = model_info.get("id", "")
                 name = model_info.get("name") or model_info.get("friendly_name", "")
+
+                # Map Azure registry path to simple model ID
+                model_id = self.MODEL_ID_MAP.get(azure_id, azure_id)
+
+                # Skip models we don't have mappings for
+                if model_id == azure_id and azure_id.startswith("azureml://"):
+                    logger.debug(f"Skipping unmapped model: {azure_id}")
+                    continue
 
                 # Determine capabilities based on model type
                 capabilities = []
@@ -139,6 +175,7 @@ class GitHubModelsProvider(BaseLLMProvider):
         }
 
         # Prepare OpenAI-compatible request
+        # GitHub Models API expects simple model IDs like "gpt-4o-mini", not Azure paths
         payload = {
             "model": request.model,
             "messages": request.messages,
@@ -165,11 +202,20 @@ class GitHubModelsProvider(BaseLLMProvider):
                 raise ValueError(f"GitHub Models API error: {response.text}")
 
             data = response.json()
+
+            # Extract usage data, handling GitHub Models' nested structure
+            usage_data = data.get("usage", {})
+            usage = {
+                "prompt_tokens": usage_data.get("prompt_tokens", 0),
+                "completion_tokens": usage_data.get("completion_tokens", 0),
+                "total_tokens": usage_data.get("total_tokens", 0),
+            }
+
             return CompletionResponse(
                 id=data.get("id", ""),
                 model=data.get("model", request.model),
                 choices=data.get("choices", []),
-                usage=data.get("usage", {}),
+                usage=usage,
                 provider=self.provider_type,
             )
 

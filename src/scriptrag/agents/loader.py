@@ -283,7 +283,7 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
             response = await self.llm_client.complete(
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
-                max_tokens=2000,
+                max_tokens=10000,
             )
 
             # Parse the response

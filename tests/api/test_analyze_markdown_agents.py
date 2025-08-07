@@ -15,8 +15,6 @@ from scriptrag.api.analyze import AnalyzeCommand
 def sample_agent_markdown() -> str:
     """Return sample markdown content for an agent."""
     return """---
-name: test-agent
-property: test_prop
 description: A test agent
 version: 1.0.0
 requires_llm: false

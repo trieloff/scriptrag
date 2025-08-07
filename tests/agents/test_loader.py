@@ -18,8 +18,6 @@ if TYPE_CHECKING:
 def sample_agent_markdown() -> str:
     """Return sample markdown content for an agent."""
     return """---
-name: test-agent
-property: test_prop
 description: A test agent
 version: 1.0.0
 requires_llm: true
@@ -57,7 +55,6 @@ Analyze the scene: {scene_text}
 def sample_agent_markdown_no_llm() -> str:
     """Return sample markdown content for an agent that doesn't require LLM."""
     return """---
-property: simple_prop
 description: A simple agent
 version: 1.0.0
 requires_llm: false
@@ -153,7 +150,6 @@ class TestAgentSpec:
         """Test AgentSpec initialization."""
         spec = AgentSpec(
             name="test",
-            property="test_prop",
             description="Test agent",
             version="1.0.0",
             requires_llm=True,
@@ -162,7 +158,6 @@ class TestAgentSpec:
             analysis_prompt="Analyze this",
         )
         assert spec.name == "test"
-        assert spec.property == "test_prop"
         assert spec.description == "Test agent"
         assert spec.version == "1.0.0"
         assert spec.requires_llm is True
@@ -179,8 +174,7 @@ class TestAgentSpec:
 
         spec = AgentSpec.from_markdown(agent_file)
 
-        assert spec.name == "test-agent"
-        assert spec.property == "test_prop"
+        assert spec.name == "test-agent"  # Derived from filename
         assert spec.description == "A test agent"
         assert spec.version == "1.0.0"
         assert spec.requires_llm is True
@@ -197,8 +191,7 @@ class TestAgentSpec:
 
         spec = AgentSpec.from_markdown(agent_file)
 
-        assert spec.name == "simple-agent"
-        assert spec.property == "simple_prop"
+        assert spec.name == "simple-agent"  # Derived from filename
         assert spec.requires_llm is False
 
     def test_from_markdown_file_not_found(self, temp_agent_dir: Path) -> None:
@@ -295,7 +288,6 @@ class TestMarkdownAgentAnalyzer:
         """Create a sample AgentSpec."""
         return AgentSpec(
             name="test-analyzer",
-            property="test_prop",
             description="Test analyzer",
             version="2.0.0",
             requires_llm=True,
@@ -340,7 +332,6 @@ class TestMarkdownAgentAnalyzer:
         """Test initialization without LLM requirement."""
         spec = AgentSpec(
             name="no-llm",
-            property="prop",
             description="No LLM",
             version="1.0.0",
             requires_llm=False,
@@ -383,7 +374,7 @@ class TestMarkdownAgentAnalyzer:
         assert result["result"] == "analyzed"
         assert result["analyzer"] == "test-analyzer"
         assert result["version"] == "2.0.0"
-        assert result["property"] == "test_prop"
+        assert result["property"] == "test-analyzer"  # Property is same as name
         mock_client.complete.assert_called_once()
 
     @pytest.mark.asyncio
@@ -391,7 +382,6 @@ class TestMarkdownAgentAnalyzer:
         """Test analyze method without LLM requirement."""
         spec = AgentSpec(
             name="no-llm",
-            property="prop",
             description="No LLM",
             version="1.0.0",
             requires_llm=False,
@@ -410,7 +400,7 @@ class TestMarkdownAgentAnalyzer:
         # Without LLM, should return empty result with metadata
         assert result["analyzer"] == "no-llm"
         assert result["version"] == "1.0.0"
-        assert result["property"] == "prop"
+        assert result["property"] == "no-llm"  # Property is same as name
 
     @pytest.mark.asyncio
     async def test_analyze_llm_not_initialized(self, sample_spec: AgentSpec) -> None:

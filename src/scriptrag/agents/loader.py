@@ -28,7 +28,6 @@ class AgentSpec:
     def __init__(
         self,
         name: str,
-        property: str,  # noqa: A002
         description: str,
         version: str,
         requires_llm: bool,
@@ -39,8 +38,7 @@ class AgentSpec:
         """Initialize an agent specification.
 
         Args:
-            name: Agent name
-            property: Property name for storing results
+            name: Agent name (derived from filename)
             description: Agent description
             version: Agent version
             requires_llm: Whether the agent requires an LLM
@@ -49,7 +47,6 @@ class AgentSpec:
             analysis_prompt: Prompt template for LLM
         """
         self.name = name
-        self.property = property
         self.description = description
         self.version = version
         self.requires_llm = requires_llm
@@ -82,11 +79,11 @@ class AgentSpec:
         if not metadata:
             raise ValueError(f"No frontmatter found in {markdown_path}")
 
-        # Derive agent name from filename if not in metadata
-        agent_name = metadata.get("name", markdown_path.stem)
+        # Agent name is always derived from filename
+        agent_name = markdown_path.stem
 
-        # Check for required fields (name is derived so not required in metadata)
-        required_fields = ["property", "description", "version"]
+        # Check for required fields
+        required_fields = ["description", "version"]
         for field in required_fields:
             if field not in metadata:
                 raise ValueError(f"Missing required field '{field}' in frontmatter")
@@ -119,7 +116,6 @@ class AgentSpec:
 
         return cls(
             name=agent_name,
-            property=metadata["property"],
             description=metadata["description"],
             version=str(metadata["version"]),  # Ensure version is string
             requires_llm=metadata.get("requires_llm", True),
@@ -232,7 +228,7 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
         # Add metadata
         result["analyzer"] = self.name
         result["version"] = self.version
-        result["property"] = self.spec.property
+        result["property"] = self.name  # Property is same as name
 
         return result
 

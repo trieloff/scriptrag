@@ -1,6 +1,4 @@
 ---
-name: props_inventory
-property: props_found
 description: Extract and categorize all props mentioned or implied in screenplay scenes
 version: 1.0
 requires_llm: true

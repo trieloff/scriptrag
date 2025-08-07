@@ -145,7 +145,9 @@ class ClaudeCodeProvider(BaseLLMProvider):
                     if msg.__class__.__name__ == "ResultMessage" and hasattr(
                         msg, "result"
                     ):
-                        response_text = msg.result
+                        # Ensure we convert Any type to string safely
+                        result = msg.result
+                        response_text = str(result) if result is not None else ""
                         break
 
             return CompletionResponse(

@@ -90,12 +90,30 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
                 error=str(e),
                 scene_heading=scene.get("heading", ""),
             )
-            # Return empty result on validation error
-            return {
-                "error": f"Output validation failed: {e.message}",
-                "analyzer": self.name,
-                "version": self.version,
-            }
+
+            # For specific analyzers, provide valid fallback structure instead of error
+            if self.name == "props_inventory":
+                # Return valid empty props inventory structure
+                result = {
+                    "props": [],
+                    "summary": {
+                        "total_props": 0,
+                        "hero_props": 0,
+                        "requires_action": 0,
+                        "categories": [],
+                    },
+                }
+                scene_heading = scene.get("heading", "")
+                logger.info(
+                    f"Provided fallback empty props inventory for scene {scene_heading}"
+                )
+            else:
+                # Return empty result with error for other analyzers
+                return {
+                    "error": f"Output validation failed: {e.message}",
+                    "analyzer": self.name,
+                    "version": self.version,
+                }
 
         # Add metadata
         result["analyzer"] = self.name

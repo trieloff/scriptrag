@@ -90,13 +90,17 @@ jobs:
         with:
           github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
           script: |
-            // Determine PR number based on event type
+            // Determine PR number based on event type with proper fallback
             let prNumber;
             if (context.eventName === 'pull_request') {
               prNumber = context.issue.number;
             } else if (context.eventName === 'workflow_dispatch' || context.eventName === 'workflow_call') {
-              const inputPrNumber = '${{ steps.pr-info.outputs.pr_number || inputs.pr_number }}';
-              if (inputPrNumber) {
+              // Explicit fallback: first try pr-info output, then inputs
+              const prInfoNumber = '${{ steps.pr-info.outputs.pr_number }}';
+              const inputsNumber = '${{ inputs.pr_number }}';
+              const inputPrNumber = prInfoNumber || inputsNumber;
+
+              if (inputPrNumber && inputPrNumber !== '') {
                 prNumber = parseInt(inputPrNumber);
               }
             }
@@ -123,11 +127,12 @@ jobs:
               // Check if any recent comment contains Claude review markers
               const hasRecentClaudeReview = comments.some(comment => {
                 // Check for Claude-related keywords in the comment
+                // Be specific to avoid false positives from general mentions
                 const isClaudeReview =
                   comment.body.includes('Claude Code Review') ||
                   comment.body.includes('claude-code-review') ||
-                  comment.body.includes('@claude') ||
-                  comment.body.includes('Claude reviewed') ||
+                  comment.body.includes('🤖 Generated with [Claude Code](https://claude.ai/code)') ||
+                  comment.body.includes('Claude finished @') ||
                   (comment.user.login === 'github-actions[bot]' &&
                    comment.body.includes('Code quality and best practices'));
 
@@ -156,7 +161,7 @@ jobs:
       - name: Skip Review if Recent Review Exists
         if: steps.check-recent-review.outputs.should_review == 'false'
         run: |
-          echo "⏭️ Skipping Claude review - a review was already performed within the last hour"
+          echo "⏰ Skipping Claude review - a review was already performed within the last hour"
           echo "This rate limiting prevents excessive API usage and duplicate reviews."
           exit 0
 

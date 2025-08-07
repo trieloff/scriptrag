@@ -1,9 +1,12 @@
 # Claude Code Review Workflow
 #
-# This workflow runs Claude Code review on pull requests:
+# This workflow runs Claude Code review on pull requests with rate limiting:
 # 1. Automatically when a new PR is opened (immediate feedback)
 # 2. Can be called from other workflows (e.g., after CI passes)
 # 3. Can be triggered manually via workflow_dispatch
+#
+# Rate Limiting: Only one review per PR per hour to prevent duplicate reviews
+# and excessive API usage. Subsequent review attempts within an hour will be skipped.
 #
 # This is a reusable workflow that can be called from CI after all checks pass.
 
@@ -81,8 +84,89 @@ jobs:
             core.setOutput('pr_head_ref', pr.head.ref);
             core.setOutput('skip', 'false');
 
+      - name: Check for Recent Claude Reviews
+        id: check-recent-review
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
+          script: |
+            // Determine PR number based on event type with proper fallback
+            let prNumber;
+            if (context.eventName === 'pull_request') {
+              prNumber = context.issue.number;
+            } else if (context.eventName === 'workflow_dispatch' || context.eventName === 'workflow_call') {
+              // Explicit fallback: first try pr-info output, then inputs
+              const prInfoNumber = '${{ steps.pr-info.outputs.pr_number }}';
+              const inputsNumber = '${{ inputs.pr_number }}';
+              const inputPrNumber = prInfoNumber || inputsNumber;
+
+              if (inputPrNumber && inputPrNumber !== '') {
+                prNumber = parseInt(inputPrNumber);
+              }
+            }
+
+            if (!prNumber) {
+              console.log('Could not determine PR number');
+              core.setOutput('should_review', 'true');
+              return;
+            }
+
+            console.log(`Checking for recent Claude reviews on PR #${prNumber}`);
+
+            // Get comments on the PR from the last hour
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+            try {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                since: oneHourAgo.toISOString()
+              });
+
+              // Check if any recent comment contains Claude review markers
+              const hasRecentClaudeReview = comments.some(comment => {
+                // Check for Claude-related keywords in the comment
+                // Be specific to avoid false positives from general mentions
+                const isClaudeReview =
+                  comment.body.includes('Claude Code Review') ||
+                  comment.body.includes('claude-code-review') ||
+                  comment.body.includes('🤖 Generated with [Claude Code](https://claude.ai/code)') ||
+                  comment.body.includes('Claude finished @') ||
+                  (comment.user.login === 'github-actions[bot]' &&
+                   comment.body.includes('Code quality and best practices'));
+
+                if (isClaudeReview) {
+                  const commentTime = new Date(comment.created_at);
+                  console.log(`Found Claude review comment from ${comment.created_at}`);
+                  return commentTime > oneHourAgo;
+                }
+                return false;
+              });
+
+              if (hasRecentClaudeReview) {
+                console.log('Recent Claude review found (within 1 hour). Skipping new review.');
+                core.setOutput('should_review', 'false');
+                core.setOutput('skip_reason', 'recent_review_exists');
+              } else {
+                console.log('No recent Claude review found. Proceeding with review.');
+                core.setOutput('should_review', 'true');
+              }
+            } catch (error) {
+              console.error('Error checking for recent reviews:', error);
+              // If we can't check, proceed with the review
+              core.setOutput('should_review', 'true');
+            }
+
+      - name: Skip Review if Recent Review Exists
+        if: steps.check-recent-review.outputs.should_review == 'false'
+        run: |
+          echo "⏰ Skipping Claude review - a review was already performed within the last hour"
+          echo "This rate limiting prevents excessive API usage and duplicate reviews."
+          exit 0
+
       - name: Checkout repository
-        if: github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true'
+        if: (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true') && steps.check-recent-review.outputs.should_review != 'false'
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
@@ -91,7 +175,7 @@ jobs:
           ref: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && steps.pr-info.outputs.pr_head_ref || '' }}
 
       - name: Run Claude Code Review
-        if: github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true'
+        if: (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true') && steps.check-recent-review.outputs.should_review != 'false'
         id: claude-review
         continue-on-error: true
         uses: anthropics/claude-code-action@beta
@@ -119,7 +203,7 @@ jobs:
             please tag @terragon-labs in your review comment to ensure they are notified.
 
       - name: Report Claude Code Review Status
-        if: always() && (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true')
+        if: always() && (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true') && steps.check-recent-review.outputs.should_review != 'false'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}

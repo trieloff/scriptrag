@@ -38,30 +38,41 @@ class ClaudeCodeProvider(BaseLLMProvider):
             self.sdk_available = False
 
     async def is_available(self) -> bool:
-        """Check if running in Claude Code environment."""
+        """Check if running in Claude Code environment with SDK available."""
+        # We need BOTH the environment AND the SDK to be available
+        # Just having the environment without SDK means we can't actually use it
+
+        # First check if SDK is available
         if not self.sdk_available:
+            # Even if we're in Claude Code environment, without SDK we can't do anything
             return False
 
-        # Primary method: Try to import and use the SDK directly
+        # Try to import and use the SDK directly
         try:
             from claude_code_sdk import ClaudeCodeOptions  # noqa: F401
 
-            # If import succeeds, we likely have SDK access
+            # If import succeeds, we have SDK access
             return True
         except ImportError:
-            pass  # SDK not available, try fallback detection
+            # SDK not available, check for environment markers as fallback
+            # But only if we think SDK is available (which shouldn't happen)
+            pass
         except Exception as e:
             logger.debug(f"Claude Code SDK check failed: {e}")
 
-        # Fallback method: Check for Claude Code environment markers
-        # This is less reliable but kept for backward compatibility
+        # Check for Claude Code environment markers as last resort
+        # This shouldn't normally be reached if SDK detection works properly
         claude_markers = [
+            "CLAUDECODE",  # Primary marker for Claude Code environment
             "CLAUDE_CODE_SESSION",
             "CLAUDE_SESSION_ID",
             "CLAUDE_WORKSPACE",
         ]
 
-        return any(os.getenv(marker) for marker in claude_markers)
+        # Only return True if we have markers AND SDK was detected earlier
+        return (
+            any(os.getenv(marker) for marker in claude_markers) and self.sdk_available
+        )
 
     async def list_models(self) -> list[Model]:
         """List available Claude models."""
@@ -137,6 +148,13 @@ class ClaudeCodeProvider(BaseLLMProvider):
                 provider=self.provider_type,
             )
 
+        except ImportError as e:
+            # SDK not available, even though environment suggests we're in Claude Code
+            logger.debug(f"Claude Code SDK not available for completion: {e}")
+            raise RuntimeError(
+                "Claude Code environment detected but SDK not available. "
+                "Please use GitHub Models or OpenAI-compatible provider instead."
+            ) from e
         except Exception as e:
             logger.error(f"Claude Code completion failed: {e}")
             raise

@@ -125,31 +125,61 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
         return {"scene_data": scene}
 
     async def _call_llm(
-        self, scene: dict[str, Any], context: dict[str, Any]
+        self, scene: dict[str, Any], _context: dict[str, Any]
     ) -> dict[str, Any]:
         """Call the LLM with the analysis prompt.
 
         Args:
             scene: Scene data
-            context: Context data from query
+            _context: Context data from query (currently unused)
 
         Returns:
             LLM response parsed as dictionary
         """
-        # Format the prompt with scene content
-        scene_content = self._format_scene_content(scene)
-        prompt = self.spec.analysis_prompt.replace("{{scene_content}}", scene_content)
+        # Build the prompt by processing the template
+        prompt = self.spec.analysis_prompt
 
-        # Add context if available
-        if context:
-            context_str = json.dumps(context, indent=2)
-            prompt = prompt.replace("{{context}}", context_str)
+        # Format scene content
+        scene_content = self._format_scene_content(scene)
+
+        # Replace placeholder patterns
+        # 1. Replace {{scene_content}} directly
+        prompt = prompt.replace("{{scene_content}}", scene_content)
+
+        # 2. Replace fountain code blocks containing {{scene_content}}
+        fountain_pattern = r"```fountain\n\{\{scene_content\}\}\n```"
+        if re.search(fountain_pattern, prompt):
+            prompt = re.sub(
+                fountain_pattern, f"```fountain\n{scene_content}\n```", prompt
+            )
+
+        # 3. Replace SQL block with context query results (empty for now)
+        if self.spec.context_query and "```sql" in prompt:
+            # Find and replace the SQL block with results
+            sql_pattern = r"```sql\n.*?\n```"
+            # For now, context query returns empty results
+            context_results = (
+                "-- Context query results (placeholder - not yet implemented)"
+            )
+            prompt = re.sub(
+                sql_pattern, f"```\n{context_results}\n```", prompt, flags=re.DOTALL
+            )
+
+        # 4. Extract JSON schema block to use for structured output
+        json_schema_match = re.search(r"```json\n(.*?)\n```", prompt, re.DOTALL)
+        if json_schema_match:
+            # Remove the JSON schema block from the prompt
+            prompt = re.sub(r"```json\n.*?\n```", "", prompt, count=1, flags=re.DOTALL)
 
         try:
             if self.llm_client is None:
                 raise RuntimeError("LLM client not initialized")
+
+            # Call the LLM client - let it handle model selection
+            # Pass model=None to let the client select the best available model
             response = await self.llm_client.complete(
                 messages=[{"role": "user", "content": prompt}],
+                model=None,  # Let client auto-select
                 temperature=0.3,
                 max_tokens=10000,
             )

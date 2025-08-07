@@ -1,8 +1,9 @@
 """Generic OpenAI-compatible API provider."""
 
+import asyncio
 import os
 import time
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 
@@ -25,6 +26,13 @@ class OpenAICompatibleProvider(BaseLLMProvider):
 
     provider_type = LLMProvider.OPENAI_COMPATIBLE
 
+    # Model preference order - faster models first
+    MODEL_PREFERENCE_ORDER: ClassVar[list[str]] = [
+        "qwen/qwen3-30b-a3b-mlx",  # Fastest
+        "mlx-community/glm-4-9b-chat-4bit",  # Slower but still acceptable
+        # Add more models here in order of preference
+    ]
+
     def __init__(
         self,
         endpoint: str | None = None,
@@ -45,6 +53,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         self.client = httpx.AsyncClient(timeout=httpx.Timeout(120.0))
         self._availability_cache: bool | None = None
         self._cache_timestamp: float = 0
+        # Semaphore to prevent concurrent requests for local LLM servers
+        self._request_semaphore = asyncio.Semaphore(1)
 
     async def is_available(self) -> bool:
         """Check if endpoint and API key are configured."""
@@ -124,6 +134,17 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                     )
                 )
 
+            # Sort models by preference order
+            def model_sort_key(model: Model) -> tuple[int, str]:
+                try:
+                    # Check if model ID is in preference list
+                    idx = self.MODEL_PREFERENCE_ORDER.index(model.id)
+                    return (idx, model.id)
+                except ValueError:
+                    # Not in preference list, put at end
+                    return (len(self.MODEL_PREFERENCE_ORDER), model.id)
+
+            models.sort(key=model_sort_key)
             return models
 
         except Exception as e:
@@ -135,47 +156,53 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         if not self.base_url or not self.api_key:
             raise ValueError("OpenAI-compatible endpoint not configured")
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        # Use semaphore to prevent concurrent requests for local LLM servers
+        async with self._request_semaphore:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
 
-        payload = {
-            "model": request.model,
-            "messages": request.messages,
-            "temperature": request.temperature,
-            "top_p": request.top_p,
-            "stream": request.stream,
-        }
+            payload = {
+                "model": request.model,
+                "messages": request.messages,
+                "temperature": request.temperature,
+                "top_p": request.top_p,
+                "stream": request.stream,
+            }
 
-        if request.max_tokens:
-            payload["max_tokens"] = request.max_tokens
-        if request.system:
-            system_msg = [{"role": "system", "content": request.system}]
-            payload["messages"] = system_msg + request.messages
+            if request.max_tokens:
+                payload["max_tokens"] = request.max_tokens
+            if request.system:
+                system_msg = [{"role": "system", "content": request.system}]
+                payload["messages"] = system_msg + request.messages
 
-        try:
-            response = await self.client.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-            )
+            # Add response_format if specified
+            if hasattr(request, "response_format") and request.response_format:
+                payload["response_format"] = request.response_format
 
-            if response.status_code != 200:
-                raise ValueError(f"API error: {response.text}")
+            try:
+                response = await self.client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                )
 
-            data = response.json()
-            return CompletionResponse(
-                id=data.get("id", ""),
-                model=data.get("model", request.model),
-                choices=data.get("choices", []),
-                usage=data.get("usage", {}),
-                provider=self.provider_type,
-            )
+                if response.status_code != 200:
+                    raise ValueError(f"API error: {response.text}")
 
-        except Exception as e:
-            logger.error(f"Completion failed: {e}")
-            raise
+                data = response.json()
+                return CompletionResponse(
+                    id=data.get("id", ""),
+                    model=data.get("model", request.model),
+                    choices=data.get("choices", []),
+                    usage=data.get("usage", {}),
+                    provider=self.provider_type,
+                )
+
+            except Exception as e:
+                logger.error(f"Completion failed: {e}")
+                raise
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Generate embeddings using OpenAI-compatible API."""

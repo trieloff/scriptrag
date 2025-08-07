@@ -188,12 +188,9 @@ class LLMClient:
             request = messages
         else:
             # Use default model if not specified
-            if not model:
-                # We'll set the model after we select a provider
-                pass
-
+            # Use empty string to indicate model should be auto-selected
             request = CompletionRequest(
-                model=model or "gpt-4",  # Temporary fallback
+                model=model or "",  # Empty means auto-select
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
@@ -216,15 +213,21 @@ class LLMClient:
         self, provider: BaseLLMProvider, request: CompletionRequest
     ) -> CompletionResponse:
         """Try completion with a specific provider, handling model selection."""
-        # Update model if not specified
-        if request.model == "gpt-4":  # Our temporary fallback
+        # Update model if not specified or empty
+        if not request.model or request.model == "":
             models = await provider.list_models()
             if models:
-                # Pick first chat-capable model
+                # Pick first chat-capable model (models sorted by preference)
                 for m in models:
                     if "chat" in m.capabilities or "completion" in m.capabilities:
                         request.model = m.id
+                        logger.debug(f"Auto-selected model: {m.id}")
                         break
+
+                # If no chat-capable model found, use the first one
+                if not request.model and models:
+                    request.model = models[0].id
+                    logger.debug(f"Using first available model: {models[0].id}")
 
         return await provider.complete(request)
 

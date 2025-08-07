@@ -31,23 +31,23 @@ class GitHubModelsProvider(BaseLLMProvider):
         (
             "azureml://registries/azureml-meta/models/Meta-Llama-3-70B-Instruct/"
             "versions/6"
-        ): "meta-llama-3-70b-instruct",
+        ): "Meta-Llama-3-70B-Instruct",
         (
             "azureml://registries/azureml-meta/models/Meta-Llama-3-8B-Instruct/"
             "versions/6"
-        ): "meta-llama-3-8b-instruct",
+        ): "Meta-Llama-3-8B-Instruct",
         (
             "azureml://registries/azureml-meta/models/Meta-Llama-3.1-405B-Instruct/"
             "versions/1"
-        ): "meta-llama-3.1-405b-instruct",
+        ): "Meta-Llama-3.1-405B-Instruct",
         (
             "azureml://registries/azureml-meta/models/Meta-Llama-3.1-70B-Instruct/"
             "versions/1"
-        ): "meta-llama-3.1-70b-instruct",
+        ): "Meta-Llama-3.1-70B-Instruct",
         (
             "azureml://registries/azureml-meta/models/Meta-Llama-3.1-8B-Instruct/"
             "versions/1"
-        ): "meta-llama-3.1-8b-instruct",
+        ): "Meta-Llama-3.1-8B-Instruct",
         "azureml://registries/azure-openai/models/gpt-4o-mini/versions/1": (
             "gpt-4o-mini"
         ),

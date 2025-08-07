@@ -35,6 +35,7 @@ class CompletionRequest(BaseModel):
     top_p: float = 1.0
     stream: bool = False
     system: str | None = None
+    response_format: dict[str, Any] | None = None
 
 
 class CompletionResponse(BaseModel):

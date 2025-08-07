@@ -318,7 +318,9 @@ class TestMarkdownAgentAnalyzer:
         """Test initialization with LLM requirement."""
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
-        with patch("scriptrag.agents.loader.get_default_llm_client") as mock_get_client:
+        with patch(
+            "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client"
+        ) as mock_get_client:
             mock_client = AsyncMock()
             mock_get_client.return_value = mock_client
 
@@ -341,7 +343,9 @@ class TestMarkdownAgentAnalyzer:
         )
         analyzer = MarkdownAgentAnalyzer(spec)
 
-        with patch("scriptrag.agents.loader.get_default_llm_client") as mock_get_client:
+        with patch(
+            "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client"
+        ) as mock_get_client:
             await analyzer.initialize()
             mock_get_client.assert_not_called()
             assert analyzer.llm_client is None
@@ -407,7 +411,9 @@ class TestMarkdownAgentAnalyzer:
         """Test analyze initializes LLM when required but not initialized."""
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
-        with patch("scriptrag.agents.loader.get_default_llm_client") as mock_get_client:
+        with patch(
+            "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client"
+        ) as mock_get_client:
             mock_client = AsyncMock()
             mock_response = MagicMock()
             mock_response.content = '{"result": "test"}'

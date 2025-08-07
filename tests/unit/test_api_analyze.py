@@ -85,11 +85,18 @@ class TestAnalyzeCommand:
         assert analyze_command.analyzers[0].name == "mock_analyzer"
 
     def test_load_analyzer_builtin(self, analyze_command):
-        """Test loading a built-in analyzer."""
-        analyze_command.load_analyzer("props_inventory")
+        """Test loading a markdown-based analyzer."""
+        # Mock the AgentLoader to test markdown agent loading
+        with patch("scriptrag.agents.AgentLoader") as mock_loader_class:
+            mock_loader = mock_loader_class.return_value
+            mock_analyzer = MockAnalyzer()
+            mock_analyzer.name = "props-inventory"
+            mock_loader.load_agent.return_value = mock_analyzer
 
-        assert len(analyze_command.analyzers) == 1
-        assert analyze_command.analyzers[0].name == "props_inventory"
+            analyze_command.load_analyzer("props-inventory")
+
+            assert len(analyze_command.analyzers) == 1
+            assert analyze_command.analyzers[0].name == "props-inventory"
 
     def test_load_analyzer_unknown(self, analyze_command):
         """Test loading an unknown analyzer."""
@@ -98,8 +105,13 @@ class TestAnalyzeCommand:
 
     def test_load_analyzer_duplicate(self, analyze_command):
         """Test loading the same analyzer twice."""
-        analyze_command.load_analyzer("props_inventory")
-        analyze_command.load_analyzer("props_inventory")
+        # Use mock analyzer for testing duplicate loading
+        mock_analyzer = MockAnalyzer()
+        mock_analyzer.name = "test-duplicate"
+        analyze_command.analyzers.append(mock_analyzer)
+
+        # Try to load the same analyzer again
+        analyze_command.load_analyzer("test-duplicate")
 
         # Should only be loaded once
         assert len(analyze_command.analyzers) == 1

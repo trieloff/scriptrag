@@ -29,7 +29,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         self,
         endpoint: str | None = None,
         api_key: str | None = None,
-        timeout: float = 30.0,
+        timeout: float = 60.0,
     ) -> None:
         """Initialize OpenAI-compatible provider.
 
@@ -41,7 +41,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         self.base_url = endpoint or os.getenv("SCRIPTRAG_LLM_ENDPOINT", "")
         self.api_key = api_key or os.getenv("SCRIPTRAG_LLM_API_KEY", "")
         self.timeout = timeout
-        self.client = httpx.AsyncClient(timeout=timeout)
+        # Use a longer timeout for the httpx client
+        self.client = httpx.AsyncClient(timeout=httpx.Timeout(120.0))
         self._availability_cache: bool | None = None
         self._cache_timestamp: float = 0
 

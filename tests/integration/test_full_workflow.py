@@ -8,7 +8,9 @@ This test validates the happy path of:
 """
 
 import json
+import shutil
 import sqlite3
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -17,6 +19,9 @@ from scriptrag.cli.main import app
 from scriptrag.config import set_settings
 
 runner = CliRunner()
+
+# Path to fixture files
+FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
 
 
 @pytest.fixture(autouse=True)
@@ -85,6 +90,15 @@ Finally. The End.
 FADE OUT.
 """
     script_path.write_text(content)
+    return script_path
+
+
+@pytest.fixture
+def props_screenplay(tmp_path):
+    """Copy the props test screenplay to temp directory."""
+    source_file = FIXTURES_DIR / "props_test_script.fountain"
+    script_path = tmp_path / "props_test_script.fountain"
+    shutil.copy2(source_file, script_path)
     return script_path
 
 
@@ -291,5 +305,222 @@ class TestFullWorkflow:
                 # Verify the structure matches what we expect from analysis
                 assert isinstance(metadata, dict)
                 # Could contain analyzer results, hash, timestamp, etc.
+
+        conn.close()
+
+    def test_props_inventory_analyzer(self, tmp_path, props_screenplay, monkeypatch):
+        """Test that the props_inventory analyzer properly detects and stores props."""
+        db_path = tmp_path / "test.db"
+
+        # Set environment variables for database and LLM
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+        # Fix the LLM endpoint to use base URL without /chat/completions
+        monkeypatch.setenv(
+            "SCRIPTRAG_LLM_ENDPOINT", "https://mac-studio-2025.tail6d5f26.ts.net/v1"
+        )
+
+        # Step 1: Initialize database
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+        assert "Database initialized successfully" in result.stdout
+
+        # Step 2: Analyze with props_inventory analyzer
+        print("\n=== Running props_inventory analyzer ===")
+        result = runner.invoke(
+            app,
+            [
+                "analyze",
+                str(props_screenplay.parent),
+                "--analyzer",
+                "props_inventory",
+                "--force",  # Force analysis even if already analyzed
+            ],
+        )
+
+        # Debug output
+        if result.exit_code != 0:
+            print(f"Analyze command failed with exit code {result.exit_code}")
+            print(f"stdout: {result.stdout}")
+            print(f"stderr: {result.stderr if hasattr(result, 'stderr') else 'N/A'}")
+        assert result.exit_code == 0
+
+        # Step 3: Display the updated fountain file contents for debugging
+        print("\n=== Fountain file contents after analysis ===")
+        updated_content = props_screenplay.read_text()
+        print(updated_content)
+        print("=== End of fountain file ===\n")
+
+        # Step 4: Verify metadata was added to the fountain file
+        assert "SCRIPTRAG-META-START" in updated_content
+        assert "SCRIPTRAG-META-END" in updated_content
+
+        # Extract and validate props from each scene's metadata
+        scenes_with_props = []
+        current_scene = None
+        lines = updated_content.split("\n")
+
+        for i, line in enumerate(lines):
+            # Detect scene headings
+            if line.startswith("INT.") or line.startswith("EXT."):
+                current_scene = line
+
+            # Look for metadata blocks
+            if "SCRIPTRAG-META-START" in line:
+                # Find the end of this metadata block
+                for j in range(i + 1, len(lines)):
+                    if "SCRIPTRAG-META-END" in lines[j]:
+                        # Extract JSON between markers
+                        metadata_lines = []
+                        for k in range(i + 1, j):
+                            if not lines[k].strip().startswith("/*") and not lines[
+                                k
+                            ].strip().endswith("*/"):
+                                metadata_lines.append(lines[k])
+
+                        metadata_str = "\n".join(metadata_lines).strip()
+                        if metadata_str:
+                            try:
+                                metadata = json.loads(metadata_str)
+                                if (
+                                    "analyzers" in metadata
+                                    and "props_inventory" in metadata["analyzers"]
+                                ):
+                                    props_data = metadata["analyzers"][
+                                        "props_inventory"
+                                    ].get("result", {})
+                                    if props_data and "props" in props_data:
+                                        scenes_with_props.append(
+                                            {
+                                                "scene": current_scene,
+                                                "props": props_data["props"],
+                                                "summary": props_data.get(
+                                                    "summary", {}
+                                                ),
+                                            }
+                                        )
+                                        print(f"\nScene: {current_scene}")
+                                        print(f"Found {len(props_data['props'])} props")
+                                        for prop in props_data["props"]:
+                                            print(
+                                                f"  - {prop['name']} "
+                                                f"({prop['category']}): "
+                                                f"{prop['significance']}"
+                                            )
+                            except json.JSONDecodeError as e:
+                                print(f"Failed to parse metadata: {e}")
+                        break
+
+        # Verify we found props in the scenes
+        assert len(scenes_with_props) > 0, "No scenes with props analysis found"
+
+        # Check specific props we expect to find
+        all_props = []
+        for scene_data in scenes_with_props:
+            all_props.extend([p["name"].lower() for p in scene_data["props"]])
+
+        # These are obvious props from our test screenplay
+        expected_props = [
+            "revolver",
+            "badge",
+            "whiskey",
+            "bottle",
+            "glass",
+            "phone",
+            "cigarette",
+            "lighter",
+            "briefcase",
+            "money",
+            "envelope",
+            "usb drive",
+            "ticket",
+            "hat",
+            "coat",
+            "watch",
+            "car keys",
+            "mustang",
+            "shotgun",
+            "first aid kit",
+            "cellphone",
+            "laptop",
+            "diamonds",
+        ]
+
+        found_props = []
+        missing_props = []
+        for expected in expected_props:
+            # Check if any found prop contains the expected term
+            if any(expected in prop for prop in all_props):
+                found_props.append(expected)
+            else:
+                missing_props.append(expected)
+
+        print("\n=== Props Detection Results ===")
+        print(f"Found {len(found_props)}/{len(expected_props)} expected props")
+        print(f"Found props: {found_props}")
+        if missing_props:
+            print(f"Missing props: {missing_props}")
+
+        # We should detect at least 70% of the expected props
+        detection_rate = len(found_props) / len(expected_props)
+        assert detection_rate >= 0.7, (
+            f"Props detection rate too low: {detection_rate:.1%}"
+        )
+
+        # Step 5: Index the screenplay
+        result = runner.invoke(
+            app,
+            [
+                "index",
+                str(props_screenplay.parent),
+            ],
+        )
+        assert result.exit_code == 0
+
+        # Step 6: Verify database contains props analysis
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get the script
+        cursor.execute(
+            "SELECT * FROM scripts WHERE file_path = ?", (str(props_screenplay),)
+        )
+        script = cursor.fetchone()
+        assert script is not None
+        script_id = script["id"]
+
+        # Get scenes with metadata
+        cursor.execute(
+            "SELECT * FROM scenes WHERE script_id = ? ORDER BY scene_number",
+            (script_id,),
+        )
+        scenes = cursor.fetchall()
+        assert len(scenes) > 0
+
+        # Check that scenes have props analysis in metadata
+        scenes_with_db_props = 0
+        for scene in scenes:
+            if scene["metadata"]:
+                metadata = json.loads(scene["metadata"])
+                if (
+                    "boneyard" in metadata
+                    and "analyzers" in metadata["boneyard"]
+                    and "props_inventory" in metadata["boneyard"]["analyzers"]
+                ):
+                    scenes_with_db_props += 1
+                    props_result = metadata["boneyard"]["analyzers"][
+                        "props_inventory"
+                    ].get("result", {})
+                    if "props" in props_result:
+                        print(f"\nDB Scene {scene['scene_number']}: {scene['heading']}")
+                        print(f"  Props in database: {len(props_result['props'])}")
+
+        assert scenes_with_db_props > 0, (
+            "No scenes with props analysis found in database"
+        )
+        print(
+            f"\n{scenes_with_db_props}/{len(scenes)} scenes have props "
+            f"analysis in database"
+        )
 
         conn.close()

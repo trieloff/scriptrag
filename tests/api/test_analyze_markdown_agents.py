@@ -54,7 +54,7 @@ class TestAnalyzeCommandMarkdownAgents:
             agents_dir.mkdir()
             (agents_dir / "test-agent.md").write_text(sample_agent_markdown)
 
-            with patch("scriptrag.api.analyze.AgentLoader") as mock_loader_class:
+            with patch("scriptrag.agents.AgentLoader") as mock_loader_class:
                 mock_loader = MagicMock()
                 mock_analyzer = MagicMock()
                 mock_analyzer.name = "test-agent"
@@ -76,9 +76,9 @@ class TestAnalyzeCommandMarkdownAgents:
     ) -> None:
         """Test handling when AgentLoader cannot be imported."""
         with (
-            patch("scriptrag.api.analyze.BUILTIN_ANALYZERS", {}),
+            patch("scriptrag.analyzers.builtin.BUILTIN_ANALYZERS", {}),
             patch(
-                "scriptrag.api.analyze.AgentLoader",
+                "scriptrag.agents.AgentLoader",
                 side_effect=ImportError("No module named 'scriptrag.agents'"),
             ),
             pytest.raises(ValueError, match="Unknown analyzer: nonexistent"),
@@ -90,8 +90,8 @@ class TestAnalyzeCommandMarkdownAgents:
     ) -> None:
         """Test handling when markdown agent loading fails."""
         with (
-            patch("scriptrag.api.analyze.BUILTIN_ANALYZERS", {}),
-            patch("scriptrag.api.analyze.AgentLoader") as mock_loader_class,
+            patch("scriptrag.analyzers.builtin.BUILTIN_ANALYZERS", {}),
+            patch("scriptrag.agents.AgentLoader") as mock_loader_class,
         ):
             mock_loader = MagicMock()
             mock_loader.load_agent.side_effect = ValueError("Agent not found")
@@ -110,10 +110,10 @@ class TestAnalyzeCommandMarkdownAgents:
 
         with (
             patch(
-                "scriptrag.api.analyze.BUILTIN_ANALYZERS",
+                "scriptrag.analyzers.builtin.BUILTIN_ANALYZERS",
                 {"builtin-test": lambda: mock_builtin},
             ),
-            patch("scriptrag.api.analyze.AgentLoader") as mock_loader_class,
+            patch("scriptrag.agents.AgentLoader") as mock_loader_class,
         ):
             # Load the analyzer
             analyze_cmd.load_analyzer("builtin-test")
@@ -131,7 +131,7 @@ class TestAnalyzeCommandMarkdownAgents:
         mock_analyzer.name = "already-loaded"
         analyze_cmd.analyzers.append(mock_analyzer)
 
-        with patch("scriptrag.api.analyze.AgentLoader") as mock_loader_class:
+        with patch("scriptrag.agents.AgentLoader") as mock_loader_class:
             # Try to load the same analyzer again
             analyze_cmd.load_analyzer("already-loaded")
 
@@ -145,7 +145,7 @@ class TestAnalyzeCommandMarkdownAgents:
         """Test the fallback order: built-in -> markdown -> error."""
         # Test case 1: Built-in analyzer found
         with patch(
-            "scriptrag.api.analyze.BUILTIN_ANALYZERS",
+            "scriptrag.analyzers.builtin.BUILTIN_ANALYZERS",
             {"test1": lambda: MagicMock(name="test1")},
         ):
             analyze_cmd.load_analyzer("test1")
@@ -156,8 +156,8 @@ class TestAnalyzeCommandMarkdownAgents:
 
         # Test case 2: Built-in not found, markdown agent found
         with (
-            patch("scriptrag.api.analyze.BUILTIN_ANALYZERS", {}),
-            patch("scriptrag.api.analyze.AgentLoader") as mock_loader_class,
+            patch("scriptrag.analyzers.builtin.BUILTIN_ANALYZERS", {}),
+            patch("scriptrag.agents.AgentLoader") as mock_loader_class,
         ):
             mock_loader = MagicMock()
             mock_analyzer = MagicMock(name="test2")
@@ -172,8 +172,8 @@ class TestAnalyzeCommandMarkdownAgents:
 
         # Test case 3: Neither found
         with (
-            patch("scriptrag.api.analyze.BUILTIN_ANALYZERS", {}),
-            patch("scriptrag.api.analyze.AgentLoader") as mock_loader_class,
+            patch("scriptrag.analyzers.builtin.BUILTIN_ANALYZERS", {}),
+            patch("scriptrag.agents.AgentLoader") as mock_loader_class,
         ):
             mock_loader = MagicMock()
             mock_loader.load_agent.side_effect = ValueError("Not found")

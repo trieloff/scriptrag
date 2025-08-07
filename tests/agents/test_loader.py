@@ -305,7 +305,7 @@ class TestMarkdownAgentAnalyzer:
                 "properties": {"result": {"type": "string"}},
                 "required": ["result"],
             },
-            analysis_prompt="Analyze: {scene_text}",
+            analysis_prompt="Analyze: {{scene_content}}",
         )
 
     def test_init(self, sample_spec: AgentSpec) -> None:
@@ -485,7 +485,7 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
-        scene = {"content": "Test scene content", "id": 1}
+        scene = {"heading": "Test scene content", "id": 1}
         await analyzer.analyze(scene)
 
         # Check that the prompt was formatted with scene text
@@ -496,7 +496,7 @@ class TestMarkdownAgentAnalyzer:
         assert len(messages) == 1
         assert messages[0]["role"] == "user"
         # The prompt should contain formatted scene content
-        assert "Test scene content" in messages[0]["content"]
+        assert "SCENE HEADING: Test scene content" in messages[0]["content"]
 
 
 class TestAgentLoader:

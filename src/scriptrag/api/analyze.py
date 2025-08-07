@@ -103,7 +103,7 @@ class AnalyzeCommand:
         if name not in self._analyzer_registry:
             # Try to load from built-in analyzers
             try:
-                from scriptrag.analyzers import BUILTIN_ANALYZERS
+                from scriptrag.analyzers.builtin import BUILTIN_ANALYZERS
 
                 if name in BUILTIN_ANALYZERS:
                     analyzer_class = BUILTIN_ANALYZERS[name]

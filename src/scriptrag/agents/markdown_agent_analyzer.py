@@ -74,41 +74,59 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
         # Execute context query (placeholder for now)
         context = await self._execute_context_query(scene)
 
-        # If LLM is required, call it
+        # If LLM is required, call it with retry logic
         if self.spec.requires_llm:
-            result = await self._call_llm(scene, context)
+            max_attempts = 3
+            temperature_increment = 0.2
+
+            for attempt in range(max_attempts):
+                # Calculate temperature for this attempt
+                # Start at 0.3 (default), then 0.5, then 0.7
+                temperature = 0.3 + (attempt * temperature_increment)
+
+                result = await self._call_llm(scene, context, temperature=temperature)
+
+                # Validate the result against the schema
+                try:
+                    jsonschema.validate(result, self.spec.output_schema)
+                    # Validation passed, break out of retry loop
+                    break
+                except ValidationError as e:
+                    logger.error(
+                        f"Agent {self.spec.name} validation failed "
+                        f"({attempt + 1}/{max_attempts})",
+                        error=str(e),
+                        scene_heading=scene.get("heading", ""),
+                        temperature=temperature,
+                    )
+
+                    # If this was the last attempt, return error
+                    if attempt == max_attempts - 1:
+                        return {
+                            "error": (
+                                f"Validation failed after {max_attempts} attempts: {e}"
+                            ),
+                            "analyzer": self.name,
+                            "version": self.version,
+                        }
+                    # Log that we're retrying
+                    logger.info(
+                        f"Retrying {self.spec.name} with higher temperature",
+                        next_temperature=temperature + temperature_increment,
+                        attempt=attempt + 2,
+                    )
         else:
             # For non-LLM agents, just return empty result
             result = {}
-
-        # Validate the result against the schema
-        try:
-            jsonschema.validate(result, self.spec.output_schema)
-        except ValidationError as e:
-            logger.error(
-                f"Agent {self.spec.name} output failed validation",
-                error=str(e),
-                scene_heading=scene.get("heading", ""),
-            )
-
-            # For specific analyzers, provide valid fallback structure instead of error
-            if self.name == "props_inventory":
-                # Return valid empty props inventory structure
-                result = {
-                    "props": [],
-                    "summary": {
-                        "total_props": 0,
-                        "hero_props": 0,
-                        "requires_action": 0,
-                        "categories": [],
-                    },
-                }
-                scene_heading = scene.get("heading", "")
-                logger.info(
-                    f"Provided fallback empty props inventory for scene {scene_heading}"
+            # Validate non-LLM result too
+            try:
+                jsonschema.validate(result, self.spec.output_schema)
+            except ValidationError as e:
+                logger.error(
+                    f"Agent {self.spec.name} output failed validation",
+                    error=str(e),
+                    scene_heading=scene.get("heading", ""),
                 )
-            else:
-                # Return empty result with error for other analyzers
                 return {
                     "error": f"Output validation failed: {e.message}",
                     "analyzer": self.name,
@@ -143,13 +161,14 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
         return {"scene_data": scene}
 
     async def _call_llm(
-        self, scene: dict[str, Any], _context: dict[str, Any]
+        self, scene: dict[str, Any], _context: dict[str, Any], temperature: float = 0.3
     ) -> dict[str, Any]:
         """Call the LLM with the analysis prompt.
 
         Args:
             scene: Scene data
             _context: Context data from query (currently unused)
+            temperature: Temperature for LLM sampling (default: 0.3)
 
         Returns:
             LLM response parsed as dictionary
@@ -222,6 +241,7 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
                 prompt_length=len(prompt),
                 scene_content_length=len(scene_content),
                 has_response_format=bool(response_format),
+                temperature=temperature,
             )
             logger.debug(
                 f"LLM prompt preview for {self.spec.name}",
@@ -234,7 +254,7 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
             request = CompletionRequest(
                 model="",  # Let client auto-select
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
+                temperature=temperature,
                 max_tokens=10000,
                 response_format=response_format,
             )

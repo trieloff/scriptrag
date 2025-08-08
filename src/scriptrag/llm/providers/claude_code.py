@@ -5,6 +5,7 @@ import contextlib
 import json
 import os
 import time
+from typing import Any
 
 from scriptrag.config import get_logger
 from scriptrag.llm.base import BaseLLMProvider
@@ -452,7 +453,7 @@ class ClaudeCodeProvider(BaseLLMProvider):
         if not schema or "properties" not in schema:
             return None
 
-        example = {}
+        example: dict[str, Any] = {}
         props = schema["properties"]
 
         for prop, details in props.items():
@@ -488,7 +489,7 @@ class ClaudeCodeProvider(BaseLLMProvider):
             Example object
         """
         if "properties" in obj_schema:
-            result = {}
+            result: dict[str, Any] = {}
             for key, val in obj_schema["properties"].items():
                 prop_type = val.get("type", "string")
                 if prop_type == "string":

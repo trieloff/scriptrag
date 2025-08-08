@@ -486,9 +486,11 @@ class TestMarkdownAgentAnalyzer:
 
         # Check that the prompt was formatted with scene text
         call_args = mock_client.complete.call_args
-        # The complete method is called with keyword arguments
-        assert "messages" in call_args.kwargs
-        messages = call_args.kwargs["messages"]
+        # The complete method is now called with a CompletionRequest object
+        assert call_args.args
+        request = call_args.args[0]
+        assert hasattr(request, "messages")
+        messages = request.messages
         assert len(messages) == 1
         assert messages[0]["role"] == "user"
         # The prompt should contain formatted scene content

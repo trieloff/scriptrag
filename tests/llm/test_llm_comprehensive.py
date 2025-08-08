@@ -798,7 +798,13 @@ class TestLLMClientExtended:
             return_value=CompletionResponse(
                 id="test",
                 model="model",
-                choices=[],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Hello response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
         )
@@ -875,7 +881,13 @@ class TestLLMClientExtended:
             return_value=CompletionResponse(
                 id="test",
                 model="model-chat",
-                choices=[],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Hello response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
         )

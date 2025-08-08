@@ -425,8 +425,13 @@ jobs:
         run: make install
 
       - name: Run integration tests
-        run: make test PYTEST_ARGS="-m integration"
+        run: |
+          echo "🧪 Running integration tests with available providers"
+          echo "Has GITHUB_TOKEN: ${{ github.token != '' }}"
+          echo "Has SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT != '' }}"
+          make test PYTEST_ARGS="-m integration -v --tb=short"
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
           SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}
           SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}

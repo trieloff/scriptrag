@@ -335,15 +335,15 @@ class TestGitHubModelsProviderExtended:
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = [
-            {"id": "model1", "name": "Model 1"},
-            {"id": "model2", "friendly_name": "Model 2"},
+            {"id": "gpt-4o", "name": "GPT-4o"},
+            {"id": "gpt-4o-mini", "friendly_name": "GPT-4o Mini"},
         ]
 
         with patch.object(provider.client, "get", return_value=mock_response):
             models = await provider.list_models()
             assert len(models) == 2
-            assert models[0].id == "model1"
-            assert models[1].name == "Model 2"
+            assert models[0].id == "gpt-4o"
+            assert models[1].id == "gpt-4o-mini"
 
     @pytest.mark.asyncio
     async def test_list_models_empty_data(self):

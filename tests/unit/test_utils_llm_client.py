@@ -143,14 +143,18 @@ class TestGitHubModelsProvider:
             mock_response.status_code = 200
             mock_response.json.return_value = [
                 {"id": "gpt-4o", "name": "gpt-4o", "summary": "GPT-4 model"},
-                {"id": "llama-3", "name": "llama-3", "summary": "Llama 3 model"},
+                {
+                    "id": "gpt-4o-mini",
+                    "name": "gpt-4o-mini",
+                    "summary": "GPT-4 mini model",
+                },
             ]
             mock_client.get = AsyncMock(return_value=mock_response)
 
             models = await provider.list_models()
             assert len(models) == 2
             assert models[0].id == "gpt-4o"
-            assert models[1].id == "llama-3"
+            assert models[1].id == "gpt-4o-mini"
 
     @pytest.mark.asyncio
     async def test_is_available_with_token(self, provider):

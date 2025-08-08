@@ -162,20 +162,19 @@ class TestGitHubModelsProvider:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
-                {"id": "gpt-4", "name": "GPT-4"},
-                {"id": "llama-3", "friendly_name": "Llama 3"},
-                {"id": "text-embedding-ada", "name": "Ada Embeddings"},
+                {"id": "gpt-4o", "name": "GPT-4o"},
+                {"id": "gpt-4o-mini", "friendly_name": "GPT-4o Mini"},
             ]
         }
 
         with patch.object(provider.client, "get", return_value=mock_response):
             models = await provider.list_models()
 
-            assert len(models) == 3
+            assert len(models) == 2
             assert all(isinstance(m, Model) for m in models)
             assert all(m.provider == LLMProvider.GITHUB_MODELS for m in models)
-            assert any("gpt-4" in m.id for m in models)
-            assert any("llama" in m.id for m in models)
+            assert any(m.id == "gpt-4o" for m in models)
+            assert any(m.id == "gpt-4o-mini" for m in models)
 
     @pytest.mark.asyncio
     async def test_list_models_no_token(self):

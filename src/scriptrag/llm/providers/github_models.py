@@ -1,6 +1,8 @@
 """GitHub Models provider using OpenAI-compatible API."""
 
+import json
 import os
+import re
 import time
 from typing import Any, ClassVar
 
@@ -66,6 +68,7 @@ class GitHubModelsProvider(BaseLLMProvider):
         self.client = httpx.AsyncClient(timeout=timeout)
         self._availability_cache: bool | None = None
         self._cache_timestamp: float = 0
+        self._rate_limit_reset_time: float = 0  # Track when rate limit resets
 
         logger.info(
             "Initialized GitHub Models provider",
@@ -80,6 +83,18 @@ class GitHubModelsProvider(BaseLLMProvider):
             logger.debug(
                 "GitHub Models not available",
                 reason="no token configured",
+            )
+            return False
+
+        # Check if we're rate limited
+        if (
+            self._rate_limit_reset_time > 0
+            and time.time() < self._rate_limit_reset_time
+        ):
+            logger.debug(
+                "GitHub Models not available due to rate limit",
+                reset_time=self._rate_limit_reset_time,
+                seconds_until_reset=self._rate_limit_reset_time - time.time(),
             )
             return False
 
@@ -124,6 +139,31 @@ class GitHubModelsProvider(BaseLLMProvider):
             self._cache_timestamp = time.time()
             return False
 
+    def _parse_rate_limit_error(self, error_text: str) -> int | None:
+        """Parse rate limit error and return seconds to wait.
+
+        Args:
+            error_text: Error response text from API
+
+        Returns:
+            Number of seconds to wait, or None if not a rate limit error
+        """
+        try:
+            # Parse JSON error response
+            error_data = json.loads(error_text)
+            if "error" in error_data:
+                error_info = error_data["error"]
+                if error_info.get("code") == "RateLimitReached":
+                    # Extract wait time from message
+                    # "Please wait 42911 seconds before retrying."
+                    message = error_info.get("message", "")
+                    match = re.search(r"wait (\d+) seconds", message)
+                    if match:
+                        return int(match.group(1))
+        except (json.JSONDecodeError, KeyError, ValueError):
+            pass
+        return None
+
     async def __aenter__(self) -> "GitHubModelsProvider":
         """Enter async context manager."""
         return self
@@ -145,6 +185,20 @@ class GitHubModelsProvider(BaseLLMProvider):
             response = await self.client.get(f"{self.base_url}/models", headers=headers)
 
             if response.status_code != 200:
+                # Check for rate limit error
+                if response.status_code == 429:
+                    wait_seconds = self._parse_rate_limit_error(response.text)
+                    if wait_seconds:
+                        # Set rate limit reset time
+                        self._rate_limit_reset_time = time.time() + wait_seconds
+                        self._availability_cache = False
+                        self._cache_timestamp = time.time()
+                        logger.warning(
+                            "GitHub Models rate limited on list_models",
+                            wait_seconds=wait_seconds,
+                            reset_time=self._rate_limit_reset_time,
+                        )
+
                 logger.warning(f"Failed to list GitHub models: {response.status_code}")
                 return []
 
@@ -255,6 +309,22 @@ class GitHubModelsProvider(BaseLLMProvider):
 
             if response.status_code != 200:
                 error_text = response.text
+
+                # Check for rate limit error
+                if response.status_code == 429:
+                    wait_seconds = self._parse_rate_limit_error(error_text)
+                    if wait_seconds:
+                        # Set rate limit reset time
+                        self._rate_limit_reset_time = time.time() + wait_seconds
+                        self._availability_cache = False
+                        self._cache_timestamp = time.time()
+                        logger.warning(
+                            "GitHub Models rate limited",
+                            wait_seconds=wait_seconds,
+                            reset_time=self._rate_limit_reset_time,
+                            model=request.model,
+                        )
+
                 logger.error(
                     "GitHub Models API error",
                     status_code=response.status_code,
@@ -336,6 +406,23 @@ class GitHubModelsProvider(BaseLLMProvider):
             )
 
             if response.status_code != 200:
+                error_text = response.text
+
+                # Check for rate limit error
+                if response.status_code == 429:
+                    wait_seconds = self._parse_rate_limit_error(error_text)
+                    if wait_seconds:
+                        # Set rate limit reset time
+                        self._rate_limit_reset_time = time.time() + wait_seconds
+                        self._availability_cache = False
+                        self._cache_timestamp = time.time()
+                        logger.warning(
+                            "GitHub Models rate limited on embeddings",
+                            wait_seconds=wait_seconds,
+                            reset_time=self._rate_limit_reset_time,
+                            model=request.model,
+                        )
+
                 raise ValueError(f"GitHub Models API error: {response.text}")
 
             data = response.json()

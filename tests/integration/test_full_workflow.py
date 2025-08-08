@@ -529,24 +529,30 @@ class TestFullWorkflow:
             assert embedding_row["entity_type"] == "scene"
             assert embedding_row["embedding_model"] is not None
 
-            # The embedding blob should contain data or be empty (for LFS reference)
+            # The embedding blob should ALWAYS contain the full embedding data
+            # During index, we load from .npy file and store the full data in DB
             embedding_blob = embedding_row["embedding"]
-            if embedding_blob and len(embedding_blob) > 0:
-                # If stored directly, verify it can be converted back to numpy array
-                try:
-                    # Assuming float32 (4 bytes per element)
-                    embedding_array = np.frombuffer(embedding_blob, dtype=np.float32)
-                    assert embedding_array.size > 0
-                    print(
-                        f"  Scene '{embedding_row['heading']}': "
-                        f"{embedding_array.size} dimensions (stored in DB)"
-                    )
-                except Exception:
-                    print(
-                        f"  Scene '{embedding_row['heading']}': Reference stored (LFS)"
-                    )
-            else:
-                print(f"  Scene '{embedding_row['heading']}': Reference stored (LFS)")
+            assert embedding_blob is not None, (
+                f"Embedding data missing for scene '{embedding_row['heading']}'"
+            )
+            assert len(embedding_blob) > 0, (
+                f"Empty embedding data for scene '{embedding_row['heading']}'"
+            )
+
+            # Verify the stored embedding can be converted back to numpy array
+            # Embeddings are stored as float32 (4 bytes per element)
+            embedding_array = np.frombuffer(embedding_blob, dtype=np.float32)
+            assert embedding_array.size > 0, (
+                f"Invalid embedding array for scene '{embedding_row['heading']}'"
+            )
+            assert embedding_array.size == 1536, (
+                f"Unexpected embedding size {embedding_array.size} "
+                f"for scene '{embedding_row['heading']}', expected 1536"
+            )
+            print(
+                f"  Scene '{embedding_row['heading']}': "
+                f"{embedding_array.size} dimensions (fully stored in DB)"
+            )
 
         # Verify that each scene has metadata with embedding info
         for scene in scenes:

@@ -49,7 +49,7 @@ class TestClaudeCodeProvider:
         "builtins.__import__",
         side_effect=ImportError("No module named 'claude_code_sdk'"),
     )
-    def test_check_sdk_without_import(self, mock_import: Mock) -> None:
+    def test_check_sdk_without_import(self, mock_import: Mock) -> None:  # noqa: ARG002
         """Test SDK check when import fails."""
         provider = ClaudeCodeProvider()
         assert provider.sdk_available is False
@@ -89,7 +89,8 @@ class TestClaudeCodeProvider:
             ),
             patch.dict(os.environ, {"CLAUDECODE": "1"}),
         ):
-            # Should be True because sdk_available is True (from fixture) AND environment marker is set
+            # Should be True because sdk_available is True (from fixture)
+            # AND environment marker is set
             assert await provider.is_available() is True
 
     @pytest.mark.asyncio
@@ -119,7 +120,8 @@ class TestClaudeCodeProvider:
             ),
             patch.dict(os.environ, {"CLAUDECODE": "1"}),
         ):
-            # Falls back to environment markers - True because sdk_available is True AND environment marker is set
+            # Falls back to environment markers - True because sdk_available
+            # is True AND environment marker is set
             assert await provider.is_available() is True
 
     @pytest.mark.asyncio
@@ -317,7 +319,7 @@ class TestClaudeCodeProvider:
         mock_text_block.text = "Test response"
         mock_message.content = [mock_text_block]
 
-        async def mock_query(prompt: str, options: object) -> AsyncMock:
+        async def mock_query(prompt: str, options: object) -> AsyncMock:  # noqa: ARG001
             yield mock_message
 
         with (
@@ -345,14 +347,14 @@ class TestClaudeCodeProvider:
 
         captured_options = None
 
-        async def mock_query(prompt: str, options: object) -> AsyncMock:
+        async def mock_query(prompt: str, options: object) -> AsyncMock:  # noqa: ARG001
             nonlocal captured_options
             captured_options = options
             yield mock_message
 
         with (
             patch("claude_code_sdk.query", mock_query),
-            patch("claude_code_sdk.ClaudeCodeOptions") as MockOptions,
+            patch("claude_code_sdk.ClaudeCodeOptions") as mock_options,
         ):
             request = CompletionRequest(
                 model="claude-3-opus",
@@ -363,7 +365,9 @@ class TestClaudeCodeProvider:
             response = await provider.complete(request)
             assert response.choices[0]["message"]["content"] == "Response with system"
             # Check that system prompt was passed to options
-            MockOptions.assert_called_with(max_turns=1, system_prompt="You are helpful")
+            mock_options.assert_called_with(
+                max_turns=1, system_prompt="You are helpful"
+            )
 
     @pytest.mark.asyncio
     async def test_complete_fallback_to_result_message(
@@ -374,7 +378,7 @@ class TestClaudeCodeProvider:
         mock_message.__class__.__name__ = "ResultMessage"
         mock_message.result = "Result text"
 
-        async def mock_query(prompt: str, options: object) -> AsyncMock:
+        async def mock_query(prompt: str, options: object) -> AsyncMock:  # noqa: ARG001
             yield mock_message
 
         with (
@@ -401,7 +405,7 @@ class TestClaudeCodeProvider:
         mock_text_block.text = '{"result": "success", "value": 42}'
         mock_message.content = [mock_text_block]
 
-        async def mock_query(prompt: str, options: object) -> AsyncMock:
+        async def mock_query(prompt: str, options: object) -> AsyncMock:  # noqa: ARG001
             yield mock_message
 
         with (
@@ -443,7 +447,7 @@ class TestClaudeCodeProvider:
         )
         mock_message.content = [mock_text_block]
 
-        async def mock_query(prompt: str, options: object) -> AsyncMock:
+        async def mock_query(prompt: str, options: object) -> AsyncMock:  # noqa: ARG001
             yield mock_message
 
         with (
@@ -467,7 +471,7 @@ class TestClaudeCodeProvider:
         """Test JSON retry on invalid response."""
         call_count = 0
 
-        async def mock_query(prompt: str, options: object) -> AsyncMock:
+        async def mock_query(prompt: str, options: object) -> AsyncMock:  # noqa: ARG001
             nonlocal call_count
             call_count += 1
 
@@ -506,7 +510,7 @@ class TestClaudeCodeProvider:
     ) -> None:
         """Test JSON validation fails after max retries."""
 
-        async def mock_query(prompt: str, options: object) -> AsyncMock:
+        async def mock_query(prompt: str, options: object) -> AsyncMock:  # noqa: ARG001
             mock_message = MagicMock()
             mock_message.__class__.__name__ = "AssistantMessage"
             mock_text_block = MagicMock()
@@ -575,7 +579,7 @@ class TestClaudeCodeProvider:
     ) -> None:
         """Test progress logging during long-running queries."""
 
-        async def slow_query(prompt: str, options: object) -> AsyncMock:
+        async def slow_query(prompt: str, options: object) -> AsyncMock:  # noqa: ARG001
             # Simulate slow response
             await asyncio.sleep(0.05)  # Small delay to test progress
 
@@ -618,7 +622,7 @@ class TestClaudeCodeProvider:
         """Test JSON validation checks required fields."""
         call_count = 0
 
-        async def mock_query(prompt: str, options: object) -> AsyncMock:
+        async def mock_query(prompt: str, options: object) -> AsyncMock:  # noqa: ARG001
             nonlocal call_count
             call_count += 1
 

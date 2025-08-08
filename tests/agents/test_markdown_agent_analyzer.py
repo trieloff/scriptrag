@@ -375,7 +375,7 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         llm_analyzer.llm_client = mock_client
 
-        result = await llm_analyzer._call_llm(sample_scene, {})
+        await llm_analyzer._call_llm(sample_scene, {})
 
         # Check that scene content was inserted
         call_args = mock_client.complete.call_args[0][0]
@@ -398,7 +398,7 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         llm_analyzer.llm_client = mock_client
 
-        result = await llm_analyzer._call_llm(sample_scene, {})
+        await llm_analyzer._call_llm(sample_scene, {})
 
         call_args = mock_client.complete.call_args[0][0]
         prompt = call_args.messages[0]["content"]
@@ -425,7 +425,7 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         llm_analyzer.llm_client = mock_client
 
-        result = await llm_analyzer._call_llm(sample_scene, {})
+        await llm_analyzer._call_llm(sample_scene, {})
 
         call_args = mock_client.complete.call_args[0][0]
         prompt = call_args.messages[0]["content"]
@@ -448,7 +448,7 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         llm_analyzer.llm_client = mock_client
 
-        result = await llm_analyzer._call_llm(sample_scene, {})
+        await llm_analyzer._call_llm(sample_scene, {})
 
         call_args = mock_client.complete.call_args[0][0]
         # JSON block should be removed from prompt
@@ -484,7 +484,7 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         llm_analyzer.llm_client = mock_client
 
-        result = await llm_analyzer._call_llm(sample_scene, {}, temperature=0.7)
+        await llm_analyzer._call_llm(sample_scene, {}, temperature=0.7)
 
         call_args = mock_client.complete.call_args[0][0]
         assert call_args.temperature == 0.7

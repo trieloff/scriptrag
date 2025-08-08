@@ -18,7 +18,8 @@ class TestOpenAICompatibleProvider:
     def provider(self) -> OpenAICompatibleProvider:
         """Create provider instance with configuration."""
         return OpenAICompatibleProvider(
-            endpoint="http://localhost:11434/v1", api_key="test-key"
+            endpoint="http://localhost:11434/v1",
+            api_key="test-key",  # pragma: allowlist secret
         )
 
     @pytest.fixture
@@ -30,10 +31,12 @@ class TestOpenAICompatibleProvider:
     def test_init_with_params(self) -> None:
         """Test initialization with explicit parameters."""
         provider = OpenAICompatibleProvider(
-            endpoint="http://example.com/api", api_key="my-key", timeout=120.0
+            endpoint="http://example.com/api",
+            api_key="my-key",  # pragma: allowlist secret
+            timeout=120.0,
         )
         assert provider.base_url == "http://example.com/api"
-        assert provider.api_key == "my-key"
+        assert provider.api_key == "my-key"  # pragma: allowlist secret
         assert provider.timeout == 120.0
         assert provider.client is not None
         assert provider._availability_cache is None
@@ -45,12 +48,12 @@ class TestOpenAICompatibleProvider:
             os.environ,
             {
                 "SCRIPTRAG_LLM_ENDPOINT": "http://env-endpoint",
-                "SCRIPTRAG_LLM_API_KEY": "env-key",
+                "SCRIPTRAG_LLM_API_KEY": "env-key",  # pragma: allowlist secret
             },
         ):
             provider = OpenAICompatibleProvider()
             assert provider.base_url == "http://env-endpoint"
-            assert provider.api_key == "env-key"
+            assert provider.api_key == "env-key"  # pragma: allowlist secret
 
     def test_init_without_config(self) -> None:
         """Test initialization without any configuration."""
@@ -261,7 +264,7 @@ class TestOpenAICompatibleProvider:
         """Test that completion uses semaphore for serialization."""
         call_times = []
 
-        async def mock_post(url: str, **kwargs):
+        async def mock_post(url: str, **kwargs):  # noqa: ARG001
             call_times.append(time.time())
             await asyncio.sleep(0.1)  # Simulate processing time
 
@@ -303,7 +306,7 @@ class TestOpenAICompatibleProvider:
         """Test completion with system message."""
         captured_json = None
 
-        async def capture_post(url: str, **kwargs):
+        async def capture_post(url: str, **kwargs):  # noqa: ARG001
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
@@ -335,7 +338,7 @@ class TestOpenAICompatibleProvider:
         """Test completion with response format."""
         captured_json = None
 
-        async def capture_post(url: str, **kwargs):
+        async def capture_post(url: str, **kwargs):  # noqa: ARG001
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
@@ -435,7 +438,7 @@ class TestOpenAICompatibleProvider:
         """Test completion with all available parameters."""
         captured_json = None
 
-        async def capture_post(url: str, **kwargs):
+        async def capture_post(url: str, **kwargs):  # noqa: ARG001
             nonlocal captured_json
             captured_json = kwargs.get("json")
 

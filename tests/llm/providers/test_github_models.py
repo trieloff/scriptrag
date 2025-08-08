@@ -17,7 +17,7 @@ class TestGitHubModelsProvider:
     @pytest.fixture
     def provider(self) -> GitHubModelsProvider:
         """Create provider instance with token."""
-        return GitHubModelsProvider(token="test-token")
+        return GitHubModelsProvider(token="test-token")  # noqa: S106
 
     @pytest.fixture
     def provider_no_token(self) -> GitHubModelsProvider:
@@ -27,8 +27,8 @@ class TestGitHubModelsProvider:
 
     def test_init_with_token(self) -> None:
         """Test initialization with explicit token."""
-        provider = GitHubModelsProvider(token="my-token", timeout=60.0)
-        assert provider.token == "my-token"
+        provider = GitHubModelsProvider(token="my-token", timeout=60.0)  # noqa: S106
+        assert provider.token == "my-token"  # noqa: S105
         assert provider.timeout == 60.0
         assert provider.client is not None
         assert provider._availability_cache is None
@@ -37,7 +37,7 @@ class TestGitHubModelsProvider:
         """Test initialization with environment token."""
         with patch.dict(os.environ, {"GITHUB_TOKEN": "env-token"}):
             provider = GitHubModelsProvider()
-            assert provider.token == "env-token"
+            assert provider.token == "env-token"  # noqa: S105
 
     def test_init_without_token(self) -> None:
         """Test initialization without any token."""
@@ -241,7 +241,7 @@ class TestGitHubModelsProvider:
         """Test completion with system message."""
         captured_json = None
 
-        async def capture_post(url: str, **kwargs):
+        async def capture_post(url: str, **kwargs):  # noqa: ARG001
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
@@ -273,7 +273,7 @@ class TestGitHubModelsProvider:
         """Test completion with response format."""
         captured_json = None
 
-        async def capture_post(url: str, **kwargs):
+        async def capture_post(url: str, **kwargs):  # noqa: ARG001
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
@@ -362,7 +362,7 @@ class TestGitHubModelsProvider:
         """Test completion with all available parameters."""
         captured_json = None
 
-        async def capture_post(url: str, **kwargs):
+        async def capture_post(url: str, **kwargs):  # noqa: ARG001
             nonlocal captured_json
             captured_json = kwargs.get("json")
 

@@ -1,8 +1,18 @@
 """Screenplay-specific utility functions."""
 
+import hashlib
+import re
+from typing import Any
+
 
 class ScreenplayUtils:
     """Utility functions for screenplay processing."""
+
+    # Boneyard metadata pattern (same as in fountain_parser.py)
+    BONEYARD_PATTERN = re.compile(
+        r"/\*\s*SCRIPTRAG-META-START\s*\n(.*?)\nSCRIPTRAG-META-END\s*\*/\n?",
+        re.DOTALL,
+    )
 
     @staticmethod
     def extract_location(heading: str) -> str | None:
@@ -118,3 +128,118 @@ class ScreenplayUtils:
         time_of_day = ScreenplayUtils.extract_time(heading)
 
         return scene_type, location, time_of_day
+
+    @staticmethod
+    def compute_scene_hash(scene_text: str, truncate: bool = True) -> str:
+        """Compute a stable hash for scene content.
+
+        This creates a consistent hash based on the actual scene text,
+        excluding any boneyard metadata.
+
+        Args:
+            scene_text: Raw scene text (may include boneyard)
+            truncate: If True, truncate hash to 16 characters (default: True)
+
+        Returns:
+            Hex digest of the scene content hash (SHA256)
+        """
+        # Remove boneyard content before hashing
+        content_for_hash = re.sub(
+            ScreenplayUtils.BONEYARD_PATTERN, "", scene_text
+        ).strip()
+        hash_digest = hashlib.sha256(content_for_hash.encode("utf-8")).hexdigest()
+        return hash_digest[:16] if truncate else hash_digest
+
+    @staticmethod
+    def strip_boneyard(scene_text: str) -> str:
+        """Remove boneyard metadata from scene text.
+
+        Args:
+            scene_text: Raw scene text that may contain boneyard
+
+        Returns:
+            Scene text with boneyard removed
+        """
+        return re.sub(ScreenplayUtils.BONEYARD_PATTERN, "", scene_text).strip()
+
+    @staticmethod
+    def format_scene_for_prompt(scene: dict[str, Any]) -> str:
+        """Format scene content for LLM prompts.
+
+        This creates a human-readable format suitable for LLM analysis.
+
+        Args:
+            scene: Scene data dictionary
+
+        Returns:
+            Formatted scene content as a string
+        """
+        parts = []
+
+        if heading := scene.get("heading"):
+            parts.append(f"SCENE HEADING: {heading}")
+
+        if action := scene.get("action"):
+            parts.append("ACTION:")
+            for line in action:
+                if line.strip():
+                    parts.append(line)
+
+        if dialogue := scene.get("dialogue"):
+            parts.append("DIALOGUE:")
+            for entry in dialogue:
+                character = entry.get("character", "")
+                text = entry.get("text", "")
+                if character and text:
+                    parts.append(f"{character}: {text}")
+
+        # Fallback to raw content if no structured data
+        if not parts and (content := scene.get("content")):
+            parts.append(content)
+
+        return "\n".join(parts)
+
+    @staticmethod
+    def format_scene_for_embedding(scene: dict[str, Any]) -> str:
+        """Format scene content for embedding generation.
+
+        This creates a compact format optimized for embedding models.
+        If original_text is provided, uses that (with boneyard removed).
+        Otherwise falls back to structured data.
+
+        Args:
+            scene: Scene data dictionary
+
+        Returns:
+            Formatted text suitable for embedding generation
+        """
+        # Prefer original text without boneyard for most accurate representation
+        if original_text := scene.get("original_text"):
+            return ScreenplayUtils.strip_boneyard(original_text)
+
+        # Fallback to structured data if no original text
+        parts = []
+
+        # Add heading
+        if heading := scene.get("heading"):
+            parts.append(f"Scene: {heading}")
+
+        # Add action (compressed to single line)
+        if action := scene.get("action"):
+            action_text = " ".join(line.strip() for line in action if line.strip())
+            if action_text:
+                parts.append(f"Action: {action_text}")
+
+        # Add dialogue
+        if dialogue := scene.get("dialogue"):
+            for entry in dialogue:
+                character = entry.get("character", "")
+                text = entry.get("text", "")
+                if character and text:
+                    parts.append(f"{character}: {text}")
+
+        # Fallback to content field
+        if not parts and (content := scene.get("content")):
+            parts.append(content)
+
+        return "\n".join(parts)

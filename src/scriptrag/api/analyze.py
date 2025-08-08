@@ -234,6 +234,7 @@ class AnalyzeCommand:
                     # Build scene data for analyzers
                     scene_data = {
                         "content": scene.content,
+                        "original_text": scene.original_text,  # For hashing/embedding
                         "heading": scene.heading,
                         "dialogue": [
                             {"character": d.character, "text": d.text}

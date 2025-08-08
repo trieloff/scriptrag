@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +11,7 @@ import numpy as np
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.config import get_logger
 from scriptrag.utils import get_default_llm_client
+from scriptrag.utils.screenplay import ScreenplayUtils
 
 if TYPE_CHECKING:
     from scriptrag.llm.client import LLMClient
@@ -112,34 +112,14 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
         Returns:
             Hex digest of the scene content hash
         """
-        # Create a stable representation of the scene content
-        content_parts = []
+        # Use original_text if available for consistent hashing
+        if original_text := scene.get("original_text"):
+            # Use full hash (not truncated) for embedding cache key
+            return ScreenplayUtils.compute_scene_hash(original_text, truncate=False)
 
-        # Include heading
-        if heading := scene.get("heading"):
-            content_parts.append(f"HEADING:{heading}")
-
-        # Include action lines
-        if action := scene.get("action"):
-            for line in action:
-                if line.strip():
-                    content_parts.append(f"ACTION:{line.strip()}")
-
-        # Include dialogue
-        if dialogue := scene.get("dialogue"):
-            for entry in dialogue:
-                character = entry.get("character", "")
-                text = entry.get("text", "")
-                if character and text:
-                    content_parts.append(f"DIALOGUE:{character}:{text}")
-
-        # If no structured content, use raw content
-        if not content_parts and (content := scene.get("content")):
-            content_parts.append(f"CONTENT:{content}")
-
-        # Join all parts and compute hash
-        full_content = "\n".join(content_parts)
-        return hashlib.sha256(full_content.encode("utf-8")).hexdigest()
+        # Fallback: hash the formatted content
+        formatted = ScreenplayUtils.format_scene_for_embedding(scene)
+        return ScreenplayUtils.compute_scene_hash(formatted, truncate=False)
 
     def _get_embedding_path(self, content_hash: str) -> Path:
         """Get the path for storing an embedding file.
@@ -256,31 +236,7 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
         Returns:
             Formatted text for embedding
         """
-        parts = []
-
-        # Add heading
-        if heading := scene.get("heading"):
-            parts.append(f"Scene: {heading}")
-
-        # Add action
-        if action := scene.get("action"):
-            action_text = " ".join(line.strip() for line in action if line.strip())
-            if action_text:
-                parts.append(f"Action: {action_text}")
-
-        # Add dialogue
-        if dialogue := scene.get("dialogue"):
-            for entry in dialogue:
-                character = entry.get("character", "")
-                text = entry.get("text", "")
-                if character and text:
-                    parts.append(f"{character}: {text}")
-
-        # Fallback to raw content
-        if not parts and (content := scene.get("content")):
-            parts.append(content)
-
-        return "\n".join(parts)
+        return ScreenplayUtils.format_scene_for_embedding(scene)
 
     async def analyze(self, scene: dict[str, Any]) -> dict[str, Any]:
         """Analyze a scene and generate/retrieve its embedding.

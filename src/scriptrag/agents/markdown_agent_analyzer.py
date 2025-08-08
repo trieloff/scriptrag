@@ -13,6 +13,7 @@ from scriptrag.agents.agent_spec import AgentSpec
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.config import get_logger
 from scriptrag.utils import get_default_llm_client
+from scriptrag.utils.screenplay import ScreenplayUtils
 
 if TYPE_CHECKING:
     from scriptrag.llm.client import LLMClient
@@ -320,29 +321,7 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
         Returns:
             Formatted scene content
         """
-        parts = []
-
-        if heading := scene.get("heading"):
-            parts.append(f"SCENE HEADING: {heading}")
-
-        if action := scene.get("action"):
-            parts.append("ACTION:")
-            for line in action:
-                if line.strip():
-                    parts.append(line)
-
-        if dialogue := scene.get("dialogue"):
-            parts.append("DIALOGUE:")
-            for entry in dialogue:
-                character = entry.get("character", "")
-                text = entry.get("text", "")
-                if character and text:
-                    parts.append(f"{character}: {text}")
-
-        if not parts and (content := scene.get("content")):
-            parts.append(content)
-
-        return "\n".join(parts)
+        return ScreenplayUtils.format_scene_for_prompt(scene)
 
     def _parse_llm_response(self, response: str) -> dict[str, Any]:
         """Parse LLM response as JSON with improved error handling.

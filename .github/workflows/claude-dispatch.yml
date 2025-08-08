@@ -1,0 +1,97 @@
+name: Claude Code Dispatch
+
+# IMPORTANT: Do not modify this `on` section\!
+
+on:
+  repository_dispatch:
+    types: [claude-dispatch]
+
+jobs:
+  claude-dispatch:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    # Environment variables for Claude to use during execution
+    env:
+      # LLM integration secrets for ScriptRAG
+      SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
+      SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}
+      SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
+      # GitHub tokens for enhanced operations
+      GH_TOKEN_FOR_CLAUDE: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      # Standard environment settings
+      PYTHON_VERSION: "3.12"
+      UV_VERSION: "0.5.12"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
+
+      - name: Preliminary Setup
+        run: |
+          echo "Setting up environment..."
+          # Install UV properly using pip (standard approach)
+          python -m pip install --upgrade pip uv
+
+          # Use project's standard setup - aligns with make setup-dev
+          # This creates venv and installs all dependencies correctly
+          uv sync --all-extras
+
+          # Verify critical dependency files exist
+          if [ ! -f pyproject.toml ]; then
+            echo "Error: pyproject.toml not found"
+            exit 1
+          fi
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@eap
+        with:
+          mode: 'remote-agent'
+          # Optional: Specify an API key, otherwise we'll use your Claude account automatically
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
+          # model: "claude-opus-4-20250514"
+
+          # Allow Claude to run specific commands for scriptrag development
+          allowed_tools: |
+            Bash(make setup-dev)
+            Bash(make lint)
+            Bash(make test)
+            Bash(make test-fast)
+            Bash(make format)
+            Bash(make type-check)
+            Bash(make check)
+            Bash(make check-fast)
+            Bash(make security)
+            Bash(make sql-lint)
+            Bash(make sql-fix)
+            Bash(make clean-mock-files)
+            Bash(make coverage)
+            Bash(make db-init)
+            Bash(make db-migrate)
+            Bash(pytest)
+            Bash(ruff check)
+            Bash(ruff format)
+            Bash(mypy)
+            Bash(pre-commit run)
+            Bash(pre-commit run --all-files)
+            Bash(uv sync --all-extras)
+
+          # Custom environment variables for Claude
+          claude_env: |
+            PYTHON_ENV: test
+            SCRIPTRAG_ENV: ci
+            SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
+            SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}
+            SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}

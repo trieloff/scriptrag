@@ -102,6 +102,7 @@ def props_screenplay(tmp_path):
     return script_path
 
 
+@pytest.mark.integration
 class TestFullWorkflow:
     """Test the complete ScriptRAG workflow from init to index."""
 

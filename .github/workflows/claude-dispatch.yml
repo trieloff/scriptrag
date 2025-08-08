@@ -24,13 +24,18 @@ jobs:
       - name: Preliminary Setup
         run: |
           echo "Setting up environment..."
-          # Setup Python environment for scriptrag
-          python -m pip install --upgrade pip
-          pip install uv
-          uv venv
-          source .venv/bin/activate
-          uv pip install -e .
-          uv pip install -r requirements-dev.txt
+          # Install UV properly using pip (standard approach)
+          python -m pip install --upgrade pip uv
+
+          # Use project's standard setup - aligns with make setup-dev
+          # This creates venv and installs all dependencies correctly
+          uv sync --all-extras
+
+          # Verify critical dependency files exist
+          if [ ! -f pyproject.toml ]; then
+            echo "Error: pyproject.toml not found"
+            exit 1
+          fi
 
       - name: Run Claude Code
         id: claude
@@ -45,6 +50,7 @@ jobs:
 
           # Allow Claude to run specific commands for scriptrag development
           allowed_tools: |
+            Bash(make setup-dev)
             Bash(make lint)
             Bash(make test)
             Bash(make test-fast)
@@ -53,9 +59,19 @@ jobs:
             Bash(make check)
             Bash(make check-fast)
             Bash(make security)
+            Bash(make sql-lint)
+            Bash(make sql-fix)
+            Bash(make clean-mock-files)
+            Bash(make coverage)
+            Bash(make db-init)
+            Bash(make db-migrate)
             Bash(pytest)
             Bash(ruff check)
+            Bash(ruff format)
             Bash(mypy)
+            Bash(pre-commit run)
+            Bash(pre-commit run --all-files)
+            Bash(uv sync --all-extras)
 
           # Custom environment variables for Claude
           claude_env: |

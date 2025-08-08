@@ -27,12 +27,22 @@ class ClaudeCodeProvider(BaseLLMProvider):
         self._check_sdk()
 
     def _check_sdk(self) -> None:
-        """Check if Claude Code SDK is available."""
+        """Check if Claude Code SDK and executable are available."""
         try:
+            # Check if the claude executable is available in PATH
+            import shutil
+
             import claude_code_sdk  # noqa: F401
 
-            self.sdk_available = True
-            logger.debug("Claude Code SDK is available")
+            if shutil.which("claude") is not None:
+                self.sdk_available = True
+                logger.debug("Claude Code SDK and CLI executable are available")
+            else:
+                self.sdk_available = False
+                logger.debug(
+                    "Claude Code SDK installed but claude executable not found in PATH"
+                )
+
         except ImportError:
             logger.debug("Claude Code SDK not installed")
             self.sdk_available = False

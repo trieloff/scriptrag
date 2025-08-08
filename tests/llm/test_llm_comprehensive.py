@@ -1,5 +1,6 @@
 """Comprehensive tests for LLM module to achieve 99% coverage."""
 
+import os
 import time
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
@@ -212,8 +213,16 @@ class TestClaudeCodeProviderExtended:
 
         # Mock importing the SDK
         mock_sdk = MagicMock()
+
+        # Create a mock AssistantMessage with proper structure
+        mock_text_block = Mock()
+        mock_text_block.text = "Test response"
+
         mock_message = Mock()
-        mock_message.content = "Test response"
+        mock_message.__class__.__name__ = "AssistantMessage"
+        mock_message.content = [
+            mock_text_block
+        ]  # Content is a list of TextBlock objects
 
         async def mock_query(*args, **kwargs):  # noqa: ARG001
             for msg in [mock_message]:
@@ -670,19 +679,21 @@ class TestLLMClientExtended:
     @pytest.mark.asyncio
     async def test_ensure_provider_creates_provider(self):
         """Test ensure_provider selects provider when none selected."""
-        client = LLMClient()
-        assert client.current_provider is None
+        # Remove PATH to disable Claude Code
+        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):  # noqa: S108
+            client = LLMClient()
+            assert client.current_provider is None
 
-        # Mock a provider as available
-        mock_provider = Mock(spec=BaseLLMProvider)
-        mock_provider.is_available = AsyncMock(return_value=True)
-        mock_provider.provider_type = LLMProvider.GITHUB_MODELS
-        client.registry.providers[LLMProvider.GITHUB_MODELS] = mock_provider
+            # Mock a provider as available
+            mock_provider = Mock(spec=BaseLLMProvider)
+            mock_provider.is_available = AsyncMock(return_value=True)
+            mock_provider.provider_type = LLMProvider.GITHUB_MODELS
+            client.registry.providers[LLMProvider.GITHUB_MODELS] = mock_provider
 
-        provider = await client.ensure_provider()
+            provider = await client.ensure_provider()
 
-        assert provider is mock_provider
-        assert client.current_provider is mock_provider
+            assert provider is mock_provider
+            assert client.current_provider is mock_provider
 
     @pytest.mark.asyncio
     async def test_ensure_provider_uses_existing(self):
@@ -869,15 +880,27 @@ class TestLLMClientExtended:
             )
         )
 
-        # Test that it selects the chat-capable model
+        # Test that it doesn't change the model when already specified
         request = CompletionRequest(
-            model="gpt-4",  # Temporary fallback
+            model="gpt-4",  # Already specified
             messages=[{"role": "user", "content": "Hello"}],
         )
 
         await client._try_complete_with_provider(mock_provider, request)
 
-        assert request.model == "model-chat"  # Should be updated
+        assert request.model == "gpt-4"  # Should NOT be updated when already specified
+        mock_provider.complete.assert_called_once()
+
+        # Test that it selects a model when not specified
+        request_auto = CompletionRequest(
+            model="",  # Empty model to trigger auto-selection
+            messages=[{"role": "user", "content": "Hello"}],
+        )
+
+        mock_provider.complete.reset_mock()
+        await client._try_complete_with_provider(mock_provider, request_auto)
+
+        assert request_auto.model == "model-chat"  # Should be auto-selected
         mock_provider.complete.assert_called_once()
 
     @pytest.mark.asyncio

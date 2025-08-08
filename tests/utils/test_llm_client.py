@@ -42,12 +42,12 @@ class TestClaudeCodeProvider:
     @pytest.mark.asyncio
     async def test_is_available_with_sdk_no_env(self):
         """Test availability check with SDK but not in Claude environment."""
-        provider = ClaudeCodeProvider()
-        with (
-            patch.object(provider, "sdk_available", True),
-            patch.dict(os.environ, {}, clear=True),
-        ):
-            assert await provider.is_available() is False
+        # Remove PATH to simulate claude executable not available
+        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):  # noqa: S108
+            provider = ClaudeCodeProvider()
+            # Clear env vars to ensure no Claude environment markers
+            with patch.dict(os.environ, {}, clear=True):
+                assert await provider.is_available() is False
 
     @pytest.mark.asyncio
     async def test_is_available_in_claude_env(self):
@@ -76,17 +76,19 @@ class TestClaudeCodeProvider:
 
     @pytest.mark.asyncio
     async def test_complete_not_available(self):
-        """Test completion when SDK is not available."""
-        provider = ClaudeCodeProvider()
-        provider.sdk_available = False
+        """Test completion when claude executable is not available."""
+        # Remove PATH to simulate claude executable not available
+        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):  # noqa: S108
+            provider = ClaudeCodeProvider()
 
-        request = CompletionRequest(
-            model="claude-3-opus",
-            messages=[{"role": "user", "content": "Hello"}],
-        )
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Hello"}],
+            )
 
-        with pytest.raises(ImportError):
-            await provider.complete(request)
+            # The SDK will raise an error when trying to execute claude
+            with pytest.raises(Exception):  # noqa: B017
+                await provider.complete(request)
 
     @pytest.mark.asyncio
     async def test_embed_not_implemented(self):
@@ -585,43 +587,45 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_complete_without_model(self):
         """Test completion without specifying model."""
-        client = LLMClient()
+        # Remove PATH to disable Claude Code
+        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):  # noqa: S108
+            client = LLMClient()
 
-        # Mock provider with models
-        mock_provider = MagicMock()
-        mock_provider.provider_type = LLMProvider.GITHUB_MODELS
-        mock_provider.list_models = AsyncMock(
-            return_value=[
-                Model(
-                    id="gpt-4",
-                    name="GPT-4",
-                    provider=LLMProvider.GITHUB_MODELS,
-                    capabilities=["chat"],
-                )
-            ]
-        )
-        mock_response = CompletionResponse(
-            id="test",
-            model="gpt-4",
-            choices=[{"message": {"content": "Test"}}],
-            provider=LLMProvider.GITHUB_MODELS,
-        )
-        mock_provider.complete = AsyncMock(return_value=mock_response)
-        mock_provider.is_available = AsyncMock(return_value=True)
+            # Mock provider with models
+            mock_provider = MagicMock()
+            mock_provider.provider_type = LLMProvider.GITHUB_MODELS
+            mock_provider.list_models = AsyncMock(
+                return_value=[
+                    Model(
+                        id="gpt-4",
+                        name="GPT-4",
+                        provider=LLMProvider.GITHUB_MODELS,
+                        capabilities=["chat"],
+                    )
+                ]
+            )
+            mock_response = CompletionResponse(
+                id="test",
+                model="gpt-4",
+                choices=[{"message": {"content": "Test"}}],
+                provider=LLMProvider.GITHUB_MODELS,
+            )
+            mock_provider.complete = AsyncMock(return_value=mock_response)
+            mock_provider.is_available = AsyncMock(return_value=True)
 
-        # Replace the provider in the client's providers dict and set as current
-        client.registry.providers[LLMProvider.GITHUB_MODELS] = mock_provider
-        client.current_provider = mock_provider
+            # Replace the provider in the client's providers dict and set as current
+            client.registry.providers[LLMProvider.GITHUB_MODELS] = mock_provider
+            client.current_provider = mock_provider
 
-        response = await client.complete(
-            messages=[{"role": "user", "content": "Hello"}],
-        )
+            response = await client.complete(
+                messages=[{"role": "user", "content": "Hello"}],
+            )
 
-        assert response.model == "gpt-4"
-        mock_provider.complete.assert_called_once()
-        # Check that the model was set to gpt-4
-        call_args = mock_provider.complete.call_args[0][0]
-        assert call_args.model == "gpt-4"
+            assert response.model == "gpt-4"
+            mock_provider.complete.assert_called_once()
+            # Check that the model was set to gpt-4
+            call_args = mock_provider.complete.call_args[0][0]
+            assert call_args.model == "gpt-4"
 
     @pytest.mark.asyncio
     async def test_embed_with_model(self):

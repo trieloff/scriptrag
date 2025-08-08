@@ -49,6 +49,11 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
     async def is_available(self) -> bool:
         """Check if running in Claude Code environment with SDK available."""
+        # Check if Claude Code is explicitly disabled for testing
+        if os.getenv("SCRIPTRAG_IGNORE_CLAUDE"):
+            logger.debug("Claude Code provider disabled by SCRIPTRAG_IGNORE_CLAUDE")
+            return False
+
         # We need BOTH the environment AND the SDK to be available
         # Just having the environment without SDK means we can't actually use it
 

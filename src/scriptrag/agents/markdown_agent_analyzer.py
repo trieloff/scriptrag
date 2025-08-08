@@ -184,32 +184,110 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
             )
 
         # 4. Extract JSON schema block to use for structured output
+        response_format = None
         json_schema_match = re.search(r"```json\n(.*?)\n```", prompt, re.DOTALL)
         if json_schema_match:
             # Remove the JSON schema block from the prompt
             prompt = re.sub(r"```json\n.*?\n```", "", prompt, count=1, flags=re.DOTALL)
+            # Use the output schema from the agent spec for response format
+            # Different OpenAI-compatible APIs have different requirements:
+            # - OpenAI uses type: "json_object" without schema
+            # - Some implementations use type: "json_schema" with schema
+            # We'll try json_schema format which seems more standard
+            if self.spec.output_schema:
+                response_format = {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": self.spec.name,
+                        "schema": self.spec.output_schema,
+                        "strict": False,  # Allow additional properties
+                    },
+                }
+                logger.debug(
+                    f"Using structured output for {self.spec.name}",
+                    schema_keys=list(
+                        self.spec.output_schema.get("properties", {}).keys()
+                    ),
+                )
 
         try:
             if self.llm_client is None:
                 raise RuntimeError("LLM client not initialized")
 
-            # Call the LLM client - let it handle model selection
-            # Pass model=None to let the client select the best available model
-            response = await self.llm_client.complete(
+            # Log the LLM request details
+            scene_heading = scene.get("heading", "unknown")
+            logger.info(
+                f"Making LLM request for agent {self.spec.name}",
+                scene_heading=scene_heading,
+                prompt_length=len(prompt),
+                scene_content_length=len(scene_content),
+                has_response_format=bool(response_format),
+            )
+            logger.debug(
+                f"LLM prompt preview for {self.spec.name}",
+                prompt_preview=prompt[:500] if len(prompt) > 500 else prompt,
+            )
+
+            # Build the completion request
+            from scriptrag.llm.models import CompletionRequest
+
+            request = CompletionRequest(
+                model="",  # Let client auto-select
                 messages=[{"role": "user", "content": prompt}],
-                model=None,  # Let client auto-select
                 temperature=0.3,
                 max_tokens=10000,
+                response_format=response_format,
+            )
+
+            # Call the LLM client
+            response = await self.llm_client.complete(request)
+
+            # Log the response details
+            logger.info(
+                f"LLM response received for agent {self.spec.name}",
+                scene_heading=scene_heading,
+                response_length=len(response.content),
+                model_used=response.model,
+                provider=response.provider.value if response.provider else "unknown",
+                usage=response.usage,
+            )
+            logger.debug(
+                f"LLM response preview for {self.spec.name}",
+                response_preview=response.content[:500]
+                if len(response.content) > 500
+                else response.content,
             )
 
             # Parse the response
-            return self._parse_llm_response(response.content)
+            parsed_result = self._parse_llm_response(response.content)
+
+            # Log parsing result
+            if parsed_result:
+                logger.info(
+                    f"Successfully parsed LLM response for {self.spec.name}",
+                    scene_heading=scene_heading,
+                    result_keys=list(parsed_result.keys()),
+                )
+            else:
+                logger.warning(
+                    f"Failed to parse LLM response for {self.spec.name}",
+                    scene_heading=scene_heading,
+                )
+
+            return parsed_result
 
         except Exception as e:
             logger.error(
                 f"LLM call failed for agent {self.spec.name}",
                 error=str(e),
                 scene_heading=scene.get("heading", ""),
+                error_type=type(e).__name__,
+            )
+            import traceback
+
+            logger.debug(
+                f"LLM call traceback for {self.spec.name}",
+                traceback=traceback.format_exc(),
             )
             return {}
 

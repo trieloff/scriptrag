@@ -213,23 +213,73 @@ class LLMClient:
         self, provider: BaseLLMProvider, request: CompletionRequest
     ) -> CompletionResponse:
         """Try completion with a specific provider, handling model selection."""
+        provider_name = provider.__class__.__name__
+        logger.info(
+            f"Attempting completion with provider: {provider_name}",
+            model_requested=request.model if request.model else "auto-select",
+        )
+
         # Update model if not specified or empty
         if not request.model or request.model == "":
             models = await provider.list_models()
+            model_count = len(models) if models else 0
+            logger.info(
+                f"Auto-selecting model from {model_count} available models",
+                provider=provider_name,
+            )
             if models:
                 # Pick first chat-capable model (models sorted by preference)
                 for m in models:
                     if "chat" in m.capabilities or "completion" in m.capabilities:
                         request.model = m.id
-                        logger.debug(f"Auto-selected model: {m.id}")
+                        logger.info(
+                            f"Auto-selected chat-capable model: {m.id}",
+                            provider=provider_name,
+                            capabilities=m.capabilities,
+                        )
                         break
 
                 # If no chat-capable model found, use the first one
                 if not request.model and models:
                     request.model = models[0].id
-                    logger.debug(f"Using first available model: {models[0].id}")
+                    logger.info(
+                        f"Using first available model: {models[0].id}",
+                        provider=provider_name,
+                        capabilities=models[0].capabilities,
+                        reason="no chat-capable model found",
+                    )
+        else:
+            logger.info(
+                f"Using specified model: {request.model}",
+                provider=provider_name,
+            )
 
-        return await provider.complete(request)
+        # Log the actual request being made
+        logger.debug(
+            f"Sending request to provider {provider_name}",
+            model=request.model,
+            temperature=request.temperature,
+            max_tokens=request.max_tokens,
+            message_count=len(request.messages),
+        )
+
+        try:
+            response = await provider.complete(request)
+            logger.info(
+                f"Successfully completed request with {provider_name}",
+                model=response.model,
+                provider=response.provider.value if response.provider else "unknown",
+                response_length=len(response.content),
+            )
+            return response
+        except Exception as e:
+            logger.error(
+                f"Provider {provider_name} failed to complete request",
+                error=str(e),
+                error_type=type(e).__name__,
+                model=request.model,
+            )
+            raise
 
     async def _complete_with_fallback(
         self, request: CompletionRequest
@@ -237,33 +287,83 @@ class LLMClient:
         """Try completion with providers in fallback order."""
         errors = []
 
+        logger.info(
+            "Starting LLM completion with fallback strategy",
+            preferred_provider=self.preferred_provider.value
+            if self.preferred_provider
+            else "none",
+            fallback_order=[p.value for p in self.fallback_order],
+        )
+
         # Try preferred provider first
         if self.preferred_provider:
             provider = self.registry.get_provider(self.preferred_provider)
-            if provider and await provider.is_available():
-                try:
-                    return await self._try_complete_with_provider(provider, request)
-                except Exception as e:
-                    logger.debug(
-                        f"Preferred provider {self.preferred_provider.value} "
-                        f"failed: {e}"
-                    )
-                    errors.append(f"{self.preferred_provider.value}: {e}")
+            if provider:
+                is_available = await provider.is_available()
+                logger.info(
+                    f"Checking preferred provider: {self.preferred_provider.value}",
+                    is_available=is_available,
+                )
+                if is_available:
+                    try:
+                        return await self._try_complete_with_provider(provider, request)
+                    except Exception as e:
+                        logger.warning(
+                            "Preferred provider failed",
+                            provider=self.preferred_provider.value,
+                            error=str(e),
+                            error_type=type(e).__name__,
+                        )
+                        errors.append(f"{self.preferred_provider.value}: {e}")
+            else:
+                logger.warning(
+                    "Preferred provider not found in registry",
+                    provider=self.preferred_provider.value,
+                )
 
         # Try fallback providers in order
         for provider_type in self.fallback_order:
             if provider_type == self.preferred_provider:
+                logger.debug(
+                    f"Skipping {provider_type.value} (already tried as preferred)"
+                )
                 continue  # Already tried
 
             provider = self.registry.get_provider(provider_type)
-            if provider and await provider.is_available():
-                try:
-                    return await self._try_complete_with_provider(provider, request)
-                except Exception as e:
-                    logger.debug(f"Fallback provider {provider_type.value} failed: {e}")
-                    errors.append(f"{provider_type.value}: {e}")
+            if provider:
+                is_available = await provider.is_available()
+                logger.info(
+                    f"Checking fallback provider: {provider_type.value}",
+                    is_available=is_available,
+                )
+                if is_available:
+                    try:
+                        return await self._try_complete_with_provider(provider, request)
+                    except Exception as e:
+                        logger.warning(
+                            f"Fallback provider {provider_type.value} failed",
+                            error=str(e),
+                            error_type=type(e).__name__,
+                        )
+                        errors.append(f"{provider_type.value}: {e}")
+                else:
+                    logger.debug(
+                        f"Fallback provider {provider_type.value} not available"
+                    )
+            else:
+                logger.debug(
+                    f"Fallback provider {provider_type.value} not found in registry"
+                )
 
         # All providers failed
+        logger.error(
+            "All LLM providers failed",
+            errors=errors,
+            attempted_providers=list(
+                set([self.preferred_provider.value] if self.preferred_provider else [])
+                | {p.value for p in self.fallback_order}
+            ),
+        )
         raise RuntimeError(f"All LLM providers failed: {'; '.join(errors)}")
 
     async def embed(

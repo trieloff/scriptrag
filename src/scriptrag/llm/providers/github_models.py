@@ -67,9 +67,20 @@ class GitHubModelsProvider(BaseLLMProvider):
         self._availability_cache: bool | None = None
         self._cache_timestamp: float = 0
 
+        logger.info(
+            "Initialized GitHub Models provider",
+            endpoint=self.base_url,
+            has_token=bool(self.token),
+            timeout=timeout,
+        )
+
     async def is_available(self) -> bool:
         """Check if GitHub token is available and valid."""
         if not self.token:
+            logger.debug(
+                "GitHub Models not available",
+                reason="no token configured",
+            )
             return False
 
         # Check cache (valid for 5 minutes)
@@ -77,6 +88,11 @@ class GitHubModelsProvider(BaseLLMProvider):
             self._availability_cache is not None
             and (time.time() - self._cache_timestamp) < 300
         ):
+            logger.debug(
+                "Using cached GitHub Models availability",
+                is_available=self._availability_cache,
+                cache_age=time.time() - self._cache_timestamp,
+            )
             return self._availability_cache
 
         try:
@@ -84,13 +100,26 @@ class GitHubModelsProvider(BaseLLMProvider):
                 "Authorization": f"Bearer {self.token}",
                 "Accept": "application/json",
             }
-            response = await self.client.get(f"{self.base_url}/models", headers=headers)
+            models_url = f"{self.base_url}/models"
+            logger.debug(f"Checking GitHub Models availability at {models_url}")
+            response = await self.client.get(models_url, headers=headers)
             result = bool(response.status_code == 200)
             self._availability_cache = result
             self._cache_timestamp = time.time()
+            logger.info(
+                "GitHub Models availability check",
+                is_available=result,
+                status_code=response.status_code,
+                endpoint=self.base_url,
+            )
             return result
         except Exception as e:
-            logger.debug(f"GitHub Models not available: {e}")
+            logger.warning(
+                "GitHub Models not available",
+                error=str(e),
+                error_type=type(e).__name__,
+                endpoint=self.base_url,
+            )
             self._availability_cache = False
             self._cache_timestamp = time.time()
             return False
@@ -191,7 +220,27 @@ class GitHubModelsProvider(BaseLLMProvider):
             system_msg = [{"role": "system", "content": request.system}]
             payload["messages"] = system_msg + request.messages
 
+        # Add response_format if specified (GitHub Models uses OpenAI-compatible API)
+        if hasattr(request, "response_format") and request.response_format:
+            payload["response_format"] = request.response_format
+            logger.debug(
+                "GitHub Models using structured output format",
+                response_format_type=request.response_format.get("type"),
+                has_schema="schema" in request.response_format
+                or "json_schema" in request.response_format,
+            )
+
         try:
+            logger.info(
+                "Sending GitHub Models completion request",
+                endpoint=f"{self.base_url}/chat/completions",
+                model=request.model,
+                message_count=len(request.messages),
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                has_response_format=bool(payload.get("response_format")),
+            )
+
             response = await self.client.post(
                 f"{self.base_url}/chat/completions",
                 headers=headers,
@@ -199,9 +248,35 @@ class GitHubModelsProvider(BaseLLMProvider):
             )
 
             if response.status_code != 200:
+                error_text = response.text
+                logger.error(
+                    "GitHub Models API error",
+                    status_code=response.status_code,
+                    error_text=error_text[:500]
+                    if len(error_text) > 500
+                    else error_text,
+                    endpoint=f"{self.base_url}/chat/completions",
+                    model=request.model,
+                )
                 raise ValueError(f"GitHub Models API error: {response.text}")
 
             data = response.json()
+
+            # Log successful response
+            choices = data.get("choices", [])
+            response_content = ""
+            if choices and len(choices) > 0:
+                response_content = choices[0].get("message", {}).get("content", "")
+
+            logger.info(
+                "GitHub Models completion successful",
+                model=data.get("model", request.model),
+                response_length=len(response_content),
+                usage=data.get("usage", {}),
+                response_preview=response_content[:200]
+                if len(response_content) > 200
+                else response_content,
+            )
 
             # Extract usage data, handling GitHub Models' nested structure
             usage_data = data.get("usage", {})
@@ -220,7 +295,13 @@ class GitHubModelsProvider(BaseLLMProvider):
             )
 
         except Exception as e:
-            logger.error(f"GitHub Models completion failed: {e}")
+            logger.error(
+                "GitHub Models completion failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                endpoint=f"{self.base_url}/chat/completions",
+                model=request.model,
+            )
             raise
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:

@@ -319,6 +319,8 @@ class TestFullWorkflow:
         monkeypatch.setenv(
             "SCRIPTRAG_LLM_ENDPOINT", "https://mac-studio-2025.tail6d5f26.ts.net/v1"
         )
+        # Disable Claude Code provider to force OpenAI-compatible
+        monkeypatch.setenv("SCRIPTRAG_IGNORE_CLAUDE", "1")
 
         # Step 1: Initialize database
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])

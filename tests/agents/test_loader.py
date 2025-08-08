@@ -441,11 +441,13 @@ class TestMarkdownAgentAnalyzer:
         scene = {"text": "Test scene"}
         result = await analyzer.analyze(scene)
 
-        # Should return error result on invalid JSON
+        # Should return error result on invalid JSON after 3 attempts
         assert "error" in result
-        assert "Output validation failed" in result["error"]
+        assert "validation failed after 3 attempts" in result["error"].lower()
         assert result["analyzer"] == "test-analyzer"
         assert result["version"] == "2.0.0"
+        # Should have tried 3 times
+        assert mock_client.complete.call_count == 3
 
     @pytest.mark.asyncio
     async def test_analyze_schema_validation_error(
@@ -464,11 +466,13 @@ class TestMarkdownAgentAnalyzer:
         scene = {"text": "Test scene"}
         result = await analyzer.analyze(scene)
 
-        # Should return error result on validation failure
+        # Should return error result on validation failure after 3 attempts
         assert "error" in result
-        assert "Output validation failed" in result["error"]
+        assert "validation failed after 3 attempts" in result["error"].lower()
         assert result["analyzer"] == "test-analyzer"
         assert result["version"] == "2.0.0"
+        # Should have tried 3 times
+        assert mock_client.complete.call_count == 3
 
     @pytest.mark.asyncio
     async def test_analyze_prompt_formatting(self, sample_spec: AgentSpec) -> None:

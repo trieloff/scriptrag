@@ -1,6 +1,5 @@
 """Fountain screenplay format parser using jouvence library."""
 
-import hashlib
 import json
 import re
 from dataclasses import dataclass, field
@@ -16,7 +15,7 @@ from jouvence.document import (
 from jouvence.parser import JouvenceParser
 
 from scriptrag.config import get_logger
-from scriptrag.utils import ScreenplayUtils
+from scriptrag.utils.screenplay import ScreenplayUtils
 
 logger = get_logger(__name__)
 
@@ -374,8 +373,7 @@ class FountainParser:
             content_lines_list.append(dialogue.text)
 
         # Calculate content hash (excluding boneyard)
-        content_for_hash = re.sub(self.BONEYARD_PATTERN, "", original_text).strip()
-        content_hash = hashlib.sha256(content_for_hash.encode()).hexdigest()[:16]
+        content_hash = ScreenplayUtils.compute_scene_hash(original_text, truncate=True)
 
         return Scene(
             number=number,

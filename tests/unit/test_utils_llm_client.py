@@ -369,12 +369,18 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_list_models(self, client):
         """Test listing models from all providers."""
-        with patch.object(
-            client.providers[LLMProvider.GITHUB_MODELS], "list_models"
-        ) as mock_github:
+        with (
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS], "list_models"
+            ) as mock_github,
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS], "is_available"
+            ) as mock_available,
+        ):
             mock_github.return_value = [
                 Model(id="gpt-4", name="GPT-4", provider=LLMProvider.GITHUB_MODELS)
             ]
+            mock_available.return_value = True
 
             models = await client.list_models()
             assert len(models) > 0
@@ -382,12 +388,18 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_list_models_specific_provider(self, client):
         """Test listing models from specific provider."""
-        with patch.object(
-            client.providers[LLMProvider.GITHUB_MODELS], "list_models"
-        ) as mock_github:
+        with (
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS], "list_models"
+            ) as mock_github,
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS], "is_available"
+            ) as mock_available,
+        ):
             mock_github.return_value = [
                 Model(id="gpt-4", name="GPT-4", provider=LLMProvider.GITHUB_MODELS)
             ]
+            mock_available.return_value = True
 
             models = await client.list_models(provider=LLMProvider.GITHUB_MODELS)
             assert len(models) == 1

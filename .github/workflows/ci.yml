@@ -284,8 +284,9 @@ jobs:
       - name: Run full test suite
         run: |
           echo "🧪 Running full test suite on ${{ matrix.os }} with Python ${{ matrix.python-version }}"
+          echo "⏭️  Excluding integration tests (they run in a separate job)"
           echo "Starting pytest at $(date)"
-          make test
+          make test PYTEST_ARGS="-m 'not integration'"
           echo "Finished pytest at $(date)"
         shell: bash
 

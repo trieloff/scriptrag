@@ -1,0 +1,63 @@
+name: Claude Code Dispatch
+
+# IMPORTANT: Do not modify this `on` section\!
+
+on:
+  repository_dispatch:
+    types: [claude-dispatch]
+
+jobs:
+  claude-dispatch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Preliminary Setup
+        run: |
+          echo "Setting up environment..."
+          # Setup Python environment for scriptrag
+          python -m pip install --upgrade pip
+          pip install uv
+          uv venv
+          source .venv/bin/activate
+          uv pip install -e .
+          uv pip install -r requirements-dev.txt
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@eap
+        with:
+          mode: 'remote-agent'
+          # Optional: Specify an API key, otherwise we'll use your Claude account automatically
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
+          # model: "claude-opus-4-20250514"
+
+          # Allow Claude to run specific commands for scriptrag development
+          allowed_tools: |
+            Bash(make lint)
+            Bash(make test)
+            Bash(make test-fast)
+            Bash(make format)
+            Bash(make type-check)
+            Bash(make check)
+            Bash(make check-fast)
+            Bash(make security)
+            Bash(pytest)
+            Bash(ruff check)
+            Bash(mypy)
+
+          # Custom environment variables for Claude
+          claude_env: |
+            PYTHON_ENV: test
+            SCRIPTRAG_ENV: ci

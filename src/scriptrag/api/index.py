@@ -1,5 +1,6 @@
 """Script index API module for ScriptRAG."""
 
+import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -7,7 +8,7 @@ from pathlib import Path
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.list import FountainMetadata, ScriptLister
 from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
-from scriptrag.parser import FountainParser, Script
+from scriptrag.parser import FountainParser, Scene, Script
 
 logger = get_logger(__name__)
 
@@ -380,6 +381,9 @@ class IndexCommand:
                         )
                         total_actions += action_count
 
+                    # Process embeddings from boneyard metadata
+                    await self._process_scene_embeddings(conn, scene, scene_id)
+
                 # Get final stats
                 stats = self.db_ops.get_script_stats(conn, script_id)
 
@@ -397,6 +401,84 @@ class IndexCommand:
         except Exception as e:
             logger.error(f"Error indexing {file_path}: {e}")
             raise
+
+    async def _process_scene_embeddings(
+        self, conn: sqlite3.Connection, scene: Scene, scene_id: int
+    ) -> None:
+        """Process and store embeddings for a scene from boneyard metadata.
+
+        Args:
+            conn: Database connection
+            scene: Scene object with potential embedding metadata
+            scene_id: Database ID of the scene
+        """
+        if not scene.boneyard_metadata:
+            return
+
+        # Check for embedding analyzer results
+        analyzers = scene.boneyard_metadata.get("analyzers", {})
+        embedding_data = analyzers.get("scene_embeddings", {})
+
+        if not embedding_data or "result" not in embedding_data:
+            return
+
+        result = embedding_data.get("result", {})
+        if "error" in result:
+            logger.warning(f"Scene {scene_id} has embedding error: {result['error']}")
+            return
+
+        # Extract embedding information
+        embedding_path = result.get("embedding_path")
+        model = result.get("model", "unknown")
+
+        if not embedding_path:
+            return
+
+        # Check if embedding file exists and load it
+        try:
+            import git
+            import numpy as np
+
+            # Get the repository root
+            repo = git.Repo(
+                scene.file_path.parent if hasattr(scene, "file_path") else ".",
+                search_parent_directories=True,
+            )
+            repo_root = Path(repo.working_dir)
+            full_embedding_path = repo_root / embedding_path
+
+            if full_embedding_path.exists():
+                # Load embedding from file
+                embedding_array = np.load(full_embedding_path)
+                # Convert to bytes for database storage
+                embedding_bytes = embedding_array.tobytes()
+
+                # Store in database
+                self.db_ops.upsert_embedding(
+                    conn,
+                    entity_type="scene",
+                    entity_id=scene_id,
+                    embedding_model=model,
+                    embedding_data=embedding_bytes,
+                    embedding_path=embedding_path,
+                )
+                logger.info(
+                    f"Stored embedding for scene {scene_id} from {embedding_path}"
+                )
+            else:
+                # Store reference path - downloaded from LFS when needed
+                self.db_ops.upsert_embedding(
+                    conn,
+                    entity_type="scene",
+                    entity_id=scene_id,
+                    embedding_model=model,
+                    embedding_path=embedding_path,
+                )
+                logger.info(
+                    f"Stored embedding reference for scene {scene_id}: {embedding_path}"
+                )
+        except Exception as e:
+            logger.error(f"Failed to process embedding for scene {scene_id}: {e}")
 
     async def _dry_run_analysis(self, script: Script, file_path: Path) -> IndexResult:
         """Analyze what would be indexed without making changes.

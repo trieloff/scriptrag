@@ -1,8 +1,9 @@
 """Generic OpenAI-compatible API provider."""
 
+import asyncio
 import os
 import time
-from typing import Any
+from typing import Any, ClassVar
 
 import httpx
 
@@ -25,11 +26,18 @@ class OpenAICompatibleProvider(BaseLLMProvider):
 
     provider_type = LLMProvider.OPENAI_COMPATIBLE
 
+    # Model preference order - faster models first
+    MODEL_PREFERENCE_ORDER: ClassVar[list[str]] = [
+        "qwen/qwen3-30b-a3b-mlx",  # Fastest
+        "mlx-community/glm-4-9b-chat-4bit",  # Slower but still acceptable
+        # Add more models here in order of preference
+    ]
+
     def __init__(
         self,
         endpoint: str | None = None,
         api_key: str | None = None,
-        timeout: float = 30.0,
+        timeout: float = 60.0,
     ) -> None:
         """Initialize OpenAI-compatible provider.
 
@@ -41,13 +49,29 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         self.base_url = endpoint or os.getenv("SCRIPTRAG_LLM_ENDPOINT", "")
         self.api_key = api_key or os.getenv("SCRIPTRAG_LLM_API_KEY", "")
         self.timeout = timeout
-        self.client = httpx.AsyncClient(timeout=timeout)
+        # Use a longer timeout for the httpx client
+        self.client = httpx.AsyncClient(timeout=httpx.Timeout(120.0))
         self._availability_cache: bool | None = None
         self._cache_timestamp: float = 0
+        # Semaphore to prevent concurrent requests for local LLM servers
+        self._request_semaphore = asyncio.Semaphore(1)
+
+        logger.info(
+            "Initialized OpenAI-compatible provider",
+            endpoint=self.base_url if self.base_url else "not configured",
+            has_api_key=bool(self.api_key),
+            timeout=timeout,
+        )
 
     async def is_available(self) -> bool:
         """Check if endpoint and API key are configured."""
         if not self.base_url or not self.api_key:
+            logger.debug(
+                "OpenAI-compatible provider not available",
+                reason="missing configuration",
+                has_endpoint=bool(self.base_url),
+                has_api_key=bool(self.api_key),
+            )
             return False
 
         # Check cache (valid for 5 minutes)
@@ -55,6 +79,11 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             self._availability_cache is not None
             and (time.time() - self._cache_timestamp) < 300
         ):
+            logger.debug(
+                "Using cached availability",
+                is_available=self._availability_cache,
+                cache_age=time.time() - self._cache_timestamp,
+            )
             return self._availability_cache
 
         try:
@@ -62,13 +91,26 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                 "Authorization": f"Bearer {self.api_key}",
                 "Accept": "application/json",
             }
-            response = await self.client.get(f"{self.base_url}/models", headers=headers)
+            models_url = f"{self.base_url}/models"
+            logger.debug(f"Checking OpenAI-compatible availability at {models_url}")
+            response = await self.client.get(models_url, headers=headers)
             result = bool(response.status_code == 200)
             self._availability_cache = result
             self._cache_timestamp = time.time()
+            logger.info(
+                "OpenAI-compatible provider availability check",
+                is_available=result,
+                status_code=response.status_code,
+                endpoint=self.base_url,
+            )
             return result
         except Exception as e:
-            logger.debug(f"OpenAI-compatible endpoint not available: {e}")
+            logger.warning(
+                "OpenAI-compatible endpoint not available",
+                error=str(e),
+                error_type=type(e).__name__,
+                endpoint=self.base_url,
+            )
             self._availability_cache = False
             self._cache_timestamp = time.time()
             return False
@@ -123,6 +165,17 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                     )
                 )
 
+            # Sort models by preference order
+            def model_sort_key(model: Model) -> tuple[int, str]:
+                try:
+                    # Check if model ID is in preference list
+                    idx = self.MODEL_PREFERENCE_ORDER.index(model.id)
+                    return (idx, model.id)
+                except ValueError:
+                    # Not in preference list, put at end
+                    return (len(self.MODEL_PREFERENCE_ORDER), model.id)
+
+            models.sort(key=model_sort_key)
             return models
 
         except Exception as e:
@@ -134,47 +187,102 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         if not self.base_url or not self.api_key:
             raise ValueError("OpenAI-compatible endpoint not configured")
 
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+        # Use semaphore to prevent concurrent requests for local LLM servers
+        async with self._request_semaphore:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            }
 
-        payload = {
-            "model": request.model,
-            "messages": request.messages,
-            "temperature": request.temperature,
-            "top_p": request.top_p,
-            "stream": request.stream,
-        }
+            payload = {
+                "model": request.model,
+                "messages": request.messages,
+                "temperature": request.temperature,
+                "top_p": request.top_p,
+                "stream": request.stream,
+            }
 
-        if request.max_tokens:
-            payload["max_tokens"] = request.max_tokens
-        if request.system:
-            system_msg = [{"role": "system", "content": request.system}]
-            payload["messages"] = system_msg + request.messages
+            if request.max_tokens:
+                payload["max_tokens"] = request.max_tokens
+            if request.system:
+                system_msg = [{"role": "system", "content": request.system}]
+                payload["messages"] = system_msg + request.messages
 
-        try:
-            response = await self.client.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
+            # Add response_format if specified
+            if hasattr(request, "response_format") and request.response_format:
+                payload["response_format"] = request.response_format
+                logger.debug(
+                    "Using structured output format",
+                    response_format_type=request.response_format.get("type"),
+                    has_schema="schema" in request.response_format,
+                )
+
+            completions_url = f"{self.base_url}/chat/completions"
+            logger.info(
+                "Sending OpenAI-compatible completion request",
+                endpoint=completions_url,
+                model=request.model,
+                message_count=len(request.messages),
+                temperature=request.temperature,
+                max_tokens=request.max_tokens,
+                has_response_format=bool(payload.get("response_format")),
             )
 
-            if response.status_code != 200:
-                raise ValueError(f"API error: {response.text}")
+            try:
+                response = await self.client.post(
+                    completions_url,
+                    headers=headers,
+                    json=payload,
+                )
 
-            data = response.json()
-            return CompletionResponse(
-                id=data.get("id", ""),
-                model=data.get("model", request.model),
-                choices=data.get("choices", []),
-                usage=data.get("usage", {}),
-                provider=self.provider_type,
-            )
+                if response.status_code != 200:
+                    error_text = response.text
+                    logger.error(
+                        "OpenAI-compatible API error",
+                        status_code=response.status_code,
+                        error_text=error_text[:500]
+                        if len(error_text) > 500
+                        else error_text,
+                        endpoint=completions_url,
+                        model=request.model,
+                    )
+                    raise ValueError(f"API error: {response.text}")
 
-        except Exception as e:
-            logger.error(f"Completion failed: {e}")
-            raise
+                data = response.json()
+
+                # Log successful response
+                choices = data.get("choices", [])
+                response_content = ""
+                if choices and len(choices) > 0:
+                    response_content = choices[0].get("message", {}).get("content", "")
+
+                logger.info(
+                    "OpenAI-compatible completion successful",
+                    model=data.get("model", request.model),
+                    response_length=len(response_content),
+                    usage=data.get("usage", {}),
+                    response_preview=response_content[:200]
+                    if len(response_content) > 200
+                    else response_content,
+                )
+
+                return CompletionResponse(
+                    id=data.get("id", ""),
+                    model=data.get("model", request.model),
+                    choices=data.get("choices", []),
+                    usage=data.get("usage", {}),
+                    provider=self.provider_type,
+                )
+
+            except Exception as e:
+                logger.error(
+                    "OpenAI-compatible completion failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    endpoint=completions_url,
+                    model=request.model,
+                )
+                raise
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Generate embeddings using OpenAI-compatible API."""

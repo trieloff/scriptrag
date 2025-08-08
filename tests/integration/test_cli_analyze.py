@@ -1,5 +1,6 @@
 """Integration tests for the analyze CLI command."""
 
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -11,56 +12,29 @@ from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
 
+# Path to fixture files
+FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
+
 
 @pytest.fixture
 def temp_fountain_files(tmp_path):
-    """Create temporary fountain files for testing."""
-    # Create a simple fountain file
+    """Copy fountain fixture files to temp directory for testing."""
+    # Copy simple fountain file
+    simple_source = FIXTURES_DIR / "simple_script.fountain"
     simple_file = tmp_path / "simple.fountain"
-    simple_file.write_text("""Title: Simple Script
-Author: Test Author
+    shutil.copy2(simple_source, simple_file)
 
-INT. ROOM - DAY
-
-A simple scene.
-
-CHARACTER
-Some dialogue.
-""")
-
-    # Create a file with existing metadata
+    # Copy file with existing metadata
+    with_metadata_source = FIXTURES_DIR / "script_with_metadata.fountain"
     with_metadata = tmp_path / "with_metadata.fountain"
-    with_metadata.write_text("""Title: Script with Metadata
-Author: Test Author
-
-INT. ROOM - DAY
-
-A scene with existing metadata.
-
-/* SCRIPTRAG-META-START
-{
-    "content_hash": "abc123",
-    "analyzed_at": "2024-01-01T00:00:00",
-    "analyzers": {
-        "nop": {
-            "version": "1.0.0",
-            "result": {}
-        }
-    }
-}
-SCRIPTRAG-META-END */
-""")
+    shutil.copy2(with_metadata_source, with_metadata)
 
     # Create a subdirectory with another file
     subdir = tmp_path / "subdir"
     subdir.mkdir()
+    nested_source = FIXTURES_DIR / "nested_script.fountain"
     sub_file = subdir / "nested.fountain"
-    sub_file.write_text("""Title: Nested Script
-
-EXT. PARK - DAY
-
-An outdoor scene.
-""")
+    shutil.copy2(nested_source, sub_file)
 
     return tmp_path
 
@@ -177,12 +151,13 @@ class TestAnalyzeCommand:
 
     def test_analyze_updates_file(self, temp_fountain_files):
         """Test that analyze actually updates files."""
+        runner = CliRunner()
         simple_file = temp_fountain_files / "simple.fountain"
 
         # Run analyze with force to ensure processing
         result = runner.invoke(
             app,
-            ["analyze", str(simple_file), "--force", "--analyzer", "nop"],
+            ["analyze", str(simple_file), "--force"],
         )
 
         assert result.exit_code == 0
@@ -190,7 +165,6 @@ class TestAnalyzeCommand:
         # Check that metadata was added
         content = simple_file.read_text()
         assert "SCRIPTRAG-META-START" in content
-        assert "nop" in content
         assert "analyzed_at" in content
 
     def test_analyze_with_errors_display(self, temp_fountain_files, monkeypatch):

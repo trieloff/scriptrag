@@ -27,31 +27,13 @@ def analyze_command():
 
 @pytest.fixture
 def temp_fountain_file(tmp_path):
-    """Create a temporary fountain file."""
-    content = """Title: Test Script
-Author: Test Author
+    """Copy test fountain file to temp directory."""
+    import shutil
 
-FADE IN:
-
-INT. COFFEE SHOP - DAY
-
-A cozy coffee shop. SARAH sits at a table.
-
-SARAH
-This is a test.
-
-JOHN
-(smiling)
-Indeed it is.
-
-EXT. PARK - DAY
-
-John and Sarah walk through the park.
-
-FADE OUT.
-"""
+    fixtures_dir = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
+    source_file = fixtures_dir / "test_script.fountain"
     file_path = tmp_path / "test_script.fountain"
-    file_path.write_text(content)
+    shutil.copy2(source_file, file_path)
     return file_path
 
 
@@ -85,11 +67,18 @@ class TestAnalyzeCommand:
         assert analyze_command.analyzers[0].name == "mock_analyzer"
 
     def test_load_analyzer_builtin(self, analyze_command):
-        """Test loading a built-in analyzer."""
-        analyze_command.load_analyzer("nop")
+        """Test loading a markdown-based analyzer."""
+        # Mock the AgentLoader to test markdown agent loading
+        with patch("scriptrag.agents.AgentLoader") as mock_loader_class:
+            mock_loader = mock_loader_class.return_value
+            mock_analyzer = MockAnalyzer()
+            mock_analyzer.name = "props-inventory"
+            mock_loader.load_agent.return_value = mock_analyzer
 
-        assert len(analyze_command.analyzers) == 1
-        assert analyze_command.analyzers[0].name == "nop"
+            analyze_command.load_analyzer("props-inventory")
+
+            assert len(analyze_command.analyzers) == 1
+            assert analyze_command.analyzers[0].name == "props-inventory"
 
     def test_load_analyzer_unknown(self, analyze_command):
         """Test loading an unknown analyzer."""
@@ -98,8 +87,13 @@ class TestAnalyzeCommand:
 
     def test_load_analyzer_duplicate(self, analyze_command):
         """Test loading the same analyzer twice."""
-        analyze_command.load_analyzer("nop")
-        analyze_command.load_analyzer("nop")
+        # Use mock analyzer for testing duplicate loading
+        mock_analyzer = MockAnalyzer()
+        mock_analyzer.name = "test-duplicate"
+        analyze_command.analyzers.append(mock_analyzer)
+
+        # Try to load the same analyzer again
+        analyze_command.load_analyzer("test-duplicate")
 
         # Should only be loaded once
         assert len(analyze_command.analyzers) == 1

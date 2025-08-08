@@ -85,9 +85,11 @@ class TestRemainingCoverage:
         if github_provider:
             github_provider.is_available = AsyncMock(return_value=True)
             github_provider.list_models = AsyncMock(return_value=[])
-            github_provider.complete = AsyncMock(
-                return_value=Mock(provider=LLMProvider.GITHUB_MODELS)
-            )
+            mock_response = Mock()
+            mock_response.content = "test response"
+            mock_response.model = "test"
+            mock_response.provider = LLMProvider.GITHUB_MODELS
+            github_provider.complete = AsyncMock(return_value=mock_response)
 
         request = CompletionRequest(
             model="test", messages=[{"role": "user", "content": "test"}]
@@ -132,7 +134,11 @@ class TestRemainingCoverage:
 
         mock_provider = Mock(spec=BaseLLMProvider)
         mock_provider.list_models = AsyncMock(return_value=[])
-        mock_provider.complete = AsyncMock(return_value=Mock())
+        mock_response = Mock()
+        mock_response.content = "test response"
+        mock_response.model = "gpt-4"
+        mock_response.provider = LLMProvider.GITHUB_MODELS
+        mock_provider.complete = AsyncMock(return_value=mock_response)
 
         request = CompletionRequest(
             model="gpt-4",  # Will stay as is since no models available

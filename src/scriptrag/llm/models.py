@@ -35,6 +35,7 @@ class CompletionRequest(BaseModel):
     top_p: float = 1.0
     stream: bool = False
     system: str | None = None
+    response_format: dict[str, Any] | None = None
 
 
 class CompletionResponse(BaseModel):
@@ -45,6 +46,21 @@ class CompletionResponse(BaseModel):
     choices: list[dict[str, Any]]
     usage: dict[str, int] = Field(default_factory=dict)
     provider: LLMProvider
+
+    @property
+    def content(self) -> str:
+        """Get the content from the first choice message.
+
+        Returns:
+            The content text from the first choice's message.
+
+        Raises:
+            IndexError: If no choices available.
+            KeyError: If message structure is invalid.
+        """
+        if not self.choices:
+            raise IndexError("No choices available in response")
+        return str(self.choices[0]["message"]["content"])
 
 
 class EmbeddingRequest(BaseModel):

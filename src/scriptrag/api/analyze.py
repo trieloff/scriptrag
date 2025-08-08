@@ -103,7 +103,7 @@ class AnalyzeCommand:
         if name not in self._analyzer_registry:
             # Try to load from built-in analyzers
             try:
-                from scriptrag.analyzers import BUILTIN_ANALYZERS
+                from scriptrag.analyzers.builtin import BUILTIN_ANALYZERS
 
                 if name in BUILTIN_ANALYZERS:
                     analyzer_class = BUILTIN_ANALYZERS[name]
@@ -111,6 +111,18 @@ class AnalyzeCommand:
                     logger.info(f"Loaded built-in analyzer: {name}")
                     return
             except ImportError:
+                pass
+
+            # Try to load as markdown-based agent
+            try:
+                from scriptrag.agents import AgentLoader
+
+                loader = AgentLoader()
+                agent_analyzer = loader.load_agent(name)
+                self.analyzers.append(agent_analyzer)
+                logger.info(f"Loaded markdown agent: {name}")
+                return
+            except (ImportError, ValueError):
                 pass
 
             raise ValueError(f"Unknown analyzer: {name}")

@@ -1,5 +1,6 @@
 """Integration tests for the scriptrag index command."""
 
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -12,81 +13,25 @@ from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
 
+# Path to fixture files
+FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
+
 
 @pytest.fixture
 def sample_fountain_with_metadata(tmp_path):
-    """Create a sample Fountain file with boneyard metadata."""
+    """Copy sample Fountain file with boneyard metadata to temp directory."""
+    source_file = FIXTURES_DIR / "coffee_shop_with_metadata.fountain"
     script_path = tmp_path / "sample.fountain"
-    content = """Title: The Coffee Shop
-Author: Test Writer
-
-INT. COFFEE SHOP - DAY
-
-/* SCRIPTRAG-META-START
-{
-  "content_hash": "abc123",
-  "analyzed_at": "2024-01-01T00:00:00",
-  "analyzers": {
-    "test": {
-      "result": {"mood": "cheerful"}
-    }
-  }
-}
-SCRIPTRAG-META-END */
-
-ALICE enters the bustling coffee shop.
-
-ALICE
-(cheerfully)
-Good morning, Bob!
-
-BOB
-(smiling)
-Hey Alice! The usual?
-
-ALICE nods and sits down.
-
-EXT. PARK - NIGHT
-
-/* SCRIPTRAG-META-START
-{
-  "content_hash": "def456",
-  "analyzed_at": "2024-01-01T00:00:00",
-  "analyzers": {
-    "test": {
-      "result": {"mood": "peaceful"}
-    }
-  }
-}
-SCRIPTRAG-META-END */
-
-They walk through the quiet park.
-
-ALICE
-What a beautiful evening.
-
-BOB
-Perfect for a walk.
-"""
-    script_path.write_text(content)
+    shutil.copy2(source_file, script_path)
     return script_path
 
 
 @pytest.fixture
 def sample_fountain_without_metadata(tmp_path):
-    """Create a sample Fountain file without boneyard metadata."""
+    """Copy sample Fountain file without metadata to temp directory."""
+    source_file = FIXTURES_DIR / "simple_script.fountain"
     script_path = tmp_path / "no_metadata.fountain"
-    content = """Title: Simple Script
-Author: Test Writer
-
-INT. ROOM - DAY
-
-A simple scene without metadata.
-
-CHARACTER
-Some dialogue.
-"""
-    script_path.write_text(content)
+    shutil.copy2(source_file, script_path)
     return script_path
 
 

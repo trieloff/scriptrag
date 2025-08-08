@@ -66,10 +66,14 @@ class TestClaudeCodeProvider:
 
     @pytest.mark.asyncio
     async def test_is_available_without_sdk(self):
-        """Test availability check when SDK is not available."""
-        provider = ClaudeCodeProvider()
-        # SDK is checked during __init__, so it's already False
-        assert await provider.is_available() is False
+        """Test availability check when SDK CLI is not available."""
+        # Remove PATH to make claude executable unavailable
+        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):  # noqa: S108
+            provider = ClaudeCodeProvider()
+            # SDK Python library is available, but without claude executable in PATH,
+            # sdk_available should be False
+            assert provider.sdk_available is False  # CLI not in PATH
+            assert await provider.is_available() is False  # Not usable without CLI
 
     @pytest.mark.asyncio
     async def test_complete_success(self):
@@ -139,14 +143,18 @@ class TestGitHubModelsProvider:
             mock_response.status_code = 200
             mock_response.json.return_value = [
                 {"id": "gpt-4o", "name": "gpt-4o", "summary": "GPT-4 model"},
-                {"id": "llama-3", "name": "llama-3", "summary": "Llama 3 model"},
+                {
+                    "id": "gpt-4o-mini",
+                    "name": "gpt-4o-mini",
+                    "summary": "GPT-4 mini model",
+                },
             ]
             mock_client.get = AsyncMock(return_value=mock_response)
 
             models = await provider.list_models()
             assert len(models) == 2
             assert models[0].id == "gpt-4o"
-            assert models[1].id == "llama-3"
+            assert models[1].id == "gpt-4o-mini"
 
     @pytest.mark.asyncio
     async def test_is_available_with_token(self, provider):

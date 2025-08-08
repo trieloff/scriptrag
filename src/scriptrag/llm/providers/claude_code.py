@@ -1,6 +1,7 @@
 """Claude Code SDK provider for local development."""
 
 import asyncio
+import contextlib
 import json
 import os
 import time
@@ -151,7 +152,6 @@ class ClaudeCodeProvider(BaseLLMProvider):
                 if hasattr(request, "response_format") and request.response_format
                 else 1
             )
-            last_error = None
 
             for attempt in range(max_retries):
                 # Execute query with monitoring
@@ -196,10 +196,8 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
                     # Query completed, cancel progress monitoring
                     progress_task.cancel()
-                    try:
+                    with contextlib.suppress(asyncio.CancelledError):
                         await progress_task
-                    except asyncio.CancelledError:
-                        pass
 
                     query_elapsed = time.time() - query_start_time
                     logger.info(
@@ -210,10 +208,8 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
                 except TimeoutError:
                     progress_task.cancel()
-                    try:
+                    with contextlib.suppress(asyncio.CancelledError):
                         await progress_task
-                    except asyncio.CancelledError:
-                        pass
 
                     logger.error(
                         f"Claude Code query timed out after {query_timeout}s",
@@ -223,12 +219,13 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
                     if attempt < max_retries - 1:
                         logger.info(
-                            f"Retrying Claude Code query (attempt {attempt + 2}/{max_retries})"
+                            f"Retrying Claude Code query "
+                            f"(attempt {attempt + 2}/{max_retries})"
                         )
                         continue
                     raise TimeoutError(
                         f"Claude Code query timed out after {query_timeout}s"
-                    )
+                    ) from None
 
                 # Convert to response format
                 response_text = ""
@@ -302,18 +299,23 @@ class ClaudeCodeProvider(BaseLLMProvider):
                         break
 
                     except (json.JSONDecodeError, ValueError) as e:
-                        last_error = e
                         logger.warning(
-                            f"Claude Code JSON validation failed on attempt {attempt + 1}: {e}"
+                            f"Claude Code JSON validation failed on "
+                            f"attempt {attempt + 1}: {e}"
                         )
 
                         if attempt < max_retries - 1:
                             # Add error feedback to prompt for retry
-                            prompt = f"{prompt}\n\nThe previous response was not valid JSON. Error: {e}\nPlease provide a valid JSON response that matches the schema."
+                            prompt = (
+                                f"{prompt}\n\nThe previous response was not "
+                                f"valid JSON. Error: {e}\nPlease provide a "
+                                f"valid JSON response that matches the schema."
+                            )
                         else:
                             # Final attempt failed, log the response for debugging
                             logger.error(
-                                f"Claude Code failed to generate valid JSON after {max_retries} attempts",
+                                f"Claude Code failed to generate valid JSON "
+                                f"after {max_retries} attempts",
                                 last_response=response_text[:500],
                             )
                 else:
@@ -412,28 +414,29 @@ class ClaudeCodeProvider(BaseLLMProvider):
             "\n\nIMPORTANT: You must respond with valid JSON only, no other text."
         )
 
-        if schema:
-            # Add schema details
-            if "properties" in schema:
-                props = schema["properties"]
-                required = schema.get("required", [])
+        if schema and "properties" in schema:
+            props = schema["properties"]
+            required = schema.get("required", [])
 
-                json_instruction += "\n\nThe JSON response must have these properties:"
-                for prop, details in props.items():
-                    prop_type = details.get("type", "any")
-                    desc = details.get("description", "")
-                    is_required = prop in required
+            json_instruction += "\n\nThe JSON response must have these properties:"
+            for prop, details in props.items():
+                prop_type = details.get("type", "any")
+                desc = details.get("description", "")
+                is_required = prop in required
 
-                    json_instruction += f"\n- {prop} ({prop_type})"
-                    if is_required:
-                        json_instruction += " [REQUIRED]"
-                    if desc:
-                        json_instruction += f": {desc}"
+                json_instruction += f"\n- {prop} ({prop_type})"
+                if is_required:
+                    json_instruction += " [REQUIRED]"
+                if desc:
+                    json_instruction += f": {desc}"
 
-                # Add example if possible
-                example = self._generate_example_from_schema(schema)
-                if example:
-                    json_instruction += f"\n\nExample JSON structure:\n```json\n{json.dumps(example, indent=2)}\n```"
+            # Add example if possible
+            example = self._generate_example_from_schema(schema)
+            if example:
+                json_instruction += (
+                    f"\n\nExample JSON structure:\n```json\n"
+                    f"{json.dumps(example, indent=2)}\n```"
+                )
 
         return prompt + json_instruction
 

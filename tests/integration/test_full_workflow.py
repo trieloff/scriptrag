@@ -397,7 +397,8 @@ class TestFullWorkflow:
 
         # Step 2: Analyze with props_inventory analyzer
         print(
-            f"\n=== Running props_inventory analyzer with {provider_scenario} provider ==="
+            f"\n=== Running props_inventory analyzer with "
+            f"{provider_scenario} provider ==="
         )
         result = runner.invoke(
             app,

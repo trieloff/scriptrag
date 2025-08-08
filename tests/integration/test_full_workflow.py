@@ -8,6 +8,7 @@ This test validates the happy path of:
 """
 
 import json
+import os
 import shutil
 import sqlite3
 from pathlib import Path
@@ -309,18 +310,85 @@ class TestFullWorkflow:
 
         conn.close()
 
-    def test_props_inventory_analyzer(self, tmp_path, props_screenplay, monkeypatch):
-        """Test that the props_inventory analyzer properly detects and stores props."""
+    @pytest.mark.parametrize(
+        "provider_scenario",
+        [
+            "claude",  # Use Claude Code SDK if available
+            "openai_compatible",  # Use OpenAI-compatible endpoint
+            "github_models",  # Use GitHub Models
+        ],
+    )
+    def test_props_inventory_analyzer(
+        self, tmp_path, props_screenplay, monkeypatch, provider_scenario
+    ):
+        """Test that the props_inventory analyzer properly detects and stores props.
+
+        This test runs with different LLM providers based on available credentials:
+        - Claude Code SDK (if running in Claude Code environment)
+        - OpenAI-compatible endpoint (if SCRIPTRAG_LLM_ENDPOINT is available)
+        - GitHub Models (if GITHUB_TOKEN is available)
+        """
         db_path = tmp_path / "test.db"
 
-        # Set environment variables for database and LLM
+        # Set environment variables for database
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
-        # Fix the LLM endpoint to use base URL without /chat/completions
-        monkeypatch.setenv(
-            "SCRIPTRAG_LLM_ENDPOINT", "https://mac-studio-2025.tail6d5f26.ts.net/v1"
-        )
-        # Disable Claude Code provider to force OpenAI-compatible
-        monkeypatch.setenv("SCRIPTRAG_IGNORE_CLAUDE", "1")
+
+        # Configure based on provider scenario
+        if provider_scenario == "claude":
+            # Check if we're in Claude Code environment
+            # If not, skip this test
+            try:
+                # Also check if the claude binary is available
+                import shutil
+
+                # Try to import the SDK to check if it's available
+                import claude_code_sdk  # noqa: F401
+
+                if shutil.which("claude") is None:
+                    pytest.skip("Claude Code binary not available in PATH")
+            except ImportError:
+                pytest.skip("Claude Code SDK not available")
+
+            # Don't set SCRIPTRAG_IGNORE_CLAUDE
+            monkeypatch.delenv("SCRIPTRAG_IGNORE_CLAUDE", raising=False)
+            # Set preferred provider to claude_code
+            monkeypatch.setenv("SCRIPTRAG_LLM_PROVIDER", "claude_code")
+            # Clear other provider settings
+            monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+            monkeypatch.delenv("SCRIPTRAG_LLM_ENDPOINT", raising=False)
+            monkeypatch.delenv("SCRIPTRAG_LLM_API_KEY", raising=False)
+
+        elif provider_scenario == "openai_compatible":
+            # Check if OpenAI-compatible endpoint is available
+            endpoint = os.getenv("SCRIPTRAG_LLM_ENDPOINT")
+            api_key = os.getenv("SCRIPTRAG_LLM_API_KEY")
+
+            if not endpoint or not api_key:
+                pytest.skip("OpenAI-compatible endpoint not configured")
+
+            # Set the endpoint and disable Claude
+            monkeypatch.setenv("SCRIPTRAG_LLM_ENDPOINT", endpoint)
+            monkeypatch.setenv("SCRIPTRAG_LLM_API_KEY", api_key)
+            monkeypatch.setenv("SCRIPTRAG_IGNORE_CLAUDE", "1")
+
+        elif provider_scenario == "github_models":
+            # Check if GitHub token is available
+            github_token = os.getenv("GITHUB_TOKEN")
+
+            if not github_token:
+                pytest.skip("GitHub token not available")
+
+            # Set GitHub token and disable Claude
+            monkeypatch.setenv("GITHUB_TOKEN", github_token)
+            monkeypatch.setenv("SCRIPTRAG_IGNORE_CLAUDE", "1")
+            # Clear OpenAI settings to ensure GitHub Models is used
+            monkeypatch.delenv("SCRIPTRAG_LLM_ENDPOINT", raising=False)
+            monkeypatch.delenv("SCRIPTRAG_LLM_API_KEY", raising=False)
+            # Set preferred provider to github_models
+            monkeypatch.setenv("SCRIPTRAG_LLM_PROVIDER", "github_models")
+
+        # Log which provider scenario is being tested
+        print(f"\n=== Testing with provider scenario: {provider_scenario} ===")
 
         # Step 1: Initialize database
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])
@@ -328,7 +396,9 @@ class TestFullWorkflow:
         assert "Database initialized successfully" in result.stdout
 
         # Step 2: Analyze with props_inventory analyzer
-        print("\n=== Running props_inventory analyzer ===")
+        print(
+            f"\n=== Running props_inventory analyzer with {provider_scenario} provider ==="
+        )
         result = runner.invoke(
             app,
             [

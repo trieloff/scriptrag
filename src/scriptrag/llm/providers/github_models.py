@@ -171,6 +171,12 @@ class GitHubModelsProvider(BaseLLMProvider):
                     logger.debug(f"Skipping unmapped model: {azure_id}")
                     continue
 
+                # Only include models we know work with the API
+                # For now, just include GPT models that we know work
+                if model_id not in ["gpt-4o-mini", "gpt-4o"]:
+                    # Skip models that don't work with the current API
+                    continue
+
                 # Determine capabilities based on model type
                 capabilities = []
                 if "gpt" in model_id.lower() or "llama" in model_id.lower():
@@ -204,7 +210,7 @@ class GitHubModelsProvider(BaseLLMProvider):
         }
 
         # Prepare OpenAI-compatible request
-        # GitHub Models API expects simple model IDs like "gpt-4o-mini", not Azure paths
+        # GitHub Models API expects specific model IDs
         payload = {
             "model": request.model,
             "messages": request.messages,

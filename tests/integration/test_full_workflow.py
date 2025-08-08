@@ -310,6 +310,267 @@ class TestFullWorkflow:
 
         conn.close()
 
+    def test_scene_embeddings_analyzer(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test that scene embeddings are generated and persisted correctly.
+
+        This test verifies:
+        1. Embeddings are generated for each scene
+        2. Embeddings are stored in the file system (Git LFS path)
+        3. Embeddings are persisted in the database
+        4. Embedding metadata is properly stored
+        """
+        from pathlib import Path
+
+        import numpy as np
+
+        db_path = tmp_path / "test.db"
+
+        # Set environment variables
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize database
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+        assert "Database initialized successfully" in result.stdout
+
+        # Analyze with scene_embeddings analyzer
+        print("\n=== Running scene_embeddings analyzer ===")
+        result = runner.invoke(
+            app,
+            [
+                "analyze",
+                str(sample_screenplay.parent),
+                "--analyzer",
+                "scene_embeddings",
+                "--force",
+            ],
+        )
+
+        # Debug output if needed
+        if result.exit_code != 0:
+            print(f"Analyze command failed with exit code {result.exit_code}")
+            print(f"stdout: {result.stdout}")
+            print(f"stderr: {result.stderr if hasattr(result, 'stderr') else 'N/A'}")
+        assert result.exit_code == 0
+
+        # Verify metadata was added to the fountain file
+        updated_content = sample_screenplay.read_text()
+        assert "SCRIPTRAG-META-START" in updated_content
+        assert "SCRIPTRAG-META-END" in updated_content
+
+        # Extract embedding metadata from fountain file
+        embedding_paths = []
+        lines = updated_content.split("\n")
+        for i, line in enumerate(lines):
+            if "SCRIPTRAG-META-START" in line:
+                for j in range(i + 1, len(lines)):
+                    if "SCRIPTRAG-META-END" in lines[j]:
+                        metadata_lines = []
+                        for k in range(i + 1, j):
+                            if not lines[k].strip().startswith("/*") and not lines[
+                                k
+                            ].strip().endswith("*/"):
+                                metadata_lines.append(lines[k])
+
+                        metadata_str = "\n".join(metadata_lines).strip()
+                        if metadata_str:
+                            try:
+                                metadata = json.loads(metadata_str)
+                                if (
+                                    "analyzers" in metadata
+                                    and "scene_embeddings" in metadata["analyzers"]
+                                ):
+                                    embedding_result = metadata["analyzers"][
+                                        "scene_embeddings"
+                                    ].get("result", {})
+                                    if "embedding_path" in embedding_result:
+                                        embedding_paths.append(
+                                            embedding_result["embedding_path"]
+                                        )
+                                        print(
+                                            f"Found embedding path: "
+                                            f"{embedding_result['embedding_path']}"
+                                        )
+                                        print(
+                                            f"  Dimensions: "
+                                            f"{embedding_result.get('dimensions')}"
+                                        )
+                                        print(
+                                            f"  Model: {embedding_result.get('model')}"
+                                        )
+                            except json.JSONDecodeError:
+                                pass
+                        break
+
+        # Verify embeddings were created
+        assert len(embedding_paths) > 0, "No embedding paths found in metadata"
+
+        # Verify embedding files exist in the file system
+        # The embeddings are stored in the git repository root when available
+        # In our test, they may be stored in the main repo (/root/repo) or temp dir
+        import git
+
+        # Check multiple possible locations for embeddings
+        possible_dirs = []
+
+        # Try to find git repo from the screenplay location
+        try:
+            repo = git.Repo(sample_screenplay.parent, search_parent_directories=True)
+            repo_root = Path(repo.working_dir)
+            possible_dirs.append(repo_root / "embeddings")
+            print(f"Found git repository at: {repo_root}")
+        except git.InvalidGitRepositoryError:
+            print("No git repo found from screenplay location")
+
+        # Also check the main project repo (where test is running from)
+        try:
+            main_repo = git.Repo(".", search_parent_directories=True)
+            main_repo_root = Path(main_repo.working_dir)
+            possible_dirs.append(main_repo_root / "embeddings")
+            print(f"Found main git repository at: {main_repo_root}")
+        except git.InvalidGitRepositoryError:
+            print("No main git repo found")
+
+        # Fallback: check temp directory
+        possible_dirs.append(sample_screenplay.parent / "embeddings")
+
+        # Find which directory actually has the embeddings
+        embeddings_dir = None
+        for dir_path in possible_dirs:
+            if dir_path.exists():
+                embeddings_dir = dir_path
+                print(f"Found embeddings directory at: {embeddings_dir}")
+                break
+
+        assert embeddings_dir is not None, (
+            f"Embeddings directory not found in any of: {possible_dirs}"
+        )
+
+        # Verify that embedding files exist for our scenes
+        # Check by hash from the metadata
+        found_embeddings = []
+        for path in embedding_paths:
+            # Extract the filename from the path
+            embedding_filename = Path(path).name
+            embedding_file = embeddings_dir / embedding_filename
+            if embedding_file.exists():
+                found_embeddings.append(embedding_file)
+                print(f"  Found embedding file: {embedding_file}")
+
+        assert len(found_embeddings) > 0, (
+            f"No embedding files found for scene hashes in {embeddings_dir}"
+        )
+        print(f"\nFound {len(found_embeddings)} embedding files for our scenes")
+
+        # Verify each embedding file is valid
+        for npy_file in found_embeddings:
+            try:
+                embedding = np.load(npy_file)
+                assert isinstance(embedding, np.ndarray), (
+                    f"Invalid embedding in {npy_file}"
+                )
+                assert embedding.ndim == 1, (
+                    f"Embedding should be 1D vector, got {embedding.ndim}D"
+                )
+                assert embedding.size > 0, f"Empty embedding in {npy_file}"
+                print(f"  {npy_file.name}: {embedding.shape} dimensions")
+            except Exception as e:
+                pytest.fail(f"Failed to load embedding from {npy_file}: {e}")
+
+        # Index the screenplay
+        result = runner.invoke(
+            app,
+            [
+                "index",
+                str(sample_screenplay.parent),
+            ],
+        )
+        assert result.exit_code == 0
+
+        # Verify embeddings are stored in database
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Get the script
+        cursor.execute(
+            "SELECT * FROM scripts WHERE file_path = ?", (str(sample_screenplay),)
+        )
+        script = cursor.fetchone()
+        assert script is not None
+        script_id = script["id"]
+
+        # Get scenes
+        cursor.execute(
+            "SELECT * FROM scenes WHERE script_id = ? ORDER BY scene_number",
+            (script_id,),
+        )
+        scenes = cursor.fetchall()
+        assert len(scenes) == 3  # We have 3 scenes in our test script
+
+        # Check embeddings table
+        cursor.execute(
+            """
+            SELECT e.*, s.heading
+            FROM embeddings e
+            JOIN scenes s ON e.entity_id = s.id
+            WHERE e.entity_type = 'scene' AND s.script_id = ?
+            ORDER BY s.scene_number
+            """,
+            (script_id,),
+        )
+        embeddings = cursor.fetchall()
+
+        assert len(embeddings) > 0, "No embeddings found in database"
+        print(f"\nFound {len(embeddings)} embeddings in database")
+
+        # Verify each embedding in database
+        for embedding_row in embeddings:
+            assert embedding_row["entity_type"] == "scene"
+            assert embedding_row["embedding_model"] is not None
+
+            # The embedding blob should contain data or be empty (for LFS reference)
+            embedding_blob = embedding_row["embedding"]
+            if embedding_blob and len(embedding_blob) > 0:
+                # If stored directly, verify it can be converted back to numpy array
+                try:
+                    # Assuming float32 (4 bytes per element)
+                    embedding_array = np.frombuffer(embedding_blob, dtype=np.float32)
+                    assert embedding_array.size > 0
+                    print(
+                        f"  Scene '{embedding_row['heading']}': "
+                        f"{embedding_array.size} dimensions (stored in DB)"
+                    )
+                except Exception:
+                    print(
+                        f"  Scene '{embedding_row['heading']}': Reference stored (LFS)"
+                    )
+            else:
+                print(f"  Scene '{embedding_row['heading']}': Reference stored (LFS)")
+
+        # Verify that each scene has metadata with embedding info
+        for scene in scenes:
+            if scene["metadata"]:
+                metadata = json.loads(scene["metadata"])
+                if (
+                    "boneyard" in metadata
+                    and "analyzers" in metadata["boneyard"]
+                    and "scene_embeddings" in metadata["boneyard"]["analyzers"]
+                ):
+                    embedding_info = metadata["boneyard"]["analyzers"][
+                        "scene_embeddings"
+                    ]["result"]
+                    assert "content_hash" in embedding_info
+                    assert "embedding_path" in embedding_info
+                    assert "dimensions" in embedding_info
+                    print(f"\nScene {scene['scene_number']} embedding metadata:")
+                    print(f"  Hash: {embedding_info['content_hash'][:8]}...")
+                    print(f"  Path: {embedding_info['embedding_path']}")
+                    print(f"  Dimensions: {embedding_info['dimensions']}")
+
+        conn.close()
+        print("\n=== Embedding verification complete ===")
+
     @pytest.mark.parametrize(
         "provider_scenario",
         [

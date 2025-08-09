@@ -7,6 +7,7 @@ from scriptrag.cli.commands import (
     index_command,
     init_command,
     list_command,
+    search_command,
 )
 
 app = typer.Typer(
@@ -22,6 +23,7 @@ app.command(name="list")(list_command)
 app.command(name="ls", hidden=True)(list_command)  # Alias for list
 app.command(name="analyze")(analyze_command)
 app.command(name="index")(index_command)
+app.command(name="search")(search_command)
 
 
 def main() -> None:

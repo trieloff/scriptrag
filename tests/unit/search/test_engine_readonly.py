@@ -2,6 +2,7 @@
 
 import sqlite3
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -68,9 +69,7 @@ class TestReadOnlyAccess:
 
     def test_read_only_connection_mode(self, search_engine):
         """Test that connection is opened in read-only mode."""
-        conn = search_engine.get_read_only_connection()
-
-        try:
+        with search_engine.get_read_only_connection() as conn:
             # Verify connection is read-only by checking pragma
             cursor = conn.execute("PRAGMA query_only")
             result = cursor.fetchone()
@@ -79,14 +78,9 @@ class TestReadOnlyAccess:
             # Verify URI mode was used (check connection properties)
             # This is implicitly tested by the fact that mode=ro was accepted
 
-        finally:
-            conn.close()
-
     def test_write_operations_fail(self, search_engine):
         """Test that write operations fail on read-only connection."""
-        conn = search_engine.get_read_only_connection()
-
-        try:
+        with search_engine.get_read_only_connection() as conn:
             # Try various write operations - all should fail
             with pytest.raises(sqlite3.OperationalError) as exc_info:
                 conn.execute("INSERT INTO scripts (title) VALUES ('New Script')")
@@ -123,14 +117,9 @@ class TestReadOnlyAccess:
                 or "read-only" in str(exc_info.value).lower()
             )
 
-        finally:
-            conn.close()
-
     def test_read_operations_succeed(self, search_engine):
         """Test that read operations work on read-only connection."""
-        conn = search_engine.get_read_only_connection()
-
-        try:
+        with search_engine.get_read_only_connection() as conn:
             # Read operations should succeed
             cursor = conn.execute("SELECT * FROM scripts")
             results = cursor.fetchall()
@@ -149,18 +138,17 @@ class TestReadOnlyAccess:
             results = cursor.fetchall()
             assert len(results) == 1
 
-        finally:
-            conn.close()
-
     def test_search_uses_readonly_connection(self, search_engine, monkeypatch):
         """Test that search() method uses the read-only connection."""
         # Track if get_read_only_connection was called
         called = []
         original_method = search_engine.get_read_only_connection
 
+        @contextmanager
         def mock_get_readonly():
             called.append(True)
-            return original_method()
+            with original_method() as conn:
+                yield conn
 
         monkeypatch.setattr(
             search_engine, "get_read_only_connection", mock_get_readonly
@@ -211,5 +199,5 @@ class TestReadOnlyAccess:
         engine = SearchEngine(settings)
 
         # Should raise an error when trying to open non-existent DB in read-only mode
-        with pytest.raises(sqlite3.OperationalError):
-            engine.get_read_only_connection()
+        with pytest.raises(sqlite3.OperationalError), engine.get_read_only_connection():
+            pass

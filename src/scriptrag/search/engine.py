@@ -177,8 +177,10 @@ class SearchEngine:
         """
         if query.dialogue:
             return "dialogue"
-        if query.action or query.text_query:
+        if query.action:
             return "action"
+        if query.text_query:
+            return "text"
         if query.characters:
             return "character"
         if query.locations:

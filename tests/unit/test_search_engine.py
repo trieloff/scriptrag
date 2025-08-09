@@ -124,8 +124,10 @@ class TestSearchEngine:
 
     def test_init_without_settings(self):
         """Test engine initialization without settings."""
-        with patch("scriptrag.search.engine.get_settings") as mock_get_settings:
-            mock_get_settings.return_value = MagicMock(spec=ScriptRAGSettings)
+        with patch("scriptrag.config.get_settings") as mock_get_settings:
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings.database_path = MagicMock()
+            mock_get_settings.return_value = mock_settings
             engine = SearchEngine()
             assert engine.settings is not None
             mock_get_settings.assert_called_once()
@@ -143,10 +145,14 @@ class TestSearchEngine:
 
     def test_get_read_only_connection_path_traversal(self, mock_settings, tmp_path):
         """Test path traversal prevention."""
-        # Create a database outside the expected directory
-        evil_path = tmp_path / ".." / "evil.db"
-        mock_settings.database_path = evil_path
+        # Set expected database path to tmp_path
+        safe_path = tmp_path / "safe.db"
+        mock_settings.database_path = safe_path
+
+        # Create engine with evil path that tries to escape
         engine = SearchEngine(mock_settings)
+        evil_path = tmp_path / ".." / "evil.db"
+        engine.db_path = evil_path  # Override with evil path
 
         with (
             pytest.raises(ValueError, match="Invalid database path"),
@@ -211,6 +217,34 @@ class TestSearchEngine:
                 location TEXT,
                 time_of_day TEXT,
                 content TEXT
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE characters (
+                id INTEGER PRIMARY KEY,
+                name TEXT
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE dialogues (
+                id INTEGER PRIMARY KEY,
+                scene_id INTEGER,
+                character_id INTEGER,
+                dialogue_text TEXT,
+                metadata TEXT,
+                FOREIGN KEY (scene_id) REFERENCES scenes(id),
+                FOREIGN KEY (character_id) REFERENCES characters(id)
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE actions (
+                id INTEGER PRIMARY KEY,
+                scene_id INTEGER,
+                action_text TEXT,
+                FOREIGN KEY (scene_id) REFERENCES scenes(id)
             )
         """)
 

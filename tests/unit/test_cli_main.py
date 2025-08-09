@@ -58,6 +58,7 @@ class TestCommandRegistration:
         assert "analyze" in output
         assert "index" in output
         assert "search" in output
+        assert "query" in output
 
     def test_ls_alias_registered(self):
         """Test that the 'ls' alias is registered for list command."""
@@ -103,7 +104,15 @@ class TestCommandRegistration:
         command_names = {cmd.name for cmd in commands}
 
         # Verify all expected commands exist
-        expected_commands = {"init", "list", "ls", "analyze", "index", "search"}
+        expected_commands = {
+            "init",
+            "list",
+            "ls",
+            "analyze",
+            "index",
+            "search",
+            "query",
+        }
 
         assert expected_commands <= command_names, (
             f"Missing commands: {expected_commands - command_names}"
@@ -347,8 +356,9 @@ class TestModuleLevelConstants:
         """Test that the expected number of commands are registered."""
         commands = app.registered_commands
 
-        # Should have exactly 6 commands: init, list, ls (alias), analyze, index, search
-        expected_count = 6
+        # Expected commands count is 7
+        # (init, list, ls alias, analyze, index, search, query)
+        expected_count = 7
         actual_count = len(commands)
 
         assert actual_count == expected_count, (

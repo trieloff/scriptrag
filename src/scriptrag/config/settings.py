@@ -117,6 +117,12 @@ class ScriptRAGSettings(BaseSettings):
         ge=1,
     )
 
+    # Query discovery settings
+    query_dir: Path = Field(
+        default_factory=lambda: Path("src/scriptrag/storage/database/queries"),
+        description="Directory to discover parameterized SQL queries",
+    )
+
     # LLM settings
     llm_provider: str | None = Field(
         default=None,

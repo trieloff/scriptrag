@@ -1,86 +1,30 @@
-# ScriptRAG CLI Implementation
+# Query Command
 
-This directory contains the command-line interface implementation using Typer. Each command group and subcommand should be in separate files for maintainability.
+Run pre-authored parameterized SQL queries against the ScriptRAG SQLite DB.
 
-## Architecture Role
+Usage:
 
-The CLI is one of the two main user interfaces (along with MCP). It translates command-line arguments into API calls and formats the results for terminal output.
-
-## IMPORTANT: File Organization
-
-**EACH COMMAND GROUP MUST BE IN A SEPARATE FILE**
-
-Structure:
-
-```text
-cli/
-├── __init__.py          # CLI app initialization
-├── main.py             # Entry point and app assembly
-├── script.py           # Script commands (import, list, show)
-├── scene.py            # Scene commands (list, show, reprocess)
-├── search.py           # Search commands (dialogue, character, semantic)
-├── character.py        # Character commands (list, show, update-bible)
-├── series.py           # Series commands (create, list)
-├── agent.py            # Agent commands (list, run)
-├── config.py           # Config commands (show, set, get)
-├── utils.py            # Shared CLI utilities (formatting, output)
-└── styles.py           # Rich styles and themes
+```
+scriptrag query --help
+scriptrag query <name> [--<param> ...] [--limit N] [--offset N] [--json]
 ```
 
+Queries are discovered from `SCRIPTRAG_QUERY_DIR` (default: `src/scriptrag/storage/database/queries`).
 
-## Key Patterns
+Each `.sql` file can declare a header describing its parameters:
 
-### 1. Error Handling
+```
+-- name: list_scenes
+-- description: List scenes by project and optional episode range
+-- param: project str optional help="Filter by project title"
+-- param: season int optional
+-- param: episode int optional
+-- param: limit int optional default=10
+-- param: offset int optional default=0
 
-Use decorators to catch and format API errors with appropriate exit codes.
+SELECT ... WHERE ... LIMIT :limit OFFSET :offset
+```
 
-### 2. Output Formatting
+Supported param types: `str`, `int`, `float`, `bool`. Booleans accept `true/false/1/0/yes/no` (case-insensitive). When `limit`/`offset` are declared but not used in the SQL, the engine wraps the query as `SELECT * FROM (<sql>) LIMIT :limit OFFSET :offset`.
 
-Use Rich for beautiful terminal output including tables, progress bars, and styled text.
-
-### 3. Input Validation
-
-Typer provides built-in validation for paths, ensuring files exist and are accessible.
-
-### 4. Interactive Features
-
-Use interactive prompts and confirmations for complex user inputs.
-
-## Command Structure
-
-The CLI provides hierarchical commands organized by functionality: script management, scene operations, search commands, character management, and agent execution.
-
-## Configuration
-
-The CLI respects configuration from:
-
-1. Environment variables (scriptrag_*)
-2. Config file (~/.scriptrag/config.YAML)
-3. Command-line options (highest precedence)
-
-## Testing
-
-Each command group should have tests:
-
-- `test_script_commands.py`
-- `test_search_commands.py`
-- etc.
-
-Use Typer's testing utilities with CliRunner for automated command testing.
-
-## Rich Integration
-
-We use Rich for all output:
-
-- Tables for structured data
-- Progress bars for long operations  
-- Syntax highlighting for code/scripts
-- Tree views for hierarchical data
-- Panels for important information
-
-## Performance Tips
-
-1. **Streaming Output**: For large results, stream instead of loading all
-2. **Pagination**: Add `--page` option for long lists
-3. **Caching**: Cache API client between commands in same session
-4. **Async**: Consider async for I/O bound operations
+Security: queries run via read-only connections and always use SQLite parameter binding (no string interpolation).

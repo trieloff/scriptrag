@@ -918,3 +918,284 @@ class TestFullWorkflow:
         )
 
         conn.close()
+
+    def test_search_full_text(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test full-text search functionality."""
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize, analyze, and index
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["analyze", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["index", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        # Test 1: Simple text search
+        result = runner.invoke(app, ["search", "coffee"])
+        assert result.exit_code == 0
+        assert "COFFEE SHOP" in result.stdout or "coffee" in result.stdout.lower()
+
+        # Test 2: Search for dialogue
+        result = runner.invoke(app, ["search", '"Another refill?"'])
+        assert result.exit_code == 0
+        assert "JAMES" in result.stdout or "refill" in result.stdout.lower()
+
+        # Test 3: Search for action
+        result = runner.invoke(app, ["search", "typing furiously"])
+        assert result.exit_code == 0
+        assert "SARAH'S APARTMENT" in result.stdout or "typing" in result.stdout.lower()
+
+    def test_search_auto_detection(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test auto-detection of query components."""
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize, analyze, and index
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["analyze", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["index", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        # Test 1: Auto-detect character (ALL CAPS)
+        result = runner.invoke(app, ["search", "SARAH"])
+        assert result.exit_code == 0
+        # Should find scenes with SARAH
+        assert "SARAH" in result.stdout or "Sarah" in result.stdout
+
+        # Test 2: Auto-detect dialogue (quoted text)
+        result = runner.invoke(app, ["search", '"lifesaver"'])
+        assert result.exit_code == 0
+        assert "lifesaver" in result.stdout.lower()
+
+        # Test 3: Auto-detect parenthetical
+        result = runner.invoke(app, ["search", "(grateful)"])
+        assert result.exit_code == 0
+        # Should find the scene with this parenthetical
+        assert "grateful" in result.stdout.lower() or "SARAH" in result.stdout
+
+        # Test 4: Combined auto-detection
+        result = runner.invoke(app, ["search", 'SARAH "done"'])
+        assert result.exit_code == 0
+        assert "SARAH" in result.stdout or "done" in result.stdout.lower()
+
+    def test_search_character_filter(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test character-specific search filters."""
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize, analyze, and index
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["analyze", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["index", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        # Test character filter
+        # Query is positional, must come first
+        result = runner.invoke(app, ["search", "done", "--character", "SARAH"])
+        if result.exit_code != 0:
+            print(f"Search failed: {result.stdout}")
+        assert result.exit_code == 0
+        # Should find SARAH's dialogue containing "done"
+        assert "SARAH" in result.stdout or "done" in result.stdout.lower()
+
+        # Test dialogue filter
+        # Can use empty query when using dialogue filter
+        result = runner.invoke(app, ["search", "", "--dialogue", "refill"])
+        assert result.exit_code == 0
+        assert "refill" in result.stdout.lower()
+
+    def test_search_pagination(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test search pagination functionality."""
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize, analyze, and index
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["analyze", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["index", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        # Test with limit
+        result = runner.invoke(app, ["search", "--limit", "1", "SARAH"])
+        assert result.exit_code == 0
+        # Should show pagination info if more results exist
+        # With limit=1, we should see only 1 result
+
+        # Test with offset
+        result = runner.invoke(
+            app, ["search", "--limit", "1", "--offset", "1", "SARAH"]
+        )
+        assert result.exit_code == 0
+        # Should show different result due to offset
+
+    def test_search_vector_path(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test vector search path for long queries."""
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize, analyze, and index
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["analyze", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["index", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        # Test 1: Long query that should trigger vector search
+        long_query = " ".join(["word"] * 15)  # 15 words, > 10 word threshold
+        result = runner.invoke(app, ["search", long_query])
+        assert result.exit_code == 0
+        # Vector search not implemented yet, but should not crash
+
+        # Test 2: Force fuzzy/vector search
+        result = runner.invoke(app, ["search", "--fuzzy", "coffee"])
+        assert result.exit_code == 0
+
+        # Test 3: Force strict mode (no vector search)
+        result = runner.invoke(app, ["search", "--strict", long_query])
+        assert result.exit_code == 0
+
+    def test_search_location_filter(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test location-based search."""
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize, analyze, and index
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["analyze", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["index", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        # Test location search (ALL CAPS multi-word)
+        result = runner.invoke(app, ["search", "COFFEE SHOP"])
+        assert result.exit_code == 0
+        assert "COFFEE SHOP" in result.stdout
+
+        # Test another location
+        result = runner.invoke(app, ["search", "CITY STREET"])
+        assert result.exit_code == 0
+        assert "CITY STREET" in result.stdout or "EXT." in result.stdout
+
+    def test_search_brief_mode(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test brief output mode."""
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize, analyze, and index
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["analyze", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["index", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        # Test brief mode
+        result = runner.invoke(app, ["search", "--brief", "SARAH"])
+        assert result.exit_code == 0
+        # Brief mode should show one-line results
+        # Should have numbered results like "1. Title - Scene X: Heading"
+
+    def test_search_verbose_mode(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test verbose output mode."""
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize, analyze, and index
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["analyze", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["index", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        # Test verbose mode
+        result = runner.invoke(app, ["search", "--verbose", "--limit", "1", "coffee"])
+        assert result.exit_code == 0
+        # Verbose mode should show full scene content
+        assert len(result.stdout) > 100  # Should have substantial content
+
+    def test_search_no_results(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test search with no matching results."""
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize, analyze, and index
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["analyze", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["index", str(sample_screenplay.parent)])
+        assert result.exit_code == 0
+
+        # Search for something that doesn't exist
+        result = runner.invoke(app, ["search", "unicorn rainbow sparkles"])
+        assert result.exit_code == 0
+        assert "No results found" in result.stdout
+
+    def test_search_with_series_metadata(self, tmp_path, monkeypatch):
+        """Test search with series/episode metadata."""
+        # Create a series screenplay with episode metadata
+        series_script = tmp_path / "series_script.fountain"
+        content = """Title: Test Series
+Author: Test Suite
+Episode: 2
+Season: 1
+
+INT. OFFICE - DAY
+
+MICHAEL sits at his desk.
+
+MICHAEL
+That's what she said!
+
+"""
+        series_script.write_text(content)
+
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize, analyze, and index
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["analyze", str(tmp_path)])
+        assert result.exit_code == 0
+
+        result = runner.invoke(app, ["index", str(tmp_path)])
+        assert result.exit_code == 0
+
+        # Test project filter
+        result = runner.invoke(app, ["search", "--project", "Test Series", "desk"])
+        assert result.exit_code == 0
+        # Should find the scene
+
+        # Note: Episode range filtering requires metadata to be properly stored
+        # which depends on the indexing implementation

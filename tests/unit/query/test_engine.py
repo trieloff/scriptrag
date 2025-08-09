@@ -74,7 +74,7 @@ class TestQueryEngine:
         assert rows[0]["name"] == "Alice"
         assert rows[1]["name"] == "Bob"
         assert rows[2]["name"] == "Charlie"
-        assert exec_time > 0
+        assert exec_time >= 0  # Windows can report 0.0 for very fast operations
 
     def test_execute_with_params(self, engine):
         """Test executing query with parameters."""
@@ -246,7 +246,7 @@ class TestQueryEngine:
         rows, exec_time = engine.execute(spec)
 
         assert len(rows) == 0
-        assert exec_time > 0
+        assert exec_time >= 0  # Windows can report 0.0 for very fast operations
 
     def test_complex_query(self, engine):
         """Test executing complex query with joins."""

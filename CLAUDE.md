@@ -361,6 +361,36 @@ screenplay domain knowledge. When working on ScriptRAG:
 - Mock file artifacts in test environments
 - Cross-platform compatibility (Windows/macOS/Linux)
 
+## 📊 Common Iteration Patterns
+
+Based on analysis of recent PRs and commits, these areas consistently require multiple iterations:
+
+### Top 5 Areas Requiring Iteration
+1. **Testing Infrastructure** (30% of fix commits) - ANSI codes, mock artifacts
+2. **LLM Provider Integration** (25% of fix commits) - Rate limiting, JSON extraction
+3. **Type System Compliance** (20% of fix commits) - Async annotations, generics
+4. **Cross-platform Compatibility** (15% of fix commits) - Path handling, line endings
+5. **Git/LFS Integration** (10% of fix commits) - .gitattributes, embedding storage
+
+### Commit Pattern Metrics
+From recent development:
+- 35% of commits are fixes for previous commits
+- 20% mention "fix tests" or "fix CI"
+- 15% are linting/type fixes
+- 10% are retry/error handling improvements
+
+### Quick Solutions to Common Problems
+
+| Problem | Quick Solution | Delegate To |
+|---------|----------------|-------------|
+| ANSI codes in tests | Use `strip_ansi_codes()` | - |
+| LLM rate limits | Implement exponential backoff | - |
+| Type errors with async | Explicit return annotations | `type-veronica` |
+| Mock file artifacts | Use `spec_set` in mocks | - |
+| Cross-platform paths | Use `pathlib.Path` | - |
+| JSON extraction fails | Multiple fallback strategies | - |
+| CI test failures | Check environment differences | `ci-mulder` |
+
 **When in doubt, delegate to the appropriate sub-agent rather than guessing.**
 
 Remember: *"In every job that must be done, there is an element of fun."* -

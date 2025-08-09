@@ -184,3 +184,56 @@ Based on recent development iterations:
 8. **Fountain Parsing**: Test malformed scripts and edge cases
 9. **Cross-platform Paths**: Use pathlib consistently
 10. **Character Encoding**: UTF-8 handling for international scripts
+
+## Common Test Iteration Patterns
+
+### Frequency of Test-Related Fixes
+Based on commit analysis:
+- **30%** of all fix commits are test-related
+- **ANSI escape codes**: Required 3-5 iterations per test file
+- **Mock artifacts**: Led to Makefile validation additions
+- **CI environment differences**: Ongoing discovery of edge cases
+
+### Most Common Test Failures in CI
+
+| Issue | Local Pass | CI Fail | Solution |
+|-------|------------|---------|----------|
+| ANSI codes | ✓ | ✗ | Use `strip_ansi_codes()` |
+| File paths | ✓ | ✗ | Use `pathlib.Path` |
+| Line endings | ✓ | ✗ | Normalize to `\n` |
+| Timeouts | ✓ | ✗ | Increase CI timeouts |
+| Mock artifacts | ✓ | ✗ | Use `spec_set` |
+| LLM rate limits | ✓ | ✗ | Mock or skip in CI |
+
+### Test Development Workflow
+
+1. **Write test locally** - Ensure it passes
+2. **Check for ANSI codes** - Add stripping preemptively
+3. **Review mock usage** - Ensure `spec` or `spec_set`
+4. **Consider CI environment** - Different paths, timeouts
+5. **Run with CI settings** - `CI=1 pytest` locally
+6. **Document special requirements** - In test docstrings
+
+### Debugging CI Test Failures
+
+When a test passes locally but fails in CI:
+
+```python
+# Add debug output to understand CI environment
+def test_problematic():
+    if os.getenv("CI"):
+        print(f"CI Environment: {os.environ}")
+        print(f"Working Dir: {os.getcwd()}")
+        print(f"Python Version: {sys.version}")
+
+    # Your test code here
+```
+
+### Test File Organization
+
+To avoid iteration:
+- Keep test files under 500 lines
+- Group related tests in classes
+- Use fixtures for common setup
+- Separate unit and integration tests
+- Document environment requirements

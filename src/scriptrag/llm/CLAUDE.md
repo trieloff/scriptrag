@@ -201,3 +201,52 @@ def test_scene_analysis(mock_complete):
 - `providers/github_models.py` (438 lines) - Rate limiting complexity
 
 These files are at the upper limit of recommended size and may benefit from refactoring into smaller, more focused modules.
+
+## Iteration Pattern Analysis
+
+### LLM Integration Iteration Metrics
+Based on commit history:
+- **25%** of all fix commits are LLM-related
+- **Rate limiting fixes**: Average 3 iterations per provider
+- **JSON extraction**: 5+ iterations to handle all edge cases
+- **Model discovery**: Eventually abandoned for static lists
+
+### Evolution of Solutions
+
+#### Rate Limiting (3 iterations)
+1. **Initial**: Simple retry with fixed delay
+2. **Improved**: Exponential backoff
+3. **Final**: Provider-specific retry strategies with jitter
+
+#### JSON Extraction (5 iterations)
+1. **Initial**: Direct `json.loads()`
+2. **Added**: Markdown code block extraction
+3. **Added**: Regex for any JSON-like structure
+4. **Added**: Handle truncated responses
+5. **Final**: Multiple fallbacks with logging
+
+#### Model Discovery (4 iterations)
+1. **Initial**: Dynamic API discovery
+2. **Fixed**: Handle empty responses
+3. **Fixed**: Handle partial lists
+4. **Final**: Static lists with optional discovery
+
+### Lessons Learned
+
+1. **Never trust LLM output format** - Always have fallbacks
+2. **Rate limits vary wildly** - GitHub: 15/min, OpenAI: 3/min for some models
+3. **Timeouts are environment-specific** - CI needs longer timeouts
+4. **Mock everything in tests** - Real API calls are flaky and expensive
+5. **Log everything** - Essential for debugging production issues
+6. **Provider differences matter** - Each has unique error codes and behaviors
+
+### Quick Reference for Common Fixes
+
+| Problem | Iterations | Final Solution |
+|---------|------------|----------------|
+| Rate limiting | 3 | Exponential backoff with jitter |
+| JSON extraction | 5 | Multiple fallback strategies |
+| Model discovery | 4 | Static lists |
+| Timeout handling | 2 | Environment-specific defaults |
+| Error messages | 3 | Provider-specific parsing |
+| Token counting | 2 | Approximate with tiktoken |

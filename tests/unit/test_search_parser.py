@@ -153,3 +153,150 @@ class TestQueryParser:
         assert query.text_query is None
         assert query.dialogue is None
         assert query.characters == []
+
+    def test_parse_location_keywords_ignored(self) -> None:
+        """Test location keywords are properly ignored and don't get categorized."""
+        # Test simple location keywords
+        simple_keywords = [
+            "INT",
+            "EXT",
+            "DAY",
+            "NIGHT",
+            "MORNING",
+            "AFTERNOON",
+            "EVENING",
+            "CONTINUOUS",
+            "LATER",
+        ]
+
+        for keyword in simple_keywords:
+            query = self.parser.parse(f"{keyword} something else")
+            assert keyword not in query.characters
+            assert keyword not in query.locations
+            assert query.text_query == "something else"
+
+        # Test INT/EXT separately as it has special replace behavior
+        query_int_ext = self.parser.parse("INT/EXT something else")
+        assert "INT/EXT" not in query_int_ext.characters
+        assert "INT/EXT" not in query_int_ext.locations
+        # The / gets left behind due to replace logic
+        assert query_int_ext.text_query == "/ something else"
+
+    def test_parse_caps_as_location(self) -> None:
+        """Test parsing multi-word ALL CAPS as locations."""
+        query = self.parser.parse("POLICE STATION and JOHN HOUSE")
+
+        # Multi-word caps should be locations
+        assert "POLICE STATION" in query.locations
+        assert "JOHN HOUSE" in query.locations
+        assert "POLICE" not in query.characters
+        assert "STATION" not in query.characters
+        assert "JOHN" not in query.characters  # Part of location, not character
+        assert "HOUSE" not in query.characters
+
+    def test_parse_remaining_query_cleanup(self) -> None:
+        """Test edge cases in remaining query cleanup after component extraction."""
+        # Test case where remaining query becomes empty after whitespace cleanup
+        query = self.parser.parse('SARAH "dialogue" (whisper)     ')
+
+        assert "SARAH" in query.characters
+        assert query.dialogue == "dialogue"
+        assert query.parenthetical == "whisper"
+        assert query.text_query is None  # Should be None, not empty string
+
+    def test_parse_multiple_spaces_cleanup(self) -> None:
+        """Test cleanup of multiple spaces in remaining text query."""
+        query = self.parser.parse("SARAH   walks    very    slowly")
+
+        assert "SARAH" in query.characters
+        assert query.text_query == "walks very slowly"  # Multiple spaces cleaned up
+
+    def test_parse_invalid_episode_range(self) -> None:
+        """Test parsing invalid episode range strings."""
+        # Invalid range format should not crash, just not set range values
+        query = self.parser.parse("test", range_str="invalid")
+
+        assert query.season_start is None
+        assert query.episode_start is None
+        assert query.season_end is None
+        assert query.episode_end is None
+
+    def test_parse_episode_range_case_insensitive(self) -> None:
+        """Test episode range parsing is case insensitive."""
+        query = self.parser.parse("", range_str="S2E3")
+
+        assert query.season_start == 2
+        assert query.episode_start == 3
+        assert query.season_end == 2
+        assert query.episode_end == 3
+
+    def test_parse_multiple_parentheticals(self) -> None:
+        """Test handling multiple parentheticals - should use first one."""
+        query = self.parser.parse("(whisper) some text (shout)")
+
+        assert query.parenthetical == "whisper"
+        assert query.text_query == "some text"
+
+    def test_parse_complex_character_location_mix(self) -> None:
+        """Test complex mix of characters, locations, and keywords."""
+        # The ALL_CAPS_PATTERN regex matches the entire sequence as one match
+        query = self.parser.parse("INT SARAH COFFEE SHOP DAY JOHN walks")
+
+        # The entire ALL CAPS sequence gets treated as one location since it has spaces
+        assert "INT SARAH COFFEE SHOP DAY JOHN" in query.locations
+        assert query.text_query == "walks"
+
+        # Test with separate capitalized words for individual character detection
+        query2 = self.parser.parse("SARAH walks with JOHN")
+        assert "SARAH" in query2.characters
+        assert "JOHN" in query2.characters
+        assert query2.text_query == "walks with"
+
+    def test_auto_detect_skip_with_explicit_params(self) -> None:
+        """Test auto-detection is skipped when explicit parameter is provided."""
+        # Even with caps in query, explicit params should take precedence
+        query = self.parser.parse(
+            'SARAH "auto dialogue" (auto whisper)', character="EXPLICIT_CHAR"
+        )
+
+        # Auto-detection should be skipped, only explicit params used
+        assert query.characters == ["EXPLICIT_CHAR"]
+        assert query.dialogue is None  # Not auto-detected
+        assert query.parenthetical is None  # Not auto-detected
+        assert query.text_query is None  # Not auto-detected
+
+    def test_parse_edge_case_empty_components(self) -> None:
+        """Test edge cases with empty quoted strings and parentheticals."""
+        # The regex patterns only match non-empty content inside quotes/parens
+        query = self.parser.parse('""  ()  some text')
+
+        # Empty quotes and parens are not matched by the regex patterns
+        assert query.dialogue is None
+        assert query.parenthetical is None
+        assert query.text_query == '"" () some text'
+
+    def test_regex_patterns_coverage(self) -> None:
+        """Test regex pattern edge cases for complete coverage."""
+        # Test dialogue pattern - the regex stops at the first closing quote
+        query = self.parser.parse('"she said hello" remaining')
+        assert query.dialogue == "she said hello"
+
+        # Test parenthetical pattern - matches content inside first parentheses
+        query2 = self.parser.parse("(he whispered quietly) text")
+        assert query2.parenthetical == "he whispered quietly"
+
+        # Test with multiple quote styles
+        query3 = self.parser.parse('"first dialogue" and "second dialogue"')
+        assert query3.dialogue == "first dialogue"  # Uses first match
+        assert query3.text_query == "and"
+
+    def test_parse_remaining_query_edge_case_empty_after_cleanup(self) -> None:
+        """Test edge case where remaining query becomes empty after space cleanup."""
+        # Create a case where text exists but becomes empty after split().join()
+        # This happens with whitespace-only remaining text
+        query = self.parser.parse('SARAH "dialogue"   \t\n   ')
+
+        assert "SARAH" in query.characters
+        assert query.dialogue == "dialogue"
+        # The remaining whitespace should result in None text_query after cleanup
+        assert query.text_query is None

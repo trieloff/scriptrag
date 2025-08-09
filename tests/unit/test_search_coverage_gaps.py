@@ -101,9 +101,15 @@ class TestCLISearchCoverage:
 
                 assert exc_info.value.exit_code == 1
                 # Check that the specific error message was printed
-                mock_console.print.assert_any_call(
-                    "[red]Error:[/red] Cannot use both --fuzzy and --strict options",
-                    style="bold",
+                # Get the actual call arguments for debugging
+                call_args = [str(call) for call in mock_console.print.call_args_list]
+                # Check if our expected call is in the list
+                expected_call = (
+                    "call('[red]Error:[/red] Cannot use both "
+                    "--fuzzy and --strict options', style='bold')"
+                )
+                assert any(expected_call in call_arg for call_arg in call_args), (
+                    f"Expected call not found. Actual calls: {call_args}"
                 )
 
     def test_file_not_found_error(self):

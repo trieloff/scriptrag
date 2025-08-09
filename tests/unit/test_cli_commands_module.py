@@ -34,6 +34,7 @@ class TestCLICommandsModule:
             "index_command",
             "init_command",
             "list_command",
+            "query_app",
             "search_command",
         ]
 
@@ -156,6 +157,7 @@ class TestCLICommandsModule:
             "index_command",
             "init_command",
             "list_command",
+            "query_app",
             "search_command",
         ]
 

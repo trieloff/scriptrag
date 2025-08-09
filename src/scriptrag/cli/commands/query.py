@@ -44,7 +44,15 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
         params = kwargs
 
         try:
-            result = api.execute_query(
+            # Get fresh API instance with current settings at execution time
+            # Force fresh settings to pick up environment variable changes
+            import scriptrag.config.settings as settings_module
+
+            settings_module._settings = None  # Clear cached settings
+            current_settings = get_settings()
+            current_api = QueryAPI(current_settings)
+
+            result = current_api.execute_query(
                 name=spec_name,
                 params=params,
                 limit=limit,
@@ -52,7 +60,7 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
                 output_json=output_json,
             )
 
-            if output_json and result:
+            if result:
                 console.print(result)
 
         except Exception as e:
@@ -183,6 +191,16 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
 
 def register_query_commands() -> None:
     """Register all discovered queries as subcommands."""
+    # Clear any existing commands to prevent stale cache issues
+    if hasattr(query_app, "registered_commands"):
+        query_app.registered_commands.clear()
+    if hasattr(query_app, "registered_groups"):
+        query_app.registered_groups.clear()
+
+    # Force fresh settings to pick up environment variable changes
+    import scriptrag.config.settings as settings_module
+
+    settings_module._settings = None  # Clear cached settings
     settings = get_settings()
     api = QueryAPI(settings)
 

@@ -37,6 +37,14 @@ class SearchEngine:
         Returns:
             Database connection in read-only mode
         """
+        # Validate database path to prevent path traversal
+        db_path_resolved = self.db_path.resolve()
+        # Get the expected parent directory from the original settings path
+        expected_parent = self.settings.database_path.parent.resolve()
+
+        if not str(db_path_resolved).startswith(str(expected_parent)):
+            raise ValueError("Invalid database path detected")
+
         return get_read_only_connection(self.settings)
 
     def search(self, query: SearchQuery) -> SearchResponse:
@@ -61,7 +69,7 @@ class SearchEngine:
                 "Please run 'scriptrag init' first."
             )
 
-        with get_read_only_connection(self.settings) as conn:
+        with self.get_read_only_connection() as conn:
             # Build and execute search query
             sql, params = self.query_builder.build_search_query(query)
 

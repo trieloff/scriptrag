@@ -86,7 +86,19 @@ class QueryEngine:
             else:
                 sql = f"SELECT * FROM ({sql}) LIMIT :limit"
         elif not has_offset and "offset" in validated_params:
-            sql = f"SELECT * FROM ({sql}) OFFSET :offset"
+            # If query already has LIMIT but no OFFSET, modify the LIMIT clause
+            if has_limit and ":limit" in sql.lower():
+                # Replace LIMIT :limit with LIMIT :limit OFFSET :offset
+                import re
+
+                sql = re.sub(
+                    r"LIMIT\s+:limit",
+                    "LIMIT :limit OFFSET :offset",
+                    sql,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                sql = f"SELECT * FROM ({sql}) OFFSET :offset"
 
         # Execute query
         with get_read_only_connection(self.settings) as conn:

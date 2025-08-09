@@ -91,7 +91,11 @@ class TestCLISearchCoverage:
             mock_api = MagicMock()
             mock_from_config.return_value = mock_api
 
-            with patch("scriptrag.cli.commands.search.console") as mock_console:
+            with (
+                patch("scriptrag.cli.commands.search.console") as mock_console,
+                # Also patch the logger to avoid structlog exception rendering issues
+                patch("scriptrag.cli.commands.search.logger"),
+            ):
                 with pytest.raises(typer.Exit) as exc_info:
                     search_command(
                         query="test",
@@ -101,15 +105,9 @@ class TestCLISearchCoverage:
 
                 assert exc_info.value.exit_code == 1
                 # Check that the specific error message was printed
-                # Get the actual call arguments for debugging
-                call_args = [str(call) for call in mock_console.print.call_args_list]
-                # Check if our expected call is in the list
-                expected_call = (
-                    "call('[red]Error:[/red] Cannot use both "
-                    "--fuzzy and --strict options', style='bold')"
-                )
-                assert any(expected_call in call_arg for call_arg in call_args), (
-                    f"Expected call not found. Actual calls: {call_args}"
+                mock_console.print.assert_any_call(
+                    "[red]Error:[/red] Cannot use both --fuzzy and --strict options",
+                    style="bold",
                 )
 
     def test_file_not_found_error(self):
@@ -124,7 +122,11 @@ class TestCLISearchCoverage:
                 "Database not found at /some/path. Please run 'scriptrag init' first."
             )
 
-            with patch("scriptrag.cli.commands.search.console") as mock_console:
+            with (
+                patch("scriptrag.cli.commands.search.console") as mock_console,
+                # Also patch the logger to avoid structlog exception rendering issues
+                patch("scriptrag.cli.commands.search.logger"),
+            ):
                 with pytest.raises(typer.Exit) as exc_info:
                     search_command(query="test")
 

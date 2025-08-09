@@ -192,10 +192,12 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
 def register_query_commands() -> None:
     """Register all discovered queries as subcommands."""
     # Clear any existing commands to prevent stale cache issues
-    if hasattr(query_app, "registered_commands"):
-        query_app.registered_commands.clear()
-    if hasattr(query_app, "registered_groups"):
-        query_app.registered_groups.clear()
+    global query_app
+    query_app = typer.Typer(
+        name="query",
+        help="Execute SQL queries from the query library",
+        no_args_is_help=True,
+    )
 
     # Force fresh settings to pick up environment variable changes
     import scriptrag.config.settings as settings_module
@@ -203,6 +205,9 @@ def register_query_commands() -> None:
     settings_module._settings = None  # Clear cached settings
     settings = get_settings()
     api = QueryAPI(settings)
+
+    # Force reload queries from (possibly new) directory
+    api.reload_queries()
 
     # Discover and register queries
     queries = api.list_queries()
@@ -241,4 +246,5 @@ def register_query_commands() -> None:
 
 
 # Register commands on module import
+# NOTE: This could be made lazy if needed for testing
 register_query_commands()

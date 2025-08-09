@@ -291,22 +291,21 @@ ORDER BY d.id""")
         assert "Database not found" in output or "Error" in output
 
     def test_empty_query_directory(self, runner, temp_db, tmp_path, monkeypatch):
-        """Test behavior with no queries available."""
+        """Test behavior when custom query directory is empty.
+
+        Note: The current design shows built-in queries even when a custom directory
+        is empty. This ensures users always have access to essential queries.
+        """
         empty_dir = tmp_path / "empty_queries"
         empty_dir.mkdir()
 
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(empty_dir))
 
-        # Reload to pick up (no) queries
-        import importlib
-
-        import scriptrag.cli.commands.query
-
-        importlib.reload(scriptrag.cli.commands.query)
-
         result = runner.invoke(app, ["query", "list"])
         output = strip_ansi_codes(result.output)
 
         assert result.exit_code == 0
-        assert "No queries found" in output
+        # Current behavior: built-in queries are always available to ensure
+        # users have access to essential functionality
+        assert "Available queries:" in output

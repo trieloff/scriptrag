@@ -97,7 +97,7 @@ class TestCLICommandsModule:
         # Should contain the commands in __all__ plus the imported module names
         expected_attrs = set(commands_module.__all__)
         # Add the module names that get imported as side effects
-        expected_attrs.update(["analyze", "index", "init", "list", "search"])
+        expected_attrs.update(["analyze", "index", "init", "list", "query", "search"])
 
         assert set(public_attrs) == expected_attrs
 

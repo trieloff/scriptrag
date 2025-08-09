@@ -3,6 +3,8 @@
 import json
 import sqlite3
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.search.builder import QueryBuilder
@@ -29,30 +31,43 @@ class SearchEngine:
         self.db_path = settings.database_path
         self.query_builder = QueryBuilder()
 
-    def get_read_only_connection(self) -> sqlite3.Connection:
-        """Get a read-only database connection.
+    @contextmanager
+    def get_read_only_connection(self) -> Generator[sqlite3.Connection, None, None]:
+        """Get a read-only database connection with context manager.
 
-        Returns:
+        Yields:
             Read-only SQLite connection
         """
-        # Open connection in read-only mode
-        uri = f"file:{self.db_path}?mode=ro"
-        conn = sqlite3.connect(
-            uri,
-            uri=True,
-            timeout=self.settings.database_timeout,
-            check_same_thread=False,
-        )
+        conn = None
+        try:
+            # Validate database path to prevent path traversal
+            db_path_resolved = self.db_path.resolve()
+            if not str(db_path_resolved).startswith(
+                str(self.settings.database_path.parent.resolve())
+            ):
+                raise ValueError("Invalid database path detected")
 
-        # Configure for read-only access
-        conn.execute("PRAGMA query_only = ON")
-        conn.execute(f"PRAGMA cache_size = {self.settings.database_cache_size}")
-        conn.execute(f"PRAGMA temp_store = {self.settings.database_temp_store}")
+            # Open connection in read-only mode
+            uri = f"file:{db_path_resolved}?mode=ro"
+            conn = sqlite3.connect(
+                uri,
+                uri=True,
+                timeout=self.settings.database_timeout,
+                check_same_thread=False,
+            )
 
-        # Enable JSON support
-        conn.row_factory = sqlite3.Row
+            # Configure for read-only access
+            conn.execute("PRAGMA query_only = ON")
+            conn.execute(f"PRAGMA cache_size = {self.settings.database_cache_size}")
+            conn.execute(f"PRAGMA temp_store = {self.settings.database_temp_store}")
 
-        return conn
+            # Enable JSON support
+            conn.row_factory = sqlite3.Row
+
+            yield conn
+        finally:
+            if conn:
+                conn.close()
 
     def search(self, query: SearchQuery) -> SearchResponse:
         """Execute a search query.
@@ -62,6 +77,10 @@ class SearchEngine:
 
         Returns:
             Search response with results
+
+        Raises:
+            FileNotFoundError: If database doesn't exist
+            ValueError: If database path is invalid
         """
         start_time = time.time()
 
@@ -72,8 +91,7 @@ class SearchEngine:
                 "Please run 'scriptrag init' first."
             )
 
-        conn = self.get_read_only_connection()
-        try:
+        with self.get_read_only_connection() as conn:
             # Build and execute search query
             sql, params = self.query_builder.build_search_query(query)
 
@@ -88,11 +106,22 @@ class SearchEngine:
 
             # Convert rows to SearchResult objects
             results = []
-            for row in rows:
-                # Parse metadata for season/episode
-                metadata = (
-                    json.loads(row["script_metadata"]) if row["script_metadata"] else {}
-                )
+            for idx, row in enumerate(rows):
+                # Parse metadata for season/episode with error handling
+                metadata = {}
+                if row["script_metadata"]:
+                    try:
+                        metadata = json.loads(row["script_metadata"])
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.warning(
+                            f"Failed to parse metadata for script {row['script_id']}",
+                            extra={
+                                "row_index": idx,
+                                "script_id": row["script_id"],
+                                "error": str(e),
+                            },
+                        )
+                        metadata = {}
 
                 result = SearchResult(
                     script_id=row["script_id"],
@@ -136,9 +165,6 @@ class SearchEngine:
             )
 
             return response
-
-        finally:
-            conn.close()
 
     def _determine_match_type(self, query: SearchQuery) -> str:
         """Determine the type of match based on query.

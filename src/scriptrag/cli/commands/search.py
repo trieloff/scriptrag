@@ -184,9 +184,12 @@ def search_command(
         )
         raise typer.Exit(1) from e
     except Exception as e:
-        logger.error(f"Search failed: {e}")
+        # Log full error details for debugging
+        logger.error(f"Search failed: {e}", exc_info=True)
+        # Show sanitized error message to user
         console.print(
-            f"[red]Error:[/red] Search failed: {e}",
+            "[red]Error:[/red] Search operation failed. "
+            "Please check the logs for details.",
             style="bold",
         )
         raise typer.Exit(1) from e

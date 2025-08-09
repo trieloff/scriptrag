@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from scriptrag.config import get_settings
+
 
 class SearchMode(str, Enum):
     """Search mode enumeration."""
@@ -43,7 +45,8 @@ class SearchQuery:
         # Auto mode: use vector search for longer queries
         query_text = self.dialogue or self.action or self.text_query or ""
         word_count = len(query_text.split())
-        return word_count > 10
+        settings = get_settings()
+        return word_count > settings.search_vector_threshold
 
 
 @dataclass

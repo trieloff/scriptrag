@@ -110,6 +110,13 @@ class ScriptRAGSettings(BaseSettings):
         description="Log file retention period",
     )
 
+    # Search settings
+    search_vector_threshold: int = Field(
+        default=10,
+        description="Word count threshold for automatic vector search",
+        ge=1,
+    )
+
     # LLM settings
     llm_provider: str | None = Field(
         default=None,

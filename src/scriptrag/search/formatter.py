@@ -1,5 +1,7 @@
 """Result formatter for search functionality."""
 
+import json
+
 from rich.console import Console
 from rich.panel import Panel
 
@@ -197,3 +199,37 @@ class ResultFormatter:
             )
 
         return "\n".join(lines)
+
+    def format_json(self, response: SearchResponse) -> str:
+        """Format search results as JSON.
+
+        Args:
+            response: Search response with results
+
+        Returns:
+            JSON string representation of results
+        """
+        data = {
+            "results": [
+                {
+                    "script_id": r.script_id,
+                    "script_title": r.script_title,
+                    "script_author": r.script_author,
+                    "scene_id": r.scene_id,
+                    "scene_number": r.scene_number,
+                    "scene_heading": r.scene_heading,
+                    "scene_location": r.scene_location,
+                    "scene_time": r.scene_time,
+                    "scene_content": r.scene_content,
+                    "season": r.season,
+                    "episode": r.episode,
+                    "match_type": r.match_type,
+                }
+                for r in response.results
+            ],
+            "total_count": response.total_count,
+            "has_more": response.has_more,
+            "execution_time_ms": response.execution_time_ms,
+            "search_methods": response.search_methods,
+        }
+        return json.dumps(data, indent=2)

@@ -1,0 +1,177 @@
+"""Query execution engine."""
+
+import time
+from typing import Any
+
+from scriptrag.config import ScriptRAGSettings, get_logger
+from scriptrag.database.readonly import get_read_only_connection
+from scriptrag.query.spec import QuerySpec
+
+logger = get_logger(__name__)
+
+
+class QueryEngine:
+    """Execute SQL queries with parameter binding."""
+
+    def __init__(self, settings: ScriptRAGSettings | None = None):
+        """Initialize query engine.
+
+        Args:
+            settings: Configuration settings
+        """
+        if settings is None:
+            from scriptrag.config import get_settings
+
+            settings = get_settings()
+
+        self.settings = settings
+        self.db_path = settings.database_path
+
+    def execute(
+        self,
+        spec: QuerySpec,
+        params: dict[str, Any] | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ) -> tuple[list[dict[str, Any]], float]:
+        """Execute a query with parameters.
+
+        Args:
+            spec: Query specification
+            params: Query parameters
+            limit: Row limit (if not in params)
+            offset: Row offset (if not in params)
+
+        Returns:
+            Tuple of (rows as list of dicts, execution time in ms)
+
+        Raises:
+            FileNotFoundError: If database doesn't exist
+            ValueError: If required parameters are missing or invalid
+        """
+        # Check if database exists
+        if not self.db_path.exists():
+            raise FileNotFoundError(
+                f"Database not found at {self.db_path}. "
+                "Please run 'scriptrag init' first."
+            )
+
+        start_time = time.time()
+
+        # Build and validate parameters
+        validated_params = self._validate_params(spec, params or {})
+
+        # Handle limit/offset
+        has_limit, has_offset = spec.has_limit_offset()
+
+        # Add limit/offset to params if provided
+        if limit is not None and "limit" not in validated_params:
+            validated_params["limit"] = limit
+        if offset is not None and "offset" not in validated_params:
+            validated_params["offset"] = offset
+
+        # Apply defaults for limit/offset if not provided
+        if "limit" not in validated_params and not has_limit:
+            validated_params["limit"] = 10
+        if "offset" not in validated_params and not has_offset:
+            validated_params["offset"] = 0
+
+        # Prepare SQL
+        sql = spec.sql
+
+        # Wrap SQL if limit/offset not in original query but provided in params
+        if not has_limit and "limit" in validated_params:
+            if not has_offset and "offset" in validated_params:
+                sql = f"SELECT * FROM ({sql}) LIMIT :limit OFFSET :offset"
+            else:
+                sql = f"SELECT * FROM ({sql}) LIMIT :limit"
+        elif not has_offset and "offset" in validated_params:
+            sql = f"SELECT * FROM ({sql}) OFFSET :offset"
+
+        # Execute query
+        with get_read_only_connection(self.settings) as conn:
+            logger.debug(
+                f"Executing query '{spec.name}' with params: {validated_params}"
+            )
+
+            try:
+                cursor = conn.execute(sql, validated_params)
+                rows = cursor.fetchall()
+
+                # Convert rows to list of dicts
+                if rows:
+                    columns = [description[0] for description in cursor.description]
+                    result = [dict(zip(columns, row, strict=False)) for row in rows]
+                else:
+                    result = []
+
+                execution_time_ms = (time.time() - start_time) * 1000
+                logger.info(
+                    f"Query '{spec.name}' executed: {len(result)} rows "
+                    f"in {execution_time_ms:.2f}ms"
+                )
+
+                return result, execution_time_ms
+
+            except Exception as e:
+                logger.error(f"Query execution failed: {e}")
+                raise ValueError(f"Query execution failed: {e}") from e
+
+    def _validate_params(
+        self, spec: QuerySpec, params: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Validate and cast parameters.
+
+        Args:
+            spec: Query specification
+            params: Raw parameters
+
+        Returns:
+            Validated and casted parameters
+
+        Raises:
+            ValueError: If validation fails
+        """
+        validated = {}
+
+        # Process each parameter spec
+        for param_spec in spec.params:
+            value = params.get(param_spec.name)
+            casted = param_spec.cast_value(value)
+            if casted is not None:
+                validated[param_spec.name] = casted
+
+        # Add any extra params not in spec (for backwards compatibility)
+        for key, value in params.items():
+            if key not in validated:
+                logger.warning(
+                    f"Parameter '{key}' not defined in query spec, passing as-is"
+                )
+                validated[key] = value
+
+        return validated
+
+    def check_read_only(self) -> bool:
+        """Verify that the database connection is read-only.
+
+        Returns:
+            True if connection is read-only
+
+        Raises:
+            RuntimeError: If write operation succeeds (should not happen)
+        """
+        with get_read_only_connection(self.settings) as conn:
+            try:
+                # Attempt to create a table (should fail)
+                conn.execute("CREATE TABLE test_write (id INTEGER)")
+                conn.commit()
+                # If we get here, connection is NOT read-only
+                raise RuntimeError("Database connection is not read-only!")
+            except Exception as e:
+                # Expected: write operation should fail
+                if "read-only" in str(e).lower() or "readonly" in str(e).lower():
+                    return True
+                # Re-raise unexpected errors
+                if "Database connection is not read-only" in str(e):
+                    raise
+                return True

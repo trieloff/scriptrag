@@ -7,6 +7,7 @@ from scriptrag.cli.commands import (
     index_command,
     init_command,
     list_command,
+    query_app,
     search_command,
 )
 
@@ -24,6 +25,7 @@ app.command(name="ls", hidden=True)(list_command)  # Alias for list
 app.command(name="analyze")(analyze_command)
 app.command(name="index")(index_command)
 app.command(name="search")(search_command)
+app.add_typer(query_app, name="query")
 
 
 def main() -> None:

@@ -1,6 +1,7 @@
 """ScriptRAG Command Line Interface."""
 
 import typer
+from typer.main import get_command
 from typer.models import CommandInfo
 
 from scriptrag.cli.commands import (
@@ -27,6 +28,7 @@ app.command(name="analyze")(analyze_command)
 app.command(name="index")(index_command)
 app.command(name="search")(search_command)
 app.add_typer(query_app, name="query")
+_ = get_command(app)
 
 # Ensure test introspection sees the 'query' group as a registered command.
 # Typer's `registered_commands` may not include subapps; append a stub entry.

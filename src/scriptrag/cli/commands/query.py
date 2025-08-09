@@ -23,10 +23,16 @@ query_app = typer.Typer(
     add_completion=False,
 )
 
+# A Click group hosting the dynamic commands, mounted into the main app.
+# Note: A pure Click group was explored to avoid exec, but Typer currently
+# doesn't expose a supported way to mount a runtime-built click.Group while
+# keeping help/UX consistent. The dynamic Typer command approach below keeps
+# behavior correct and secure (no SQL interpolation; CLI options validated).
+
 
 @query_app.callback(invoke_without_command=True)
 def query_root(ctx: typer.Context) -> None:
-    """Show available queries when no subcommand is provided."""
+    """When invoked without a subcommand, list discovered queries."""
     if ctx.invoked_subcommand is not None:
         return
 
@@ -47,6 +53,7 @@ def query_root(ctx: typer.Context) -> None:
 
 
 def _register_dynamic_commands() -> None:
+    """Discover queries and register Typer commands using dynamic functions."""
     api = QueryAPI.from_config()
     specs = api.list_queries()
 

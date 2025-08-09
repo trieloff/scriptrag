@@ -360,7 +360,8 @@ class TestSearchEngine:
         query = SearchQuery(raw_query="test", dialogue="hello")
         response = engine.search(query)
 
-        assert response.execution_time_ms > 0
+        # Windows time.time() may have lower precision and return 0.0 for fast ops
+        assert response.execution_time_ms >= 0
         assert isinstance(response.execution_time_ms, float)
 
     @patch("scriptrag.search.engine.logger")

@@ -70,7 +70,7 @@ class TestQueryCLI:
                     'EXT. STREET - NIGHT',
                     'Street',
                     'Night',
-                    'The street is empty.',
+                    'The street is empty.'
                 ),
                 (3, 2, 1, 'INT. HOME - MORNING', 'Home', 'Morning', 'Morning routine.');
 

@@ -1,7 +1,9 @@
 """Search engine for executing queries."""
 
 import json
+import sqlite3
 import time
+from contextlib import AbstractContextManager
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.database.readonly import get_read_only_connection
@@ -28,6 +30,14 @@ class SearchEngine:
         self.settings = settings
         self.db_path = settings.database_path
         self.query_builder = QueryBuilder()
+
+    def get_read_only_connection(self) -> AbstractContextManager[sqlite3.Connection]:
+        """Get a read-only database connection.
+
+        Returns:
+            Database connection in read-only mode
+        """
+        return get_read_only_connection(self.settings)
 
     def search(self, query: SearchQuery) -> SearchResponse:
         """Execute a search query.

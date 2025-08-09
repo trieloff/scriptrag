@@ -469,7 +469,7 @@ class TestSearchCommand:
         # Verify error handling
         assert exc_info.value.exit_code == 1
         mock_logger.error.assert_called_once_with(
-            "Search failed: Search failed", exc_info=True
+            "Search failed: %s", "Search failed", exc_info=True
         )
         mock_console.print.assert_called_once_with(
             "[red]Error:[/red] Search operation failed. "
@@ -504,7 +504,7 @@ class TestSearchCommand:
         # Verify error handling
         assert exc_info.value.exit_code == 1
         mock_logger.error.assert_called_once_with(
-            "Search failed: Format error", exc_info=True
+            "Search failed: %s", "Format error", exc_info=True
         )
 
     def test_brief_formatter_error(
@@ -534,7 +534,7 @@ class TestSearchCommand:
         # Verify error handling
         assert exc_info.value.exit_code == 1
         mock_logger.error.assert_called_once_with(
-            "Search failed: Brief format error", exc_info=True
+            "Search failed: %s", "Brief format error", exc_info=True
         )
 
     def test_default_parameters(

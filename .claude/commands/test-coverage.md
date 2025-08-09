@@ -145,7 +145,9 @@ if needs_work:
         print(f"   - {f}")
 EOF
 
-python /tmp/analyze_coverage.py "$CHANGED_FILES"
+# Use the target coverage from environment
+export TARGET_COVERAGE
+python "$ANALYZE_SCRIPT"
 ```
 
 ### Phase 4: Generate tests for each file
@@ -179,13 +181,41 @@ if [ -z "$NEEDS_WORK" ]; then
 fi
 
 echo ""
-echo "🔧 Generating tests for files below 99% coverage..."
+echo "🔧 Generating tests for files below ${TARGET_COVERAGE}% coverage..."
 ```
 
 For each file, use test-holmes to generate comprehensive tests:
 
 ```text
-Task(description="Generate unit tests", prompt="You are test-holmes. Analyze the file [FILE_PATH] and generate comprehensive unit tests to achieve 99% code coverage. Focus on uncovered lines identified in the coverage report. Create tests that: 1) Cover all uncovered functions and methods, 2) Test edge cases and error conditions, 3) Mock external dependencies appropriately, 4) Follow the project's existing test patterns and conventions. Use pytest fixtures and parametrize for efficiency. The tests should be meaningful, not just coverage-padding.", subagent_type="test-holmes")
+Task(description="Generate unit tests", prompt="You are test-holmes. Analyze the file [FILE_PATH] and generate comprehensive unit tests to achieve ${TARGET_COVERAGE}% code coverage. Focus on uncovered lines identified in the coverage report. Create tests that: 1) Cover all uncovered functions and methods, 2) Test edge cases and error conditions, 3) Mock external dependencies appropriately, 4) Follow the project's existing test patterns and conventions. Use pytest fixtures and parametrize for efficiency. The tests should be meaningful, not just coverage-padding.", subagent_type="test-holmes")
+```
+
+### Phase 4a: Verify test generation
+
+After test generation, verify tests were created:
+
+```bash
+echo ""
+echo "🔍 Verifying test generation..."
+
+# Find newly created test files
+NEW_TESTS=$(find tests/ -name "*.py" -newer /tmp/coverage_start_time_$$ 2>/dev/null)
+
+if [ -z "$NEW_TESTS" ]; then
+    echo "⚠️  No new test files detected. Checking for modifications to existing tests..."
+    # Check if existing test files were modified
+    MODIFIED_TESTS=$(find tests/ -name "*.py" -newer /tmp/coverage_start_time_$$ -o -name "test_*.py" -newer /tmp/coverage_start_time_$$ 2>/dev/null)
+    if [ -z "$MODIFIED_TESTS" ]; then
+        echo "❌ No test changes detected. Test generation may have failed."
+        echo "Please check sub-agent output and retry if needed."
+    else
+        echo "✅ Found modified test files:"
+        echo "$MODIFIED_TESTS" | head -10
+    fi
+else
+    echo "✅ New test files created:"
+    echo "$NEW_TESTS" | head -10
+fi
 ```
 
 ### Phase 5: Fix type and linting issues
@@ -235,22 +265,31 @@ pytest --cov=src/scriptrag --cov-report=term-missing --cov-report=json --tb=shor
 # Check if all files meet target
 echo ""
 echo "📈 Coverage after improvements:"
-python /tmp/analyze_coverage.py "$CHANGED_FILES"
+# Use the target coverage from environment
+export TARGET_COVERAGE
+python "$ANALYZE_SCRIPT"
 
 # Determine if target met
 ALL_PASS=$(python -c "
 import json
+import os
+import os.path
 from pathlib import Path
 
-target = 99.0
+target = float(os.environ.get('TARGET_COVERAGE', '99'))
 coverage_data = json.load(open('coverage.json')) if Path('coverage.json').exists() else {'files': {}}
-changed = '$CHANGED_FILES'.split()
 
-for file_path in changed:
+# Get files from environment
+changed_files = os.environ.get('CHANGED_FILES_LIST', '').strip().split('\\n')
+
+for file_path in changed_files:
+    if not file_path:
+        continue
     current = 0.0
-    for key in coverage_data.get('files', {}):
-        if file_path in key:
-            current = coverage_data['files'][key]['summary']['percent_covered']
+    for key, value in coverage_data.get('files', {}).items():
+        if (os.path.normpath(file_path) in os.path.normpath(key) or
+            os.path.basename(file_path) == os.path.basename(key)):
+            current = value['summary']['percent_covered']
             break
     if current < target:
         exit(1)
@@ -258,7 +297,7 @@ print('YES')
 " 2>/dev/null || echo "NO")
 
 if [ "$ALL_PASS" != "YES" ]; then
-    echo "⚠️ Some files still below 99% coverage. Continuing iteration..."
+    echo "⚠️ Some files still below ${TARGET_COVERAGE}% coverage. Continuing iteration..."
 fi
 ```
 
@@ -274,24 +313,24 @@ echo "💾 Committing test improvements..."
 git add tests/
 
 # Create detailed commit message
-COMMIT_MSG=$(cat << 'EOF'
-test: achieve 99% coverage for changed modules
+COMMIT_MSG=$(cat << EOF
+test: achieve ${TARGET_COVERAGE}% coverage for changed modules
 
 Coverage improvements:
 EOF
 )
 
 # Add file-specific improvements
-for file in $CHANGED_FILES; do
+for file in "${CHANGED_FILES_ARRAY[@]}"; do
     # Get before/after coverage for commit message
-    echo "- $file: X% → 99%" >> /tmp/commit_msg.txt
+    echo "- $file: X% → ${TARGET_COVERAGE}%" >> /tmp/commit_msg.txt
 done
 
 # Delegate to commit-quentin for proper commit
 ```
 
 ```text
-Task(description="Create commit", prompt="You are commit-quentin. Create a cinematic commit message for test coverage improvements. The tests now achieve 99% coverage for all changed files. Make it dramatic and reference an appropriate film about perfection, completion, or achieving the impossible.", subagent_type="commit-quentin")
+Task(description="Create commit", prompt="You are commit-quentin. Create a cinematic commit message for test coverage improvements. The tests now achieve ${TARGET_COVERAGE}% coverage for all changed files. Make it dramatic and reference an appropriate film about perfection, completion, or achieving the impossible.", subagent_type="commit-quentin")
 ```
 
 ### Phase 8: CI verification
@@ -330,12 +369,21 @@ echo "🔄 Checking if iteration needed..."
 ## Success Criteria
 
 The command completes when:
-- All changed Python files have ≥99% test coverage
+- All changed Python files have ≥${TARGET_COVERAGE}% test coverage (default: 99%)
 - All tests pass locally (pytest)
 - All type checks pass (mypy)
 - All linting passes (ruff)
 - CI verification succeeds
 - Changes are committed with appropriate messages
+
+## Configuration
+
+### Environment Variables
+
+- `TARGET_COVERAGE`: Set the coverage target percentage (default: 99)
+  ```bash
+  TARGET_COVERAGE=95 /test-coverage  # Use 95% target instead of 99%
+  ```
 
 ## Important Notes
 
@@ -356,3 +404,12 @@ The command completes when:
    - Proper mocking and fixtures
    - Edge cases and error conditions
    - Follow project conventions
+
+4. **File Handling**: Properly handles filenames with spaces and special characters
+   - Uses bash arrays for file lists
+   - Passes files via environment variables to Python scripts
+   - Normalizes paths for coverage matching
+
+5. **Cleanup**: Temporary files are automatically cleaned up on exit
+   - Uses trap to ensure cleanup even on early exit
+   - Unique filenames with process ID to avoid collisions

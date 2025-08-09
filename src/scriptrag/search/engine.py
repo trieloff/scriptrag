@@ -3,10 +3,10 @@
 import json
 import sqlite3
 import time
-from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import AbstractContextManager
 
 from scriptrag.config import ScriptRAGSettings, get_logger
+from scriptrag.database.readonly import get_read_only_connection
 from scriptrag.search.builder import QueryBuilder
 from scriptrag.search.models import SearchQuery, SearchResponse, SearchResult
 
@@ -31,43 +31,21 @@ class SearchEngine:
         self.db_path = settings.database_path
         self.query_builder = QueryBuilder()
 
-    @contextmanager
-    def get_read_only_connection(self) -> Generator[sqlite3.Connection, None, None]:
-        """Get a read-only database connection with context manager.
+    def get_read_only_connection(self) -> AbstractContextManager[sqlite3.Connection]:
+        """Get a read-only database connection.
 
-        Yields:
-            Read-only SQLite connection
+        Returns:
+            Database connection in read-only mode
         """
-        conn = None
-        try:
-            # Validate database path to prevent path traversal
-            db_path_resolved = self.db_path.resolve()
-            if not str(db_path_resolved).startswith(
-                str(self.settings.database_path.parent.resolve())
-            ):
-                raise ValueError("Invalid database path detected")
+        # Validate database path to prevent path traversal
+        db_path_resolved = self.db_path.resolve()
+        # Get the expected parent directory from the original settings path
+        expected_parent = self.settings.database_path.parent.resolve()
 
-            # Open connection in read-only mode
-            uri = f"file:{db_path_resolved}?mode=ro"
-            conn = sqlite3.connect(
-                uri,
-                uri=True,
-                timeout=self.settings.database_timeout,
-                check_same_thread=False,
-            )
+        if not str(db_path_resolved).startswith(str(expected_parent)):
+            raise ValueError("Invalid database path detected")
 
-            # Configure for read-only access
-            conn.execute("PRAGMA query_only = ON")
-            conn.execute(f"PRAGMA cache_size = {self.settings.database_cache_size}")
-            conn.execute(f"PRAGMA temp_store = {self.settings.database_temp_store}")
-
-            # Enable JSON support
-            conn.row_factory = sqlite3.Row
-
-            yield conn
-        finally:
-            if conn:
-                conn.close()
+        return get_read_only_connection(self.settings)
 
     def search(self, query: SearchQuery) -> SearchResponse:
         """Execute a search query.

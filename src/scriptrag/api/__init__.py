@@ -5,6 +5,7 @@ from scriptrag.api.database import DatabaseInitializer
 from scriptrag.api.database_operations import DatabaseOperations, ScriptRecord
 from scriptrag.api.index import IndexCommand, IndexOperationResult, IndexResult
 from scriptrag.api.list import FountainMetadata, ScriptLister
+from scriptrag.api.query import QueryAPI
 
 __all__ = [
     "AnalyzeCommand",
@@ -16,6 +17,7 @@ __all__ = [
     "IndexCommand",
     "IndexOperationResult",
     "IndexResult",
+    "QueryAPI",
     "ScriptLister",
     "ScriptRecord",
 ]

@@ -9,9 +9,9 @@ from scriptrag.cli.commands import (
     index_command,
     init_command,
     list_command,
-    query_app,
     search_command,
 )
+from scriptrag.cli.commands.query import query_app
 
 app = typer.Typer(
     name="scriptrag",

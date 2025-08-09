@@ -7,7 +7,6 @@ These tests achieve 99%+ coverage by testing all aspects of the CLI application:
 - Error handling and edge cases
 """
 
-import importlib.util
 from unittest.mock import patch
 
 import pytest
@@ -85,10 +84,15 @@ class TestCommandRegistration:
     )
     def test_command_help_accessible(self, command):
         """Test that help is accessible for all commands."""
+        from tests.utils import strip_ansi_codes
+
         runner = CliRunner()
         result = runner.invoke(app, [command, "--help"])
         assert result.exit_code == 0
-        assert "--help" in result.output
+
+        # Strip ANSI codes to avoid CI failures
+        clean_output = strip_ansi_codes(result.output)
+        assert "--help" in clean_output
 
     def test_command_registration_order(self):
         """Test that commands are registered in the expected order."""
@@ -192,16 +196,14 @@ class TestCLIModuleImport:
 
     def test_module_imports_cleanly(self):
         """Test that the CLI main module imports without errors."""
-        # Test direct import using importlib to avoid __init__.py conflicts
-        spec = importlib.util.spec_from_file_location(
-            "scriptrag.cli.main", "/root/repo/src/scriptrag/cli/main.py"
-        )
-        cli_main_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(cli_main_module)
+        # Test direct import - just verify that the regular import works
+        # This avoids file permission issues with direct file loading
+        from scriptrag.cli.main import app, main
 
-        assert hasattr(cli_main_module, "app")
-        assert hasattr(cli_main_module, "main")
-        assert callable(cli_main_module.main)
+        assert app is not None
+        assert callable(main)
+        assert hasattr(app, "registered_commands")
+        assert hasattr(app, "info")
 
     def test_required_imports_present(self):
         """Test that all required imports are present and functional."""

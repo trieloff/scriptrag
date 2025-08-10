@@ -26,8 +26,16 @@ def get_read_only_connection(
     """
     conn = None
     try:
-        # Validate database path to prevent path traversal
-        db_path_resolved = settings.database_path.resolve()
+        # SECURITY: Check for path traversal BEFORE resolving
+        db_path_original = settings.database_path
+
+        # Check for path traversal components before resolution
+        path_parts_original = str(db_path_original).replace("\\", "/").split("/")
+        if ".." in path_parts_original:
+            raise ValueError("Invalid database path detected")
+
+        # Now resolve the path
+        db_path_resolved = db_path_original.resolve()
         # Check if the resolved path is within a reasonable location
         # Prevent paths that resolve outside of typical project directories
         db_path_str = str(db_path_resolved)

@@ -26,62 +26,17 @@ def clean_settings():
 
 
 @pytest.fixture
-def multi_scene_screenplay(tmp_path):
-    """Create a screenplay with multiple scenes containing props."""
-    script_path = tmp_path / "props_context_test.fountain"
-    content = """Title: Props Context Test
-Author: Test Suite
-Draft date: 2024-01-01
-
-INT. DETECTIVE'S OFFICE - DAY
-
-The office is cluttered with case files. DETECTIVE JONES (40s) sits at his desk,
-examining a REVOLVER. His BADGE gleams on the desk next to a half-empty
-BOTTLE OF WHISKEY.
-
-JONES
-(to himself)
-This gun... it's the key to everything.
-
-He puts the revolver in his LEATHER HOLSTER and picks up his FEDORA HAT.
-
-INT. CRIME SCENE - LATER
-
-Jones enters the crime scene. The same REVOLVER from his office is now in an
-EVIDENCE BAG on a table. He pulls out his MAGNIFYING GLASS to examine it closer.
-
-A FORENSICS TECH hands him a MANILA ENVELOPE containing PHOTOGRAPHS.
-
-FORENSICS TECH
-The gun matches the one from the Miller case.
-
-Jones nods, putting the photos back in the envelope. He notices a COFFEE MUG
-on the counter - the same distinctive blue mug from his office.
-
-JONES
-Someone's trying to frame me.
-
-INT. INTERROGATION ROOM - NIGHT
-
-Jones sits across from a SUSPECT. The REVOLVER sits in the evidence bag between them.
-Jones' BADGE is on the table. He pulls out a CIGARETTE and LIGHTER.
-
-SUSPECT
-That's not my gun. I've never seen it before.
-
-Jones slides the PHOTOGRAPHS across the table. The same manila envelope from
-earlier sits nearby.
-
-JONES
-Then explain these photos.
-
-The suspect nervously taps his fingers on the metal TABLE. A TWO-WAY MIRROR
-reflects their tense faces.
-
-FADE OUT.
-"""
-    script_path.write_text(content)
-    return script_path
+def multi_scene_screenplay():
+    """Load the multi-scene screenplay fixture with proper prop capitalization."""
+    # Use the screenplay from fixtures directory with correct capitalization
+    # (only CHARACTER names are capitalized, not props)
+    return (
+        Path(__file__).parent.parent
+        / "fixtures"
+        / "fountain"
+        / "test_data"
+        / "props_context_multi_scene.fountain"
+    )
 
 
 @pytest.mark.requires_llm

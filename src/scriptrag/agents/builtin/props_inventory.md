@@ -13,11 +13,11 @@ requires_llm: true
 SELECT DISTINCT
     s.scene_number,
     s.heading,
-    json_extract(s.boneyard, '$.analyzers.props_inventory.result.props') as props_json
+    json_extract(s.metadata, '$.boneyard.analyzers.props_inventory.result.props') as props_json
 FROM scenes s
 WHERE s.script_id = :script_id
     AND s.scene_number < :scene_number
-    AND json_extract(s.boneyard, '$.analyzers.props_inventory.result.props') IS NOT NULL
+    AND json_extract(s.metadata, '$.boneyard.analyzers.props_inventory.result.props') IS NOT NULL
 ORDER BY s.scene_number DESC
 LIMIT 10;
 ```

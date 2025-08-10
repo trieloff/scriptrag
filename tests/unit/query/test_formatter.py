@@ -264,3 +264,50 @@ class TestQueryFormatter:
 
             response = mock_format.call_args[0][0]
             assert response.has_more is False
+
+    def test_format_results_empty_rows_message(self):
+        """Test format_results with empty rows shows message - lines 54-58 coverage."""
+        formatter = QueryFormatter()
+
+        with patch.object(formatter.console, "print") as mock_print:
+            result = formatter.format_results(
+                rows=[],
+                query_name="test_query",
+                execution_time_ms=10.0,
+                output_json=False,
+            )
+
+            assert result is None
+            mock_print.assert_called_once_with(
+                "[yellow]No results found for query 'test_query'.[/yellow]",
+                style="bold",
+            )
+
+    def test_is_scene_like_empty_rows(self):
+        """Test _is_scene_like with empty rows - line 78 coverage."""
+        formatter = QueryFormatter()
+
+        result = formatter._is_scene_like([])
+        assert result is False
+
+    def test_format_json_complex_result(self):
+        """Test _format_json with complex result structure - line 173 coverage."""
+        formatter = QueryFormatter()
+
+        rows = [
+            {"id": 1, "data": {"nested": "value"}, "list": [1, 2, 3]},
+            {"id": 2, "data": None, "list": []},
+        ]
+
+        result = formatter._format_json(rows, "complex_query", 15.5)
+
+        # Should return properly formatted JSON string
+        import json
+
+        parsed = json.loads(result)
+
+        assert parsed["query_name"] == "complex_query"
+        assert parsed["execution_time_ms"] == 15.5
+        assert len(parsed["results"]) == 2
+        assert parsed["results"][0]["data"]["nested"] == "value"
+        assert parsed["results"][1]["data"] is None

@@ -191,3 +191,267 @@ SELECT * FROM test WHERE id = :id""")
         assert "list_users" in names
         assert "get_orders" in names
         assert "products" in names
+
+    def test_init_without_settings(self):
+        """Test initialization without settings - uses get_settings()."""
+        with patch("scriptrag.config.get_settings") as mock_get_settings:
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_get_settings.return_value = mock_settings
+
+            loader = QueryLoader()
+
+            assert loader.settings == mock_settings
+            mock_get_settings.assert_called_once()
+
+    def test_get_query_directory_from_env(self, tmp_path):
+        """Test getting query directory from environment variable."""
+        query_dir = tmp_path / "custom_queries"
+        query_dir.mkdir()
+
+        with (
+            patch.dict("os.environ", {"SCRIPTRAG_QUERY_DIR": str(query_dir)}),
+            patch("scriptrag.query.loader.logger") as mock_logger,
+        ):
+            loader = QueryLoader(MagicMock(spec=ScriptRAGSettings))
+            assert loader._query_dir == query_dir
+            mock_logger.info.assert_called_with(
+                f"Using query directory from env: {query_dir}"
+            )
+
+    def test_get_query_directory_env_not_exist(self, tmp_path):
+        """Test environment variable points to non-existent directory."""
+        nonexistent = tmp_path / "nonexistent"
+
+        with (
+            patch.dict("os.environ", {"SCRIPTRAG_QUERY_DIR": str(nonexistent)}),
+            patch("scriptrag.query.loader.logger") as mock_logger,
+        ):
+            loader = QueryLoader(MagicMock(spec=ScriptRAGSettings))
+
+            # Should warn about non-existent path
+            mock_logger.warning.assert_called_with(
+                f"SCRIPTRAG_QUERY_DIR set but path doesn't exist: {nonexistent}"
+            )
+
+            # Should fall back to default path
+            assert loader._query_dir != nonexistent
+
+    def test_get_query_directory_default_not_exist(self):
+        """Test default query directory creation when it doesn't exist."""
+        with (
+            patch("scriptrag.query.loader.logger"),
+            patch("scriptrag.query.loader.Path.mkdir") as mock_mkdir,
+        ):
+            QueryLoader(MagicMock(spec=ScriptRAGSettings))
+
+            # Should create directory
+            mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
+
+    def test_discover_queries_force_reload(self, sample_queries, monkeypatch):
+        """Test force reloading queries."""
+        monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        # First load
+        queries1 = loader.discover_queries()
+        assert len(queries1) == 3
+
+        # Modify cache manually
+        loader._cache = {"fake": MagicMock()}
+
+        # Force reload should ignore cache
+        queries2 = loader.discover_queries(force_reload=True)
+        assert len(queries2) == 3
+        assert "fake" not in queries2
+
+    def test_discover_queries_directory_not_exist(self):
+        """Test discovering queries when directory doesn't exist."""
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        # Point to non-existent directory
+        loader._query_dir = Path("/nonexistent")
+
+        with patch("scriptrag.query.loader.logger") as mock_logger:
+            queries = loader.discover_queries()
+
+            assert len(queries) == 0
+            mock_logger.warning.assert_called_with(
+                "Query directory doesn't exist: /nonexistent"
+            )
+
+    def test_discover_queries_load_error(self, tmp_path):
+        """Test discovering queries with loading error."""
+        query_dir = tmp_path / "queries"
+        query_dir.mkdir()
+
+        # Create invalid file that will cause loading error
+        invalid_file = query_dir / "invalid.sql"
+        invalid_file.write_bytes(b"\xff\xfe")  # Invalid UTF-8
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+        loader._query_dir = query_dir
+
+        with patch("scriptrag.query.loader.logger") as mock_logger:
+            queries = loader.discover_queries()
+
+            # Should skip the invalid file
+            assert len(queries) == 0
+
+            # Should log error
+            mock_logger.error.assert_called()
+            error_call = mock_logger.error.call_args[0][0]
+            assert "Failed to load query from" in error_call
+
+    def test_load_query_no_name_header(self, tmp_path):
+        """Test loading query without name header."""
+        query_file = tmp_path / "no_name.sql"
+        query_file.write_text("""
+        -- description: Query without name
+        SELECT * FROM test;
+        """)
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        with patch("scriptrag.query.loader.logger") as mock_logger:
+            spec = loader.load_query(query_file)
+
+            # Should use filename as name
+            assert spec.name == "no_name"
+
+            # Should log warning
+            mock_logger.warning.assert_called()
+            warning_call = mock_logger.warning.call_args[0][0]
+            assert "has no '-- name:' header" in warning_call
+
+    def test_load_query_parse_error(self, tmp_path):
+        """Test loading query with parse error."""
+        query_file = tmp_path / "parse_error.sql"
+        query_file.write_bytes(b"\xff\xfe")  # Invalid UTF-8
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        with pytest.raises(ValueError, match="Failed to parse query file"):
+            loader.load_query(query_file)
+
+    def test_validate_sql_syntax_empty(self):
+        """Test SQL syntax validation with empty SQL."""
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        with pytest.raises(ValueError, match="Empty SQL statement"):
+            loader._validate_sql_syntax("")
+
+        with pytest.raises(ValueError, match="Empty SQL statement"):
+            loader._validate_sql_syntax("   \n  ")
+
+    def test_validate_sql_syntax_incomplete(self):
+        """Test SQL syntax validation with incomplete SQL."""
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        with pytest.raises(ValueError, match="Incomplete SQL statement"):
+            loader._validate_sql_syntax("SELECT * FROM")
+
+    def test_validate_sql_syntax_non_readonly(self):
+        """Test SQL syntax validation with non-read-only queries."""
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        with pytest.raises(ValueError, match="Only read-only queries.*are allowed"):
+            loader._validate_sql_syntax("INSERT INTO test VALUES (1)")
+
+        with pytest.raises(ValueError, match="Only read-only queries.*are allowed"):
+            loader._validate_sql_syntax("UPDATE test SET col = 1")
+
+        with pytest.raises(ValueError, match="Only read-only queries.*are allowed"):
+            loader._validate_sql_syntax("DELETE FROM test")
+
+    def test_validate_sql_syntax_valid_queries(self):
+        """Test SQL syntax validation with valid queries."""
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        # These should not raise exceptions
+        loader._validate_sql_syntax("SELECT * FROM test")
+        loader._validate_sql_syntax("SELECT * FROM test;")
+        loader._validate_sql_syntax("WITH cte AS (SELECT 1) SELECT * FROM cte")
+        loader._validate_sql_syntax("PRAGMA table_info(test)")
+        loader._validate_sql_syntax("EXPLAIN SELECT * FROM test")
+
+    def test_get_query_cache_behavior(self, sample_queries, monkeypatch):
+        """Test query caching behavior."""
+        monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        # First call loads from disk
+        query1 = loader.get_query("list_users")
+        assert query1 is not None
+
+        # Second call uses cache
+        query2 = loader.get_query("list_users")
+        assert query2 is query1  # Same object
+
+    def test_get_query_not_found(self, sample_queries, monkeypatch):
+        """Test getting non-existent query."""
+        monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        query = loader.get_query("nonexistent")
+        assert query is None
+
+    def test_list_queries_cache_behavior(self, sample_queries, monkeypatch):
+        """Test list queries caching behavior."""
+        monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        # First call loads from disk
+        queries1 = loader.list_queries()
+        assert len(queries1) == 3
+
+        # Second call uses cache
+        queries2 = loader.list_queries()
+        assert queries2 == queries1  # Same content (list contents)
+
+    def test_get_query_directory_exception_handling(self):
+        """Test exception handling in query directory setup - lines 48-49 coverage."""
+        settings = MagicMock(spec=ScriptRAGSettings)
+
+        with patch("scriptrag.query.loader.Path") as mock_path_class:
+            # Mock Path.mkdir to raise an exception
+            mock_path = MagicMock()
+            mock_path.exists.return_value = False
+            mock_path.mkdir.side_effect = OSError("Permission denied")
+            mock_path_class.return_value = mock_path
+
+            with (
+                patch("os.environ", {}),
+                patch("scriptrag.query.loader.logger"),
+                pytest.raises(OSError),
+            ):
+                QueryLoader(settings)
+
+            # Should have attempted to create directory
+            mock_path.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+
+    def test_reload_queries_method(self):
+        """Test reload queries method calls discover with force - line 156 coverage."""
+        settings = MagicMock(spec=ScriptRAGSettings)
+        loader = QueryLoader(settings)
+
+        with patch.object(loader, "discover_queries") as mock_discover:
+            loader.reload_queries()
+
+            # Should call discover_queries with force_reload=True
+            mock_discover.assert_called_once_with(force_reload=True)

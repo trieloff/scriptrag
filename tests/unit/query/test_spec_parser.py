@@ -116,6 +116,62 @@ ORDER BY
         assert "FROM" in spec.sql
         assert "GROUP BY" in spec.sql
 
+    def test_parse_param_invalid_type(self):
+        """Test parsing parameter with invalid type returns None."""
+        line = "-- param: test_param unknown required"
+        match = HeaderParser.PARAM_PATTERN.match(line)
+        param = HeaderParser._parse_param(match)
+        assert param is None
+
+    def test_parse_param_with_default_bool_true(self):
+        """Test parsing parameter with boolean default (true)."""
+        line = "-- param: active bool optional default=true"
+        match = HeaderParser.PARAM_PATTERN.match(line)
+        param = HeaderParser._parse_param(match)
+
+        assert param.name == "active"
+        assert param.type == "bool"
+        assert not param.required
+        assert param.default is True
+
+    def test_parse_param_with_default_bool_false(self):
+        """Test parsing parameter with boolean default (false)."""
+        line = "-- param: active bool optional default=false"
+        match = HeaderParser.PARAM_PATTERN.match(line)
+        param = HeaderParser._parse_param(match)
+
+        assert param.name == "active"
+        assert param.type == "bool"
+        assert not param.required
+        assert param.default is False
+
+    def test_parse_with_fallback_name(self):
+        """Test parsing with fallback name from source path."""
+        content = """
+        -- description: Test query without name header
+        SELECT * FROM test;
+        """
+
+        from pathlib import Path
+
+        source_path = Path("/path/to/my_query.sql")
+        spec = HeaderParser.parse(content, source_path)
+
+        assert spec.name == "my_query"
+        assert spec.description == "Test query without name header"
+        assert "SELECT * FROM test" in spec.sql
+
+    def test_parse_with_no_header_no_path(self):
+        """Test parsing with no header and no source path."""
+        content = "SELECT * FROM test;"
+
+        spec = HeaderParser.parse(content)
+
+        assert spec.name == "unnamed"
+        assert spec.description == ""
+        assert len(spec.params) == 0
+        assert "SELECT * FROM test" in spec.sql
+
 
 class TestParamSpec:
     """Test parameter specification."""
@@ -200,6 +256,65 @@ class TestParamSpec:
         with pytest.raises(ValueError, match="Invalid choice"):
             param.cast_value("d")
 
+    def test_cast_value_required_none_no_default(self):
+        """Test casting None value for required parameter with no default."""
+        param_spec = ParamSpec(name="test", type="str", required=True)
+
+        with pytest.raises(ValueError, match="Required parameter 'test' not provided"):
+            param_spec.cast_value(None)
+
+    def test_cast_value_float_type(self):
+        """Test casting values to float type."""
+        param_spec = ParamSpec(name="test", type="float", required=True)
+
+        # Valid float conversion
+        assert param_spec.cast_value("3.14") == 3.14
+        assert param_spec.cast_value(42) == 42.0
+
+        # Invalid float conversion
+        with pytest.raises(ValueError, match="Cannot convert 'not_a_float' to float"):
+            param_spec.cast_value("not_a_float")
+
+    def test_cast_value_bool_variations(self):
+        """Test casting various bool values."""
+        param_spec = ParamSpec(name="test", type="bool", required=True)
+
+        # Boolean values
+        assert param_spec.cast_value(True) is True
+        assert param_spec.cast_value(False) is False
+
+        # String true variations
+        assert param_spec.cast_value("true") is True
+        assert param_spec.cast_value("1") is True
+        assert param_spec.cast_value("yes") is True
+        assert param_spec.cast_value("y") is True
+        assert param_spec.cast_value("on") is True
+
+        # String false variations
+        assert param_spec.cast_value("false") is False
+        assert param_spec.cast_value("0") is False
+        assert param_spec.cast_value("no") is False
+        assert param_spec.cast_value("n") is False
+        assert param_spec.cast_value("off") is False
+
+        # Invalid bool conversion
+        with pytest.raises(ValueError, match="Cannot convert 'maybe' to bool"):
+            param_spec.cast_value("maybe")
+
+    def test_cast_value_unknown_type(self):
+        """Test casting with unknown type raises error."""
+        # Create param spec with invalid type (bypassing validation)
+        param_spec = ParamSpec.__new__(ParamSpec)
+        param_spec.name = "test"
+        param_spec.type = "unknown"
+        param_spec.required = True
+        param_spec.default = None
+        param_spec.help = None
+        param_spec.choices = None
+
+        with pytest.raises(ValueError, match="Unknown type: unknown"):
+            param_spec.cast_value("value")
+
 
 class TestQuerySpec:
     """Test query specification."""
@@ -250,3 +365,18 @@ class TestQuerySpec:
         has_limit, has_offset = spec3.has_limit_offset()
         assert has_limit is False
         assert has_offset is False
+
+    def test_parse_param_with_string_default(self):
+        """Test parsing parameter with string default - line 216 coverage."""
+        line = '-- param: name str required=false default=unknown help="User name"'
+
+        from scriptrag.query.spec import HeaderParser
+
+        match = HeaderParser.PARAM_PATTERN.match(line)
+        param = HeaderParser._parse_param(match)
+
+        assert param.name == "name"
+        assert param.type == "str"
+        assert param.required is False
+        assert param.default == "unknown"  # String default, line 216
+        assert param.help == "User name"

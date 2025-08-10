@@ -282,9 +282,12 @@ class TestRegisterQueryCommands:
         assert result is None
         mock_api.get_query.assert_called_once_with("nonexistent")
 
-    def test_query_command_json_output_path(self):
+    @patch("scriptrag.cli.commands.query.get_settings")
+    @patch("scriptrag.cli.commands.query.QueryAPI")
+    def test_query_command_json_output_path(self, mock_api_class, mock_get_settings):
         """Test query command JSON output path - line 68 coverage."""
-        mock_api = MagicMock()
+        # Setup initial mock API for command creation
+        mock_initial_api = MagicMock()
 
         # Create a simple spec
         spec = QuerySpec(
@@ -294,23 +297,37 @@ class TestRegisterQueryCommands:
             sql="SELECT * FROM test",
         )
 
-        mock_api.get_query.return_value = spec
-        mock_api.execute_query.return_value = '{"result": "json output"}'
+        mock_initial_api.get_query.return_value = spec
 
-        # Create the command function
-        command = create_query_command(mock_api, "test_query")
+        # Setup runtime API that will succeed
+        mock_settings = MagicMock()
+        mock_get_settings.return_value = mock_settings
+        mock_runtime_api = MagicMock()
+        mock_api_class.return_value = mock_runtime_api
+        mock_runtime_api.execute_query.return_value = '{"result": "json output"}'
+
+        # Create the command function using initial API
+        command = create_query_command(mock_initial_api, "test_query")
         assert command is not None
 
-        # Execute with JSON output
-        with patch("builtins.print") as mock_print:
+        # Execute with JSON output - creates new API via QueryAPI(current_settings)
+        with (
+            patch("scriptrag.config.settings._settings", None),
+            patch("builtins.print") as mock_print,
+        ):
             command(json=True)
 
         # Should print JSON result
         mock_print.assert_called_once_with('{"result": "json output"}')
 
-    def test_query_command_error_handling_paths(self):
+    @patch("scriptrag.cli.commands.query.get_settings")
+    @patch("scriptrag.cli.commands.query.QueryAPI")
+    def test_query_command_error_handling_paths(
+        self, mock_api_class, mock_get_settings
+    ):
         """Test query command error handling - lines 92, 94, 101-103 coverage."""
-        mock_api = MagicMock()
+        # Setup initial mock API for command creation
+        mock_initial_api = MagicMock()
 
         # Create a spec with error callback
         spec = QuerySpec(
@@ -320,24 +337,35 @@ class TestRegisterQueryCommands:
             sql="SELECT * FROM test",
         )
 
-        mock_api.get_query.return_value = spec
-        mock_api.execute_query.side_effect = ValueError("Query 'test_query' not found")
+        mock_initial_api.get_query.return_value = spec
 
-        # Create the command function
-        command = create_query_command(mock_api, "test_query")
+        # Setup runtime API that will fail
+        mock_settings = MagicMock()
+        mock_get_settings.return_value = mock_settings
+        mock_runtime_api = MagicMock()
+        mock_api_class.return_value = mock_runtime_api
+        mock_runtime_api.execute_query.side_effect = ValueError(
+            "Query 'test_query' not found"
+        )
+
+        # Create the command function using initial API
+        command = create_query_command(mock_initial_api, "test_query")
         assert command is not None
 
-        # Execute and expect typer.Exit
-        with patch("scriptrag.cli.commands.query.console") as mock_console:
-            with pytest.raises(typer.Exit) as exc_info:
-                command()
+        # Execute and expect typer.Exit - creates new API via QueryAPI(current_settings)
+        with (
+            patch("scriptrag.config.settings._settings", None),
+            patch("scriptrag.cli.commands.query.console") as mock_console,
+            pytest.raises(typer.Exit) as exc_info,
+        ):
+            command()
 
-            assert exc_info.value.exit_code == 1
-            expected_msg = (
-                "[red]Error executing query 'test_query': "
-                "Query 'test_query' not found[/red]"
-            )
-            mock_console.print.assert_called_with(expected_msg)
+        assert exc_info.value.exit_code == 1
+        expected_msg = (
+            "[red]Error executing query 'test_query': "
+            "Query 'test_query' not found[/red]"
+        )
+        mock_console.print.assert_called_with(expected_msg)
 
     def test_empty_query_list_command(self):
         """Test empty query list command - lines 221-229 coverage."""

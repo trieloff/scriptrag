@@ -485,29 +485,44 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_complete_all_providers_fail(self, client):
         """Test completion when all providers fail."""
-        # Patch all providers simultaneously
-        patches = []
-        for provider in client.providers.values():
-            mock_available = patch.object(provider, "is_available", return_value=True)
-            mock_complete = patch.object(
-                provider, "complete", side_effect=Exception("Provider failed")
-            )
-            patches.extend([mock_available, mock_complete])
-
-        # Start all patches
-        for p in patches:
-            p.start()
-
-        try:
+        # Use context managers for proper patch cleanup
+        with (
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS],
+                "is_available",
+                return_value=True,
+            ),
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS],
+                "complete",
+                side_effect=Exception("Provider failed"),
+            ),
+            patch.object(
+                client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                "is_available",
+                return_value=True,
+            ),
+            patch.object(
+                client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                "complete",
+                side_effect=Exception("Provider failed"),
+            ),
+            patch.object(
+                client.providers[LLMProvider.CLAUDE_CODE],
+                "is_available",
+                return_value=True,
+            ),
+            patch.object(
+                client.providers[LLMProvider.CLAUDE_CODE],
+                "complete",
+                side_effect=Exception("Provider failed"),
+            ),
+        ):
             request = CompletionRequest(
                 model="test", messages=[{"role": "user", "content": "Test"}]
             )
             with pytest.raises(RuntimeError, match="All LLM providers failed"):
                 await client.complete(request)
-        finally:
-            # Stop all patches
-            for p in patches:
-                p.stop()
 
     @pytest.mark.asyncio
     async def test_embed_with_provider(self, client):
@@ -613,24 +628,39 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_embed_all_providers_fail(self, client):
         """Test embedding when all providers fail."""
-        # Patch all providers simultaneously
-        patches = []
-        for provider in client.providers.values():
-            mock_available = patch.object(provider, "is_available", return_value=True)
-            mock_embed = patch.object(
-                provider, "embed", side_effect=Exception("Embed failed")
-            )
-            patches.extend([mock_available, mock_embed])
-
-        # Start all patches
-        for p in patches:
-            p.start()
-
-        try:
+        # Use context managers for proper patch cleanup
+        with (
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS],
+                "is_available",
+                return_value=True,
+            ),
+            patch.object(
+                client.providers[LLMProvider.GITHUB_MODELS],
+                "embed",
+                side_effect=Exception("Embed failed"),
+            ),
+            patch.object(
+                client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                "is_available",
+                return_value=True,
+            ),
+            patch.object(
+                client.providers[LLMProvider.OPENAI_COMPATIBLE],
+                "embed",
+                side_effect=Exception("Embed failed"),
+            ),
+            patch.object(
+                client.providers[LLMProvider.CLAUDE_CODE],
+                "is_available",
+                return_value=True,
+            ),
+            patch.object(
+                client.providers[LLMProvider.CLAUDE_CODE],
+                "embed",
+                side_effect=Exception("Embed failed"),
+            ),
+        ):
             request = EmbeddingRequest(model="test", input="test")
             with pytest.raises(RuntimeError, match="All LLM providers failed"):
                 await client.embed(request)
-        finally:
-            # Stop all patches
-            for p in patches:
-                p.stop()

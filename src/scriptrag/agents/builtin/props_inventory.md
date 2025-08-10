@@ -9,15 +9,17 @@ requires_llm: true
 ## Context Query
 
 ```sql
--- Get the current scene data
-SELECT
-    content,
-    heading,
-    scene_number,
-    page_number
-FROM scenes
-WHERE content_hash = :content_hash
-LIMIT 1;
+-- Get props from previous scenes for consistency
+SELECT DISTINCT
+    s.scene_number,
+    s.heading,
+    json_extract(s.boneyard, '$.analyzers.props_inventory.result.props') as props_json
+FROM scenes s
+WHERE s.script_id = :script_id
+    AND s.scene_number < :scene_number
+    AND json_extract(s.boneyard, '$.analyzers.props_inventory.result.props') IS NOT NULL
+ORDER BY s.scene_number DESC
+LIMIT 10;
 ```
 
 ## Output Schema
@@ -127,15 +129,26 @@ You are a professional script supervisor and prop master analyzing a screenplay 
 {{scene_content}}
 ```
 
+### Context: Props from Previous Scenes
+
+```sql
+-- This will be replaced with the context query results showing props used in earlier scenes
+```
+
 ### Instructions
 
-1. **IDENTIFY ALL PROPS**
+1. **REVIEW PREVIOUS PROPS** (if available)
+   - Check the context query results for props used in earlier scenes
+   - Maintain consistency with established prop names (e.g., "John's phone" not "a phone" if already established)
+   - Note any recurring props that might appear again
+
+2. **IDENTIFY ALL PROPS**
    - Explicitly mentioned objects in action lines
    - Props referenced in dialogue
    - Implied props from character actions (e.g., "types" implies keyboard/computer)
    - Environmental props that actors would interact with
 
-2. **CATEGORIZE EACH PROP**
+3. **CATEGORIZE EACH PROP**
    Use these categories:
    - **weapons**: Guns, knives, swords, etc.
    - **vehicles**: Cars, motorcycles, bicycles, boats, aircraft
@@ -150,30 +163,32 @@ You are a professional script supervisor and prop master analyzing a screenplay 
    - **medical**: Medicine, medical equipment, first aid
    - **miscellaneous**: Anything that doesn't fit above
 
-3. **ASSESS SIGNIFICANCE**
+4. **ASSESS SIGNIFICANCE**
    - **hero**: Close-up or critical plot importance
    - **plot_device**: Drives story forward
    - **character_defining**: Reveals character traits
    - **practical**: Necessary for action but not featured
    - **background**: Set dressing, minimal importance
 
-4. **DETERMINE ACTION REQUIREMENTS**
+5. **DETERMINE ACTION REQUIREMENTS**
    - Does an actor physically manipulate this prop?
    - Is it thrown, broken, or transformed?
    - Does it require special handling or effects?
 
-5. **TRACK MENTIONS**
+6. **TRACK MENTIONS**
    - **action**: Mentioned in action lines
    - **dialogue**: Referenced in character dialogue
    - **implied**: Not explicitly mentioned but necessary
 
 ### Special Considerations
 
+- **Prop Consistency**: If a prop appeared in previous scenes, use the exact same name for continuity
 - If a character "checks the time," include both watch AND phone as possible props
 - "Drinks coffee" implies both cup/mug AND coffee
 - "Drives away" implies car keys in addition to the vehicle
 - Consider multiples needed for continuity (clean/dirty, intact/broken)
 - Include both the container and contents for consumables
+- **Recurring Props**: Pay special attention to hero props that span multiple scenes
 
 ### Output Format
 

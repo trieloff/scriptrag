@@ -10,6 +10,11 @@ import jsonschema
 from jsonschema import ValidationError
 
 from scriptrag.agents.agent_spec import AgentSpec
+from scriptrag.agents.context_query import (
+    ContextParameters,
+    ContextQueryExecutor,
+    ContextResultFormatter,
+)
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.config import get_logger
 from scriptrag.utils import get_default_llm_client
@@ -17,6 +22,7 @@ from scriptrag.utils.screenplay import ScreenplayUtils
 
 if TYPE_CHECKING:
     from scriptrag.llm.client import LLMClient
+    from scriptrag.parser import Script
 
 logger = get_logger(__name__)
 
@@ -24,16 +30,24 @@ logger = get_logger(__name__)
 class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
     """Analyzer that wraps a markdown-based agent specification."""
 
-    def __init__(self, spec: AgentSpec, config: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        spec: AgentSpec,
+        config: dict[str, Any] | None = None,
+        script: Script | None = None,
+    ) -> None:
         """Initialize the markdown agent analyzer.
 
         Args:
             spec: Agent specification
             config: Optional configuration
+            script: Optional Script object for context
         """
         super().__init__(config)
         self.spec = spec
         self.llm_client: LLMClient | None = None
+        self.script = script
+        self.context_executor = ContextQueryExecutor()
 
     @property
     def name(self) -> str:
@@ -144,31 +158,68 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
     async def _execute_context_query(self, scene: dict[str, Any]) -> dict[str, Any]:
         """Execute the context query for the scene.
 
-        This is a placeholder that will be implemented when scriptrag query
-        is available.
-
         Args:
             scene: Scene data
 
         Returns:
             Context data from the query
         """
-        # TODO: Implement actual SQL query execution once scriptrag query is ready
-        # For now, return the scene data as context
-        logger.debug(
-            f"Context query placeholder for agent {self.spec.name}",
-            query=self.spec.context_query,
-        )
-        return {"scene_data": scene}
+        if not self.spec.context_query:
+            logger.debug(f"No context query defined for agent {self.spec.name}")
+            return {"scene_data": scene}
+
+        try:
+            # Extract parameters from scene and script
+            from scriptrag.config import get_settings
+
+            settings = get_settings()
+
+            parameters = ContextParameters.from_scene(
+                scene=scene,
+                script=self.script,
+                settings=settings,
+            )
+
+            logger.debug(
+                f"Executing context query for agent {self.spec.name}",
+                params=parameters.to_dict(),
+            )
+
+            # Execute the query
+            results = await self.context_executor.execute(
+                query_sql=self.spec.context_query,
+                parameters=parameters,
+            )
+
+            # Format results for the agent
+            formatted_results = ContextResultFormatter.format_for_agent(
+                rows=results,
+                agent_name=self.spec.name,
+            )
+
+            return {
+                "scene_data": scene,
+                "context_results": results,
+                "formatted_context": formatted_results,
+            }
+
+        except Exception as e:
+            logger.error(
+                f"Context query failed for agent {self.spec.name}",
+                error=str(e),
+                scene_heading=scene.get("heading", ""),
+            )
+            # Return basic context on failure (graceful degradation)
+            return {"scene_data": scene}
 
     async def _call_llm(
-        self, scene: dict[str, Any], _context: dict[str, Any], temperature: float = 0.3
+        self, scene: dict[str, Any], context: dict[str, Any], temperature: float = 0.3
     ) -> dict[str, Any]:
         """Call the LLM with the analysis prompt.
 
         Args:
             scene: Scene data
-            _context: Context data from query (currently unused)
+            context: Context data from query
             temperature: Temperature for LLM sampling (default: 0.3)
 
         Returns:
@@ -191,14 +242,26 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
                 fountain_pattern, f"```fountain\n{scene_content}\n```", prompt
             )
 
-        # 3. Replace SQL block with context query results (empty for now)
+        # 3. Replace SQL block with context query results
         if self.spec.context_query and "```sql" in prompt:
             # Find and replace the SQL block with results
             sql_pattern = r"```sql\n.*?\n```"
-            # For now, context query returns empty results
-            context_results = (
-                "-- Context query results (placeholder - not yet implemented)"
-            )
+
+            # Use formatted context if available, otherwise show raw results
+            if "formatted_context" in context:
+                context_results = context["formatted_context"]
+            elif "context_results" in context:
+                # Format raw results as a simple list
+                results = context["context_results"]
+                if results:
+                    msg = f"-- Context query returned {len(results)} results:\n"
+                    context_results = msg
+                    context_results += ContextResultFormatter.format_as_table(results)
+                else:
+                    context_results = "-- Context query returned no results"
+            else:
+                context_results = "-- No context results available"
+
             prompt = re.sub(
                 sql_pattern, f"```\n{context_results}\n```", prompt, flags=re.DOTALL
             )

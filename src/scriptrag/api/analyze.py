@@ -222,6 +222,12 @@ class AnalyzeCommand:
             if not force and not self._file_needs_update(file_path, script):
                 return FileResult(path=file_path, updated=False)
 
+            # Pass script context to analyzers that support it
+            for analyzer in self.analyzers:
+                # Set script context for MarkdownAgentAnalyzer
+                if hasattr(analyzer, "script"):
+                    analyzer.script = script
+
             # Initialize analyzers
             for analyzer in self.analyzers:
                 if hasattr(analyzer, "initialize"):  # pragma: no cover

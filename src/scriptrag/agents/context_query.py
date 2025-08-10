@@ -197,13 +197,42 @@ class ContextQueryExecutor:
 
             return rows
 
-        except Exception as e:
+        except FileNotFoundError as e:
+            # Database file not found
             logger.error(
-                "Context query execution failed",
+                "Database not found for context query",
                 error=str(e),
                 query_preview=query_sql[:200] if query_sql else None,
             )
-            # Return empty results on failure (graceful degradation)
+            return []
+
+        except ValueError as e:
+            # SQL syntax errors, parameter errors, or database errors
+            logger.error(
+                "Context query validation or execution error",
+                error=str(e),
+                query_preview=query_sql[:200] if query_sql else None,
+            )
+            return []
+
+        except RuntimeError as e:
+            # Database permission or configuration errors
+            logger.error(
+                "Context query runtime error",
+                error=str(e),
+                query_preview=query_sql[:200] if query_sql else None,
+            )
+            return []
+
+        except Exception as e:
+            # Unexpected errors - log with full details for debugging
+            logger.error(
+                "Unexpected error in context query execution",
+                error=str(e),
+                error_type=type(e).__name__,
+                query_preview=query_sql[:200] if query_sql else None,
+            )
+            # Still return empty results for graceful degradation
             return []
 
     def _sql_to_spec(self, sql: str, parameters: ContextParameters) -> QuerySpec:

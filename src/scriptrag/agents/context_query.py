@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any
 
 from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 from scriptrag.query import ParamSpec, QueryEngine, QuerySpec
@@ -235,48 +235,103 @@ class ContextQueryExecutor:
             # Still return empty results for graceful degradation
             return []
 
-    def _sql_to_spec(self, sql: str, parameters: ContextParameters) -> QuerySpec:
-        """Convert raw SQL to QuerySpec with typed parameters.
+    def _get_standard_param_specs(self) -> list[ParamSpec]:
+        """Get predefined parameter specifications for context queries.
+
+        Returns:
+            List of standard parameter specifications
+        """
+        # Define all known context parameters with their types
+        # These match the fields in ContextParameters dataclass
+        return [
+            # Scene-specific parameters
+            ParamSpec(
+                name="content_hash",
+                type="str",
+                required=False,
+                help="Hash of the scene content",
+            ),
+            ParamSpec(
+                name="scene_number",
+                type="int",
+                required=False,
+                help="Scene number in the script",
+            ),
+            ParamSpec(
+                name="scene_id",
+                type="str",
+                required=False,
+                help="Unique scene identifier",
+            ),
+            ParamSpec(
+                name="scene_heading",
+                type="str",
+                required=False,
+                help="Scene heading text",
+            ),
+            # Script-specific parameters
+            ParamSpec(
+                name="script_id",
+                type="str",
+                required=False,
+                help="Unique script identifier",
+            ),
+            ParamSpec(
+                name="file_path",
+                type="str",
+                required=False,
+                help="Path to the script file",
+            ),
+            ParamSpec(
+                name="project_name",
+                type="str",
+                required=False,
+                help="Name of the project",
+            ),
+            # Series metadata
+            ParamSpec(
+                name="episode",
+                type="str",
+                required=False,
+                help="Episode number or identifier",
+            ),
+            ParamSpec(
+                name="season",
+                type="str",
+                required=False,
+                help="Season number or identifier",
+            ),
+            ParamSpec(name="series", type="str", required=False, help="Series name"),
+            # Additional context
+            ParamSpec(
+                name="previous_scene_hash",
+                type="str",
+                required=False,
+                help="Hash of the previous scene",
+            ),
+            ParamSpec(
+                name="next_scene_hash",
+                type="str",
+                required=False,
+                help="Hash of the next scene",
+            ),
+        ]
+
+    def _sql_to_spec(self, sql: str, _parameters: ContextParameters) -> QuerySpec:
+        """Convert raw SQL to QuerySpec with predefined parameters.
 
         Args:
             sql: SQL query string
-            parameters: Context parameters with values
+            _parameters: Context parameters (unused, kept for compatibility)
 
         Returns:
-            QuerySpec instance with parameter specifications
+            QuerySpec instance with standard parameter specifications
         """
-        # Define parameter specifications based on ContextParameters fields
-        # These are the known parameters that can be used in context queries
-        param_specs = []
-        params_dict = parameters.to_dict()
-
-        # Build specs for all available parameters
-        for param_name, value in params_dict.items():
-            # Determine type from actual value
-            param_type: Literal["str", "int", "float", "bool"]
-            if isinstance(value, bool):
-                param_type = "bool"
-            elif isinstance(value, int):
-                param_type = "int"
-            elif isinstance(value, float):
-                param_type = "float"
-            else:
-                param_type = "str"
-
-            param_specs.append(
-                ParamSpec(
-                    name=param_name,
-                    type=param_type,
-                    required=False,  # All context params are optional
-                    help=f"Context parameter: {param_name}",
-                )
-            )
-
         return QuerySpec(
             name="context_query",
             description="Agent context query",
             sql=sql,
-            params=param_specs,
+            params=self._get_standard_param_specs(),
         )
 
 

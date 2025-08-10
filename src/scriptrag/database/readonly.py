@@ -38,7 +38,21 @@ def get_read_only_connection(
         # Windows-style paths
         windows_disallowed = ["C:\\Windows", "C:\\Program Files", "C:\\System32"]
 
-        # Check if path is in a disallowed location
+        # Parse path components for cross-platform checking
+        path_parts = db_path_str.replace("\\", "/").split("/")
+        path_components_lower = [part.lower() for part in path_parts]
+
+        # Cross-platform disallowed path components (case-insensitive)
+        disallowed_components = [
+            "etc",
+            "usr",
+            "var",
+            "windows",
+            "program files",
+            "system32",
+        ]
+
+        # Check if path is in a disallowed location (Unix-style)
         for prefix in disallowed_prefixes:
             if db_path_str.startswith(prefix) or prefix in db_path_str:
                 # Exception: Allow macOS temporary directories in /private/var/folders/
@@ -51,8 +65,18 @@ def get_read_only_connection(
             if db_path_str.startswith(prefix):
                 raise ValueError("Invalid database path detected")
 
+        # Cross-platform component check for path traversal attempts
+        for disallowed in disallowed_components:
+            if disallowed in path_components_lower:
+                # Exception: Allow temp directories that contain these components
+                if any(
+                    temp_indicator in path_components_lower
+                    for temp_indicator in ["temp", "tmp", "pytest", "folders"]
+                ):
+                    continue
+                raise ValueError("Invalid database path detected")
+
         # Additional check: if in /root/ (Unix) or system directories, must be temp
-        path_parts = db_path_str.replace("\\", "/").split("/")
         if (
             (db_path_str.startswith("/root/") and "tmp" not in path_parts)
             or (":\\Users" in db_path_str and "Temp" not in path_parts)

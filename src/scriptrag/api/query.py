@@ -30,6 +30,12 @@ class QueryAPI:
     def list_queries(self) -> list[QuerySpec]:
         """List all available queries.
 
+        Example:
+            >>> api = QueryAPI()
+            >>> queries = api.list_queries()
+            >>> for query in queries:
+            ...     print(f"{query.name}: {query.description}")
+
         Returns:
             List of query specifications
         """
@@ -55,6 +61,17 @@ class QueryAPI:
         output_json: bool = False,
     ) -> str | None:
         """Execute a query by name.
+
+        Examples:
+            >>> api = QueryAPI()
+            >>> # Execute a simple query
+            >>> api.execute_query("character_lines")
+            >>> # With parameters
+            >>> api.execute_query("character_lines", {"character": "ALICE"})
+            >>> # With pagination
+            >>> api.execute_query("scenes", limit=10, offset=20)
+            >>> # Get JSON output
+            >>> json_result = api.execute_query("scenes", output_json=True)
 
         Args:
             name: Query name

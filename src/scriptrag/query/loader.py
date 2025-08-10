@@ -122,9 +122,48 @@ class QueryLoader:
                     "using filename as name"
                 )
 
+            # Validate SQL syntax (basic check)
+            self._validate_sql_syntax(spec.sql)
+
             return spec
         except Exception as e:
             raise ValueError(f"Failed to parse query file {path}: {e}") from e
+
+    def _validate_sql_syntax(self, sql: str) -> None:
+        """Validate SQL syntax without execution.
+
+        Args:
+            sql: SQL query string
+
+        Raises:
+            ValueError: If SQL syntax is invalid
+        """
+        import sqlite3
+
+        # Strip trailing whitespace and comments for validation
+        sql_stripped = sql.strip()
+        if not sql_stripped:
+            raise ValueError("Empty SQL statement")
+
+        # Use sqlite3.complete_statement for basic validation
+        # Add semicolon if not present (sqlite3.complete_statement needs it)
+        if not sql_stripped.endswith(";"):
+            sql_test = sql_stripped + ";"
+        else:
+            sql_test = sql_stripped
+
+        if not sqlite3.complete_statement(sql_test):
+            raise ValueError("Incomplete SQL statement")
+
+        # Additional validation: check for SELECT (read-only queries)
+        sql_upper = sql_stripped.upper()
+        if not any(
+            sql_upper.startswith(keyword)
+            for keyword in ["SELECT", "WITH", "PRAGMA", "EXPLAIN"]
+        ):
+            raise ValueError(
+                "Only read-only queries (SELECT, WITH, PRAGMA, EXPLAIN) are allowed"
+            )
 
     def get_query(self, name: str) -> QuerySpec | None:
         """Get a query by name.

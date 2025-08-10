@@ -76,7 +76,7 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
     query_command.__doc__ = spec.description or f"Execute {spec_name} query"
 
     # Create Typer command with dynamic parameters
-    params = []
+    params: list[tuple[str, Any, Any]] = []
 
     # Add query-specific parameters
     for param_spec in spec.params:
@@ -85,7 +85,7 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
             continue
 
         # Determine parameter type
-        param_type: Any
+        param_type: type[int] | type[float] | type[bool] | type[str]
         if param_spec.type == "int":
             param_type = int
         elif param_spec.type == "float":

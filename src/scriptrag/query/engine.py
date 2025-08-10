@@ -1,5 +1,6 @@
 """Query execution engine."""
 
+import sqlite3
 import time
 from typing import Any
 
@@ -125,6 +126,23 @@ class QueryEngine:
 
                 return result, execution_time_ms
 
+            except sqlite3.OperationalError as e:
+                logger.error(f"Database operational error: {e}")
+                if "no such table" in str(e):
+                    raise ValueError(
+                        f"Table not found in query '{spec.name}': {e}"
+                    ) from e
+                if "no such column" in str(e):
+                    raise ValueError(
+                        f"Column not found in query '{spec.name}': {e}"
+                    ) from e
+                raise ValueError(f"Database error in query '{spec.name}': {e}") from e
+            except sqlite3.IntegrityError as e:
+                logger.error(f"Database integrity error: {e}")
+                raise ValueError(f"Integrity error in query '{spec.name}': {e}") from e
+            except sqlite3.ProgrammingError as e:
+                logger.error(f"SQL programming error: {e}")
+                raise ValueError(f"SQL error in query '{spec.name}': {e}") from e
             except Exception as e:
                 logger.error(f"Query execution failed: {e}")
                 raise ValueError(f"Query execution failed: {e}") from e

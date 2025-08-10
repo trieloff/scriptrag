@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from scriptrag.config import ScriptRAGSettings, get_logger
-from scriptrag.query import QueryEngine, QuerySpec
+from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
+from scriptrag.query import ParamSpec, QueryEngine, QuerySpec
+from scriptrag.utils.screenplay import ScreenplayUtils
 
 if TYPE_CHECKING:
     from scriptrag.parser import Script
@@ -77,8 +80,6 @@ class ContextParameters:
         if params.content_hash:
             # Compute hash if it's raw text
             if len(params.content_hash) > 64:  # Likely raw text, not a hash
-                from scriptrag.utils.screenplay import ScreenplayUtils
-
                 params.content_hash = ScreenplayUtils.compute_scene_hash(
                     params.content_hash, truncate=True
                 )
@@ -88,8 +89,6 @@ class ContextParameters:
         if script:
             # Generate script_id from file path or metadata
             if hasattr(script, "file_path"):
-                import hashlib
-
                 file_str = str(script.file_path)
                 params.script_id = hashlib.sha256(file_str.encode()).hexdigest()[:12]
                 params.file_path = file_str
@@ -156,8 +155,6 @@ class ContextQueryExecutor:
             settings: Configuration settings
         """
         if settings is None:
-            from scriptrag.config import get_settings
-
             settings = get_settings()
 
         self.settings = settings
@@ -221,8 +218,6 @@ class ContextQueryExecutor:
         param_names = param_pattern.findall(sql)
 
         # Build parameter specifications based on available context
-        from scriptrag.query import ParamSpec
-
         param_specs = []
         params_dict = parameters.to_dict()
 
@@ -315,8 +310,6 @@ class ContextResultFormatter:
             return "No previous props found in earlier scenes."
 
         # Parse JSON props data from query results
-        import json
-
         props_by_scene = {}
 
         for row in rows:

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from scriptrag.agents.agent_spec import AgentSpec
 from scriptrag.agents.markdown_agent_analyzer import MarkdownAgentAnalyzer
+from scriptrag.common import FileSourceResolver
 from scriptrag.config import get_logger
 
 logger = get_logger(__name__)
@@ -25,17 +26,26 @@ class AgentLoader:
             agents_dir: Directory containing agent markdown files
             max_cache_size: Maximum number of agents to cache (default 100)
         """
-        if agents_dir is None:
-            # Default to src/scriptrag/agents/builtin
-            from scriptrag import __file__ as pkg_file
-
-            pkg_dir = Path(pkg_file).parent
-            agents_dir = pkg_dir / "agents" / "builtin"
-
-        self.agents_dir = agents_dir
+        self.custom_agents_dir = agents_dir
         self._cache: dict[str, AgentSpec] = {}
         self._max_cache_size = max_cache_size
         self._cache_order: list[str] = []  # Track order for LRU eviction
+
+        # Initialize file source resolver for agents
+        self._resolver = FileSourceResolver(
+            file_type="agents",
+            env_var="SCRIPTRAG_AGENTS_DIR",
+            default_subdir="agents/builtin",
+            file_extension="md",
+        )
+
+        # For backward compatibility, keep agents_dir property
+        if agents_dir:
+            self.agents_dir = agents_dir
+        else:
+            # Use first directory from resolver as default
+            dirs = self._resolver.get_search_directories()
+            self.agents_dir = dirs[0] if dirs else Path()
 
     def load_agent(self, name: str) -> MarkdownAgentAnalyzer:
         """Load an agent by name.
@@ -57,10 +67,33 @@ class AgentLoader:
                 self._cache_order.remove(name)
                 self._cache_order.append(name)
         else:
-            # Look for markdown file
-            agent_file = self.agents_dir / f"{name}.md"
-            if not agent_file.exists():
-                raise ValueError(f"Agent '{name}' not found in {self.agents_dir}")
+            # Look for agent file
+            agent_file = None
+
+            # If a custom directory was explicitly provided, search only there
+            if self.custom_agents_dir and self.custom_agents_dir.exists():
+                candidate = self.custom_agents_dir / f"{name}.md"
+                if candidate.exists():
+                    agent_file = candidate
+                    logger.debug(f"Found agent '{name}' in {self.custom_agents_dir}")
+            else:
+                # Search in all directories from resolver
+                dirs = self._resolver.get_search_directories(self.custom_agents_dir)
+                for directory in dirs:
+                    candidate = directory / f"{name}.md"
+                    if candidate.exists():
+                        agent_file = candidate
+                        logger.debug(f"Found agent '{name}' in {directory}")
+                        break
+
+            if not agent_file:
+                if self.custom_agents_dir:
+                    raise ValueError(
+                        f"Agent '{name}' not found in {self.custom_agents_dir}"
+                    )
+                search_dirs = self._resolver.get_search_directories(None)
+                dirs_str = ", ".join(str(d) for d in search_dirs)
+                raise ValueError(f"Agent '{name}' not found. Searched in: {dirs_str}")
 
             # Load and cache the spec with LRU eviction
             spec = AgentSpec.from_markdown(agent_file)
@@ -82,17 +115,30 @@ class AgentLoader:
         Returns:
             List of agent names
         """
-        if not self.agents_dir.exists():
-            return []
+        # If a custom directory was explicitly provided, only use that
+        if self.custom_agents_dir and self.custom_agents_dir.exists():
+            # Use only the custom directory, not the resolver's multiple directories
+            agent_files = list(self.custom_agents_dir.glob("*.md"))
+        else:
+            # Discover all agent files using the resolver from multiple sources
+            agent_files = self._resolver.discover_files(self.custom_agents_dir, "*.md")
 
         agents = []
-        for path in self.agents_dir.glob("*.md"):
+        seen_names = set()
+
+        for path in agent_files:
             try:
                 # Use stem as agent name directly to avoid parsing all files
                 agent_name = path.stem
+
+                # Skip duplicates (resolver already handles priority)
+                if agent_name in seen_names:
+                    continue
+
                 # Validate the name to prevent security issues
                 if self._is_valid_agent_name(agent_name):
                     agents.append(agent_name)
+                    seen_names.add(agent_name)
                 else:
                     logger.warning(f"Invalid agent name: {agent_name}")
             except Exception as e:

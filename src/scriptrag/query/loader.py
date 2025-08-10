@@ -1,8 +1,8 @@
 """Query loader for discovering and parsing SQL files."""
 
-import os
 from pathlib import Path
 
+from scriptrag.common import FileSourceResolver
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.query.spec import HeaderParser, QuerySpec
 
@@ -25,6 +25,16 @@ class QueryLoader:
 
         self.settings = settings
         self._cache: dict[str, QuerySpec] = {}
+
+        # Initialize file source resolver for queries
+        self._resolver = FileSourceResolver(
+            file_type="queries",
+            env_var="SCRIPTRAG_QUERY_DIR",
+            default_subdir="storage/database/queries",
+            file_extension="sql",
+        )
+
+        # For backward compatibility
         self._query_dir = self._get_query_directory()
 
     def _get_query_directory(self) -> Path:
@@ -33,21 +43,16 @@ class QueryLoader:
         Returns:
             Path to query directory
         """
-        # Check environment variable first
-        env_dir = os.environ.get("SCRIPTRAG_QUERY_DIR")
-        if env_dir:
-            path = Path(env_dir)
-            if path.exists() and path.is_dir():
-                logger.info(f"Using query directory from env: {path}")
-                return path
-            logger.warning(f"SCRIPTRAG_QUERY_DIR set but path doesn't exist: {env_dir}")
+        # Use first directory from resolver
+        dirs = self._resolver.get_search_directories()
+        if dirs:
+            return dirs[0]
 
-        # Default to storage/database/queries
+        # Fallback to creating default directory
         default_path = Path(__file__).parent.parent / "storage" / "database" / "queries"
         if not default_path.exists():
             logger.warning(f"Default query directory doesn't exist: {default_path}")
             default_path.mkdir(parents=True, exist_ok=True)
-
         return default_path
 
     def discover_queries(self, force_reload: bool = False) -> dict[str, QuerySpec]:
@@ -64,13 +69,25 @@ class QueryLoader:
 
         queries: dict[str, QuerySpec] = {}
 
-        if not self._query_dir.exists():
-            logger.warning(f"Query directory doesn't exist: {self._query_dir}")
-            return queries
+        # Check if environment variable is set - if so, only use that directory
+        import os
 
-        # Find all .sql files
-        sql_files = list(self._query_dir.glob("*.sql"))
-        logger.info(f"Found {len(sql_files)} SQL files in {self._query_dir}")
+        env_dir = os.environ.get("SCRIPTRAG_QUERY_DIR")
+        if env_dir:
+            query_dir = Path(env_dir)
+            if query_dir.exists() and query_dir.is_dir():
+                # Only use the environment-specified directory
+                sql_files = list(query_dir.glob("*.sql"))
+                logger.info(f"Found {len(sql_files)} SQL files in {query_dir}")
+            else:
+                logger.warning(
+                    f"SCRIPTRAG_QUERY_DIR set but path doesn't exist: {env_dir}"
+                )
+                sql_files = []
+        else:
+            # Discover all SQL files using the resolver from multiple sources
+            sql_files = self._resolver.discover_files(pattern="*.sql")
+            logger.info(f"Found {len(sql_files)} SQL files across search directories")
 
         for sql_file in sql_files:
             try:

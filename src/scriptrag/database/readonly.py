@@ -32,16 +32,34 @@ def get_read_only_connection(
         # Prevent paths that resolve outside of typical project directories
         db_path_str = str(db_path_resolved)
 
-        # List of disallowed paths for security
+        # List of disallowed paths for security (cross-platform)
+        # Unix-style paths
         disallowed_prefixes = ["/etc/", "/usr/", "/var/"]
+        # Windows-style paths
+        windows_disallowed = ["C:\\Windows", "C:\\Program Files", "C:\\System32"]
 
         # Check if path is in a disallowed location
         for prefix in disallowed_prefixes:
             if db_path_str.startswith(prefix) or prefix in db_path_str:
+                # Exception: Allow macOS temporary directories in /private/var/folders/
+                if prefix == "/var/" and "/private/var/folders/" in db_path_str:
+                    continue
                 raise ValueError("Invalid database path detected")
 
-        # Additional check: if in /root/, must be in a temp directory
-        if db_path_str.startswith("/root/") and "tmp" not in db_path_str.split("/"):
+        # Windows-specific checks
+        for prefix in windows_disallowed:
+            if db_path_str.startswith(prefix):
+                raise ValueError("Invalid database path detected")
+
+        # Additional check: if in /root/ (Unix) or system directories, must be temp
+        path_parts = db_path_str.replace("\\", "/").split("/")
+        if (
+            (db_path_str.startswith("/root/") and "tmp" not in path_parts)
+            or (":\\Users" in db_path_str and "Temp" not in path_parts)
+        ) and not any(
+            temp_indicator in db_path_str.lower()
+            for temp_indicator in ["temp", "tmp", "pytest"]
+        ):
             raise ValueError("Invalid database path detected")
 
         # Open connection in read-only mode

@@ -150,3 +150,53 @@ class TestGetReadOnlyConnection:
 
             # Connection should have been closed in finally block
             mock_conn.close.assert_called_once()
+
+    def test_get_read_only_connection_macos_temp_dirs_allowed(self):
+        """Test that macOS temp directories in /private/var/folders/ are allowed."""
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        # Create settings with macOS temporary directory path
+        settings = MagicMock(spec=ScriptRAGSettings)
+        # Simulate a typical macOS temporary directory path
+        macos_temp_path = Path(
+            "/private/var/folders/y6/nj790rtn62lfktb1sh__79hc0000gn/T/pytest-of-runner/pytest-0/test_db_path/test.db"
+        )
+        settings.database_path = macos_temp_path
+        settings.database_timeout = 30.0
+        settings.database_cache_size = -2000
+        settings.database_temp_store = "MEMORY"
+
+        with patch("sqlite3.connect") as mock_connect:
+            mock_conn = MagicMock()
+            mock_connect.return_value = mock_conn
+
+            # This should NOT raise a ValueError for macOS temp dirs
+            with get_read_only_connection(settings) as conn:
+                assert conn == mock_conn
+
+            # Verify connection was opened successfully
+            expected_uri = f"file:{macos_temp_path.resolve()}?mode=ro"
+            mock_connect.assert_called_once_with(
+                expected_uri, uri=True, timeout=30.0, check_same_thread=False
+            )
+
+    def test_get_read_only_connection_regular_var_dirs_blocked(self):
+        """Test that regular /var/ directories (non-temp) are still blocked."""
+        from pathlib import Path
+        from unittest.mock import MagicMock
+
+        # Create settings with regular /var directory path
+        settings = MagicMock(spec=ScriptRAGSettings)
+        var_path = Path("/var/lib/database/test.db")
+        settings.database_path = var_path
+        settings.database_timeout = 30.0
+        settings.database_cache_size = -2000
+        settings.database_temp_store = "MEMORY"
+
+        # This should still raise a ValueError for non-temp /var directories
+        with (
+            pytest.raises(ValueError, match="Invalid database path detected"),
+            get_read_only_connection(settings),
+        ):
+            pass

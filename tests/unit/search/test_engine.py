@@ -179,7 +179,7 @@ class TestSearchEngine:
         assert response.total_count == 1
         assert response.query == query
         assert not response.has_more
-        assert response.execution_time_ms > 0
+        assert response.execution_time_ms >= 0  # Allow 0 on very fast systems
         assert "sql" in response.search_methods
 
         result = response.results[0]

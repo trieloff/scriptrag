@@ -292,8 +292,10 @@ SELECT * FROM test WHERE id = :id""")
             queries = loader.discover_queries()
 
             assert len(queries) == 0
+            # On Windows, paths will use backslashes, so normalize for comparison
+            expected_path = str(loader._query_dir)
             mock_logger.warning.assert_called_with(
-                "Query directory doesn't exist: /nonexistent"
+                f"Query directory doesn't exist: {expected_path}"
             )
 
     def test_discover_queries_load_error(self, tmp_path):

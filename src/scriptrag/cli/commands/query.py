@@ -61,7 +61,11 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
             )
 
             if result:
-                console.print(result)
+                # Use plain print for JSON to avoid Rich text wrapping
+                if output_json:
+                    print(result)
+                else:
+                    console.print(result)
 
         except Exception as e:
             console.print(f"[red]Error executing query '{spec_name}': {e}[/red]")

@@ -159,7 +159,18 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_is_available_with_token(self, provider):
         """Test availability check with token."""
-        assert await provider.is_available() is True
+        with patch.object(provider, "client") as mock_client:
+            mock_response = MagicMock()
+            mock_response.status_code = 200
+            mock_client.get = AsyncMock(return_value=mock_response)
+
+            result = await provider.is_available()
+            assert result is True
+
+            # Verify the correct endpoint was called
+            mock_client.get.assert_called_once()
+            call_args = mock_client.get.call_args
+            assert "/models" in call_args[0][0]
 
     @pytest.mark.asyncio
     async def test_is_available_without_token(self):
@@ -168,6 +179,21 @@ class TestGitHubModelsProvider:
         with patch.dict(os.environ, {}, clear=True):
             provider = GitHubModelsProvider(token=None)
             assert await provider.is_available() is False
+
+    @pytest.mark.asyncio
+    async def test_is_available_with_timeout(self, provider):
+        """Test availability check handles timeout gracefully."""
+        with patch.object(provider, "client") as mock_client:
+            # Simulate a timeout error
+            mock_client.get = AsyncMock(
+                side_effect=httpx.ReadTimeout("Request timed out")
+            )
+
+            result = await provider.is_available()
+            assert result is False
+
+            # Verify it tried to call the endpoint
+            mock_client.get.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_complete_success(self, provider):

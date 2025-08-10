@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -208,45 +207,41 @@ class ContextQueryExecutor:
             return []
 
     def _sql_to_spec(self, sql: str, parameters: ContextParameters) -> QuerySpec:
-        """Convert raw SQL to QuerySpec.
+        """Convert raw SQL to QuerySpec with typed parameters.
 
         Args:
             sql: SQL query string
-            parameters: Context parameters for validation
+            parameters: Context parameters with values
 
         Returns:
-            QuerySpec instance
+            QuerySpec instance with parameter specifications
         """
-        # Extract parameter names from SQL
-        param_pattern = re.compile(r":(\w+)")
-        param_names = param_pattern.findall(sql)
-
-        # Build parameter specifications based on available context
+        # Define parameter specifications based on ContextParameters fields
+        # These are the known parameters that can be used in context queries
         param_specs = []
         params_dict = parameters.to_dict()
 
-        for param_name in param_names:
-            if param_name in params_dict:
-                value = params_dict[param_name]
-                # Infer type from value
-                param_type: Literal["str", "int", "float", "bool"]
-                if isinstance(value, int):
-                    param_type = "int"
-                elif isinstance(value, float):
-                    param_type = "float"
-                elif isinstance(value, bool):
-                    param_type = "bool"
-                else:
-                    param_type = "str"
+        # Build specs for all available parameters
+        for param_name, value in params_dict.items():
+            # Determine type from actual value
+            param_type: Literal["str", "int", "float", "bool"]
+            if isinstance(value, bool):
+                param_type = "bool"
+            elif isinstance(value, int):
+                param_type = "int"
+            elif isinstance(value, float):
+                param_type = "float"
+            else:
+                param_type = "str"
 
-                param_specs.append(
-                    ParamSpec(
-                        name=param_name,
-                        type=param_type,
-                        required=True,
-                        help=f"Context parameter: {param_name}",
-                    )
+            param_specs.append(
+                ParamSpec(
+                    name=param_name,
+                    type=param_type,
+                    required=False,  # All context params are optional
+                    help=f"Context parameter: {param_name}",
                 )
+            )
 
         return QuerySpec(
             name="context_query",

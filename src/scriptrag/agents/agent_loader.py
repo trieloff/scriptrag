@@ -116,9 +116,13 @@ class AgentLoader:
             List of agent names
         """
         # If a custom directory was explicitly provided, only use that
-        if self.custom_agents_dir and self.custom_agents_dir.exists():
-            # Use only the custom directory, not the resolver's multiple directories
-            agent_files = list(self.custom_agents_dir.glob("*.md"))
+        if self.custom_agents_dir:
+            if self.custom_agents_dir.exists():
+                # Use only the custom directory, not the resolver's multiple directories
+                agent_files = list(self.custom_agents_dir.glob("*.md"))
+            else:
+                # Custom directory doesn't exist, return empty list
+                agent_files = []
         else:
             # Discover all agent files using the resolver from multiple sources
             agent_files = self._resolver.discover_files(self.custom_agents_dir, "*.md")

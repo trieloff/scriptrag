@@ -43,6 +43,18 @@ class QueryLoader:
         Returns:
             Path to query directory
         """
+        import os
+
+        # Check if environment variable is set - use only that directory if it exists
+        env_dir = os.environ.get("SCRIPTRAG_QUERY_DIR")
+        if env_dir:
+            env_path = Path(env_dir)
+            if env_path.exists() and env_path.is_dir():
+                logger.info(f"Using query directory from env: {env_path}")
+                return env_path
+            logger.warning(f"SCRIPTRAG_QUERY_DIR set but path doesn't exist: {env_dir}")
+            # Fall back to resolver/default behavior
+
         # Use first directory from resolver
         dirs = self._resolver.get_search_directories()
         if dirs:
@@ -54,6 +66,22 @@ class QueryLoader:
             logger.warning(f"Default query directory doesn't exist: {default_path}")
             default_path.mkdir(parents=True, exist_ok=True)
         return default_path
+
+    def _is_query_dir_explicitly_set(self) -> bool:
+        """Check if _query_dir was explicitly overridden (e.g., by tests).
+
+        Returns:
+            True if _query_dir was set to something other than the default resolver path
+        """
+        if not hasattr(self, "_query_dir"):
+            return False
+
+        # Get what the resolver would return as the default
+        default_dirs = self._resolver.get_search_directories()
+        default_dir = default_dirs[0] if default_dirs else None
+
+        # If _query_dir is different from the resolver default, it was explicitly set
+        return default_dir is None or self._query_dir != default_dir
 
     def discover_queries(self, force_reload: bool = False) -> dict[str, QuerySpec]:
         """Discover and load all SQL queries.
@@ -83,6 +111,16 @@ class QueryLoader:
                 logger.warning(
                     f"SCRIPTRAG_QUERY_DIR set but path doesn't exist: {env_dir}"
                 )
+                sql_files = []
+        elif self._is_query_dir_explicitly_set():
+            # Query directory was explicitly set (likely by tests)
+            # Use only that directory
+            if self._query_dir.exists() and self._query_dir.is_dir():
+                sql_files = list(self._query_dir.glob("*.sql"))
+                logger.info(f"Found {len(sql_files)} SQL files in {self._query_dir}")
+            else:
+                # Query directory doesn't exist, return empty list
+                logger.warning(f"Query directory doesn't exist: {self._query_dir}")
                 sql_files = []
         else:
             # Discover all SQL files using the resolver from multiple sources

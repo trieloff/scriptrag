@@ -37,7 +37,7 @@ def get_read_only_connection(
 
         # Check if path is in a disallowed location
         for prefix in disallowed_prefixes:
-            if db_path_str.startswith(prefix):
+            if db_path_str.startswith(prefix) or prefix in db_path_str:
                 raise ValueError("Invalid database path detected")
 
         # Additional check: if in /root/, must be in a temp directory

@@ -155,8 +155,16 @@ class QueryLoader:
         if not sqlite3.complete_statement(sql_test):
             raise ValueError("Incomplete SQL statement")
 
+        # Additional validation for obvious syntax errors
+        # Check for statements that end with FROM, WHERE, etc. without table/condition
+        sql_upper = sql_stripped.upper().rstrip(";")
+        if any(
+            sql_upper.endswith(keyword)
+            for keyword in [" FROM", " WHERE", " JOIN", " ON", " SET"]
+        ):
+            raise ValueError("Incomplete SQL statement")
+
         # Additional validation: check for SELECT (read-only queries)
-        sql_upper = sql_stripped.upper()
         if not any(
             sql_upper.startswith(keyword)
             for keyword in ["SELECT", "WITH", "PRAGMA", "EXPLAIN"]
@@ -191,3 +199,11 @@ class QueryLoader:
             self.discover_queries()
 
         return list(self._cache.values())
+
+    def reload_queries(self) -> dict[str, QuerySpec]:
+        """Reload all queries from disk, clearing cache.
+
+        Returns:
+            Dictionary of query name to QuerySpec
+        """
+        return self.discover_queries(force_reload=True)

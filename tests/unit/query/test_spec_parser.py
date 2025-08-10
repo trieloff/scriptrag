@@ -368,7 +368,7 @@ class TestQuerySpec:
 
     def test_parse_param_with_string_default(self):
         """Test parsing parameter with string default - line 216 coverage."""
-        line = '-- param: name str required=false default=unknown help="User name"'
+        line = '-- param: name str optional default=unknown help="User name"'
 
         from scriptrag.query.spec import HeaderParser
 

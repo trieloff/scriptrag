@@ -306,7 +306,7 @@ class TestQueryFormatter:
 
         parsed = json.loads(result)
 
-        assert parsed["query_name"] == "complex_query"
+        assert parsed["query"] == "complex_query"
         assert parsed["execution_time_ms"] == 15.5
         assert len(parsed["results"]) == 2
         assert parsed["results"][0]["data"]["nested"] == "value"

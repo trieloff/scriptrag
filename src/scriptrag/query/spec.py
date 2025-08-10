@@ -113,11 +113,11 @@ class QuerySpec:
 class HeaderParser:
     """Parse SQL header comments to extract query metadata."""
 
-    # Regex patterns for header parsing
-    NAME_PATTERN = re.compile(r"^--\s+name:\s*(.+)$", re.IGNORECASE)
-    DESC_PATTERN = re.compile(r"^--\s+description:\s*(.+)$", re.IGNORECASE)
+    # Regex patterns for header parsing (allow leading whitespace)
+    NAME_PATTERN = re.compile(r"^\s*--\s+name:\s*(.+)$", re.IGNORECASE)
+    DESC_PATTERN = re.compile(r"^\s*--\s+description:\s*(.+)$", re.IGNORECASE)
     PARAM_PATTERN = re.compile(
-        r"^--\s+param:\s+(\w+)\s+(\w+)\s+(required|optional)(?:\s+(.+))?$",
+        r"^\s*--\s+param:\s+(\w+)\s+(\w+)\s+(required|optional)(?:\s+(.+))?$",
         re.IGNORECASE,
     )
 

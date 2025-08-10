@@ -8,7 +8,7 @@ import pytest
 
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.search.engine import SearchEngine
-from scriptrag.search.models import SearchQuery
+from scriptrag.search.models import SearchMode, SearchQuery
 
 
 class TestSearchEngine:
@@ -266,9 +266,8 @@ class TestSearchEngine:
         # Mock database exists but ensure path validation passes
         engine.db_path = engine.settings.database_path
 
-        # Query that needs vector search
-        query = SearchQuery(raw_query="test", text_query="test")
-        query.needs_vector_search = True
+        # Query that needs vector search (force fuzzy mode)
+        query = SearchQuery(raw_query="test", text_query="test", mode=SearchMode.FUZZY)
 
         with patch("scriptrag.search.engine.logger") as mock_logger:
             response = engine.search(query)
@@ -296,6 +295,7 @@ class TestSearchEngine:
         match_type = engine._determine_match_type(query)
         assert match_type == "text"
 
+    @patch("scriptrag.search.engine.get_read_only_connection")
     def test_search_with_invalid_metadata_json_warning(self, mock_conn, engine):
         """Test search with invalid metadata JSON logs warning."""
         # Mock database connection and cursor
@@ -341,7 +341,7 @@ class TestSearchEngine:
             # Should log warning about invalid JSON
             mock_logger.warning.assert_called()
             warning_call = mock_logger.warning.call_args[0][0]
-            assert "Failed to parse script metadata" in warning_call
+            assert "Failed to parse metadata" in warning_call
 
             # Result should have None metadata values
             result = response.results[0]

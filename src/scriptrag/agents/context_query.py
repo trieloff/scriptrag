@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -263,169 +262,67 @@ class ContextResultFormatter:
     @staticmethod
     def format_as_table(
         rows: list[dict[str, Any]],
-        max_rows: int = 10,
+        max_rows: int = 50,
     ) -> str:
-        """Format results as a simple table.
+        """Format results as a simple markdown table.
 
         Args:
             rows: Query result rows
-            max_rows: Maximum rows to include
+            max_rows: Maximum rows to include (default 50)
 
         Returns:
-            Formatted table string
+            Formatted markdown table string
         """
         if not rows:
             return "No results found"
 
-        # Limit rows
-        display_rows = rows[:max_rows]
+        # Limit rows if needed
+        display_rows = rows[:max_rows] if len(rows) > max_rows else rows
         truncated = len(rows) > max_rows
 
-        # Get column names
+        # Get column names from first row
         columns = list(display_rows[0].keys())
 
-        # Build table
+        # Build markdown table
         lines = []
 
         # Header
         lines.append(" | ".join(columns))
-        lines.append("-" * (sum(len(col) + 3 for col in columns) - 3))
+        lines.append(" | ".join("-" * len(col) for col in columns))
 
-        # Rows
+        # Data rows
         for row in display_rows:
-            values = [str(row.get(col, "")) for col in columns]
+            values = []
+            for col in columns:
+                value = row.get(col, "")
+                # Handle None and convert to string
+                str_value = "" if value is None else str(value)
+                # Truncate very long values to keep table readable
+                if len(str_value) > 100:
+                    str_value = str_value[:97] + "..."
+                values.append(str_value)
             lines.append(" | ".join(values))
 
         if truncated:
-            lines.append(f"... and {len(rows) - max_rows} more rows")
-
-        return "\n".join(lines)
-
-    @staticmethod
-    def format_props_history(rows: list[dict[str, Any]]) -> str:
-        """Format props history for inventory tracking.
-
-        Args:
-            rows: Query results with prop information
-
-        Returns:
-            Formatted props history
-        """
-        if not rows:
-            return "No previous props found in earlier scenes."
-
-        # Parse JSON props data from query results
-        props_by_scene = {}
-
-        for row in rows:
-            scene_num = row.get("scene_number", "Unknown")
-            scene_heading = row.get("heading", "")
-            props_json = row.get("props_json")
-
-            if props_json:
-                try:
-                    # Parse the JSON data
-                    if isinstance(props_json, str):
-                        props_data = json.loads(props_json)
-                    else:
-                        props_data = props_json
-
-                    if props_data and isinstance(props_data, list):
-                        if scene_num not in props_by_scene:
-                            props_by_scene[scene_num] = {
-                                "heading": scene_heading,
-                                "props": [],
-                            }
-                        props_by_scene[scene_num]["props"].extend(props_data)
-
-                except (json.JSONDecodeError, TypeError):
-                    logger.warning(f"Failed to parse props JSON for scene {scene_num}")
-
-        if not props_by_scene:
-            return "No previous props with valid data found."
-
-        # Format output
-        lines = ["## Props from Previous Scenes\n"]
-        lines.append(
-            "The following props have been established in earlier scenes. "
-            "Maintain consistency with their names and descriptions:\n"
-        )
-
-        for scene_num in sorted(props_by_scene.keys(), reverse=True):
-            scene_data = props_by_scene[scene_num]
-            props = scene_data["props"]
-            heading = scene_data["heading"]
-
-            lines.append(f"### Scene {scene_num}: {heading}")
-
-            # Group by category
-            by_category: dict[str, list[str]] = {}
-            for prop in props:
-                cat = prop.get("category", "miscellaneous")
-                if cat not in by_category:
-                    by_category[cat] = []
-
-                # Format prop with significance if it's important
-                name = prop.get("name", "Unknown")
-                sig = prop.get("significance", "practical")
-                if sig in ["hero", "plot_device", "character_defining"]:
-                    name = f"**{name}** ({sig})"
-
-                by_category[cat].append(name)
-
-            # Output by category
-            for category, items in sorted(by_category.items()):
-                lines.append(f"- **{category}**: {', '.join(items)}")
-
-            lines.append("")
-
-        # Add summary of recurring/hero props
-        hero_props = []
-        recurring_props: dict[str, int] = {}
-
-        for scene_data in props_by_scene.values():
-            for prop in scene_data["props"]:
-                name = prop.get("name", "")
-                sig = prop.get("significance", "")
-
-                if sig in ["hero", "plot_device"] and name not in hero_props:
-                    hero_props.append(name)
-
-                if name:
-                    recurring_props[name] = recurring_props.get(name, 0) + 1
-
-        if hero_props:
-            lines.append("### Important Props to Track:")
-            lines.append(", ".join(f"**{p}**" for p in hero_props))
-            lines.append("")
-
-        recurring = [name for name, count in recurring_props.items() if count > 1]
-        if recurring:
-            lines.append("### Recurring Props (appearing in multiple scenes):")
-            lines.append(", ".join(recurring[:10]))  # Limit to top 10
-            lines.append("")
+            lines.append(f"\n... and {len(rows) - max_rows} more rows")
 
         return "\n".join(lines)
 
     @staticmethod
     def format_for_agent(
         rows: list[dict[str, Any]],
-        agent_name: str,
+        _agent_name: str,
     ) -> str:
-        """Format results based on agent type.
+        """Format results as a table for all agents.
 
         Args:
             rows: Query results
-            agent_name: Name of the agent
+            _agent_name: Name of the agent (kept for compatibility, unused)
 
         Returns:
-            Formatted results appropriate for the agent
+            Formatted results as a table
         """
-        # Special formatting for specific agents
-        if "inventory" in agent_name or "props" in agent_name:
-            return ContextResultFormatter.format_props_history(rows)
-
-        # Default table format
+        # Use uniform table formatting for all query results
         return ContextResultFormatter.format_as_table(rows)
 
 

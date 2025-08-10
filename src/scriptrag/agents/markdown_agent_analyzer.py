@@ -194,7 +194,7 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
             # Format results for the agent
             formatted_results = ContextResultFormatter.format_for_agent(
                 rows=results,
-                agent_name=self.spec.name,
+                _agent_name=self.spec.name,
             )
 
             return {

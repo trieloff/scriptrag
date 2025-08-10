@@ -18,9 +18,12 @@ class FileSourceResolver:
     """Resolves file sources from multiple locations for ScriptRAG components.
 
     This class provides a common pattern for finding files in:
-    1. A user-specified directory (via environment variable or parameter)
+    1. The default application source directory (built-ins, cannot be overridden)
     2. The .scriptrag directory in the git repository root (if in a git repo)
-    3. The default application source directory
+    3. A user-specified directory (via environment variable or parameter)
+
+    Built-in files have the highest priority and cannot be overridden by user
+    files for security reasons. User files can only add new items.
     """
 
     def __init__(
@@ -48,48 +51,30 @@ class FileSourceResolver:
     def get_search_directories(self, custom_dir: Path | None = None) -> list[Path]:
         """Get all directories to search for files.
 
-        Priority order:
-        1. Custom directory (if provided)
-        2. Environment variable directory (if set and exists)
-        3. .scriptrag/<file_type> in git repository root (if in git repo)
-        4. Default application source directory
+        Priority order (first in list = highest priority, cannot be overridden):
+        1. Default application source directory (built-ins, highest priority)
+        2. .scriptrag/<file_type> in git repository root (if in git repo)
+        3. Environment variable directory (if set and exists)
+        4. Custom directory (if provided, lowest priority for discovery)
 
         Args:
-            custom_dir: Optional custom directory to search first
+            custom_dir: Optional custom directory to search
 
         Returns:
             List of existing directories to search, in priority order
         """
         directories: list[Path] = []
 
-        # 1. Custom directory (highest priority)
-        if custom_dir:
-            if custom_dir.exists() and custom_dir.is_dir():
-                directories.append(custom_dir)
-                logger.debug(f"Using custom {self.file_type} directory: {custom_dir}")
-            else:
-                logger.warning(
-                    f"Custom {self.file_type} directory doesn't exist: {custom_dir}"
+        # 1. Default application source directory (highest priority - built-ins)
+        if self.default_subdir:
+            default_path = self._get_default_path()
+            if default_path.exists() and default_path.is_dir():
+                directories.append(default_path)
+                logger.debug(
+                    f"Using default {self.file_type} directory: {default_path}"
                 )
 
-        # 2. Environment variable directory
-        if self.env_var:
-            env_dir = os.environ.get(self.env_var)
-            if env_dir:
-                path = Path(env_dir)
-                if path.exists() and path.is_dir():
-                    if not custom_dir or path != custom_dir:
-                        directories.append(path)
-                        logger.debug(
-                            f"Using {self.file_type} directory from "
-                            f"{self.env_var}: {path}"
-                        )
-                else:
-                    logger.warning(
-                        f"{self.env_var} set but path doesn't exist: {env_dir}"
-                    )
-
-        # 3. .scriptrag directory in git repository root
+        # 2. .scriptrag directory in git repository root
         git_root = self._find_git_root()
         if git_root:
             scriptrag_dir = git_root / ".scriptrag" / self.file_type
@@ -103,17 +88,34 @@ class FileSourceResolver:
                     f"Using {self.file_type} directory from git repo: {scriptrag_dir}"
                 )
 
-        # 4. Default application source directory
-        if self.default_subdir:
-            default_path = self._get_default_path()
-            if (
-                default_path.exists()
-                and default_path.is_dir()
-                and not any(default_path == d for d in directories)
-            ):
-                directories.append(default_path)
-                logger.debug(
-                    f"Using default {self.file_type} directory: {default_path}"
+        # 3. Environment variable directory
+        if self.env_var:
+            env_dir = os.environ.get(self.env_var)
+            if env_dir:
+                path = Path(env_dir)
+                if path.exists() and path.is_dir():
+                    if not any(path == d for d in directories):
+                        directories.append(path)
+                        logger.debug(
+                            f"Using {self.file_type} directory from "
+                            f"{self.env_var}: {path}"
+                        )
+                else:
+                    logger.warning(
+                        f"{self.env_var} set but path doesn't exist: {env_dir}"
+                    )
+
+        # 4. Custom directory (lowest priority for discovery)
+        if custom_dir:
+            if custom_dir.exists() and custom_dir.is_dir():
+                if not any(custom_dir == d for d in directories):
+                    directories.append(custom_dir)
+                    logger.debug(
+                        f"Using custom {self.file_type} directory: {custom_dir}"
+                    )
+            else:
+                logger.warning(
+                    f"Custom {self.file_type} directory doesn't exist: {custom_dir}"
                 )
 
         if not directories:
@@ -125,6 +127,10 @@ class FileSourceResolver:
         self, custom_dir: Path | None = None, pattern: str | None = None
     ) -> list[Path]:
         """Discover all files across search directories.
+
+        Built-in files from the default application directory have the highest
+        priority and cannot be overridden by user files. User files with the
+        same name as built-ins will be skipped with a warning.
 
         Args:
             custom_dir: Optional custom directory to search
@@ -138,12 +144,23 @@ class FileSourceResolver:
 
         directories = self.get_search_directories(custom_dir)
         discovered_files: dict[str, Path] = {}  # name -> path mapping
+        builtin_names: set[str] = set()  # Track built-in file names
+
+        # Check if the first directory is the default (built-in) directory
+        default_path = self._get_default_path() if self.default_subdir else None
 
         for directory in directories:
+            is_builtin_dir = default_path and directory == default_path
+
             try:
                 for file_path in directory.glob(pattern):
                     if file_path.is_file():
                         file_name = file_path.stem
+
+                        # Track built-in names
+                        if is_builtin_dir:
+                            builtin_names.add(file_name)
+
                         # First directory in list has priority
                         if file_name not in discovered_files:
                             discovered_files[file_name] = file_path
@@ -152,10 +169,17 @@ class FileSourceResolver:
                                 f"from {directory}"
                             )
                         else:
-                            logger.debug(
-                                f"Skipping duplicate {self.file_type} "
-                                f"'{file_name}' from {directory}"
-                            )
+                            # Warn if user file tries to override built-in
+                            if file_name in builtin_names and not is_builtin_dir:
+                                logger.warning(
+                                    f"User {self.file_type} '{file_name}' from "
+                                    f"{directory} cannot override built-in. Skipping."
+                                )
+                            else:
+                                logger.debug(
+                                    f"Skipping duplicate {self.file_type} "
+                                    f"'{file_name}' from {directory}"
+                                )
             except Exception as e:
                 logger.error(f"Error scanning directory {directory}: {e}")
 

@@ -127,44 +127,54 @@ class TestFileSourceResolver:
         assert all(f.suffix == ".sql" for f in files)
 
     def test_priority_order(self, tmp_path, monkeypatch):
-        """Test that directories are searched in the correct priority order."""
+        """Test that built-in files cannot be overridden."""
         # Create directories
+        default_dir = tmp_path / "default"
+        default_dir.mkdir()
+        (default_dir / "builtin.txt").write_text("builtin")
+        (default_dir / "override_test.txt").write_text("builtin_version")
+
         custom_dir = tmp_path / "custom"
         custom_dir.mkdir()
-        (custom_dir / "file.txt").write_text("custom")
+        (custom_dir / "custom.txt").write_text("custom")
+        (custom_dir / "override_test.txt").write_text("custom_version")
 
         env_dir = tmp_path / "env"
         env_dir.mkdir()
-        (env_dir / "file.txt").write_text("env")
+        (env_dir / "env.txt").write_text("env")
+        (env_dir / "override_test.txt").write_text("env_version")
 
         git_dir = tmp_path / "git" / ".scriptrag" / "test"
         git_dir.mkdir(parents=True)
-        (git_dir / "file.txt").write_text("git")
+        (git_dir / "git.txt").write_text("git")
+        (git_dir / "override_test.txt").write_text("git_version")
 
         # Set up environment
         monkeypatch.setenv("TEST_DIR", str(env_dir))
 
-        # Mock git repo
+        # Mock git repo and default path
         with patch("git.Repo") as mock_repo_class:
             mock_repo = MagicMock()
             mock_repo.working_dir = str(tmp_path / "git")
             mock_repo_class.return_value = mock_repo
 
-            resolver = FileSourceResolver(file_type="test", env_var="TEST_DIR")
-            files = resolver.discover_files(custom_dir=custom_dir)
+            resolver = FileSourceResolver(
+                file_type="test", env_var="TEST_DIR", default_subdir="test/default"
+            )
 
-        # Should only have one file (from highest priority directory)
-        assert len(files) == 1
-        assert files[0].parent == custom_dir
+            # Mock the default path to return our test default dir
+            with patch.object(resolver, "_get_default_path", return_value=default_dir):
+                files = resolver.discover_files(custom_dir=custom_dir)
 
-        # Test without custom dir
-        with patch("git.Repo") as mock_repo_class:
-            mock_repo = MagicMock()
-            mock_repo.working_dir = str(tmp_path / "git")
-            mock_repo_class.return_value = mock_repo
+        # Should have all unique files
+        file_names = {f.stem for f in files}
+        assert "builtin" in file_names  # From default dir
+        assert "custom" in file_names  # From custom dir
+        assert "env" in file_names  # From env dir
+        assert "git" in file_names  # From git dir
+        assert "override_test" in file_names
 
-            files = resolver.discover_files()
-
-        # Should get file from env directory (next priority)
-        assert len(files) == 1
-        assert files[0].parent == env_dir
+        # The override_test file should be from the default (builtin) directory
+        override_file = next(f for f in files if f.stem == "override_test")
+        assert override_file.parent == default_dir
+        assert override_file.read_text() == "builtin_version"

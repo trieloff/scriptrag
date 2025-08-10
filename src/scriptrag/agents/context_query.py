@@ -18,6 +18,9 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+# Constants
+HASH_ID_LENGTH = 12  # Length for truncated hash IDs used throughout the system
+
 
 @dataclass
 class ContextParameters:
@@ -83,14 +86,16 @@ class ContextParameters:
                 params.content_hash = ScreenplayUtils.compute_scene_hash(
                     params.content_hash, truncate=True
                 )
-            params.scene_id = params.content_hash[:12]  # Short hash for ID
+            params.scene_id = params.content_hash[:HASH_ID_LENGTH]  # Short hash for ID
 
         # Extract script metadata if available
         if script:
             # Generate script_id from file path or metadata
             if hasattr(script, "file_path"):
                 file_str = str(script.file_path)
-                params.script_id = hashlib.sha256(file_str.encode()).hexdigest()[:12]
+                params.script_id = hashlib.sha256(file_str.encode()).hexdigest()[
+                    :HASH_ID_LENGTH
+                ]
                 params.file_path = file_str
 
             # Extract series metadata from script

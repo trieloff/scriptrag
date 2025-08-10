@@ -429,7 +429,8 @@ class TestMarkdownAgentAnalyzer:
 
         call_args = mock_client.complete.call_args[0][0]
         prompt = call_args.messages[0]["content"]
-        assert "-- Context query results (placeholder" in prompt
+        # The SQL block should be replaced with context results
+        assert "-- No context results available" in prompt
         assert "```sql" not in prompt
 
     @pytest.mark.asyncio

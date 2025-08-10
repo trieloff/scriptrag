@@ -198,10 +198,11 @@ class QueryEngine:
                 # If we get here, connection is NOT read-only
                 raise RuntimeError("Database connection is not read-only!")
             except Exception as e:
-                # Expected: write operation should fail
-                if "read-only" in str(e).lower() or "readonly" in str(e).lower():
-                    return True
-                # Re-raise unexpected errors
+                # Re-raise our own RuntimeError first
                 if "Database connection is not read-only" in str(e):
                     raise
+                # Expected: write operation should fail with read-only error
+                if "read-only" in str(e).lower() or "readonly" in str(e).lower():
+                    return True
+                # Other exceptions also indicate read-only behavior
                 return True

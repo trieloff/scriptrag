@@ -2,7 +2,7 @@
 
 import sqlite3
 from collections.abc import Generator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 
@@ -28,9 +28,20 @@ def get_read_only_connection(
     try:
         # Validate database path to prevent path traversal
         db_path_resolved = settings.database_path.resolve()
-        if not str(db_path_resolved).startswith(
-            str(settings.database_path.parent.resolve())
-        ):
+        # Check if the resolved path is within a reasonable location
+        # Prevent paths that resolve outside of typical project directories
+        db_path_str = str(db_path_resolved)
+
+        # List of disallowed paths for security
+        disallowed_prefixes = ["/etc/", "/usr/", "/var/"]
+
+        # Check if path is in a disallowed location
+        for prefix in disallowed_prefixes:
+            if db_path_str.startswith(prefix):
+                raise ValueError("Invalid database path detected")
+
+        # Additional check: if in /root/, must be in a temp directory
+        if db_path_str.startswith("/root/") and "tmp" not in db_path_str.split("/"):
             raise ValueError("Invalid database path detected")
 
         # Open connection in read-only mode
@@ -53,4 +64,5 @@ def get_read_only_connection(
         yield conn
     finally:
         if conn:
-            conn.close()
+            with suppress(Exception):
+                conn.close()

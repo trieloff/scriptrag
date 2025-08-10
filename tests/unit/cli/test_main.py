@@ -36,14 +36,14 @@ class TestCLIMain:
 
     def test_main_function_calls_app(self):
         """Test that main function calls the app."""
-        with patch.object(app, "__call__") as mock_app_call:
-            # Mock the app call to prevent SystemExit
-            mock_app_call.side_effect = SystemExit(2)
+        with patch("scriptrag.cli.main.app") as mock_app:
+            # Mock the app to raise SystemExit (simulating normal typer behavior)
+            mock_app.side_effect = SystemExit(0)
 
             # Expect SystemExit and verify app was called
             with pytest.raises(SystemExit):
                 main()
-            mock_app_call.assert_called_once()
+            mock_app.assert_called_once_with()
 
     def test_main_entry_point_coverage(self):
         """Test the main entry point when run as script (line 35 coverage)."""

@@ -99,7 +99,6 @@ class IndexCommand:
         self,
         path: Path | None = None,
         recursive: bool = True,
-        force: bool = False,
         dry_run: bool = False,
         batch_size: int = 10,
         progress_callback: Callable[[float, str], None] | None = None,
@@ -109,7 +108,6 @@ class IndexCommand:
         Args:
             path: Path to search for analyzed Fountain files
             recursive: Whether to search recursively
-            force: Force re-indexing of all scripts
             dry_run: Preview changes without applying them
             batch_size: Number of scripts to process in each batch
             progress_callback: Optional callback for progress updates
@@ -141,11 +139,9 @@ class IndexCommand:
 
             logger.info(f"Found {len(scripts)} Fountain files")
 
-            # Step 2: Filter scripts that need indexing
-            if not force:
-                scripts_to_index = await self._filter_scripts_for_indexing(scripts)
-            else:
-                scripts_to_index = scripts
+            # Step 2: Process all scripts (always re-index to ensure data consistency)
+            # The force parameter is now deprecated but kept for backward compatibility
+            scripts_to_index = scripts
 
             if not scripts_to_index:
                 logger.info("No scripts need indexing")
@@ -166,7 +162,7 @@ class IndexCommand:
                         progress, f"Processing batch {batch_num}/{total_batches}..."
                     )
 
-                batch_results = await self._process_scripts_batch(batch, force, dry_run)
+                batch_results = await self._process_scripts_batch(batch, dry_run)
                 result.scripts.extend(batch_results)
 
                 # Collect errors from batch
@@ -273,13 +269,12 @@ class IndexCommand:
         return scripts_to_index
 
     async def _process_scripts_batch(
-        self, scripts: list[FountainMetadata], force: bool, dry_run: bool
+        self, scripts: list[FountainMetadata], dry_run: bool
     ) -> list[IndexResult]:
         """Process a batch of scripts.
 
         Args:
             scripts: List of script metadata to process
-            force: Force re-indexing
             dry_run: Preview mode
 
         Returns:
@@ -289,9 +284,7 @@ class IndexCommand:
 
         for script_meta in scripts:
             try:
-                result = await self._index_single_script(
-                    script_meta.file_path, force, dry_run
-                )
+                result = await self._index_single_script(script_meta.file_path, dry_run)
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to index {script_meta.file_path}: {e}")
@@ -305,14 +298,11 @@ class IndexCommand:
 
         return results
 
-    async def _index_single_script(
-        self, file_path: Path, force: bool, dry_run: bool
-    ) -> IndexResult:
+    async def _index_single_script(self, file_path: Path, dry_run: bool) -> IndexResult:
         """Index a single script.
 
         Args:
             file_path: Path to the script file
-            force: Force re-indexing
             dry_run: Preview mode
 
         Returns:
@@ -334,8 +324,8 @@ class IndexCommand:
                 existing = self.db_ops.get_existing_script(conn, file_path)
                 is_update = existing is not None
 
-                # Clear existing data if forcing or updating
-                if force and existing and existing.id is not None:
+                # Always clear existing data when updating to ensure consistency
+                if existing and existing.id is not None:
                     self.db_ops.clear_script_data(conn, existing.id)
 
                 # Upsert script
@@ -365,8 +355,8 @@ class IndexCommand:
                         conn, scene, script_id
                     )
 
-                    # Only clear and re-insert content if it has changed or if forced
-                    if content_changed or force:
+                    # Clear and re-insert content if it has changed
+                    if content_changed:
                         self.db_ops.clear_scene_content(conn, scene_id)
 
                         # Insert dialogues

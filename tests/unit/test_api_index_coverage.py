@@ -457,8 +457,8 @@ class TestIndexCommandCoverage:
             mock_repo_class.assert_called_once_with(".", search_parent_directories=True)
 
     @pytest.mark.asyncio
-    async def test_index_single_script_content_changed_with_force(self, tmp_path):
-        """Test _index_single_script with content changed and force mode."""
+    async def test_index_single_script_existing_content(self, tmp_path):
+        """Test _index_single_script when re-indexing existing content."""
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
         mock_db_ops = Mock()
 
@@ -508,12 +508,12 @@ class TestIndexCommandCoverage:
 
         with patch.object(indexer.parser, "parse_file", return_value=script):
             result = await indexer._index_single_script(
-                Path("test.fountain"), force=True, dry_run=False
+                Path("test.fountain"), dry_run=False
             )
 
-        # Should clear existing data for force mode
+        # Should always clear existing data when updating
         mock_db_ops.clear_script_data.assert_called_once()
-        # Should clear scene content when content changed or force mode
+        # Should clear scene content when updating
         mock_db_ops.clear_scene_content.assert_called_once()
         assert result.indexed
         assert result.updated

@@ -103,9 +103,13 @@ class SearchAPI:
         """
         from scriptrag.config import get_settings
 
-        settings = get_settings()
         if config_path:
-            # TODO: Load additional config from file if needed
-            pass
+            # Load settings from specified config file
+            from scriptrag.config.settings import ScriptRAGSettings
+
+            settings = ScriptRAGSettings.from_file(config_path)
+        else:
+            # Use default global settings
+            settings = get_settings()
 
         return cls(settings)

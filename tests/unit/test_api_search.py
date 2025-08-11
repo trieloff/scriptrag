@@ -189,16 +189,17 @@ class TestSearchAPIFromConfig:
 
     def test_from_config_with_path(self):
         """Test creating SearchAPI from config with config path."""
-        with patch("scriptrag.config.get_settings") as mock_get_settings:
+        with patch(
+            "scriptrag.api.search.ScriptRAGSettings.from_file"
+        ) as mock_from_file:
             mock_settings = MagicMock()
-            mock_get_settings.return_value = mock_settings
+            mock_from_file.return_value = mock_settings
 
             api = SearchAPI.from_config(config_path="/path/to/config.json")
 
             assert isinstance(api, SearchAPI)
             assert api.settings == mock_settings
-            mock_get_settings.assert_called_once()
-            # TODO path is currently not used (line 102-103 in source)
+            mock_from_file.assert_called_once_with("/path/to/config.json")
 
     def test_from_config_with_none_path(self):
         """Test creating SearchAPI from config with None path."""

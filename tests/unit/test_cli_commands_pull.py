@@ -294,7 +294,7 @@ class TestPullCommand:
         result = runner.invoke(app, ["pull"])
 
         # Verify completion despite errors
-        from scriptrag.tools.utils import strip_ansi_codes
+        from tests.utils import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert result.exit_code == 0

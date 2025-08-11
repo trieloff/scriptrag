@@ -25,6 +25,8 @@ class QueryParser:
         mode: SearchMode = SearchMode.AUTO,
         limit: int = 5,
         offset: int = 0,
+        include_bible: bool = True,
+        only_bible: bool = False,
     ) -> SearchQuery:
         """Parse a search query into components.
 
@@ -38,6 +40,8 @@ class QueryParser:
             mode: Search mode (strict/fuzzy/auto)
             limit: Result limit
             offset: Result offset
+            include_bible: Include bible content in search
+            only_bible: Search only bible content
 
         Returns:
             Parsed SearchQuery object
@@ -48,6 +52,8 @@ class QueryParser:
             limit=limit,
             offset=offset,
             project=project,
+            include_bible=include_bible,
+            only_bible=only_bible,
         )
 
         # Parse episode range if provided

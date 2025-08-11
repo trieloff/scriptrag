@@ -179,6 +179,17 @@ class ScriptRAGSettings(BaseSettings):
         ge=0,
     )
 
+    # Bible-specific settings
+    bible_embeddings_path: str = Field(
+        default="embeddings/bible",
+        description="Path for storing bible chunk embeddings in Git LFS",
+    )
+    bible_max_file_size: int = Field(
+        default=10 * 1024 * 1024,  # 10 MB
+        description="Maximum size for bible files in bytes",
+        gt=0,
+    )
+
     @field_validator("database_path", "log_file", mode="before")
     @classmethod
     def expand_path(cls, v: Any) -> Path | None:

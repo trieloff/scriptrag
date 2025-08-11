@@ -57,6 +57,9 @@ class TestInitCommand:
 
         expected_tables = [
             "actions",
+            "bible_chunks",
+            "bible_embeddings",
+            "bible_references",
             "character_relationships",
             "characters",
             "dialogues",
@@ -64,6 +67,7 @@ class TestInitCommand:
             "scene_graph_edges",
             "scenes",
             "schema_version",
+            "script_bibles",
             "scripts",
         ]
 

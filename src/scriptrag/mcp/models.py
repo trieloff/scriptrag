@@ -1,12 +1,10 @@
-"""Shared Pydantic models for MCP tools."""
+"""Shared type definitions for MCP tools."""
 
-from typing import Any
-
-from pydantic import BaseModel
+from typing import Any, TypedDict
 
 
-# Script Management Models
-class ScriptMetadata(BaseModel):
+# Script Management Types
+class ScriptMetadata(TypedDict):
     """Script metadata information."""
 
     script_id: int
@@ -15,70 +13,70 @@ class ScriptMetadata(BaseModel):
     scene_count: int
     character_count: int
     created_at: str
-    updated_at: str | None = None
+    updated_at: str | None
 
 
-class ScriptDetail(BaseModel):
+class ScriptDetail(TypedDict):
     """Detailed script information."""
 
     script_id: int
     title: str
     file_path: str
-    content_hash: str | None = None
-    metadata: dict[str, Any] | None = None
+    content_hash: str | None
+    metadata: dict[str, Any] | None
     created_at: str
-    updated_at: str | None = None
+    updated_at: str | None
 
 
-# Scene Models
-class SceneSummary(BaseModel):
+# Scene Types
+class SceneSummary(TypedDict):
     """Scene summary information."""
 
     scene_id: int
     script_id: int
     scene_number: int
     heading: str
-    location: str | None = None
-    time_of_day: str | None = None
+    location: str | None
+    time_of_day: str | None
     character_count: int
     dialogue_count: int
 
 
-class SceneDetail(BaseModel):
+class SceneDetail(TypedDict):
     """Detailed scene information."""
 
     scene_id: int
     script_id: int
     scene_number: int
     heading: str
-    location: str | None = None
-    time_of_day: str | None = None
+    location: str | None
+    time_of_day: str | None
     content: str
     characters: list[str]
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None
 
 
-class DialogueLine(BaseModel):
+class DialogueLine(TypedDict):
     """Individual dialogue line."""
 
     character: str
     text: str
     line_number: int
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None
 
 
-# Character Models
-class CharacterSummary(BaseModel):
+# Character Types
+class CharacterSummary(TypedDict):
     """Character summary information."""
 
     name: str
     dialogue_count: int
     scene_count: int
-    first_appearance_scene: int | None = None
-    last_appearance_scene: int | None = None
+    first_appearance_scene: int | None
+    last_appearance_scene: int | None
 
 
-class CharacterDetail(BaseModel):
+class CharacterDetail(TypedDict):
     """Detailed character information."""
 
     name: str
@@ -86,32 +84,32 @@ class CharacterDetail(BaseModel):
     scene_count: int
     total_words: int
     average_words_per_line: float
-    first_appearance: SceneSummary | None = None
-    last_appearance: SceneSummary | None = None
-    metadata: dict[str, Any] | None = None
+    first_appearance: SceneSummary | None
+    last_appearance: SceneSummary | None
+    metadata: dict[str, Any] | None
 
 
-class CharacterInfo(BaseModel):
+class CharacterInfo(TypedDict):
     """Basic character information."""
 
     name: str
     total_dialogue_lines: int
     total_scenes: int
-    first_appearance: str | None = None
-    last_appearance: str | None = None
+    first_appearance: str | None
+    last_appearance: str | None
 
 
-class CharacterRelationship(BaseModel):
+class CharacterRelationship(TypedDict):
     """Character relationship information."""
 
     character1: str
     character2: str
     shared_scenes: int
     interaction_count: int
-    relationship_type: str | None = None
+    relationship_type: str | None
 
 
-class CharacterAppearance(BaseModel):
+class CharacterAppearance(TypedDict):
     """Character appearance in a scene."""
 
     scene_id: int
@@ -121,8 +119,8 @@ class CharacterAppearance(BaseModel):
     is_speaking: bool
 
 
-# Search Models
-class DialogueSearchResult(BaseModel):
+# Search Types
+class DialogueSearchResult(TypedDict):
     """Dialogue search result."""
 
     scene_id: int
@@ -130,51 +128,51 @@ class DialogueSearchResult(BaseModel):
     scene_number: int
     character: str
     dialogue: str
-    match_score: float | None = None
-    context: dict[str, Any] | None = None
+    match_score: float | None
+    context: dict[str, Any] | None
 
 
-class SemanticSearchResult(BaseModel):
+class SemanticSearchResult(TypedDict):
     """Semantic search result."""
 
     content_type: str  # "scene", "dialogue", "action", "bible"
     content_id: int
     content: str
     similarity_score: float
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None
 
 
-class BibleSearchResult(BaseModel):
+class BibleSearchResult(TypedDict):
     """Bible search result."""
 
     bible_id: int
     script_id: int
     content: str
     similarity_score: float
-    chunk_index: int | None = None
+    chunk_index: int | None
 
 
-class SearchQueryInfo(BaseModel):
+class SearchQueryInfo(TypedDict):
     """Search query information."""
 
     query: str
     search_type: str
-    filters_applied: dict[str, Any] | None = None
-    execution_time_ms: float | None = None
+    filters_applied: dict[str, Any] | None
+    execution_time_ms: float | None
 
 
-# Analysis Models
-class AgentInfo(BaseModel):
+# Analysis Types
+class AgentInfo(TypedDict):
     """Analysis agent information."""
 
     name: str
-    category: str | None = None
+    category: str | None
     description: str
     is_builtin: bool
-    parameters: dict[str, Any] | None = None
+    parameters: dict[str, Any] | None
 
 
-class DialogueStats(BaseModel):
+class DialogueStats(TypedDict):
     """Dialogue statistics for a character."""
 
     total_lines: int
@@ -182,10 +180,10 @@ class DialogueStats(BaseModel):
     average_words_per_line: float
     longest_line_words: int
     shortest_line_words: int
-    vocabulary_size: int | None = None
+    vocabulary_size: int | None
 
 
-class SceneAppearance(BaseModel):
+class SceneAppearance(TypedDict):
     """Scene appearance information."""
 
     scene_id: int
@@ -195,7 +193,7 @@ class SceneAppearance(BaseModel):
     action_mentions: int
 
 
-class ScriptInfo(BaseModel):
+class ScriptInfo(TypedDict):
     """Basic script information."""
 
     script_id: int

@@ -12,10 +12,10 @@ pip install scriptrag
 
 ## Running the Server
 
-Start the MCP server:
+Start the MCP server as a subcommand:
 
 ```bash
-scriptrag-mcp
+scriptrag mcp
 ```
 
 The server runs on stdio transport by default for integration with Claude Desktop and other MCP clients.
@@ -169,26 +169,6 @@ Run an analysis agent on content.
 - `custom_content` (string): Custom content to analyze
 - `save_results` (boolean): Save results to database
 
-## Available Resources
-
-Resources provide direct access to content through URI patterns:
-
-### Script Resources
-
-- `scriptrag://scripts/{script_id}` - Full script content in Fountain format
-- `scriptrag://scripts/{script_id}/metadata` - Script metadata as JSON
-
-### Scene Resources
-
-- `scriptrag://scenes/{scene_id}` - Individual scene content
-- `scriptrag://scenes/{scene_id}/analysis` - Scene analysis data
-
-### Character Resources
-
-- `scriptrag://characters/{character_name}` - Character information across all scripts
-- `scriptrag://characters/{character_name}/script/{script_id}` - Character in specific script
-- `scriptrag://characters/{character_name}/dialogue` - All dialogue for character
-
 ## Integration with Claude Desktop
 
 To use ScriptRAG with Claude Desktop, add the following to your Claude Desktop configuration:
@@ -197,8 +177,8 @@ To use ScriptRAG with Claude Desktop, add the following to your Claude Desktop c
 {
   "mcpServers": {
     "scriptrag": {
-      "command": "scriptrag-mcp",
-      "args": [],
+      "command": "scriptrag",
+      "args": ["mcp"],
       "env": {}
     }
   }

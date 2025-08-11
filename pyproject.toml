@@ -132,7 +132,6 @@ Issues = "https://github.com/trieloff/scriptrag/issues"
 
 [project.scripts]
 scriptrag = "scriptrag.cli:app"
-scriptrag-mcp = "scriptrag.mcp.server:main"
 
 [build-system]
 requires = ["hatchling"]

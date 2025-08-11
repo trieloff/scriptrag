@@ -60,20 +60,27 @@ mcp = FastMCP("ScriptRAG", lifespan=lifespan)
 # Import and register all tools
 def register_tools() -> None:
     """Register all MCP tools from the tools directory."""
+    from scriptrag.mcp.tools import (
+        get_character,
+        get_scene,
+        get_script,
+        import_script,
+        list_agents,
+        list_characters,
+        list_scenes,
+        list_scripts,
+        run_agent,
+        search_character,
+        search_dialogue,
+        semantic_search,
+    )
+
     # All tools are automatically registered via decorators in their modules
     logger.info("All MCP tools registered successfully")
 
 
-# Import and register all resources
-def register_resources() -> None:
-    """Register all MCP resources from the resources directory."""
-    # All resources are automatically registered via decorators in their modules
-    logger.info("All MCP resources registered successfully")
-
-
-# Register tools and resources when module is imported
+# Register tools when module is imported
 register_tools()
-register_resources()
 
 
 def main() -> None:

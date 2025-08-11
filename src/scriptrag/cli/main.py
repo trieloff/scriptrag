@@ -7,6 +7,7 @@ from scriptrag.cli.commands import (
     index_command,
     init_command,
     list_command,
+    mcp_command,
     pull_command,
     query_app,
     search_command,
@@ -26,6 +27,7 @@ app.command(name="list")(list_command)
 app.command(name="ls", hidden=True)(list_command)  # Alias for list
 app.command(name="analyze")(analyze_command)
 app.command(name="index")(index_command)
+app.command(name="mcp")(mcp_command)
 app.command(name="pull")(pull_command)
 app.command(name="search")(search_command)
 app.command(name="watch")(watch_command)

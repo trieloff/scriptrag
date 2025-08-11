@@ -664,3 +664,89 @@ class TestPullCommand:
         assert result.exit_code == 0
         assert "DRY RUN: Would initialize database" in result.output
         assert "DRY RUN COMPLETE" in result.output
+
+    def test_pull_with_brittle_flag(
+        self,
+        runner,
+        mock_settings,
+        mock_db_ops,
+        mock_analyze_cmd,
+        mock_index_cmd,
+    ):
+        """Test pull command with brittle flag passes it to analyze."""
+        # Setup mocks
+        mock_db_ops.check_database_exists.return_value = True
+
+        # Mock analyze result
+        analyze_result = MagicMock()
+        analyze_result.total_files_updated = 3
+        analyze_result.total_scenes_updated = 15
+        analyze_result.errors = []
+        mock_analyze_cmd.analyze_return_value = analyze_result
+
+        # Mock index result
+        index_result = MagicMock()
+        index_result.total_scripts_indexed = 3
+        index_result.total_scripts_updated = 0
+        index_result.total_scenes_indexed = 15
+        index_result.total_characters_indexed = 8
+        index_result.total_dialogues_indexed = 30
+        index_result.total_actions_indexed = 20
+        index_result.errors = []
+        mock_index_cmd.index_return_value = index_result
+
+        # Run command with brittle flag
+        result = runner.invoke(app, ["pull", "--brittle"])
+
+        # Verify success
+        assert result.exit_code == 0
+
+        # Verify brittle was passed to analyze command
+        assert mock_analyze_cmd.analyze.call_count == 1
+        call_kwargs = mock_analyze_cmd.analyze.call_args[1]
+        assert call_kwargs["brittle"] is True
+
+        # Verify index was called (but without brittle parameter)
+        assert mock_index_cmd.index.call_count == 1
+        call_kwargs = mock_index_cmd.index.call_args[1]
+        assert "brittle" not in call_kwargs
+
+    def test_pull_without_brittle_flag(
+        self,
+        runner,
+        mock_settings,
+        mock_db_ops,
+        mock_analyze_cmd,
+        mock_index_cmd,
+    ):
+        """Test pull command without brittle flag defaults to False."""
+        # Setup mocks
+        mock_db_ops.check_database_exists.return_value = True
+
+        # Mock results
+        analyze_result = MagicMock()
+        analyze_result.total_files_updated = 2
+        analyze_result.total_scenes_updated = 8
+        analyze_result.errors = []
+        mock_analyze_cmd.analyze_return_value = analyze_result
+
+        index_result = MagicMock()
+        index_result.total_scripts_indexed = 2
+        index_result.total_scripts_updated = 0
+        index_result.total_scenes_indexed = 8
+        index_result.total_characters_indexed = 4
+        index_result.total_dialogues_indexed = 16
+        index_result.total_actions_indexed = 12
+        index_result.errors = []
+        mock_index_cmd.index_return_value = index_result
+
+        # Run command without brittle flag
+        result = runner.invoke(app, ["pull"])
+
+        # Verify success
+        assert result.exit_code == 0
+
+        # Verify brittle was passed as False to analyze command
+        assert mock_analyze_cmd.analyze.call_count == 1
+        call_kwargs = mock_analyze_cmd.analyze.call_args[1]
+        assert call_kwargs["brittle"] is False

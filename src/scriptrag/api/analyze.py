@@ -136,6 +136,7 @@ class AnalyzeCommand:
         recursive: bool = True,
         force: bool = False,
         dry_run: bool = False,
+        brittle: bool = False,
         progress_callback: Callable[[float, str], None] | None = None,
     ) -> AnalyzeResult:
         """Execute analyze operation.
@@ -145,6 +146,7 @@ class AnalyzeCommand:
             recursive: Whether to search recursively
             force: Force re-processing of all scenes
             dry_run: Preview changes without applying them
+            brittle: Stop processing if any analyzer fails
             progress_callback: Optional callback for progress updates
 
         Returns:
@@ -176,9 +178,16 @@ class AnalyzeCommand:
                         script_meta.file_path,
                         force=force,
                         dry_run=dry_run,
+                        brittle=brittle,
                     )
                     result.files.append(file_result)
                 except Exception as e:
+                    if brittle:
+                        logger.error(
+                            f"Failed to process {script_meta.file_path}: {e!s} "
+                            "(brittle mode - stopping)"
+                        )
+                        raise
                     logger.error(f"Failed to process {script_meta.file_path}: {e!s}")
                     result.files.append(
                         FileResult(
@@ -190,6 +199,9 @@ class AnalyzeCommand:
                     result.errors.append(f"{script_meta.file_path}: {e}")
 
         except Exception as e:
+            if brittle:
+                logger.error(f"Analyze operation failed: {e!s} (brittle mode)")
+                raise
             logger.error(f"Analyze operation failed: {e!s}")
             result.errors.append(f"Analyze failed: {e!s}")
 
@@ -200,6 +212,7 @@ class AnalyzeCommand:
         file_path: Path,
         force: bool,
         dry_run: bool,
+        brittle: bool = False,
     ) -> FileResult:
         """Process a single file.
 
@@ -207,6 +220,7 @@ class AnalyzeCommand:
             file_path: Path to the Fountain file
             force: Force re-processing
             dry_run: Preview mode
+            brittle: Stop processing if any analyzer fails
 
         Returns:
             FileResult with processing details
@@ -285,9 +299,15 @@ class AnalyzeCommand:
                                 analyzer_result["version"] = analyzer.version
                             metadata["analyzers"][analyzer.name] = analyzer_result
                         except Exception as e:  # pragma: no cover
-                            logger.error(
-                                f"Analyzer {analyzer.name} failed on "
-                                f"scene {scene.number}: {e}"
+                            if brittle:
+                                logger.error(
+                                    f"Analyzer {analyzer.name} failed on scene "
+                                    f"{scene.number}: {e} (brittle mode - stopping)"
+                                )
+                                raise
+                            logger.warning(
+                                f"Analyzer {analyzer.name} failed on scene "
+                                f"{scene.number}: {e} (skipping)"
                             )
 
                     # Update scene metadata

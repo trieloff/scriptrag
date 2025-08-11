@@ -1,5 +1,6 @@
 """Search engine for executing queries."""
 
+import asyncio
 import json
 import sqlite3
 import time
@@ -9,6 +10,7 @@ from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.database.readonly import get_read_only_connection
 from scriptrag.search.builder import QueryBuilder
 from scriptrag.search.models import SearchQuery, SearchResponse, SearchResult
+from scriptrag.search.vector import VectorSearchEngine
 
 logger = get_logger(__name__)
 
@@ -30,6 +32,7 @@ class SearchEngine:
         self.settings = settings
         self.db_path = settings.database_path
         self.query_builder = QueryBuilder()
+        self.vector_engine = VectorSearchEngine(settings)
 
     def get_read_only_connection(self) -> AbstractContextManager[sqlite3.Connection]:
         """Get a read-only database connection.
@@ -48,7 +51,27 @@ class SearchEngine:
         return get_read_only_connection(self.settings)
 
     def search(self, query: SearchQuery) -> SearchResponse:
-        """Execute a search query.
+        """Execute a search query (synchronous wrapper).
+
+        Args:
+            query: Parsed search query
+
+        Returns:
+            Search response with results
+
+        Raises:
+            FileNotFoundError: If database doesn't exist
+            ValueError: If database path is invalid
+        """
+        # Run async search in a new event loop
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(self.search_async(query))
+        finally:
+            loop.close()
+
+    async def search_async(self, query: SearchQuery) -> SearchResponse:
+        """Execute a search query asynchronously.
 
         Args:
             query: Parsed search query
@@ -120,9 +143,22 @@ class SearchEngine:
             # Check if vector search is needed
             search_methods = ["sql"]
             if query.needs_vector_search:
-                # TODO: Implement vector search integration
                 search_methods.append("vector")
-                logger.info("Vector search requested but not yet implemented")
+                logger.info("Performing vector search to enhance results")
+
+                # Enhance results with vector search
+                try:
+                    vector_limit = max(5, query.limit // 2)
+                    enhance_fn = self.vector_engine.enhance_results_with_vector_search
+                    results = await enhance_fn(
+                        conn=conn,
+                        query=query,
+                        existing_results=results,
+                        limit=vector_limit,
+                    )
+                except Exception as e:
+                    logger.error(f"Vector search failed: {e}")
+                    # Continue with SQL results only
 
             # Calculate execution time
             execution_time_ms = (time.time() - start_time) * 1000

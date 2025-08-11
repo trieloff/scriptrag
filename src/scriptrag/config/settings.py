@@ -138,6 +138,10 @@ class ScriptRAGSettings(BaseSettings):
         default=None,
         description="Default model to use for embeddings",
     )
+    llm_embedding_dimensions: int | None = Field(
+        default=None,
+        description="Dimensions for embedding vectors (e.g., 1536)",
+    )
     llm_temperature: float = Field(
         default=0.7,
         description="Default temperature for completions",

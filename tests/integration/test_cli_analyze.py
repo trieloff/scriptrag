@@ -357,7 +357,7 @@ class TestAnalyzeCommand:
             return mock_analyze_cmd
 
         monkeypatch.setattr(
-            "scriptrag.cli.commands.analyze.AnalyzeCommand.from_config",
+            "scriptrag.api.analyze.AnalyzeCommand.from_config",
             mock_from_config,
         )
 

@@ -365,8 +365,9 @@ class TestAnalyzeCommand:
 
         assert result.exit_code == 0
         # Should display relative path
-        assert "simple.fountain" in result.stdout
-        assert "2 scenes" in result.stdout
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "simple.fountain" in clean_output
+        assert "2 scenes" in clean_output
 
     def test_analyze_absolute_path_fallback(self, temp_fountain_files, monkeypatch):
         """Test analyze falls back to absolute path when relative not possible."""

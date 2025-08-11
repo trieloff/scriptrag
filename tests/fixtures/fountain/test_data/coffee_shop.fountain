@@ -15,6 +15,125 @@ Hey Alice! The usual?
 
 ALICE nods and sits down.
 
+/* SCRIPTRAG-META-START
+{
+  "content_hash": "830dda1fe63b0bcd",
+  "analyzed_at": "2025-08-11T05:58:04.705300",
+  "analyzers": {
+    "props_inventory": {
+      "result": {
+        "props": [
+          {
+            "name": "coffee cup",
+            "category": "food_beverage",
+            "description": "Cup for Alice's usual coffee order",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "dialogue",
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee",
+            "category": "food_beverage",
+            "description": "Alice's usual coffee beverage",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "dialogue",
+              "implied"
+            ]
+          },
+          {
+            "name": "chair",
+            "category": "furniture",
+            "description": "Chair that Alice sits in",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "action",
+              "implied"
+            ]
+          },
+          {
+            "name": "table",
+            "category": "furniture",
+            "description": "Coffee shop table where Alice sits",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee shop counter",
+            "category": "furniture",
+            "description": "Service counter where Bob works",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "other coffee cups",
+            "category": "food_beverage",
+            "description": "Background cups for bustling coffee shop atmosphere",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 6,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee shop tables",
+            "category": "furniture",
+            "description": "Additional tables for bustling coffee shop setting",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 4,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee shop chairs",
+            "category": "furniture",
+            "description": "Additional chairs for bustling coffee shop setting",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 8,
+            "mentions": [
+              "implied"
+            ]
+          }
+        ],
+        "summary": {
+          "total_props": 8,
+          "hero_props": 0,
+          "requires_action": 2,
+          "categories": [
+            "food_beverage",
+            "furniture"
+          ]
+        },
+        "analyzer": "props_inventory",
+        "version": "1.0",
+        "property": "props_inventory"
+      },
+      "version": "1.0"
+    }
+  }
+}
+SCRIPTRAG-META-END */
+
 EXT. PARK - NIGHT
 
 They walk through the quiet park.
@@ -25,3 +144,87 @@ It's so peaceful here at night.
 
 BOB
 Yeah, quite different from the morning rush.
+
+/* SCRIPTRAG-META-START
+{
+  "content_hash": "c4f09000c61a7d01",
+  "analyzed_at": "2025-08-11T05:58:25.732230",
+  "analyzers": {
+    "props_inventory": {
+      "result": {
+        "props": [
+          {
+            "name": "park bench",
+            "category": "furniture",
+            "description": "Bench for sitting in the park, typical park furniture",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "park lamp posts",
+            "category": "miscellaneous",
+            "description": "Street lamps or park lighting fixtures for night visibility",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 3,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "walking path",
+            "category": "miscellaneous",
+            "description": "Paved or gravel path through the park",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "trash receptacle",
+            "category": "miscellaneous",
+            "description": "Park trash can or waste bin",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "park signage",
+            "category": "documents",
+            "description": "Park rules sign or park name sign",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          }
+        ],
+        "summary": {
+          "total_props": 5,
+          "hero_props": 0,
+          "requires_action": 0,
+          "categories": [
+            "furniture",
+            "miscellaneous",
+            "documents"
+          ]
+        },
+        "analyzer": "props_inventory",
+        "version": "1.0",
+        "property": "props_inventory"
+      },
+      "version": "1.0"
+    }
+  }
+}
+SCRIPTRAG-META-END */

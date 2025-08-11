@@ -13,6 +13,30 @@ from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import SearchQuery
 
 
+def _get_or_create_script_id(db_path: Path, script_path: Path) -> int:
+    """Get or create script ID in database."""
+    import sqlite3
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM scripts WHERE file_path = ?", (str(script_path),))
+    row = cursor.fetchone()
+
+    if row is None:
+        # Script wasn't indexed, create it for testing
+        cursor.execute(
+            "INSERT INTO scripts (title, file_path) VALUES (?, ?)",
+            ("Test Script", str(script_path)),
+        )
+        conn.commit()
+        script_id = cursor.lastrowid
+    else:
+        script_id = row[0]
+
+    conn.close()
+    return script_id
+
+
 @pytest.fixture
 def bible_files(tmp_path: Path) -> dict[str, Path]:
     """Create test bible files."""
@@ -208,18 +232,22 @@ class TestBibleIndexing:
         test_script: Path,
     ) -> None:
         """Test indexing a single bible document."""
-        # First index the script
         from scriptrag.config import ScriptRAGSettings
 
         settings = ScriptRAGSettings(database_path=initialized_db)
+
+        # First index the script
         index_cmd = IndexCommand(settings=settings)
         await index_cmd.index(test_script.parent, recursive=False)
 
-        # Now index the bible
+        # Get the actual script ID from the database
+        script_id = _get_or_create_script_id(initialized_db, test_script)
+
+        # Now index the bible with the actual script ID
         indexer = BibleIndexer(settings=settings)
         result = await indexer.index_bible(
             bible_path=bible_files["main"],
-            script_id=1,  # Assuming first script has ID 1
+            script_id=script_id,
         )
 
         assert result.indexed is True
@@ -242,14 +270,17 @@ class TestBibleIndexing:
         index_cmd = IndexCommand(settings=settings)
         await index_cmd.index(test_script.parent, recursive=False)
 
+        # Get or create script ID
+        script_id = _get_or_create_script_id(initialized_db, test_script)
+
         indexer = BibleIndexer(settings=settings)
 
         # First indexing
-        result1 = await indexer.index_bible(bible_files["main"], script_id=1)
+        result1 = await indexer.index_bible(bible_files["main"], script_id=script_id)
         assert result1.indexed is True
 
         # Second indexing (should skip)
-        result2 = await indexer.index_bible(bible_files["main"], script_id=1)
+        result2 = await indexer.index_bible(bible_files["main"], script_id=script_id)
         assert result2.indexed is False
         assert result2.updated is False
 
@@ -269,15 +300,18 @@ class TestBibleIndexing:
         index_cmd = IndexCommand(settings=settings)
         await index_cmd.index(test_script.parent, recursive=False)
 
+        # Get or create script ID
+        script_id = _get_or_create_script_id(initialized_db, test_script)
+
         indexer = BibleIndexer(settings=settings)
 
         # First indexing
-        result1 = await indexer.index_bible(bible_files["main"], script_id=1)
+        result1 = await indexer.index_bible(bible_files["main"], script_id=script_id)
         assert result1.indexed is True
 
         # Force re-index
         result2 = await indexer.index_bible(
-            bible_files["main"], script_id=1, force=True
+            bible_files["main"], script_id=script_id, force=True
         )
         assert result2.updated is True
         assert result2.chunks_indexed > 0
@@ -302,9 +336,12 @@ class TestBibleSearch:
         index_cmd = IndexCommand(settings=settings)
         await index_cmd.index(test_script.parent, recursive=False)
 
+        # Get or create script ID
+        script_id = _get_or_create_script_id(initialized_db, test_script)
+
         indexer = BibleIndexer(settings=settings)
-        await indexer.index_bible(bible_files["main"], script_id=1)
-        await indexer.index_bible(bible_files["backstory"], script_id=1)
+        await indexer.index_bible(bible_files["main"], script_id=script_id)
+        await indexer.index_bible(bible_files["backstory"], script_id=script_id)
 
         # Search for content
         engine = SearchEngine(settings)
@@ -334,8 +371,11 @@ class TestBibleSearch:
         index_cmd = IndexCommand(settings=settings)
         await index_cmd.index(test_script.parent, recursive=False)
 
+        # Get or create script ID
+        script_id = _get_or_create_script_id(initialized_db, test_script)
+
         indexer = BibleIndexer(settings=settings)
-        await indexer.index_bible(bible_files["main"], script_id=1)
+        await indexer.index_bible(bible_files["main"], script_id=script_id)
 
         # Search only bible
         engine = SearchEngine(settings)
@@ -365,8 +405,11 @@ class TestBibleSearch:
         index_cmd = IndexCommand(settings=settings)
         await index_cmd.index(test_script.parent, recursive=False)
 
+        # Get or create script ID
+        script_id = _get_or_create_script_id(initialized_db, test_script)
+
         indexer = BibleIndexer(settings=settings)
-        await indexer.index_bible(bible_files["main"], script_id=1)
+        await indexer.index_bible(bible_files["main"], script_id=script_id)
 
         # Search without bible
         engine = SearchEngine(settings)
@@ -396,8 +439,11 @@ class TestBibleSearch:
         index_cmd = IndexCommand(settings=settings)
         await index_cmd.index(test_script.parent, recursive=False)
 
+        # Get or create script ID
+        script_id = _get_or_create_script_id(initialized_db, test_script)
+
         indexer = BibleIndexer(settings=settings)
-        result = await indexer.index_bible(bible_files["main"], script_id=1)
+        result = await indexer.index_bible(bible_files["main"], script_id=script_id)
 
         # Verify chunks were created with proper hierarchy
         assert result.chunks_indexed > 0

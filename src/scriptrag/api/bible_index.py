@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sqlite3
 from dataclasses import dataclass
@@ -45,21 +46,24 @@ class BibleIndexer:
         """
         self.settings = settings or get_settings()
         self.db_ops = db_ops or DatabaseOperations(self.settings)
-        self.parser = BibleParser()
+        self.parser = BibleParser(max_file_size=self.settings.bible_max_file_size)
         self.embedding_analyzer: SceneEmbeddingAnalyzer | None = None
 
     async def initialize_embedding_analyzer(self) -> None:
         """Initialize the embedding analyzer for bible chunks."""
         if self.embedding_analyzer is None:
-            # Configure for bible embeddings
+            # Configure for bible embeddings using settings
             config = {
-                "lfs_path": "embeddings/bible",  # Bible embeddings dir
+                "lfs_path": self.settings.bible_embeddings_path,
                 "repo_path": ".",
                 "embedding_model": self.settings.llm_embedding_model,
             }
             self.embedding_analyzer = SceneEmbeddingAnalyzer(config)
             await self.embedding_analyzer.initialize()
-            logger.info("Initialized embedding analyzer for bible content")
+            logger.info(
+                f"Initialized embedding analyzer for bible content at "
+                f"{self.settings.bible_embeddings_path}"
+            )
 
     async def index_bible(
         self,
@@ -83,9 +87,8 @@ class BibleIndexer:
             # Parse the bible document
             parsed_bible = self.parser.parse_file(bible_path)
 
-            # Check if bible already exists in database
-            conn = sqlite3.connect(self.settings.database_path)
-            try:
+            # Use DatabaseOperations transaction context for proper error handling
+            with self.db_ops.transaction() as conn:
                 cursor = conn.cursor()
 
                 # Check for existing bible entry
@@ -127,14 +130,11 @@ class BibleIndexer:
                     )
                     result.embeddings_created = embeddings_created
 
-                conn.commit()
                 logger.info(
                     f"Successfully indexed bible {bible_path}: "
                     f"{chunks_indexed} chunks, {result.embeddings_created} embeddings"
                 )
-
-            finally:
-                conn.close()
+                # Note: commit happens automatically with transaction context
 
         except Exception as e:
             logger.error(f"Failed to index bible {bible_path}: {e}")
@@ -302,39 +302,63 @@ class BibleIndexer:
         chunks = cursor.fetchall()
 
         for chunk_id, _content_hash, heading, content in chunks:
-            try:
-                # Format chunk for embedding (similar to scene formatting)
-                chunk_data = {
-                    "heading": heading or "",
-                    "content": content,
-                    "original_text": f"{heading or ''}\n\n{content}",
-                }
+            # Try to generate embedding with retry logic
+            max_retries = 3
+            retry_count = 0
+            base_delay = 1.0  # Start with 1 second delay
 
-                # Generate embedding using the analyzer
-                result = await self.embedding_analyzer.analyze(chunk_data)
+            while retry_count < max_retries:
+                try:
+                    # Format chunk for embedding (similar to scene formatting)
+                    chunk_data = {
+                        "heading": heading or "",
+                        "content": content,
+                        "original_text": f"{heading or ''}\n\n{content}",
+                    }
 
-                if "error" not in result:
-                    # Store embedding metadata in database
-                    embedding_path = result.get("embedding_path", "")
-                    dimensions = result.get("dimensions", 0)
-                    model = result.get("model", "auto-selected")
+                    # Generate embedding using the analyzer
+                    result = await self.embedding_analyzer.analyze(chunk_data)
 
-                    cursor.execute(
-                        """
-                        INSERT OR REPLACE INTO bible_embeddings (
-                            chunk_id, embedding_model, embedding_path, dimensions
+                    if "error" not in result:
+                        # Store embedding metadata in database
+                        embedding_path = result.get("embedding_path", "")
+                        dimensions = result.get("dimensions", 0)
+                        model = result.get("model", "auto-selected")
+
+                        cursor.execute(
+                            """
+                            INSERT OR REPLACE INTO bible_embeddings (
+                                chunk_id, embedding_model, embedding_path, dimensions
+                            )
+                            VALUES (?, ?, ?, ?)
+                            """,
+                            (chunk_id, model, embedding_path, dimensions),
                         )
-                        VALUES (?, ?, ?, ?)
-                        """,
-                        (chunk_id, model, embedding_path, dimensions),
-                    )
-                    embeddings_created += 1
-                    logger.debug(
-                        f"Created embedding for chunk {chunk_id}: {embedding_path}"
-                    )
+                        embeddings_created += 1
+                        logger.debug(
+                            f"Created embedding for chunk {chunk_id}: {embedding_path}"
+                        )
+                        break  # Success, exit retry loop
+                    # Error in result, treat as failure
+                    raise ValueError(f"Embedding API error: {result.get('error')}")
 
-            except Exception as e:
-                logger.error(f"Failed to generate embedding for chunk {chunk_id}: {e}")
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count >= max_retries:
+                        logger.error(
+                            f"Failed to generate embedding for chunk {chunk_id} after "
+                            f"{max_retries} attempts: {e}"
+                        )
+                        break  # Give up on this chunk
+
+                    # Calculate exponential backoff delay
+                    delay = base_delay * (2 ** (retry_count - 1))
+                    logger.warning(
+                        f"Embedding generation failed for chunk {chunk_id}, "
+                        f"retrying in {delay:.1f}s "
+                        f"(attempt {retry_count}/{max_retries}): {e}"
+                    )
+                    await asyncio.sleep(delay)
 
         return embeddings_created
 
@@ -348,6 +372,8 @@ class BibleAutoDetector:
         "*Bible*.md",
         "*worldbuilding*.md",
         "*Worldbuilding*.md",
+        "*world_building*.md",
+        "*World_Building*.md",
         "*backstory*.md",
         "*Backstory*.md",
         "*characters*.md",

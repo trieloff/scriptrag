@@ -49,11 +49,19 @@ class ParsedBible:
 class BibleParser:
     """Parser for markdown-based script bible documents."""
 
-    def __init__(self) -> None:
-        """Initialize the bible parser."""
+    # Maximum file size in bytes (10 MB default)
+    MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+    def __init__(self, max_file_size: int | None = None) -> None:
+        """Initialize the bible parser.
+
+        Args:
+            max_file_size: Maximum file size in bytes (default 10MB)
+        """
         self.md = MarkdownIt("commonmark")
         # Enable useful extensions
         self.md.enable(["table", "strikethrough"])
+        self.max_file_size = max_file_size or self.MAX_FILE_SIZE
 
     def parse_file(self, file_path: Path) -> ParsedBible:
         """Parse a markdown bible file into chunks.
@@ -71,8 +79,25 @@ class BibleParser:
         if not file_path.exists():
             raise FileNotFoundError(f"Bible file not found: {file_path}")
 
+        # Check file size before reading
+        file_size = file_path.stat().st_size
+        if file_size > self.max_file_size:
+            raise ValueError(
+                f"Bible file {file_path} is too large ({file_size:,} bytes). "
+                f"Maximum size is {self.max_file_size:,} bytes."
+            )
+
+        # Validate file path (prevent directory traversal)
+        try:
+            resolved_path = file_path.resolve(strict=True)
+            # Ensure the path is within expected bounds
+            if not resolved_path.is_file():
+                raise ValueError(f"Path {file_path} is not a regular file")
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"Invalid file path {file_path}: {e}") from e
+
         # Read file content
-        content = file_path.read_text(encoding="utf-8")
+        content = resolved_path.read_text(encoding="utf-8")
 
         # Calculate file hash for change detection
         file_hash = hashlib.sha256(content.encode()).hexdigest()

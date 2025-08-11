@@ -350,7 +350,7 @@ class TestBibleSearch:
             text_query="Project Genesis",
             include_bible=True,
         )
-        response = engine.search(query)
+        response = await engine.search_async(query)
 
         assert len(response.bible_results) > 0
         assert any("Project Genesis" in r.chunk_content for r in response.bible_results)
@@ -384,7 +384,7 @@ class TestBibleSearch:
             text_query="underground",
             only_bible=True,
         )
-        response = engine.search(query)
+        response = await engine.search_async(query)
 
         assert len(response.results) == 0  # No script results
         assert len(response.bible_results) > 0  # Only bible results
@@ -418,7 +418,7 @@ class TestBibleSearch:
             text_query="Sarah",
             include_bible=False,
         )
-        response = engine.search(query)
+        response = await engine.search_async(query)
 
         assert len(response.bible_results) == 0  # No bible results
         # Script results may or may not exist depending on content
@@ -455,7 +455,7 @@ class TestBibleSearch:
             text_query="Characters",
             include_bible=True,
         )
-        response = engine.search(query)
+        response = await engine.search_async(query)
 
         # Should find the Characters section
         character_results = [

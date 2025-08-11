@@ -68,6 +68,8 @@ class VectorSearchEngine:
         exc_tb: TracebackType | None,
     ) -> None:
         """Async context manager exit."""
+        # Parameters required by async context manager protocol but not used
+        del exc_type, exc_val, exc_tb
         await self.cleanup()
 
     async def generate_query_embedding(self, query_text: str) -> np.ndarray:

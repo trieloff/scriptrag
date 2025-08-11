@@ -206,5 +206,5 @@ class TestSearchEngineAsync:
         response = await engine.search_async(query)
 
         assert response.execution_time_ms is not None
-        assert response.execution_time_ms > 0
+        assert response.execution_time_ms >= 0  # Allow 0 for very fast operations
         assert response.execution_time_ms < 5000  # Should be reasonably fast

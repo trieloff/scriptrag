@@ -266,11 +266,16 @@ class FountainParser:
         if dry_run:
             return
 
-        # Safety check: don't write if no scenes have new metadata
-        if not any(getattr(s, "has_new_metadata", False) for s in updated_scenes):
-            return
-
         content = file_path.read_text(encoding="utf-8")
+
+        # Safety check: don't write if no scenes have new metadata
+        # But still ensure newline at end of file
+        if not any(getattr(s, "has_new_metadata", False) for s in updated_scenes):
+            # Just ensure newline at end if needed
+            if content and not content.endswith("\n"):
+                content += "\n"
+                file_path.write_text(content, encoding="utf-8")
+            return
 
         # Create a map of scenes by content hash for quick lookup
         updated_by_hash = {s.content_hash: s for s in updated_scenes}

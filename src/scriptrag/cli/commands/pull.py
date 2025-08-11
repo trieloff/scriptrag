@@ -61,6 +61,13 @@ def pull_command(
             help="Path to configuration file (YAML, TOML, or JSON)",
         ),
     ] = None,
+    brittle: Annotated[
+        bool,
+        typer.Option(
+            "--brittle",
+            help="Stop processing if any analyzer fails (default: skip failed)",
+        ),
+    ] = False,
 ) -> None:
     """Pull fountain files into the database (init + analyze + index).
 
@@ -119,6 +126,7 @@ def pull_command(
                     recursive=not no_recursive,
                     force=force,
                     dry_run=dry_run,
+                    brittle=brittle,
                     progress_callback=analyze_progress,
                 )
             )

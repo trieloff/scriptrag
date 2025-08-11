@@ -131,6 +131,12 @@ class TestAnalyzeCommand:
     @pytest.mark.asyncio
     async def test_analyze_dry_run(self, analyze_command, temp_fountain_file):
         """Test analyze in dry run mode."""
+        # Check initial file content
+        initial_content = temp_fountain_file.read_text()
+        assert "SCRIPTRAG-META-START" not in initial_content, (
+            f"File already has metadata before test! Content:\n{initial_content}"
+        )
+
         result = await analyze_command.analyze(
             path=temp_fountain_file.parent,
             force=True,

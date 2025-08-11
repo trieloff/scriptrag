@@ -60,6 +60,8 @@ dependencies = [
     # HTTP requests (used in CLI)
     "requests>=2.31.0",
     "markdown-it-py>=3.0.0",
+    # File system monitoring
+    "watchdog>=3.0.0",
 ]
 
 [project.optional-dependencies]

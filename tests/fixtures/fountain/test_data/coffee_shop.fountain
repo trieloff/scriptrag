@@ -15,6 +15,113 @@ Hey Alice! The usual?
 
 ALICE nods and sits down.
 
+/* SCRIPTRAG-META-START
+{
+  "content_hash": "830dda1fe63b0bcd",
+  "analyzed_at": "2025-08-11T21:22:10.784850",
+  "analyzers": {
+    "props_inventory": {
+      "result": {
+        "props": [
+          {
+            "name": "coffee cups",
+            "category": "food_beverage",
+            "description": "Coffee cups/mugs for serving coffee in the shop",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 2,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee",
+            "category": "food_beverage",
+            "description": "Coffee beverage mentioned as 'the usual' for Alice",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "dialogue"
+            ]
+          },
+          {
+            "name": "coffee shop counter",
+            "category": "furniture",
+            "description": "Service counter where Bob works",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "chairs",
+            "category": "furniture",
+            "description": "Seating in the coffee shop where Alice sits",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 2,
+            "mentions": [
+              "action"
+            ]
+          },
+          {
+            "name": "tables",
+            "category": "furniture",
+            "description": "Coffee shop tables for customers",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee machine",
+            "category": "tools_equipment",
+            "description": "Equipment for making coffee behind counter",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "cash register",
+            "category": "technology",
+            "description": "Point of sale system at counter",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          }
+        ],
+        "summary": {
+          "total_props": 7,
+          "hero_props": 0,
+          "requires_action": 2,
+          "categories": [
+            "food_beverage",
+            "furniture",
+            "tools_equipment",
+            "technology"
+          ]
+        },
+        "analyzer": "props_inventory",
+        "version": "1.0",
+        "property": "props_inventory"
+      },
+      "version": "1.0"
+    }
+  }
+}
+SCRIPTRAG-META-END */
+
 EXT. PARK - NIGHT
 
 They walk through the quiet park.
@@ -25,3 +132,27 @@ It's so peaceful here at night.
 
 BOB
 Yeah, quite different from the morning rush.
+
+/* SCRIPTRAG-META-START
+{
+  "content_hash": "c4f09000c61a7d01",
+  "analyzed_at": "2025-08-11T21:22:43.911023",
+  "analyzers": {
+    "props_inventory": {
+      "result": {
+        "props": [],
+        "summary": {
+          "total_props": 0,
+          "hero_props": 0,
+          "requires_action": 0,
+          "categories": []
+        },
+        "analyzer": "props_inventory",
+        "version": "1.0",
+        "property": "props_inventory"
+      },
+      "version": "1.0"
+    }
+  }
+}
+SCRIPTRAG-META-END */

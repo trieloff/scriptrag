@@ -29,7 +29,7 @@ def clean_settings():
 
 @pytest.fixture
 def test_screenplay(tmp_path):
-    """Create a simple test screenplay."""
+    """Create a comprehensive test screenplay with diverse content."""
     script_path = tmp_path / "test_script.fountain"
     content = """Title: Basic Workflow Test
 Author: Test Suite
@@ -46,6 +46,35 @@ BOB
 Indeed it is.
 
 They continue working.
+
+EXT. COFFEE SHOP - CONTINUOUS
+
+**DRAMATIC ACTION:** The door swings open.
+
+DR. O'MALLEY (50s, disheveled) bursts in.
+
+DR. O'MALLEY
+(breathlessly)
+We've found something... _incredible_.
+
+MARY-ANNE
+(suspicious)
+What kind of "something"?
+
+INT. SECRET LAB - NIGHT
+
+> FLASHBACK:
+
+Complex scientific equipment fills the room.
+
+DR. O'MALLEY (V.O.)
+It started three weeks ago...
+
+The team works frantically. DATA-7 (an android) processes information.
+
+DATA-7
+(monotone)
+Analysis complete. Probability of success: 12.7%.
 
 FADE OUT.
 """
@@ -89,12 +118,18 @@ class TestBasicWorkflow:
         assert script is not None
         assert script.title == "Basic Workflow Test"
         assert script.author == "Test Suite"
-        assert len(script.scenes) == 1
+        assert len(script.scenes) >= 1  # Now we have multiple scenes
         assert script.scenes[0].heading == "INT. OFFICE - DAY"
 
         # Step 2: Analyze the screenplay first (required before indexing)
         result = runner.invoke(app, ["analyze", str(test_screenplay.parent)])
         assert result.exit_code == 0
+        analyze_output = strip_ansi_codes(result.stdout)
+        assert (
+            "updated" in analyze_output.lower()
+            or "scenes" in analyze_output.lower()
+            or "analyzed" in analyze_output.lower()
+        )
 
         # Step 3: Index the screenplay using the CLI
         result = runner.invoke(app, ["index", str(test_screenplay.parent)])
@@ -103,50 +138,50 @@ class TestBasicWorkflow:
         assert "Indexed 1 script" in clean_output or "1" in clean_output
 
         # Step 4: Verify database contains the indexed content
-        conn = sqlite3.connect(initialized_database)
-        cursor = conn.cursor()
+        with sqlite3.connect(initialized_database) as conn:
+            cursor = conn.cursor()
 
-        # Check scripts table
-        cursor.execute(
-            "SELECT title, author FROM scripts WHERE title = ?",
-            ("Basic Workflow Test",),
-        )
-        script_row = cursor.fetchone()
-        assert script_row is not None
-        assert script_row[0] == "Basic Workflow Test"
-        assert script_row[1] == "Test Suite"
+            # Check scripts table
+            cursor.execute(
+                "SELECT title, author FROM scripts WHERE title = ?",
+                ("Basic Workflow Test",),
+            )
+            script_row = cursor.fetchone()
+            assert script_row is not None
+            assert script_row[0] == "Basic Workflow Test"
+            assert script_row[1] == "Test Suite"
 
-        # Check scenes table
-        cursor.execute(
-            """
-            SELECT s.heading, s.content
-            FROM scenes s
-            JOIN scripts sc ON s.script_id = sc.id
-            WHERE sc.title = ?
-        """,
-            ("Basic Workflow Test",),
-        )
-        scene_rows = cursor.fetchall()
-        assert len(scene_rows) == 1
-        assert scene_rows[0][0] == "INT. OFFICE - DAY"
-        assert "simple test scene" in scene_rows[0][1].lower()
+            # Check scenes table
+            cursor.execute(
+                """
+                SELECT s.heading, s.content
+                FROM scenes s
+                JOIN scripts sc ON s.script_id = sc.id
+                WHERE sc.title = ?
+            """,
+                ("Basic Workflow Test",),
+            )
+            scene_rows = cursor.fetchall()
+            assert len(scene_rows) >= 1  # Now we have multiple scenes
+            assert scene_rows[0][0] == "INT. OFFICE - DAY"
+            assert "simple test scene" in scene_rows[0][1].lower()
 
-        # Check characters are indexed
-        cursor.execute(
-            """
-            SELECT DISTINCT c.name
-            FROM characters c
-            JOIN scripts s ON c.script_id = s.id
-            WHERE s.title = ?
-            ORDER BY c.name
-        """,
-            ("Basic Workflow Test",),
-        )
-        characters = [row[0] for row in cursor.fetchall()]
-        assert "ALICE" in characters
-        assert "BOB" in characters
-
-        conn.close()
+            # Check characters are indexed (including complex names)
+            cursor.execute(
+                """
+                SELECT DISTINCT c.name
+                FROM characters c
+                JOIN scripts s ON c.script_id = s.id
+                WHERE s.title = ?
+                ORDER BY c.name
+            """,
+                ("Basic Workflow Test",),
+            )
+            characters = [row[0] for row in cursor.fetchall()]
+            assert "ALICE" in characters
+            assert "BOB" in characters
+            # Check for complex character names (from dialogue)
+            assert "MARY-ANNE" in characters  # Has dialogue so should be indexed
 
     def test_cli_workflow(self, test_screenplay, tmp_path, monkeypatch):
         """Test the complete CLI workflow."""
@@ -163,6 +198,12 @@ class TestBasicWorkflow:
         # Analyze the screenplay first
         result = runner.invoke(app, ["analyze", str(test_screenplay.parent)])
         assert result.exit_code == 0
+        analyze_output = strip_ansi_codes(result.stdout)
+        assert (
+            "updated" in analyze_output.lower()
+            or "scenes" in analyze_output.lower()
+            or "analyzed" in analyze_output.lower()
+        )
 
         # Index the screenplay
         result = runner.invoke(app, ["index", str(test_screenplay.parent)])
@@ -171,9 +212,8 @@ class TestBasicWorkflow:
         assert "Scripts Indexed" in output and "1" in output
 
         # Verify script is indexed by querying the database
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM scripts")
-        count = cursor.fetchone()[0]
-        assert count == 1
-        conn.close()
+        with sqlite3.connect(db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM scripts")
+            count = cursor.fetchone()[0]
+            assert count == 1

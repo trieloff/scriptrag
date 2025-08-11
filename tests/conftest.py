@@ -1,6 +1,5 @@
 """Pytest configuration and fixtures."""
 
-import contextlib
 import os
 from pathlib import Path
 
@@ -37,37 +36,9 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(skip_llm)
 
 
-@pytest.fixture(scope="session", autouse=True)
-def protect_fixture_files():
-    """Make fixture files read-only to prevent accidental modification during tests."""
-    fixtures_dir = Path(__file__).parent / "fixtures"
-
-    if not fixtures_dir.exists():
-        yield
-        return
-
-    # Find all fountain files in fixtures
-    fountain_files = list(fixtures_dir.glob("**/*.fountain"))
-
-    # Store original permissions
-    original_perms = {}
-
-    # Make files read-only
-    for file_path in fountain_files:
-        try:
-            original_perms[file_path] = file_path.stat().st_mode
-            # Remove write permissions (read-only for everyone)
-            file_path.chmod(0o444)
-        except (OSError, PermissionError):
-            # If we can't change permissions, just continue
-            pass
-
-    yield
-
-    # Restore original permissions
-    for file_path, mode in original_perms.items():
-        with contextlib.suppress(OSError, PermissionError):
-            file_path.chmod(mode)
+# Note: protect_fixture_files fixture was removed as it was interfering with
+# temporary test files. The verify_fixtures_clean fixture provides sufficient
+# protection by detecting any contamination of the actual fixture files.
 
 
 @pytest.fixture(autouse=True)

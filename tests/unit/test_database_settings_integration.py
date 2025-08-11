@@ -43,9 +43,14 @@ class TestDatabaseSettingsIntegration:
 
         initializer = DatabaseInitializer()
 
-        # Mock the SQL file reading
+        # Mock the SQL file reading - return different SQL for different files
+        def mock_read_side_effect(filename):
+            if "bible" in filename:
+                return "-- Bible schema (mocked)"
+            return "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+
         with patch.object(initializer, "_read_sql_file") as mock_read:
-            mock_read.return_value = "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+            mock_read.side_effect = mock_read_side_effect
 
             # Initialize database
             db_path = initializer.initialize_database(settings=settings)
@@ -83,9 +88,14 @@ class TestDatabaseSettingsIntegration:
 
         initializer = DatabaseInitializer()
 
-        # Mock the SQL file reading
+        # Mock the SQL file reading - return different SQL for different files
+        def mock_read_side_effect(filename):
+            if "bible" in filename:
+                return "-- Bible schema (mocked)"
+            return "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+
         with patch.object(initializer, "_read_sql_file") as mock_read:
-            mock_read.return_value = "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+            mock_read.side_effect = mock_read_side_effect
 
             # Initialize database
             db_path = initializer.initialize_database(settings=settings)
@@ -108,9 +118,14 @@ class TestDatabaseSettingsIntegration:
 
         initializer = DatabaseInitializer()
 
-        # Mock the SQL file reading
+        # Mock the SQL file reading - return different SQL for different files
+        def mock_read_side_effect(filename):
+            if "bible" in filename:
+                return "-- Bible schema (mocked)"
+            return "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+
         with patch.object(initializer, "_read_sql_file") as mock_read:
-            mock_read.return_value = "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+            mock_read.side_effect = mock_read_side_effect
 
             # Initialize database
             db_path = initializer.initialize_database(settings=settings)
@@ -133,9 +148,14 @@ class TestDatabaseSettingsIntegration:
 
         initializer = DatabaseInitializer()
 
-        # Mock the SQL file reading
+        # Mock the SQL file reading - return different SQL for different files
+        def mock_read_side_effect(filename):
+            if "bible" in filename:
+                return "-- Bible schema (mocked)"
+            return "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+
         with patch.object(initializer, "_read_sql_file") as mock_read:
-            mock_read.return_value = "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+            mock_read.side_effect = mock_read_side_effect
 
             # Initialize with CLI path
             db_path = initializer.initialize_database(
@@ -160,9 +180,14 @@ class TestDatabaseSettingsIntegration:
 
         initializer = DatabaseInitializer()
 
-        # Mock the SQL file reading
+        # Mock the SQL file reading - return different SQL for different files
+        def mock_read_side_effect(filename):
+            if "bible" in filename:
+                return "-- Bible schema (mocked)"
+            return "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+
         with patch.object(initializer, "_read_sql_file") as mock_read:
-            mock_read.return_value = "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+            mock_read.side_effect = mock_read_side_effect
 
             # Initialize database with debug logging
             with caplog.at_level("DEBUG"):

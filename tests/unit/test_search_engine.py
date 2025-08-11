@@ -761,6 +761,8 @@ class TestSearchEngine:
         """Test vector search logging."""
         mock_settings.database_path = mock_db
         mock_settings.search_vector_threshold = 5
+        mock_settings.llm_embedding_model = None
+        mock_settings.llm_embedding_dimensions = None
         engine = SearchEngine(mock_settings)
 
         # Query that triggers vector search
@@ -774,9 +776,7 @@ class TestSearchEngine:
         engine.search(query)
 
         # Check that vector search log message was called
-        mock_logger.info.assert_any_call(
-            "Vector search requested but not yet implemented"
-        )
+        mock_logger.info.assert_any_call("Performing vector search to enhance results")
 
     def test_get_read_only_connection_pragma_settings(self, mock_settings, mock_db):
         """Test that PRAGMA settings are correctly applied."""

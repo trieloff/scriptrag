@@ -169,6 +169,15 @@ class ScriptRAGSettings(BaseSettings):
         default=None,
         description="Default max tokens for completions",
     )
+    llm_force_static_models: bool = Field(
+        default=False,
+        description="Force use of static model lists instead of dynamic discovery",
+    )
+    llm_model_cache_ttl: int = Field(
+        default=3600,
+        description="TTL in seconds for cached model lists (0 to disable caching)",
+        ge=0,
+    )
 
     @field_validator("database_path", "log_file", mode="before")
     @classmethod

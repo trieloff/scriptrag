@@ -60,16 +60,16 @@ class GitHubModelsProvider(BaseLLMProvider):
     # Static model list as fallback
     STATIC_MODELS: ClassVar[list[Model]] = [
         Model(
-            id="gpt-4o-mini",
-            name="GPT-4o Mini",
+            id="gpt-4o",
+            name="GPT-4o",
             provider=LLMProvider.GITHUB_MODELS,
             capabilities=["completion", "chat"],
             context_window=128000,
             max_output_tokens=16384,
         ),
         Model(
-            id="gpt-4o",
-            name="GPT-4o",
+            id="gpt-4o-mini",
+            name="GPT-4o Mini",
             provider=LLMProvider.GITHUB_MODELS,
             capabilities=["completion", "chat"],
             context_window=128000,

@@ -68,7 +68,7 @@ class TestClaudeCodeProvider:
     async def test_is_available_without_sdk(self):
         """Test availability check when SDK CLI is not available."""
         # Remove PATH to make claude executable unavailable
-        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):  # noqa: S108
+        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):
             provider = ClaudeCodeProvider()
             # SDK Python library is available, but without claude executable in PATH,
             # sdk_available should be False

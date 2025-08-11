@@ -13,7 +13,7 @@ def pytest_configure(config):
     )
 
 
-def pytest_collection_modifyitems(config, items):  # noqa: ARG001
+def pytest_collection_modifyitems(config, items):
     """Modify collected test items to add skip markers for LLM tests in CI."""
     # If running in CI with known rate limit issues, skip LLM tests by default
     # unless explicitly enabled via SCRIPTRAG_TEST_LLMS environment variable

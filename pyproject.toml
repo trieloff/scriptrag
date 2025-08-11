@@ -214,7 +214,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "S101", "S110"]
+"tests/*" = ["D", "S101", "S110", "S108", "ARG001", "ARG002", "F841", "SIM117"]
 "src/scriptrag/config/settings.py" = ["N805"]  # Pydantic field validators use cls, not self
 
 [tool.ruff.lint.pydocstyle]

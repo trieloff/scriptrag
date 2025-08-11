@@ -80,7 +80,7 @@ class TestListCommand:
         print_calls = mock_console.print.call_args_list
         assert any("Found 3 scripts" in str(call) for call in print_calls)
 
-    def test_list_no_recursive_option(self, mock_console, mock_lister):  # noqa: ARG002
+    def test_list_no_recursive_option(self, mock_console, mock_lister):
         """Test list command with no_recursive option."""
         mock_lister_instance = Mock()
         mock_lister_instance.list_scripts.return_value = []
@@ -94,7 +94,7 @@ class TestListCommand:
             path=Path("/test"), recursive=False
         )
 
-    def test_list_default_path(self, mock_console, mock_lister):  # noqa: ARG002
+    def test_list_default_path(self, mock_console, mock_lister):
         """Test list command with default path (None)."""
         mock_lister_instance = Mock()
         mock_lister_instance.list_scripts.return_value = []

@@ -241,7 +241,7 @@ class TestGitHubModelsProvider:
         """Test completion with system message."""
         captured_json = None
 
-        async def capture_post(url: str, **kwargs):  # noqa: ARG001
+        async def capture_post(url: str, **kwargs):
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
@@ -273,7 +273,7 @@ class TestGitHubModelsProvider:
         """Test completion with response format."""
         captured_json = None
 
-        async def capture_post(url: str, **kwargs):  # noqa: ARG001
+        async def capture_post(url: str, **kwargs):
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
@@ -362,7 +362,7 @@ class TestGitHubModelsProvider:
         """Test completion with all available parameters."""
         captured_json = None
 
-        async def capture_post(url: str, **kwargs):  # noqa: ARG001
+        async def capture_post(url: str, **kwargs):
             nonlocal captured_json
             captured_json = kwargs.get("json")
 

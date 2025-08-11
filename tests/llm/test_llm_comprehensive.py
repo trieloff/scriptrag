@@ -114,7 +114,7 @@ class TestProviderRegistry:
         with pytest.raises(ValueError, match="Unknown provider type"):
             registry.create_provider("unknown_provider")  # type: ignore
 
-    def test_initialize_default_providers(self, mock_env_vars):  # noqa: ARG002
+    def test_initialize_default_providers(self, mock_env_vars):
         """Test initializing default providers."""
         registry = ProviderRegistry()
         providers = registry.initialize_default_providers(
@@ -224,7 +224,7 @@ class TestClaudeCodeProviderExtended:
             mock_text_block
         ]  # Content is a list of TextBlock objects
 
-        async def mock_query(*args, **kwargs):  # noqa: ARG001
+        async def mock_query(*args, **kwargs):
             for msg in [mock_message]:
                 yield msg
 
@@ -680,7 +680,7 @@ class TestLLMClientExtended:
     async def test_ensure_provider_creates_provider(self):
         """Test ensure_provider selects provider when none selected."""
         # Remove PATH to disable Claude Code
-        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):  # noqa: S108
+        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):
             client = LLMClient()
             assert client.current_provider is None
 

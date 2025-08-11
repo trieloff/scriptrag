@@ -1,6 +1,7 @@
 """CLI command for scriptrag watch - monitor filesystem for Fountain file changes."""
 
-import asyncio
+import signal
+import sys
 import time
 from pathlib import Path
 from typing import Annotated, Any
@@ -9,12 +10,9 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-from scriptrag.api.analyze import AnalyzeCommand
-from scriptrag.api.database_operations import DatabaseOperations
-from scriptrag.api.index import IndexCommand
+from scriptrag.cli.utils.file_watcher import FountainFileHandler
 from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 
 logger = get_logger(__name__)
@@ -22,143 +20,24 @@ console = Console()
 
 app = typer.Typer()
 
+# Global observer for signal handling
+_observer: Any = None
+_handler: Any = None
 
-class FountainFileHandler(FileSystemEventHandler):
-    """Handler for Fountain file changes."""
 
-    def __init__(
-        self,
-        settings: ScriptRAGSettings,
-        force: bool = False,
-        batch_size: int = 10,
-        callback: Any | None = None,
-    ) -> None:
-        """Initialize the handler.
+def signal_handler(signum: int, frame: Any) -> None:  # noqa: ARG001
+    """Handle shutdown signals gracefully.
 
-        Args:
-            settings: ScriptRAG settings
-            force: Force re-processing
-            batch_size: Batch size for indexing
-            callback: Callback for status updates
-        """
-        self.settings = settings
-        self.force = force
-        self.batch_size = batch_size
-        self.callback = callback
-        self.processing: set[str] = set()
-        self.last_processed: dict[str, float] = {}
-        self.debounce_seconds = 2  # Wait 2 seconds after last change
-
-    def should_process(self, path: Path) -> bool:
-        """Check if a file should be processed.
-
-        Args:
-            path: File path to check
-
-        Returns:
-            True if file should be processed
-        """
-        # Check if it's a Fountain file
-        if path.suffix.lower() not in [".fountain", ".spmd"]:
-            return False
-
-        # Check if it's already being processed
-        if str(path) in self.processing:
-            return False
-
-        # Check debounce
-        last_time = self.last_processed.get(str(path), 0)
-        return time.time() - last_time >= self.debounce_seconds
-
-    def on_modified(self, event: FileSystemEvent) -> None:
-        """Handle file modification events.
-
-        Args:
-            event: Filesystem event
-        """
-        if event.is_directory:
-            return
-
-        src_path = event.src_path
-        if isinstance(src_path, str):
-            path = Path(src_path)
-            if self.should_process(path):
-                self.process_file(path)
-
-    def on_created(self, event: FileSystemEvent) -> None:
-        """Handle file creation events.
-
-        Args:
-            event: Filesystem event
-        """
-        if event.is_directory:
-            return
-
-        src_path = event.src_path
-        if isinstance(src_path, str):
-            path = Path(src_path)
-            if self.should_process(path):
-                self.process_file(path)
-
-    def process_file(self, path: Path) -> None:
-        """Process a single Fountain file.
-
-        Args:
-            path: Path to the Fountain file
-        """
-        str_path = str(path)
-        self.processing.add(str_path)
-
-        try:
-            if self.callback:
-                self.callback("processing", path)
-
-            # Run the pull workflow for this specific file
-            asyncio.run(self._pull_single_file(path))
-
-            self.last_processed[str_path] = time.time()
-            if self.callback:
-                self.callback("completed", path)
-
-        except Exception as e:
-            logger.error(f"Error processing {path}: {e}")
-            if self.callback:
-                self.callback("error", path, str(e))
-        finally:
-            self.processing.discard(str_path)
-
-    async def _pull_single_file(self, path: Path) -> None:
-        """Run pull workflow for a single file.
-
-        Args:
-            path: Path to the Fountain file
-        """
-        # Ensure database exists
-        db_ops = DatabaseOperations(self.settings)
-        if not db_ops.check_database_exists():
-            from scriptrag.api import DatabaseInitializer
-
-            initializer = DatabaseInitializer()
-            initializer.initialize_database(settings=self.settings)
-
-        # Analyze the file
-        analyze_cmd = AnalyzeCommand.from_config()
-        await analyze_cmd.analyze(
-            path=path.parent,
-            recursive=False,
-            force=self.force,
-            dry_run=False,
-        )
-
-        # Index the file
-        index_cmd = IndexCommand.from_config()
-        await index_cmd.index(
-            path=path.parent,
-            recursive=False,
-            force=self.force,
-            dry_run=False,
-            batch_size=self.batch_size,
-        )
+    Args:
+        signum: Signal number
+        frame: Current stack frame
+    """
+    console.print("\n[yellow]Shutting down gracefully...[/yellow]")
+    if _observer and _observer.is_alive():
+        _observer.stop()
+    if _handler:
+        _handler.stop_processing(timeout=5.0)
+    sys.exit(0)
 
 
 @app.command()
@@ -200,6 +79,14 @@ def watch_command(
             help="Run a full pull before starting to watch",
         ),
     ] = True,
+    timeout: Annotated[
+        int,
+        typer.Option(
+            "--timeout",
+            "-t",
+            help="Maximum watch duration in seconds (0 for unlimited)",
+        ),
+    ] = 0,
 ) -> None:
     """Watch for Fountain file changes and automatically pull them.
 
@@ -209,7 +96,13 @@ def watch_command(
 
     Press Ctrl+C to stop watching.
     """
+    global _observer, _handler
+
     try:
+        # Register signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
         # Load settings
         if config:
             settings = ScriptRAGSettings.from_multiple_sources(
@@ -218,11 +111,14 @@ def watch_command(
         else:
             settings = get_settings()
 
-        # Resolve watch path
+        # Resolve and validate watch path
         watch_path = path or Path.cwd()
         if not watch_path.exists():
             console.print(f"[red]Error: Path {watch_path} does not exist[/red]")
             raise typer.Exit(1)
+
+        # Ensure watch_path is absolute for security
+        watch_path = watch_path.resolve()
 
         # Run initial pull if requested
         if initial_pull:
@@ -242,30 +138,39 @@ def watch_command(
         console.print(f"\n[green]Watching for changes in: {watch_path}[/green]")
         console.print("[dim]Press Ctrl+C to stop[/dim]\n")
 
-        # Status tracking
-        status_log = []
+        # Status tracking with secure path display
+        status_log: list[str] = []
+        base_path = watch_path
 
         def update_status(status: str, path: Path, error: str | None = None) -> None:
-            """Update status display.
+            """Update status display with secure path handling.
 
             Args:
                 status: Status type (processing, completed, error)
                 path: File path
                 error: Error message if any
             """
+            # Secure path display - only show relative paths within watch directory
             try:
-                rel_path = path.relative_to(watch_path)
-            except ValueError:
-                rel_path = path
+                if path.is_relative_to(base_path):
+                    display_path = path.relative_to(base_path)
+                else:
+                    # Security: Don't expose paths outside watch directory
+                    display_path = Path(path.name)  # Only show filename
+            except (ValueError, TypeError):
+                display_path = Path(path.name)  # Fallback to filename only
 
             timestamp = time.strftime("%H:%M:%S")
 
             if status == "processing":
-                status_log.append(f"[{timestamp}] 🔄 Processing: {rel_path}")
+                status_log.append(f"[{timestamp}] 🔄 Processing: {display_path}")
             elif status == "completed":
-                status_log.append(f"[{timestamp}] ✅ Updated: {rel_path}")
+                status_log.append(f"[{timestamp}] ✅ Updated: {display_path}")
             elif status == "error":
-                status_log.append(f"[{timestamp}] ❌ Error: {rel_path} - {error}")
+                # Sanitize error messages
+                safe_error = str(error)[:100] if error else "Unknown error"
+                msg = f"[{timestamp}] ❌ Error: {display_path} - {safe_error}"
+                status_log.append(msg)
 
             # Keep only last 10 entries
             if len(status_log) > 10:
@@ -287,24 +192,29 @@ def watch_command(
             console.clear()
             console.print(panel)
 
-        # Create event handler
-        handler = FountainFileHandler(
+        # Create event handler with improved configuration
+        _handler = FountainFileHandler(
             settings=settings,
             force=force,
             batch_size=batch_size,
             callback=update_status,
+            max_queue_size=100,
+            batch_timeout=5.0,
         )
 
+        # Start async processor
+        _handler.start_processing()
+
         # Setup observer
-        observer = Observer()
-        observer.schedule(
-            handler,
+        _observer = Observer()
+        _observer.schedule(
+            _handler,
             str(watch_path),
             recursive=not no_recursive,
         )
 
         # Start watching
-        observer.start()
+        _observer.start()
 
         # Display initial status
         table = Table(title="File Watch Status", show_header=False)
@@ -312,6 +222,7 @@ def watch_command(
         table.add_row(f"👀 Watching: {watch_path}")
         table.add_row(f"📁 Recursive: {'Yes' if not no_recursive else 'No'}")
         table.add_row(f"🔄 Force mode: {'On' if force else 'Off'}")
+        table.add_row(f"⏱️ Timeout: {timeout}s" if timeout > 0 else "⏱️ Timeout: None")
         table.add_row("")
         table.add_row("[dim]Waiting for file changes...[/dim]")
 
@@ -322,14 +233,23 @@ def watch_command(
         )
         console.print(panel)
 
+        # Main watch loop with timeout support
+        start_time = time.time()
         try:
             while True:
                 time.sleep(1)
+                if timeout > 0 and (time.time() - start_time) >= timeout:
+                    msg = f"\n[yellow]Watch timeout reached ({timeout}s)[/yellow]"
+                    console.print(msg)
+                    break
         except KeyboardInterrupt:
             console.print("\n[yellow]Stopping file watch...[/yellow]")
-            observer.stop()
 
-        observer.join()
+        # Graceful shutdown
+        _observer.stop()
+        _handler.stop_processing(timeout=5.0)
+        _observer.join(timeout=10.0)
+
         console.print("[green]✓ Watch stopped[/green]")
 
     except ImportError as e:
@@ -342,3 +262,9 @@ def watch_command(
         console.print(f"[red]Error: {e}[/red]")
         logger.exception("Watch command failed")
         raise typer.Exit(1) from e
+    finally:
+        # Ensure cleanup
+        if _observer and _observer.is_alive():
+            _observer.stop()
+        if _handler:
+            _handler.stop_processing(timeout=2.0)

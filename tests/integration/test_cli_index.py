@@ -88,7 +88,7 @@ class TestIndexCommand:
             or "No Fountain files found" in clean_output
         )
 
-    def test_index_no_scripts(self, initialized_db, tmp_path):  # noqa: ARG002
+    def test_index_no_scripts(self, initialized_db, tmp_path):
         """Test index command with no scripts."""
         # Database path is already set via initialized_db fixture
         result = runner.invoke(
@@ -212,7 +212,7 @@ class TestIndexCommand:
 
     def test_index_verbose_mode(
         self,
-        initialized_db,  # noqa: ARG002
+        initialized_db,
         sample_fountain_with_metadata,
     ):
         """Test verbose output mode."""
@@ -313,7 +313,7 @@ Dialogue {i}.
         self,
         initialized_db,
         sample_fountain_with_metadata,
-        sample_fountain_without_metadata,  # noqa: ARG002
+        sample_fountain_without_metadata,
     ):
         """Test that scripts without metadata are skipped."""
         script_dir = sample_fountain_with_metadata.parent

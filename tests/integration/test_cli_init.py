@@ -208,7 +208,7 @@ class TestInitCommand:
         # Mock DatabaseInitializer with non-existent SQL directory
         from scriptrag.api.database import DatabaseInitializer
 
-        def mock_init(self, sql_dir=None):  # noqa: ARG001
+        def mock_init(self, sql_dir=None):
             self.sql_dir = Path("/nonexistent")
 
         monkeypatch.setattr(DatabaseInitializer, "__init__", mock_init)

@@ -113,7 +113,7 @@ class TestSearchCommand:
 
     def test_search_with_all_options(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         sample_search_response,
@@ -189,7 +189,7 @@ class TestSearchCommand:
         self,
         mock_console,
         mock_search_api,
-        mock_formatter,  # noqa: ARG002
+        mock_formatter,
         mock_logger,
     ):
         """Test that fuzzy and strict flags cannot be used together."""
@@ -236,7 +236,7 @@ class TestSearchCommand:
     )
     def test_search_option_combinations(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         sample_search_response,
@@ -290,7 +290,7 @@ class TestSearchCommand:
     )
     def test_pagination_options(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         sample_search_response,
@@ -333,7 +333,7 @@ class TestSearchCommand:
     )
     def test_search_mode_options(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         sample_search_response,
@@ -409,7 +409,7 @@ class TestSearchCommand:
             )
             mock_formatter_instance.format_brief.assert_not_called()
 
-    def test_file_not_found_error(self, mock_console, mock_search_api, mock_formatter):  # noqa: ARG002
+    def test_file_not_found_error(self, mock_console, mock_search_api, mock_formatter):
         """Test handling of FileNotFoundError."""
         # Setup mock to raise FileNotFoundError
         mock_search_api.from_config.side_effect = FileNotFoundError(
@@ -431,7 +431,7 @@ class TestSearchCommand:
         self,
         mock_console,
         mock_search_api,
-        mock_formatter,  # noqa: ARG002
+        mock_formatter,
     ):
         """Test handling of SearchAPI initialization error."""
         # Setup mock to raise generic error during initialization
@@ -453,7 +453,7 @@ class TestSearchCommand:
         self,
         mock_console,
         mock_search_api,
-        mock_formatter,  # noqa: ARG002
+        mock_formatter,
         mock_logger,
     ):
         """Test handling of search execution error."""
@@ -477,7 +477,7 @@ class TestSearchCommand:
 
     def test_formatter_error(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         mock_logger,
@@ -505,7 +505,7 @@ class TestSearchCommand:
 
     def test_brief_formatter_error(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         mock_logger,
@@ -535,7 +535,7 @@ class TestSearchCommand:
 
     def test_default_parameters(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         sample_search_response,
@@ -573,7 +573,7 @@ class TestSearchCommand:
 
     def test_empty_query_string(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         sample_search_response,
@@ -606,7 +606,7 @@ class TestSearchCommand:
 
     def test_special_characters_in_query(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         sample_search_response,
@@ -641,7 +641,7 @@ class TestSearchCommand:
 
     def test_unicode_query(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         sample_search_response,
@@ -676,7 +676,7 @@ class TestSearchCommand:
 
     def test_extreme_pagination_values(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         sample_search_response,
@@ -709,7 +709,7 @@ class TestSearchCommand:
 
     def test_complex_range_filter(
         self,
-        mock_console,  # noqa: ARG002
+        mock_console,
         mock_search_api,
         mock_formatter,
         sample_search_response,

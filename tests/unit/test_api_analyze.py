@@ -531,7 +531,7 @@ class TestAnalyzeCommandMissingCoverage:
             def version(self):
                 return "1.0"
 
-            async def analyze(self, scene):  # noqa: ARG002
+            async def analyze(self, scene):
                 return {"test": "data"}
 
         cmd.register_analyzer("test", TestAnalyzer())

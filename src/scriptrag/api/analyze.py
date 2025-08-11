@@ -235,13 +235,26 @@ class AnalyzeCommand:
 
             # Process each scene
             updated_scenes = []
+
+            # In dry run mode, skip all processing entirely
+            if dry_run:
+                for scene in script.scenes:
+                    if force or self._scene_needs_update(scene):
+                        updated_scenes.append(scene)
+                # Clean up and return early
+                for analyzer in self.analyzers:
+                    if hasattr(analyzer, "cleanup"):  # pragma: no cover
+                        await analyzer.cleanup()
+                logger.debug(f"Dry run mode - not writing to {file_path}")
+                return FileResult(
+                    path=file_path,
+                    updated=len(updated_scenes) > 0,
+                    scenes_updated=len(updated_scenes),
+                )
+
+            # Normal processing (not dry run)
             for scene in script.scenes:
                 if force or self._scene_needs_update(scene):
-                    # In dry run mode, just track scenes without any processing
-                    if dry_run:
-                        updated_scenes.append(scene)
-                        continue
-
                     # Build scene data for analyzers (only if not dry run)
                     scene_data = {
                         "content": scene.content,
@@ -286,29 +299,18 @@ class AnalyzeCommand:
                 if hasattr(analyzer, "cleanup"):  # pragma: no cover
                     await analyzer.cleanup()
 
-            # In dry run mode, just report what would happen
-            if dry_run:
-                logger.debug(f"Dry run mode - not writing to {file_path}")
-                return FileResult(
-                    path=file_path,
-                    updated=len(updated_scenes) > 0,
-                    scenes_updated=len(updated_scenes),
-                )
-
             # Write back to file if there are updates
-            # Only write if scenes actually have new metadata (not in dry run)
-            # Double-check we're not in dry run mode (defensive programming)
-            if not dry_run:
-                scenes_with_metadata = [
-                    s for s in updated_scenes if getattr(s, "has_new_metadata", False)
-                ]
-                if scenes_with_metadata:  # pragma: no cover
-                    logger.debug(
-                        f"Writing {len(scenes_with_metadata)} scenes to {file_path}"
-                    )
-                    parser.write_with_updated_scenes(
-                        file_path, script, scenes_with_metadata, dry_run=False
-                    )
+            # Only write if scenes actually have new metadata
+            scenes_with_metadata = [
+                s for s in updated_scenes if getattr(s, "has_new_metadata", False)
+            ]
+            if scenes_with_metadata:  # pragma: no cover
+                logger.debug(
+                    f"Writing {len(scenes_with_metadata)} scenes to {file_path}"
+                )
+                parser.write_with_updated_scenes(
+                    file_path, script, scenes_with_metadata, dry_run=False
+                )
 
             return FileResult(
                 path=file_path,

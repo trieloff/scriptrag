@@ -42,9 +42,11 @@ def mock_analyze_cmd():
 
         # Make analyze return a coroutine
         async def mock_analyze(*args, **kwargs):
-            return cmd.analyze.return_value
+            return cmd.analyze_return_value
 
-        cmd.analyze = mock_analyze
+        # Keep cmd.analyze as a MagicMock but with side_effect for async behavior
+        cmd.analyze.side_effect = mock_analyze
+        cmd.analyze_return_value = MagicMock()
         mock.from_config.return_value = cmd
         yield cmd
 
@@ -57,9 +59,11 @@ def mock_index_cmd():
 
         # Make index return a coroutine
         async def mock_index(*args, **kwargs):
-            return cmd.index.return_value
+            return cmd.index_return_value
 
-        cmd.index = mock_index
+        # Keep cmd.index as a MagicMock but with side_effect for async behavior
+        cmd.index.side_effect = mock_index
+        cmd.index_return_value = MagicMock()
         mock.from_config.return_value = cmd
         yield cmd
 
@@ -99,7 +103,7 @@ class TestPullCommand:
         analyze_result.total_files_updated = 5
         analyze_result.total_scenes_updated = 25
         analyze_result.errors = []
-        mock_analyze_cmd.analyze.return_value = analyze_result
+        mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result
         index_result = MagicMock()
@@ -110,7 +114,7 @@ class TestPullCommand:
         index_result.total_dialogues_indexed = 50
         index_result.total_actions_indexed = 30
         index_result.errors = []
-        mock_index_cmd.index.return_value = index_result
+        mock_index_cmd.index_return_value = index_result
 
         # Run command
         result = runner.invoke(app, ["pull"])
@@ -123,8 +127,8 @@ class TestPullCommand:
 
         # Verify calls
         mock_db_ops.check_database_exists.assert_called_once()
-        mock_analyze_cmd.analyze.assert_called_once()
-        mock_index_cmd.index.assert_called_once()
+        assert mock_analyze_cmd.analyze.call_count == 1
+        assert mock_index_cmd.index.call_count == 1
 
     def test_pull_initializes_database_if_missing(
         self,
@@ -145,7 +149,7 @@ class TestPullCommand:
         analyze_result.total_files_updated = 1
         analyze_result.total_scenes_updated = 5
         analyze_result.errors = []
-        mock_analyze_cmd.analyze.return_value = analyze_result
+        mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result
         index_result = MagicMock()
@@ -156,7 +160,7 @@ class TestPullCommand:
         index_result.total_dialogues_indexed = 10
         index_result.total_actions_indexed = 8
         index_result.errors = []
-        mock_index_cmd.index.return_value = index_result
+        mock_index_cmd.index_return_value = index_result
 
         # Run command
         result = runner.invoke(app, ["pull"])
@@ -186,7 +190,7 @@ class TestPullCommand:
         analyze_result.total_files_updated = 0
         analyze_result.total_scenes_updated = 0
         analyze_result.errors = []
-        mock_analyze_cmd.analyze.return_value = analyze_result
+        mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result
         index_result = MagicMock()
@@ -197,7 +201,7 @@ class TestPullCommand:
         index_result.total_dialogues_indexed = 0
         index_result.total_actions_indexed = 0
         index_result.errors = []
-        mock_index_cmd.index.return_value = index_result
+        mock_index_cmd.index_return_value = index_result
 
         # Run command with dry-run
         result = runner.invoke(app, ["pull", "--dry-run"])
@@ -224,7 +228,7 @@ class TestPullCommand:
         analyze_result.total_files_updated = 10
         analyze_result.total_scenes_updated = 50
         analyze_result.errors = []
-        mock_analyze_cmd.analyze.return_value = analyze_result
+        mock_analyze_cmd.analyze_return_value = analyze_result
 
         index_result = MagicMock()
         index_result.total_scripts_indexed = 0
@@ -234,7 +238,7 @@ class TestPullCommand:
         index_result.total_dialogues_indexed = 100
         index_result.total_actions_indexed = 60
         index_result.errors = []
-        mock_index_cmd.index.return_value = index_result
+        mock_index_cmd.index_return_value = index_result
 
         # Run command with force
         result = runner.invoke(app, ["pull", "--force"])
@@ -243,11 +247,11 @@ class TestPullCommand:
         assert result.exit_code == 0
 
         # Verify force was passed to commands
-        mock_analyze_cmd.analyze.assert_called_once()
+        assert mock_analyze_cmd.analyze.call_count == 1
         call_kwargs = mock_analyze_cmd.analyze.call_args[1]
         assert call_kwargs["force"] is True
 
-        mock_index_cmd.index.assert_called_once()
+        assert mock_index_cmd.index.call_count == 1
         call_kwargs = mock_index_cmd.index.call_args[1]
         assert call_kwargs["force"] is True
 
@@ -271,7 +275,7 @@ class TestPullCommand:
             "Error parsing file1.fountain",
             "Error in file2.fountain",
         ]
-        mock_analyze_cmd.analyze.return_value = analyze_result
+        mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result with errors
         index_result = MagicMock()
@@ -282,7 +286,7 @@ class TestPullCommand:
         index_result.total_dialogues_indexed = 5
         index_result.total_actions_indexed = 4
         index_result.errors = ["Database error: constraint violation"]
-        mock_index_cmd.index.return_value = index_result
+        mock_index_cmd.index_return_value = index_result
 
         # Run command
         result = runner.invoke(app, ["pull"])
@@ -309,7 +313,7 @@ class TestPullCommand:
         analyze_result.total_files_updated = 2
         analyze_result.total_scenes_updated = 10
         analyze_result.errors = []
-        mock_analyze_cmd.analyze.return_value = analyze_result
+        mock_analyze_cmd.analyze_return_value = analyze_result
 
         index_result = MagicMock()
         index_result.total_scripts_indexed = 2
@@ -319,7 +323,7 @@ class TestPullCommand:
         index_result.total_dialogues_indexed = 20
         index_result.total_actions_indexed = 15
         index_result.errors = []
-        mock_index_cmd.index.return_value = index_result
+        mock_index_cmd.index_return_value = index_result
 
         # Run command with custom path
         result = runner.invoke(app, ["pull", "/custom/path"])
@@ -328,11 +332,11 @@ class TestPullCommand:
         assert result.exit_code == 0
 
         # Verify path was passed correctly
-        mock_analyze_cmd.analyze.assert_called_once()
+        assert mock_analyze_cmd.analyze.call_count == 1
         call_kwargs = mock_analyze_cmd.analyze.call_args[1]
         assert call_kwargs["path"] == Path("/custom/path")
 
-        mock_index_cmd.index.assert_called_once()
+        assert mock_index_cmd.index.call_count == 1
         call_kwargs = mock_index_cmd.index.call_args[1]
         assert call_kwargs["path"] == Path("/custom/path")
 
@@ -353,7 +357,7 @@ class TestPullCommand:
         analyze_result.total_files_updated = 20
         analyze_result.total_scenes_updated = 100
         analyze_result.errors = []
-        mock_analyze_cmd.analyze.return_value = analyze_result
+        mock_analyze_cmd.analyze_return_value = analyze_result
 
         index_result = MagicMock()
         index_result.total_scripts_indexed = 20
@@ -363,7 +367,7 @@ class TestPullCommand:
         index_result.total_dialogues_indexed = 200
         index_result.total_actions_indexed = 150
         index_result.errors = []
-        mock_index_cmd.index.return_value = index_result
+        mock_index_cmd.index_return_value = index_result
 
         # Run command with custom batch size
         result = runner.invoke(app, ["pull", "--batch-size", "5"])
@@ -372,6 +376,6 @@ class TestPullCommand:
         assert result.exit_code == 0
 
         # Verify batch size was passed to index command
-        mock_index_cmd.index.assert_called_once()
+        assert mock_index_cmd.index.call_count == 1
         call_kwargs = mock_index_cmd.index.call_args[1]
         assert call_kwargs["batch_size"] == 5

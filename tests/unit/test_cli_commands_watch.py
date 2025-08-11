@@ -120,7 +120,7 @@ class TestWatchCommand:
             result = runner.invoke(app, ["watch", "."])
 
             # Verify initial pull was called
-            mock_pull_command.assert_called_once()
+            assert mock_pull_command.call_count == 1
             assert "Running initial pull" in result.output
 
     def test_watch_without_initial_pull(
@@ -140,7 +140,7 @@ class TestWatchCommand:
             result = runner.invoke(app, ["watch", ".", "--no-initial-pull"])
 
             # Verify initial pull was not called
-            mock_pull_command.assert_not_called()
+            assert mock_pull_command.call_count == 0
             assert "Running initial pull" not in result.output
 
     def test_watch_with_force_option(
@@ -159,7 +159,7 @@ class TestWatchCommand:
             runner.invoke(app, ["watch", ".", "--force", "--no-initial-pull"])
 
             # Verify force was passed to handler
-            mock_handler.assert_called_once()
+            assert mock_handler.call_count == 1
             call_kwargs = mock_handler.call_args[1]
             assert call_kwargs["force"] is True
 
@@ -181,7 +181,7 @@ class TestWatchCommand:
             )
 
             # Verify batch size was passed to handler
-            mock_handler.assert_called_once()
+            assert mock_handler.call_count == 1
             call_kwargs = mock_handler.call_args[1]
             assert call_kwargs["batch_size"] == 20
 
@@ -224,7 +224,7 @@ class TestWatchCommand:
             runner.invoke(app, ["watch", ".", "--no-recursive", "--no-initial-pull"])
 
             # Verify recursive was set correctly
-            mock_observer.schedule.assert_called_once()
+            assert mock_observer.schedule.call_count == 1
             call_kwargs = mock_observer.schedule.call_args[1]
             assert call_kwargs["recursive"] is False
 

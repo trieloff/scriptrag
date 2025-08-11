@@ -9,7 +9,9 @@ from scriptrag.cli.commands import (
     index_command,
     init_command,
     list_command,
+    pull_command,
     search_command,
+    watch_command,
 )
 
 
@@ -34,8 +36,10 @@ class TestCLICommandsModule:
             "index_command",
             "init_command",
             "list_command",
+            "pull_command",
             "query_app",
             "search_command",
+            "watch_command",
         ]
 
         assert hasattr(commands_module, "__all__")
@@ -54,7 +58,9 @@ class TestCLICommandsModule:
             index_command,
             init_command,
             list_command,
+            pull_command,
             search_command,
+            watch_command,
         ]
 
         for command in commands:
@@ -69,7 +75,9 @@ class TestCLICommandsModule:
             index_command,
             init_command,
             list_command,
+            pull_command,
             search_command,
+            watch_command,
         ]
 
         for command in commands:
@@ -97,7 +105,9 @@ class TestCLICommandsModule:
         # Should contain the commands in __all__ plus the imported module names
         expected_attrs = set(commands_module.__all__)
         # Add the module names that get imported as side effects
-        expected_attrs.update(["analyze", "index", "init", "list", "query", "search"])
+        expected_attrs.update(
+            ["analyze", "index", "init", "list", "pull", "query", "search", "watch"]
+        )
 
         assert set(public_attrs) == expected_attrs
 
@@ -110,20 +120,26 @@ class TestCLICommandsModule:
             index_command,
             init_command,
             list_command,
+            pull_command,
             search_command,
+            watch_command,
         )
         from scriptrag.cli.commands.analyze import analyze_command as direct_analyze
         from scriptrag.cli.commands.index import index_command as direct_index
         from scriptrag.cli.commands.init import init_command as direct_init
         from scriptrag.cli.commands.list import list_command as direct_list
+        from scriptrag.cli.commands.pull import pull_command as direct_pull
         from scriptrag.cli.commands.search import search_command as direct_search
+        from scriptrag.cli.commands.watch import watch_command as direct_watch
 
         # Verify they are the same objects
         assert analyze_command is direct_analyze
         assert index_command is direct_index
         assert init_command is direct_init
         assert list_command is direct_list
+        assert pull_command is direct_pull
         assert search_command is direct_search
+        assert watch_command is direct_watch
 
     def test_module_can_be_reloaded(self):
         """Test that the module can be reloaded without issues."""
@@ -157,8 +173,10 @@ class TestCLICommandsModule:
             "index_command",
             "init_command",
             "list_command",
+            "pull_command",
             "query_app",
             "search_command",
+            "watch_command",
         ]
 
         for command_name in expected_commands:
@@ -182,7 +200,9 @@ class TestCLICommandsModule:
             analyze,
             index,
             init,
+            pull,
             search,
+            watch,
         )
         from scriptrag.cli.commands import (
             list as list_module,
@@ -192,14 +212,18 @@ class TestCLICommandsModule:
         assert isinstance(index, ModuleType)
         assert isinstance(init, ModuleType)
         assert isinstance(list_module, ModuleType)
+        assert isinstance(pull, ModuleType)
         assert isinstance(search, ModuleType)
+        assert isinstance(watch, ModuleType)
 
         # Each module should have the expected command function
         assert hasattr(analyze, "analyze_command")
         assert hasattr(index, "index_command")
         assert hasattr(init, "init_command")
         assert hasattr(list_module, "list_command")
+        assert hasattr(pull, "pull_command")
         assert hasattr(search, "search_command")
+        assert hasattr(watch, "watch_command")
 
     def test_module_name_consistency(self):
         """Test that module names match their expected command prefixes."""
@@ -207,7 +231,9 @@ class TestCLICommandsModule:
             analyze,
             index,
             init,
+            pull,
             search,
+            watch,
         )
         from scriptrag.cli.commands import (
             list as list_module,
@@ -218,4 +244,6 @@ class TestCLICommandsModule:
         assert index.__name__.endswith("index")
         assert init.__name__.endswith("init")
         assert list_module.__name__.endswith("list")
+        assert pull.__name__.endswith("pull")
         assert search.__name__.endswith("search")
+        assert watch.__name__.endswith("watch")

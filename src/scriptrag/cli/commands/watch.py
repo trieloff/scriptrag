@@ -12,6 +12,7 @@ from rich.panel import Panel
 from rich.table import Table
 from watchdog.observers import Observer
 
+from scriptrag.cli.commands.pull import pull_command
 from scriptrag.cli.utils.file_watcher import FountainFileHandler
 from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 
@@ -25,12 +26,12 @@ _observer: Any = None
 _handler: Any = None
 
 
-def signal_handler(signum: int, frame: Any) -> None:  # noqa: ARG001
+def signal_handler(_signum: int, _frame: Any) -> None:
     """Handle shutdown signals gracefully.
 
     Args:
-        signum: Signal number
-        frame: Current stack frame
+        _signum: Signal number (unused)
+        _frame: Current stack frame (unused)
     """
     console.print("\n[yellow]Shutting down gracefully...[/yellow]")
     if _observer and _observer.is_alive():
@@ -123,8 +124,6 @@ def watch_command(
         # Run initial pull if requested
         if initial_pull:
             console.print("[cyan]Running initial pull...[/cyan]")
-            from scriptrag.cli.commands.pull import pull_command
-
             pull_command(
                 path=watch_path,
                 force=force,

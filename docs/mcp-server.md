@@ -303,4 +303,3 @@ Each tool should:
 - Return structured output using Pydantic models
 - Handle errors gracefully
 - Include proper logging
-

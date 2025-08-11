@@ -136,7 +136,11 @@ def parse_scene_heading(heading: str) -> dict[str, str | None]:
         Dictionary with location, time_of_day, and setting
     """
     parts = heading.split(" - ")
-    result: dict[str, str | None] = {"location": None, "time_of_day": None, "setting": None}
+    result: dict[str, str | None] = {
+        "location": None,
+        "time_of_day": None,
+        "setting": None,
+    }
 
     if parts:
         # First part is usually INT/EXT and location

@@ -171,6 +171,13 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: logging-usage
+        name: Enforce unified logger usage
+        entry: python3 scripts/check_logging_usage.py
+        language: system
+        types: [python]
+        pass_filenames: false
+
 ci:
   autoupdate_schedule: weekly
   skip: [mypy]  # mypy is too slow for CI

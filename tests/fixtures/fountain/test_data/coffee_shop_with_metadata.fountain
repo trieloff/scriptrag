@@ -5,11 +5,184 @@ INT. COFFEE SHOP - DAY
 
 /* SCRIPTRAG-META-START
 {
-  "content_hash": "abc123",
-  "analyzed_at": "2024-01-01T00:00:00",
+  "content_hash": "2e10599f10ed01c6",
+  "analyzed_at": "2025-08-11T07:32:09.441689",
   "analyzers": {
-    "test": {
-      "result": {"mood": "cheerful"}
+    "props_inventory": {
+      "result": {
+        "props": [
+          {
+            "name": "coffee shop door",
+            "category": "furniture",
+            "description": "Entry door that Alice enters through",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "chair",
+            "category": "furniture",
+            "description": "Chair that Alice sits in",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "action"
+            ]
+          },
+          {
+            "name": "table",
+            "category": "furniture",
+            "description": "Table at Alice's seat in the coffee shop",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee counter",
+            "category": "furniture",
+            "description": "Service counter where Bob works",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee cups",
+            "category": "food_beverage",
+            "description": "Various coffee cups for background patrons in bustling shop",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 10,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee",
+            "category": "food_beverage",
+            "description": "Coffee beverages for background patrons",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 10,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "Alice's usual order",
+            "category": "food_beverage",
+            "description": "Alice's regular coffee order referenced by Bob",
+            "significance": "character_defining",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "dialogue"
+            ]
+          },
+          {
+            "name": "background tables",
+            "category": "furniture",
+            "description": "Multiple tables for bustling coffee shop atmosphere",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 6,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "background chairs",
+            "category": "furniture",
+            "description": "Multiple chairs for bustling coffee shop atmosphere",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 12,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "menu board",
+            "category": "miscellaneous",
+            "description": "Coffee shop menu display",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "cash register",
+            "category": "technology",
+            "description": "Point of sale system at counter",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee machine",
+            "category": "tools_equipment",
+            "description": "Espresso/coffee making equipment behind counter",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "pastry display case",
+            "category": "furniture",
+            "description": "Display case for baked goods",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "napkin dispensers",
+            "category": "miscellaneous",
+            "description": "Napkin holders on tables",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 4,
+            "mentions": [
+              "implied"
+            ]
+          }
+        ],
+        "summary": {
+          "total_props": 14,
+          "hero_props": 0,
+          "requires_action": 2,
+          "categories": [
+            "furniture",
+            "food_beverage",
+            "miscellaneous",
+            "technology",
+            "tools_equipment"
+          ]
+        },
+        "analyzer": "props_inventory",
+        "version": "1.0",
+        "property": "props_inventory"
+      },
+      "version": "1.0"
     }
   }
 }
@@ -31,11 +204,23 @@ EXT. PARK - NIGHT
 
 /* SCRIPTRAG-META-START
 {
-  "content_hash": "def456",
-  "analyzed_at": "2024-01-01T00:00:00",
+  "content_hash": "e05317d42adbaa29",
+  "analyzed_at": "2025-08-11T07:32:31.310375",
   "analyzers": {
-    "test": {
-      "result": {"mood": "peaceful"}
+    "props_inventory": {
+      "result": {
+        "props": [],
+        "summary": {
+          "total_props": 0,
+          "hero_props": 0,
+          "requires_action": 0,
+          "categories": []
+        },
+        "analyzer": "props_inventory",
+        "version": "1.0",
+        "property": "props_inventory"
+      },
+      "version": "1.0"
     }
   }
 }

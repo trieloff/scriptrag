@@ -18,62 +18,81 @@ ALICE nods and sits down.
 /* SCRIPTRAG-META-START
 {
   "content_hash": "830dda1fe63b0bcd",
-  "analyzed_at": "2025-08-11T05:58:04.705300",
+  "analyzed_at": "2025-08-11T07:38:13.512585",
   "analyzers": {
     "props_inventory": {
       "result": {
         "props": [
           {
-            "name": "coffee cup",
+            "name": "coffee cups",
             "category": "food_beverage",
-            "description": "Cup for Alice's usual coffee order",
+            "description": "Coffee cups/mugs for serving coffee in the shop",
             "significance": "practical",
             "action_required": true,
-            "quantity": 1,
+            "quantity": 2,
             "mentions": [
-              "dialogue",
               "implied"
             ]
           },
           {
             "name": "coffee",
             "category": "food_beverage",
-            "description": "Alice's usual coffee beverage",
+            "description": "Coffee beverage, Alice's usual order",
             "significance": "practical",
             "action_required": false,
             "quantity": 1,
             "mentions": [
-              "dialogue",
-              "implied"
-            ]
-          },
-          {
-            "name": "chair",
-            "category": "furniture",
-            "description": "Chair that Alice sits in",
-            "significance": "practical",
-            "action_required": true,
-            "quantity": 1,
-            "mentions": [
-              "action",
-              "implied"
-            ]
-          },
-          {
-            "name": "table",
-            "category": "furniture",
-            "description": "Coffee shop table where Alice sits",
-            "significance": "background",
-            "action_required": false,
-            "quantity": 1,
-            "mentions": [
-              "implied"
+              "dialogue"
             ]
           },
           {
             "name": "coffee shop counter",
             "category": "furniture",
             "description": "Service counter where Bob works",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "chair",
+            "category": "furniture",
+            "description": "Chair for Alice to sit in",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "action"
+            ]
+          },
+          {
+            "name": "table",
+            "category": "furniture",
+            "description": "Coffee shop table where Alice sits",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee shop furniture",
+            "category": "furniture",
+            "description": "Various tables and chairs for bustling coffee shop atmosphere",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 10,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee machine",
+            "category": "tools_equipment",
+            "description": "Espresso machine or coffee maker behind counter",
             "significance": "background",
             "action_required": false,
             "quantity": 1,
@@ -82,46 +101,38 @@ ALICE nods and sits down.
             ]
           },
           {
-            "name": "other coffee cups",
-            "category": "food_beverage",
-            "description": "Background cups for bustling coffee shop atmosphere",
+            "name": "menu board",
+            "category": "miscellaneous",
+            "description": "Coffee shop menu display",
             "significance": "background",
             "action_required": false,
-            "quantity": 6,
+            "quantity": 1,
             "mentions": [
               "implied"
             ]
           },
           {
-            "name": "coffee shop tables",
-            "category": "furniture",
-            "description": "Additional tables for bustling coffee shop setting",
+            "name": "cash register",
+            "category": "technology",
+            "description": "Point of sale system at counter",
             "significance": "background",
             "action_required": false,
-            "quantity": 4,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
-            "name": "coffee shop chairs",
-            "category": "furniture",
-            "description": "Additional chairs for bustling coffee shop setting",
-            "significance": "background",
-            "action_required": false,
-            "quantity": 8,
+            "quantity": 1,
             "mentions": [
               "implied"
             ]
           }
         ],
         "summary": {
-          "total_props": 8,
+          "total_props": 9,
           "hero_props": 0,
           "requires_action": 2,
           "categories": [
             "food_beverage",
-            "furniture"
+            "furniture",
+            "tools_equipment",
+            "miscellaneous",
+            "technology"
           ]
         },
         "analyzer": "props_inventory",
@@ -133,6 +144,8 @@ ALICE nods and sits down.
   }
 }
 SCRIPTRAG-META-END */
+
+
 
 EXT. PARK - NIGHT
 
@@ -148,76 +161,16 @@ Yeah, quite different from the morning rush.
 /* SCRIPTRAG-META-START
 {
   "content_hash": "c4f09000c61a7d01",
-  "analyzed_at": "2025-08-11T05:58:25.732230",
+  "analyzed_at": "2025-08-11T07:38:42.995169",
   "analyzers": {
     "props_inventory": {
       "result": {
-        "props": [
-          {
-            "name": "park bench",
-            "category": "furniture",
-            "description": "Bench for sitting in the park, typical park furniture",
-            "significance": "background",
-            "action_required": false,
-            "quantity": 1,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
-            "name": "park lamp posts",
-            "category": "miscellaneous",
-            "description": "Street lamps or park lighting fixtures for night visibility",
-            "significance": "practical",
-            "action_required": false,
-            "quantity": 3,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
-            "name": "walking path",
-            "category": "miscellaneous",
-            "description": "Paved or gravel path through the park",
-            "significance": "practical",
-            "action_required": false,
-            "quantity": 1,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
-            "name": "trash receptacle",
-            "category": "miscellaneous",
-            "description": "Park trash can or waste bin",
-            "significance": "background",
-            "action_required": false,
-            "quantity": 1,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
-            "name": "park signage",
-            "category": "documents",
-            "description": "Park rules sign or park name sign",
-            "significance": "background",
-            "action_required": false,
-            "quantity": 1,
-            "mentions": [
-              "implied"
-            ]
-          }
-        ],
+        "props": [],
         "summary": {
-          "total_props": 5,
+          "total_props": 0,
           "hero_props": 0,
           "requires_action": 0,
-          "categories": [
-            "furniture",
-            "miscellaneous",
-            "documents"
-          ]
+          "categories": []
         },
         "analyzer": "props_inventory",
         "version": "1.0",

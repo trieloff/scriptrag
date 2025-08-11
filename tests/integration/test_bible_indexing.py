@@ -206,7 +206,10 @@ class TestBibleAutoDetector:
 
         detected = BibleAutoDetector.find_bible_files(tmp_path)
 
-        detected_paths = {str(f.relative_to(tmp_path)) for f in detected}
+        # Normalize paths to use forward slashes for cross-platform compatibility
+        detected_paths = {
+            str(f.relative_to(tmp_path)).replace("\\", "/") for f in detected
+        }
         assert "docs/lore.md" in detected_paths
         assert "docs/backstory.md" in detected_paths
         assert ".hidden/bible.md" not in detected_paths

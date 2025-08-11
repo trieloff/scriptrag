@@ -305,7 +305,7 @@ class AnalyzeCommand:
                         f"Writing {len(scenes_with_metadata)} scenes to {file_path}"
                     )
                     parser.write_with_updated_scenes(
-                        file_path, script, scenes_with_metadata
+                        file_path, script, scenes_with_metadata, dry_run=False
                     )
 
             return FileResult(

@@ -144,34 +144,31 @@ class TestIndexCommand:
         # Mock methods
         with (
             patch.object(cmd, "_discover_scripts", return_value=sample_script_metadata),
-            patch.object(
-                cmd,
-                "_filter_scripts_for_indexing",
-                return_value=sample_script_metadata[:1],
-            ),
+            # _filter_scripts_for_indexing is no longer used (all scripts indexed)
             patch.object(cmd.parser, "parse_file", return_value=sample_script),
         ):
             result = await cmd.index()
 
-        assert result.total_scripts_indexed == 1
-        assert result.total_scenes_indexed == 1
-        assert result.total_characters_indexed == 2
-        assert result.total_dialogues_indexed == 2
-        assert result.total_actions_indexed == 2
+        # Now all discovered scripts are indexed (2 scripts)
+        assert result.total_scripts_indexed == 2
+        assert result.total_scenes_indexed == 2  # 1 scene per script
+        assert result.total_characters_indexed == 4  # 2 characters per script
+        assert result.total_dialogues_indexed == 4  # 2 dialogues per script
+        assert result.total_actions_indexed == 4  # 2 actions per script
 
     @pytest.mark.asyncio
-    async def test_index_with_force_mode(
+    async def test_index_all_scripts(
         self, settings, mock_db_ops, sample_script, sample_script_metadata
     ):
-        """Test force re-indexing all scripts."""
+        """Test that all discovered scripts are indexed."""
         cmd = IndexCommand(settings=settings, db_ops=mock_db_ops)
 
-        # Mock methods - with force=True, no filtering occurs
+        # Mock methods
         with (
             patch.object(cmd, "_discover_scripts", return_value=sample_script_metadata),
             patch.object(cmd.parser, "parse_file", return_value=sample_script),
         ):
-            result = await cmd.index(force=True)  # Force mode skips filtering
+            result = await cmd.index()  # Always indexes all scripts
 
         assert result.total_scripts_indexed == 2  # Both scripts indexed
         assert result.total_scenes_indexed == 2
@@ -214,7 +211,7 @@ class TestIndexCommand:
 
         with patch.object(cmd.parser, "parse_file", return_value=sample_script):
             result = await cmd._index_single_script(
-                Path("/test/script.fountain"), force=False, dry_run=True
+                Path("/test/script.fountain"), dry_run=True
             )
 
         assert result.indexed
@@ -227,8 +224,8 @@ class TestIndexCommand:
         mock_db_ops.upsert_script.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_index_force_mode(self, settings, mock_db_ops, sample_script):
-        """Test force re-indexing mode."""
+    async def test_index_existing_script(self, settings, mock_db_ops, sample_script):
+        """Test re-indexing an existing script."""
         # Setup existing script
         mock_db_ops.get_existing_script.return_value = MagicMock(id=1)
 
@@ -236,7 +233,7 @@ class TestIndexCommand:
 
         with patch.object(cmd.parser, "parse_file", return_value=sample_script):
             result = await cmd._index_single_script(
-                Path("/test/script.fountain"), force=True, dry_run=False
+                Path("/test/script.fountain"), dry_run=False
             )
 
         assert result.indexed
@@ -304,7 +301,7 @@ class TestIndexCommand:
 
         with patch.object(cmd.parser, "parse_file", return_value=sample_script):
             results = await cmd._process_scripts_batch(
-                sample_script_metadata, force=False, dry_run=False
+                sample_script_metadata, dry_run=False
             )
 
         assert len(results) == 2
@@ -323,7 +320,7 @@ class TestIndexCommand:
             cmd.parser, "parse_file", side_effect=Exception("Parse error")
         ):
             results = await cmd._process_scripts_batch(
-                sample_script_metadata[:1], force=False, dry_run=False
+                sample_script_metadata[:1], dry_run=False
             )
 
         assert len(results) == 1
@@ -339,9 +336,7 @@ class TestIndexCommand:
         file_path = Path("/test/script.fountain")
 
         with patch.object(cmd.parser, "parse_file", return_value=sample_script):
-            result = await cmd._index_single_script(
-                file_path, force=False, dry_run=False
-            )
+            result = await cmd._index_single_script(file_path, dry_run=False)
 
         assert result.indexed
         assert result.path == file_path
@@ -369,7 +364,7 @@ class TestIndexCommand:
             ),
             pytest.raises(Exception, match="Parse failed"),
         ):
-            await cmd._index_single_script(file_path, force=False, dry_run=False)
+            await cmd._index_single_script(file_path, dry_run=False)
 
     @pytest.mark.asyncio
     async def test_dry_run_analysis(self, settings, mock_db_ops, sample_script):
@@ -546,9 +541,7 @@ class TestIndexResult:
         }
 
         with patch.object(cmd.parser, "parse_file", return_value=action_only_script):
-            result = await cmd._index_single_script(
-                file_path, force=False, dry_run=False
-            )
+            result = await cmd._index_single_script(file_path, dry_run=False)
 
         assert result.indexed
         assert result.scenes_indexed == 1
@@ -569,9 +562,7 @@ class TestIndexResult:
         mock_db_ops.upsert_scene.return_value = (1, False)  # content_changed=False
 
         with patch.object(cmd.parser, "parse_file", return_value=sample_script):
-            result = await cmd._index_single_script(
-                file_path, force=False, dry_run=False
-            )
+            result = await cmd._index_single_script(file_path, dry_run=False)
 
         assert result.indexed
         assert result.updated  # Script was updated
@@ -749,9 +740,7 @@ class TestIndexCommandMissingCoverage:
         indexer._index_single_script = AsyncMock(side_effect=Exception("Test error"))
 
         # Process batch - should catch exception and add to errors
-        results = await indexer._process_scripts_batch(
-            scripts, force=False, dry_run=False
-        )
+        results = await indexer._process_scripts_batch(scripts, dry_run=False)
         assert len(results) == 1
         assert results[0].error == "Test error"
 
@@ -774,9 +763,7 @@ class TestIndexCommandMissingCoverage:
 
         # Test indexing - should raise exception
         with pytest.raises(Exception, match="Parse error"):
-            await indexer._index_single_script(
-                script_metadata.file_path, force=False, dry_run=False
-            )
+            await indexer._index_single_script(script_metadata.file_path, dry_run=False)
 
     @pytest.mark.asyncio
     async def test_index_single_script_database_error(self):
@@ -803,9 +790,7 @@ class TestIndexCommandMissingCoverage:
 
         # Test indexing - should raise database error
         with pytest.raises(Exception, match="Database error"):
-            await indexer._index_single_script(
-                script_metadata.file_path, force=False, dry_run=False
-            )
+            await indexer._index_single_script(script_metadata.file_path, dry_run=False)
 
     @pytest.mark.asyncio
     async def test_index_single_script_update_case(self):
@@ -852,7 +837,7 @@ class TestIndexCommandMissingCoverage:
 
         # Test updating
         result = await indexer._index_single_script(
-            script_metadata.file_path, force=False, dry_run=False
+            script_metadata.file_path, dry_run=False
         )
         assert result.indexed is True
         assert result.updated is True

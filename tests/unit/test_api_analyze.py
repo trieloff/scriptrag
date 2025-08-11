@@ -28,12 +28,14 @@ def analyze_command():
 @pytest.fixture
 def temp_fountain_file(tmp_path):
     """Copy test fountain file to temp directory."""
-    import shutil
-
     fixtures_dir = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
     source_file = fixtures_dir / "test_script.fountain"
     file_path = tmp_path / "test_script.fountain"
-    shutil.copy2(source_file, file_path)
+
+    # Read content and write fresh to avoid any metadata issues
+    content = source_file.read_text()
+    file_path.write_text(content)
+
     return file_path
 
 

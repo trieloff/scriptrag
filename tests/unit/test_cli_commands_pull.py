@@ -294,9 +294,12 @@ class TestPullCommand:
         result = runner.invoke(app, ["pull"])
 
         # Verify completion despite errors
+        from scriptrag.tools.utils import strip_ansi_codes
+
+        output = strip_ansi_codes(result.output)
         assert result.exit_code == 0
-        assert "Errors encountered: 3" in result.output
-        assert "Error parsing file1.fountain" in result.output
+        assert "Errors encountered: 3" in output
+        assert "Error parsing file1.fountain" in output
 
     def test_pull_with_custom_path(
         self,

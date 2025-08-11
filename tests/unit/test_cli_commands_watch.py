@@ -66,7 +66,11 @@ class TestWatchCommand:
         # Test with non-existent path
         result = runner.invoke(app, ["watch", "/nonexistent/path"])
         assert result.exit_code == 1
-        assert "Error: Path /nonexistent/path does not exist" in result.output
+        # Check for error message with platform-appropriate path separator
+        from pathlib import Path
+
+        expected_path = str(Path("/nonexistent/path"))
+        assert f"Error: Path {expected_path} does not exist" in result.output
 
     @patch("scriptrag.cli.commands.watch.time.sleep")
     def test_watch_with_timeout(
@@ -96,8 +100,11 @@ class TestWatchCommand:
         )
 
         # Verify timeout behavior
-        assert "Watch timeout reached (3s)" in result.output
-        assert "Watch stopped" in result.output
+        from scriptrag.tools.utils import strip_ansi_codes
+
+        output = strip_ansi_codes(result.output)
+        assert "Watch timeout reached (3s)" in output
+        assert "Watch stopped" in output
 
         # Verify observer was started and stopped
         mock_observer.start.assert_called_once()

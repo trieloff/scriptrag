@@ -272,8 +272,11 @@ class AnalyzeCommand:
                                 f"scene {scene.number}: {e}"
                             )
 
-                    # Update scene metadata
-                    scene.update_boneyard(metadata)
+                    # In dry run mode, don't modify the original scene objects
+                    if not dry_run:
+                        # Update scene metadata only if not in dry run mode
+                        scene.update_boneyard(metadata)
+
                     updated_scenes.append(scene)
 
             # Clean up analyzers

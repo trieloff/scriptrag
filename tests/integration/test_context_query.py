@@ -77,6 +77,12 @@ class TestContextQuerySystem:
             monkeypatch.setenv("SCRIPTRAG_IGNORE_CLAUDE", "1")
             monkeypatch.setenv("SCRIPTRAG_LLM_PROVIDER", "github_models")
 
+        # Prepare isolated working directory to avoid mutating fixtures
+        work_dir = tmp_path / "scripts"
+        work_dir.mkdir()
+        copied_script = work_dir / multi_scene_screenplay.name
+        copied_script.write_text(multi_scene_screenplay.read_text(), encoding="utf-8")
+
         # Step 1: Initialize database
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])
         assert result.exit_code == 0
@@ -87,7 +93,7 @@ class TestContextQuerySystem:
             app,
             [
                 "analyze",
-                str(multi_scene_screenplay.parent),
+                str(work_dir),
                 "--analyzer",
                 "props_inventory",
                 "--force",
@@ -109,7 +115,7 @@ class TestContextQuerySystem:
             app,
             [
                 "index",
-                str(multi_scene_screenplay.parent),
+                str(work_dir),
             ],
         )
         assert result.exit_code == 0
@@ -121,7 +127,7 @@ class TestContextQuerySystem:
 
         # Get the script
         cursor.execute(
-            "SELECT * FROM scripts WHERE file_path = ?", (str(multi_scene_screenplay),)
+            "SELECT * FROM scripts WHERE file_path = ?", (str(copied_script),)
         )
         script = cursor.fetchone()
         assert script is not None
@@ -170,15 +176,15 @@ class TestContextQuerySystem:
         # Clear the boneyard from the second scene to force re-analysis
         print("\n=== Second analysis pass - testing context queries ===")
 
-        # Modify the fountain file to remove metadata from scene 2 only
-        _ = multi_scene_screenplay.read_text()
+        # Modify the fountain file to remove metadata from scene 2 only (no-op here)
+        _ = copied_script.read_text()
 
         # For this test, we'll force re-analysis with --force flag
         result = runner.invoke(
             app,
             [
                 "analyze",
-                str(multi_scene_screenplay.parent),
+                str(work_dir),
                 "--analyzer",
                 "props_inventory",
                 "--force",  # Force re-analysis

@@ -5,11 +5,139 @@ INT. COFFEE SHOP - DAY
 
 /* SCRIPTRAG-META-START
 {
-  "content_hash": "abc123",
-  "analyzed_at": "2024-01-01T00:00:00",
+  "content_hash": "2e10599f10ed01c6",
+  "analyzed_at": "2025-08-11T14:52:41.126911",
   "analyzers": {
-    "test": {
-      "result": {"mood": "cheerful"}
+    "props_inventory": {
+      "result": {
+        "error": "Validation failed after 3 attempts: 'props' is a required property
+
+Failed validating 'required' in schema:
+    {'$schema': 'http://json-schema.org/draft-07/schema#',
+     'type': 'object',
+     'required': ['props', 'summary'],
+     'properties': {'props': {'type': 'array',
+                              'description': 'List of all props identified '
+                                             'in the scene',
+                              'items': {'type': 'object',
+                                        'required': ['name',
+                                                     'category',
+                                                     'significance'],
+                                        'properties': {'name': {'type': 'string',
+                                                                'description': 'The '
+                                                                               'name '
+                                                                               'of '
+                                                                               'the '
+                                                                               'prop'},
+                                                       'category': {'type': 'string',
+                                                                    'description': 'Category '
+                                                                                   'of '
+                                                                                   'the '
+                                                                                   'prop',
+                                                                    'enum': ['weapons',
+                                                                             'vehicles',
+                                                                             'technology',
+                                                                             'documents',
+                                                                             'food_beverage',
+                                                                             'clothing_accessories',
+                                                                             'furniture',
+                                                                             'tools_equipment',
+                                                                             'personal_items',
+                                                                             'money_valuables',
+                                                                             'medical',
+                                                                             'miscellaneous']},
+                                                       'description': {'type': 'string',
+                                                                       'description': 'Brief '
+                                                                                      'description '
+                                                                                      'of '
+                                                                                      'the '
+                                                                                      'prop '
+                                                                                      'if '
+                                                                                      'provided '
+                                                                                      'in '
+                                                                                      'the '
+                                                                                      'script'},
+                                                       'significance': {'type': 'string',
+                                                                        'description': 'Story '
+                                                                                       'significance '
+                                                                                       'of '
+                                                                                       'the '
+                                                                                       'prop',
+                                                                        'enum': ['hero',
+                                                                                 'plot_device',
+                                                                                 'character_defining',
+                                                                                 'practical',
+                                                                                 'background']},
+                                                       'action_required': {'type': 'boolean',
+                                                                           'description': 'Whether '
+                                                                                          'the '
+                                                                                          'prop '
+                                                                                          'requires '
+                                                                                          'specific '
+                                                                                          'action '
+                                                                                          'or '
+                                                                                          'manipulation'},
+                                                       'quantity': {'type': 'integer',
+                                                                    'description': 'Number '
+                                                                                   'of '
+                                                                                   'this '
+                                                                                   'prop '
+                                                                                   'needed',
+                                                                    'minimum': 1,
+                                                                    'default': 1},
+                                                       'mentions': {'type': 'array',
+                                                                    'description': 'Where '
+                                                                                   'the '
+                                                                                   'prop '
+                                                                                   'is '
+                                                                                   'mentioned '
+                                                                                   'in '
+                                                                                   'the '
+                                                                                   'scene',
+                                                                    'items': {'type': 'string',
+                                                                              'enum': ['action',
+                                                                                       'dialogue',
+                                                                                       'implied']}}}}},
+                    'summary': {'type': 'object',
+                                'description': 'Summary statistics for the '
+                                               'scene',
+                                'required': ['total_props',
+                                             'hero_props',
+                                             'requires_action'],
+                                'properties': {'total_props': {'type': 'integer',
+                                                               'description': 'Total '
+                                                                              'number '
+                                                                              'of '
+                                                                              'unique '
+                                                                              'props '
+                                                                              'identified'},
+                                               'hero_props': {'type': 'integer',
+                                                              'description': 'Number '
+                                                                             'of '
+                                                                             'hero/featured '
+                                                                             'props'},
+                                               'requires_action': {'type': 'integer',
+                                                                   'description': 'Number '
+                                                                                  'of '
+                                                                                  'props '
+                                                                                  'requiring '
+                                                                                  'actor '
+                                                                                  'manipulation'},
+                                               'categories': {'type': 'array',
+                                                              'description': 'List '
+                                                                             'of '
+                                                                             'categories '
+                                                                             'present '
+                                                                             'in '
+                                                                             'scene',
+                                                              'items': {'type': 'string'}}}}}}
+
+On instance:
+    {}",
+        "analyzer": "props_inventory",
+        "version": "1.0"
+      },
+      "version": "1.0"
     }
   }
 }
@@ -31,11 +159,139 @@ EXT. PARK - NIGHT
 
 /* SCRIPTRAG-META-START
 {
-  "content_hash": "def456",
-  "analyzed_at": "2024-01-01T00:00:00",
+  "content_hash": "e05317d42adbaa29",
+  "analyzed_at": "2025-08-11T14:52:46.930889",
   "analyzers": {
-    "test": {
-      "result": {"mood": "peaceful"}
+    "props_inventory": {
+      "result": {
+        "error": "Validation failed after 3 attempts: 'props' is a required property
+
+Failed validating 'required' in schema:
+    {'$schema': 'http://json-schema.org/draft-07/schema#',
+     'type': 'object',
+     'required': ['props', 'summary'],
+     'properties': {'props': {'type': 'array',
+                              'description': 'List of all props identified '
+                                             'in the scene',
+                              'items': {'type': 'object',
+                                        'required': ['name',
+                                                     'category',
+                                                     'significance'],
+                                        'properties': {'name': {'type': 'string',
+                                                                'description': 'The '
+                                                                               'name '
+                                                                               'of '
+                                                                               'the '
+                                                                               'prop'},
+                                                       'category': {'type': 'string',
+                                                                    'description': 'Category '
+                                                                                   'of '
+                                                                                   'the '
+                                                                                   'prop',
+                                                                    'enum': ['weapons',
+                                                                             'vehicles',
+                                                                             'technology',
+                                                                             'documents',
+                                                                             'food_beverage',
+                                                                             'clothing_accessories',
+                                                                             'furniture',
+                                                                             'tools_equipment',
+                                                                             'personal_items',
+                                                                             'money_valuables',
+                                                                             'medical',
+                                                                             'miscellaneous']},
+                                                       'description': {'type': 'string',
+                                                                       'description': 'Brief '
+                                                                                      'description '
+                                                                                      'of '
+                                                                                      'the '
+                                                                                      'prop '
+                                                                                      'if '
+                                                                                      'provided '
+                                                                                      'in '
+                                                                                      'the '
+                                                                                      'script'},
+                                                       'significance': {'type': 'string',
+                                                                        'description': 'Story '
+                                                                                       'significance '
+                                                                                       'of '
+                                                                                       'the '
+                                                                                       'prop',
+                                                                        'enum': ['hero',
+                                                                                 'plot_device',
+                                                                                 'character_defining',
+                                                                                 'practical',
+                                                                                 'background']},
+                                                       'action_required': {'type': 'boolean',
+                                                                           'description': 'Whether '
+                                                                                          'the '
+                                                                                          'prop '
+                                                                                          'requires '
+                                                                                          'specific '
+                                                                                          'action '
+                                                                                          'or '
+                                                                                          'manipulation'},
+                                                       'quantity': {'type': 'integer',
+                                                                    'description': 'Number '
+                                                                                   'of '
+                                                                                   'this '
+                                                                                   'prop '
+                                                                                   'needed',
+                                                                    'minimum': 1,
+                                                                    'default': 1},
+                                                       'mentions': {'type': 'array',
+                                                                    'description': 'Where '
+                                                                                   'the '
+                                                                                   'prop '
+                                                                                   'is '
+                                                                                   'mentioned '
+                                                                                   'in '
+                                                                                   'the '
+                                                                                   'scene',
+                                                                    'items': {'type': 'string',
+                                                                              'enum': ['action',
+                                                                                       'dialogue',
+                                                                                       'implied']}}}}},
+                    'summary': {'type': 'object',
+                                'description': 'Summary statistics for the '
+                                               'scene',
+                                'required': ['total_props',
+                                             'hero_props',
+                                             'requires_action'],
+                                'properties': {'total_props': {'type': 'integer',
+                                                               'description': 'Total '
+                                                                              'number '
+                                                                              'of '
+                                                                              'unique '
+                                                                              'props '
+                                                                              'identified'},
+                                               'hero_props': {'type': 'integer',
+                                                              'description': 'Number '
+                                                                             'of '
+                                                                             'hero/featured '
+                                                                             'props'},
+                                               'requires_action': {'type': 'integer',
+                                                                   'description': 'Number '
+                                                                                  'of '
+                                                                                  'props '
+                                                                                  'requiring '
+                                                                                  'actor '
+                                                                                  'manipulation'},
+                                               'categories': {'type': 'array',
+                                                              'description': 'List '
+                                                                             'of '
+                                                                             'categories '
+                                                                             'present '
+                                                                             'in '
+                                                                             'scene',
+                                                              'items': {'type': 'string'}}}}}}
+
+On instance:
+    {}",
+        "analyzer": "props_inventory",
+        "version": "1.0"
+      },
+      "version": "1.0"
     }
   }
 }

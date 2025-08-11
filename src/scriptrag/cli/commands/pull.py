@@ -149,7 +149,6 @@ def pull_command(
                 index_cmd.index(
                     path=path,
                     recursive=not no_recursive,
-                    force=force,
                     dry_run=dry_run,
                     batch_size=batch_size,
                     progress_callback=index_progress,

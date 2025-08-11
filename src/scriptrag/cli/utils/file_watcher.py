@@ -252,7 +252,6 @@ class FountainFileHandler(FileSystemEventHandler):
         await index_cmd.index(
             path=path,  # Process specific file
             recursive=False,
-            force=self.force,
             dry_run=False,
             batch_size=1,  # Single file
         )

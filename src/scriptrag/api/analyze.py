@@ -293,8 +293,14 @@ class AnalyzeCommand:
                 )
 
             # Write back to file if there are updates
-            if updated_scenes:  # pragma: no cover
-                parser.write_with_updated_scenes(file_path, script, updated_scenes)
+            # Only write if scenes actually have new metadata (not in dry run)
+            scenes_with_metadata = [
+                s for s in updated_scenes if getattr(s, "has_new_metadata", False)
+            ]
+            if scenes_with_metadata:  # pragma: no cover
+                parser.write_with_updated_scenes(
+                    file_path, script, scenes_with_metadata
+                )
 
             return FileResult(
                 path=file_path,

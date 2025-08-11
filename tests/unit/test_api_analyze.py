@@ -26,15 +26,30 @@ def analyze_command():
 
 
 @pytest.fixture
-def temp_fountain_file(tmp_path):
-    """Copy test fountain file to temp directory."""
+def temp_fountain_file(tmp_path, request):
+    """Copy test fountain file to temp directory with unique name per test."""
     fixtures_dir = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
     source_file = fixtures_dir / "test_script.fountain"
-    file_path = tmp_path / "test_script.fountain"
+
+    # Use a unique filename based on the test name to avoid any collision
+    test_name = request.node.name.replace("[", "_").replace("]", "_").replace(" ", "_")
+    file_path = tmp_path / f"{test_name}_test_script.fountain"
 
     # Read content and write fresh to avoid any metadata issues
     content = source_file.read_text()
+
+    # Double-check that source content is clean (no metadata)
+    assert "SCRIPTRAG-META-START" not in content, (
+        f"Source fixture file is contaminated with metadata: {source_file}"
+    )
+
     file_path.write_text(content)
+
+    # Verify the written file is clean
+    written_content = file_path.read_text()
+    assert "SCRIPTRAG-META-START" not in written_content, (
+        f"Written file has metadata immediately after creation: {file_path}"
+    )
 
     return file_path
 

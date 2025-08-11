@@ -49,12 +49,16 @@ class TestAnalyzeCommand:
         """Test analyze command shows help."""
         result = runner.invoke(app, ["analyze", "--help"])
         assert result.exit_code == 0
-        assert "Analyze Fountain files and update their metadata" in result.output
-        assert "--force" in result.output
-        assert "--dry-run" in result.output
-        assert "--no-recursive" in result.output
-        assert "--analyzer" in result.output
-        assert "--brittle" in result.output
+        # Strip ANSI codes for help output checks
+        from tests.utils import strip_ansi_codes
+
+        output = strip_ansi_codes(result.output)
+        assert "Analyze Fountain files and update their metadata" in output
+        assert "--force" in output
+        assert "--dry-run" in output
+        assert "--no-recursive" in output
+        assert "--analyzer" in output
+        assert "--brittle" in output
 
     def test_analyze_basic_success(
         self, runner, mock_analyze_command, mock_analyze_result

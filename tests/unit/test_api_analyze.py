@@ -31,25 +31,38 @@ def temp_fountain_file(tmp_path, request):
     fixtures_dir = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
     source_file = fixtures_dir / "test_script.fountain"
 
+    # Ensure we're reading from the correct location (absolute path)
+    source_file = source_file.resolve()
+
     # Use a unique filename based on the test name to avoid any collision
     test_name = request.node.name.replace("[", "_").replace("]", "_").replace(" ", "_")
     file_path = tmp_path / f"{test_name}_test_script.fountain"
 
+    # Ensure temp path is fully resolved to avoid any path confusion
+    file_path = file_path.resolve()
+
     # Read content and write fresh to avoid any metadata issues
-    content = source_file.read_text()
+    # Use explicit encoding to ensure consistent behavior across platforms
+    content = source_file.read_text(encoding="utf-8")
 
     # Double-check that source content is clean (no metadata)
     assert "SCRIPTRAG-META-START" not in content, (
-        f"Source fixture file is contaminated with metadata: {source_file}"
+        f"Source fixture file is contaminated with metadata: {source_file}\n"
+        f"This file should NEVER be modified by tests!"
     )
 
-    file_path.write_text(content)
+    # Write to temp file with explicit encoding
+    file_path.write_text(content, encoding="utf-8")
 
     # Verify the written file is clean
-    written_content = file_path.read_text()
+    written_content = file_path.read_text(encoding="utf-8")
     assert "SCRIPTRAG-META-START" not in written_content, (
         f"Written file has metadata immediately after creation: {file_path}"
     )
+
+    # Ensure we return the temp file, not the source
+    assert file_path != source_file, "Fixture must return temp file, not source!"
+    assert str(tmp_path) in str(file_path), "File must be in temp directory!"
 
     return file_path
 

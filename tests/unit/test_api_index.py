@@ -144,20 +144,17 @@ class TestIndexCommand:
         # Mock methods
         with (
             patch.object(cmd, "_discover_scripts", return_value=sample_script_metadata),
-            patch.object(
-                cmd,
-                "_filter_scripts_for_indexing",
-                return_value=sample_script_metadata[:1],
-            ),
+            # _filter_scripts_for_indexing is no longer used (all scripts indexed)
             patch.object(cmd.parser, "parse_file", return_value=sample_script),
         ):
             result = await cmd.index()
 
-        assert result.total_scripts_indexed == 1
-        assert result.total_scenes_indexed == 1
-        assert result.total_characters_indexed == 2
-        assert result.total_dialogues_indexed == 2
-        assert result.total_actions_indexed == 2
+        # Now all discovered scripts are indexed (2 scripts)
+        assert result.total_scripts_indexed == 2
+        assert result.total_scenes_indexed == 2  # 1 scene per script
+        assert result.total_characters_indexed == 4  # 2 characters per script
+        assert result.total_dialogues_indexed == 4  # 2 dialogues per script
+        assert result.total_actions_indexed == 4  # 2 actions per script
 
     @pytest.mark.asyncio
     async def test_index_with_force_mode(

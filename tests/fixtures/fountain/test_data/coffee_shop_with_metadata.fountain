@@ -6,7 +6,7 @@ INT. COFFEE SHOP - DAY
 /* SCRIPTRAG-META-START
 {
   "content_hash": "2e10599f10ed01c6",
-  "analyzed_at": "2025-08-11T07:32:09.441689",
+  "analyzed_at": "2025-08-11T11:49:29.688787",
   "analyzers": {
     "props_inventory": {
       "result": {
@@ -14,11 +14,34 @@ INT. COFFEE SHOP - DAY
           {
             "name": "coffee shop door",
             "category": "furniture",
-            "description": "Entry door that Alice enters through",
+            "description": "Entry door to the coffee shop that Alice enters through",
             "significance": "practical",
             "action_required": true,
             "quantity": 1,
             "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee cups",
+            "category": "food_beverage",
+            "description": "Various coffee cups for the bustling coffee shop atmosphere",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 10,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee",
+            "category": "food_beverage",
+            "description": "Coffee beverages in the shop, including Alice's usual order",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 10,
+            "mentions": [
+              "dialogue",
               "implied"
             ]
           },
@@ -36,7 +59,7 @@ INT. COFFEE SHOP - DAY
           {
             "name": "table",
             "category": "furniture",
-            "description": "Table at Alice's seat in the coffee shop",
+            "description": "Table at Alice's seat",
             "significance": "practical",
             "action_required": false,
             "quantity": 1,
@@ -45,10 +68,10 @@ INT. COFFEE SHOP - DAY
             ]
           },
           {
-            "name": "coffee counter",
+            "name": "coffee shop counter",
             "category": "furniture",
             "description": "Service counter where Bob works",
-            "significance": "background",
+            "significance": "practical",
             "action_required": false,
             "quantity": 1,
             "mentions": [
@@ -56,64 +79,31 @@ INT. COFFEE SHOP - DAY
             ]
           },
           {
-            "name": "coffee cups",
-            "category": "food_beverage",
-            "description": "Various coffee cups for background patrons in bustling shop",
-            "significance": "background",
-            "action_required": false,
-            "quantity": 10,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
-            "name": "coffee",
-            "category": "food_beverage",
-            "description": "Coffee beverages for background patrons",
-            "significance": "background",
-            "action_required": false,
-            "quantity": 10,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
-            "name": "Alice's usual order",
-            "category": "food_beverage",
-            "description": "Alice's regular coffee order referenced by Bob",
-            "significance": "character_defining",
-            "action_required": false,
-            "quantity": 1,
-            "mentions": [
-              "dialogue"
-            ]
-          },
-          {
-            "name": "background tables",
+            "name": "coffee shop tables",
             "category": "furniture",
-            "description": "Multiple tables for bustling coffee shop atmosphere",
+            "description": "Various tables in the bustling coffee shop",
             "significance": "background",
             "action_required": false,
-            "quantity": 6,
+            "quantity": 8,
             "mentions": [
               "implied"
             ]
           },
           {
-            "name": "background chairs",
+            "name": "coffee shop chairs",
             "category": "furniture",
-            "description": "Multiple chairs for bustling coffee shop atmosphere",
+            "description": "Various chairs in the bustling coffee shop",
             "significance": "background",
             "action_required": false,
-            "quantity": 12,
+            "quantity": 20,
             "mentions": [
               "implied"
             ]
           },
           {
-            "name": "menu board",
-            "category": "miscellaneous",
-            "description": "Coffee shop menu display",
+            "name": "coffee machine",
+            "category": "tools_equipment",
+            "description": "Equipment for making coffee behind the counter",
             "significance": "background",
             "action_required": false,
             "quantity": 1,
@@ -124,7 +114,7 @@ INT. COFFEE SHOP - DAY
           {
             "name": "cash register",
             "category": "technology",
-            "description": "Point of sale system at counter",
+            "description": "Point of sale system at the counter",
             "significance": "background",
             "action_required": false,
             "quantity": 1,
@@ -133,9 +123,9 @@ INT. COFFEE SHOP - DAY
             ]
           },
           {
-            "name": "coffee machine",
-            "category": "tools_equipment",
-            "description": "Espresso/coffee making equipment behind counter",
+            "name": "menu board",
+            "category": "documents",
+            "description": "Coffee shop menu display",
             "significance": "background",
             "action_required": false,
             "quantity": 1,
@@ -144,38 +134,28 @@ INT. COFFEE SHOP - DAY
             ]
           },
           {
-            "name": "pastry display case",
-            "category": "furniture",
-            "description": "Display case for baked goods",
+            "name": "apron",
+            "category": "clothing_accessories",
+            "description": "Bob's barista apron",
             "significance": "background",
             "action_required": false,
             "quantity": 1,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
-            "name": "napkin dispensers",
-            "category": "miscellaneous",
-            "description": "Napkin holders on tables",
-            "significance": "background",
-            "action_required": false,
-            "quantity": 4,
             "mentions": [
               "implied"
             ]
           }
         ],
         "summary": {
-          "total_props": 14,
+          "total_props": 12,
           "hero_props": 0,
           "requires_action": 2,
           "categories": [
             "furniture",
             "food_beverage",
-            "miscellaneous",
+            "tools_equipment",
             "technology",
-            "tools_equipment"
+            "documents",
+            "clothing_accessories"
           ]
         },
         "analyzer": "props_inventory",
@@ -205,7 +185,7 @@ EXT. PARK - NIGHT
 /* SCRIPTRAG-META-START
 {
   "content_hash": "e05317d42adbaa29",
-  "analyzed_at": "2025-08-11T07:32:31.310375",
+  "analyzed_at": "2025-08-11T11:49:58.179297",
   "analyzers": {
     "props_inventory": {
       "result": {

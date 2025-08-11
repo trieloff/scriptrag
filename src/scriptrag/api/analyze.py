@@ -250,8 +250,8 @@ class AnalyzeCommand:
                         "characters": list({d.character for d in scene.dialogue_lines}),
                     }
 
-                    # In dry run mode with no analyzers, just track scenes
-                    if dry_run and not self.analyzers:
+                    # In dry run mode, just track scenes without modifying them
+                    if dry_run:
                         updated_scenes.append(scene)
                         continue
 
@@ -277,11 +277,8 @@ class AnalyzeCommand:
                                 f"scene {scene.number}: {e}"
                             )
 
-                    # In dry run mode, don't modify the original scene objects
-                    if not dry_run:
-                        # Update scene metadata only if not in dry run mode
-                        scene.update_boneyard(metadata)
-
+                    # Update scene metadata
+                    scene.update_boneyard(metadata)
                     updated_scenes.append(scene)
 
             # Clean up analyzers

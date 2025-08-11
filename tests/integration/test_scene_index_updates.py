@@ -292,7 +292,7 @@ class TestSceneIndexUpdates:
         create_script_v1(script_path)
 
         # Index the script
-        result = await index_command.index(path=tmp_path, force=False)
+        result = await index_command.index(path=tmp_path)
 
         assert result.total_scripts_indexed == 1
         assert result.total_scenes_indexed == 3
@@ -314,11 +314,11 @@ class TestSceneIndexUpdates:
 
         # Initial index
         create_script_v1(script_path)
-        await index_command.index(path=tmp_path, force=False)
+        await index_command.index(path=tmp_path)
 
         # Update script with inserted scene
         create_script_v2_with_insertion(script_path)
-        result = await index_command.index(path=tmp_path, force=True)
+        result = await index_command.index(path=tmp_path)
 
         assert result.total_scripts_updated == 1
         assert result.total_scenes_indexed == 4
@@ -347,7 +347,7 @@ class TestSceneIndexUpdates:
 
         # Start with v2 (4 scenes)
         create_script_v2_with_insertion(script_path)
-        await index_command.index(path=tmp_path, force=False)
+        await index_command.index(path=tmp_path)
 
         # Verify initial state
         scenes_before = query_scenes(temp_db)
@@ -355,7 +355,7 @@ class TestSceneIndexUpdates:
 
         # Update to v3 (2 scenes) - without force flag to verify it works by default
         create_script_v3_with_removal(script_path)
-        result = await index_command.index(path=tmp_path, force=False)
+        result = await index_command.index(path=tmp_path)
 
         assert result.total_scripts_updated == 1
         assert result.total_scenes_indexed == 2
@@ -381,11 +381,11 @@ class TestSceneIndexUpdates:
 
         # Initial index
         create_script_v1(script_path)
-        await index_command.index(path=tmp_path, force=False)
+        await index_command.index(path=tmp_path)
 
         # Reorder scenes
         create_script_v4_reordered(script_path)
-        result = await index_command.index(path=tmp_path, force=True)
+        result = await index_command.index(path=tmp_path)
 
         assert result.total_scripts_updated == 1
         assert result.total_scenes_indexed == 3
@@ -415,7 +415,7 @@ class TestSceneIndexUpdates:
 
         # Start with 4 scenes
         create_script_v2_with_insertion(script_path)
-        await index_command.index(path=tmp_path, force=False)
+        await index_command.index(path=tmp_path)
 
         # Query all scene IDs before update
         conn = sqlite3.connect(str(temp_db))
@@ -426,7 +426,7 @@ class TestSceneIndexUpdates:
 
         # Reduce to 2 scenes
         create_script_v3_with_removal(script_path)
-        await index_command.index(path=tmp_path, force=True)
+        await index_command.index(path=tmp_path)
 
         # Query all scenes after update
         conn = sqlite3.connect(str(temp_db))
@@ -455,16 +455,16 @@ class TestSceneIndexUpdates:
 
         # Cycle through all versions
         create_script_v1(script_path)
-        await index_command.index(path=tmp_path, force=False)
+        await index_command.index(path=tmp_path)
 
         create_script_v2_with_insertion(script_path)
-        await index_command.index(path=tmp_path, force=True)
+        await index_command.index(path=tmp_path)
 
         create_script_v3_with_removal(script_path)
-        await index_command.index(path=tmp_path, force=True)
+        await index_command.index(path=tmp_path)
 
         create_script_v4_reordered(script_path)
-        await index_command.index(path=tmp_path, force=True)
+        await index_command.index(path=tmp_path)
 
         # Final state should match v4
         scenes = query_scenes(temp_db)
@@ -486,7 +486,7 @@ class TestSceneIndexUpdates:
 
         # Initial index with 3 scenes
         create_script_v1(script_path)
-        await index_command.index(path=tmp_path, force=False)
+        await index_command.index(path=tmp_path)
 
         # Verify initial state
         scenes = query_scenes(temp_db)
@@ -497,7 +497,7 @@ class TestSceneIndexUpdates:
 
         # Update to v2 with inserted scene WITHOUT force flag
         create_script_v2_with_insertion(script_path)
-        result = await index_command.index(path=tmp_path, force=False)
+        result = await index_command.index(path=tmp_path)
 
         # Now it should update automatically without force
         assert result.total_scripts_updated == 1
@@ -510,7 +510,7 @@ class TestSceneIndexUpdates:
 
         # Verify the force flag still works (for backward compatibility)
         create_script_v3_with_removal(script_path)
-        result = await index_command.index(path=tmp_path, force=True)
+        result = await index_command.index(path=tmp_path)
         assert result.total_scripts_updated == 1
 
         # Should now have 2 scenes
@@ -523,7 +523,7 @@ class TestSceneIndexUpdates:
 
         # Initial index
         create_script_v1(script_path)
-        await index_command.index(path=tmp_path, force=False)
+        await index_command.index(path=tmp_path)
 
         # Get initial content hashes
         conn = sqlite3.connect(str(temp_db))
@@ -542,7 +542,7 @@ class TestSceneIndexUpdates:
 
         # Update with modified content
         create_script_v2_with_insertion(script_path)
-        await index_command.index(path=tmp_path, force=True)
+        await index_command.index(path=tmp_path)
 
         # Get updated content hashes
         conn = sqlite3.connect(str(temp_db))

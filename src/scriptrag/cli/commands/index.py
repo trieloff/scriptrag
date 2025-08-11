@@ -35,12 +35,6 @@ def index_command(
             )
         ),
     ] = None,
-    force: Annotated[
-        bool,
-        typer.Option(
-            "--force", "-f", help="[Deprecated] Scripts are always re-indexed now"
-        ),
-    ] = False,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -82,7 +76,7 @@ def index_command(
     The database must be initialized first with 'scriptrag init'.
 
     Note: Scripts are always re-indexed to ensure the database reflects the current
-    state of the files. The --force flag is deprecated.
+    state of the files.
     Scripts should be analyzed first with 'scriptrag analyze' to add metadata.
     """
     try:
@@ -108,7 +102,6 @@ def index_command(
                 index_cmd.index(
                     path=path,
                     recursive=not no_recursive,
-                    force=force,
                     dry_run=dry_run,
                     batch_size=batch_size,
                     progress_callback=update_progress,

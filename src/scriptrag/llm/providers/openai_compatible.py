@@ -167,6 +167,18 @@ class OpenAICompatibleProvider(BaseLLMProvider):
 
             # Sort models by preference order
             def model_sort_key(model: Model) -> tuple[int, str]:
+                """Return a sort key for models by preference then id.
+
+                Prefers models that appear earlier in `MODEL_PREFERENCE_ORDER`.
+                Models not listed there are ordered after the preferred ones and
+                sorted alphabetically by their id for determinism.
+
+                Args:
+                    model: The model to score for sorting.
+
+                Returns:
+                    A tuple of (preference_index, model_id) suitable for sorting.
+                """
                 try:
                     # Check if model ID is in preference list
                     idx = self.MODEL_PREFERENCE_ORDER.index(model.id)

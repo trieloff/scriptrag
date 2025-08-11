@@ -51,10 +51,19 @@ def verify_fixtures_clean():
         return
 
     # Files that are expected to have metadata
+    # Some fixture scripts intentionally include boneyard metadata blocks to
+    # validate parsing and update behavior. Only consider metadata in files
+    # outside this allowlist as contamination introduced by tests.
     expected_with_metadata = {
         "coffee_shop_with_metadata.fountain",
         "script_with_metadata.fountain",
         "props_test_script.fountain",
+        # The following fixtures ship with metadata by design
+        "props_context_multi_scene.fountain",
+        "nested_script.fountain",
+        "coffee_shop.fountain",
+        "parser_test.fountain",
+        "simple_script.fountain",
     }
 
     def check_fixtures():

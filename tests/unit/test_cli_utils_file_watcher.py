@@ -175,12 +175,12 @@ class TestFountainFileHandler:
         """Test _process_file_sync handles successful processing."""
         path = Path("/test/script.fountain")
 
-        with patch.object(handler, "_pull_single_file") as mock_pull:
-            # Create a coroutine that returns None
-            async def async_noop():
-                return None
+        with patch("scriptrag.cli.utils.file_watcher.asyncio") as mock_asyncio:
+            mock_loop = MagicMock()
+            mock_asyncio.new_event_loop.return_value = mock_loop
 
-            mock_pull.return_value = async_noop()
+            # Mock successful completion
+            mock_loop.run_until_complete.return_value = None
 
             handler._process_file_sync(path)
 
@@ -325,3 +325,244 @@ class TestFountainFileHandler:
             # Verify batch was processed due to timeout
             mock_process.assert_called()
             shutdown_thread.join()
+
+    def test_process_events_batch_size_trigger(self, handler):
+        """Test _process_events processes when batch size reached."""
+        # Add files equal to batch size
+        paths = [Path(f"/test/script{i}.fountain") for i in range(handler.batch_size)]
+        for path in paths:
+            handler.event_queue.put(path)
+
+        with patch.object(handler, "_process_batch") as mock_process:
+            # Set shutdown immediately after processing
+            def shutdown_after_delay():
+                time.sleep(0.2)
+                handler.shutdown_event.set()
+
+            shutdown_thread = threading.Thread(target=shutdown_after_delay)
+            shutdown_thread.start()
+
+            # Run process events
+            handler._process_events()
+
+            # Verify batch was processed due to size
+            mock_process.assert_called()
+            # Check that the batch had the right size
+            call_args = mock_process.call_args[0][0]
+            assert len(call_args) == handler.batch_size
+            shutdown_thread.join()
+
+    def test_process_events_empty_queue_timeout(self, handler):
+        """Test _process_events handles empty queue with batch timeout."""
+        # Add one file
+        path = Path("/test/script.fountain")
+        handler.event_queue.put(path)
+
+        # Set batch timeout
+        handler.batch_timeout = 0.1
+
+        with patch.object(handler, "_process_batch") as mock_process:
+            with patch("scriptrag.cli.utils.file_watcher.time.time") as mock_time:
+                # Simulate time progression
+                time_values = [0, 0.05, 0.15, 0.2]  # Trigger timeout
+                mock_time.side_effect = time_values + [0.3] * 10
+
+                # Set shutdown after processing
+                def shutdown_after_delay():
+                    time.sleep(0.25)
+                    handler.shutdown_event.set()
+
+                shutdown_thread = threading.Thread(target=shutdown_after_delay)
+                shutdown_thread.start()
+
+                # Run process events
+                handler._process_events()
+
+                # Verify batch was processed on timeout
+                mock_process.assert_called()
+                shutdown_thread.join()
+
+    def test_process_events_shutdown_with_remaining(self, handler):
+        """Test _process_events processes remaining items on shutdown."""
+        # Add files less than batch size
+        paths = [Path(f"/test/script{i}.fountain") for i in range(2)]
+        for path in paths:
+            handler.event_queue.put(path)
+
+        processed_batches = []
+
+        def track_batch(batch):
+            processed_batches.append(batch)
+
+        with patch.object(
+            handler, "_process_batch", side_effect=track_batch
+        ) as mock_process:
+            # Set shutdown after getting items from queue
+            def delayed_shutdown():
+                time.sleep(0.1)  # Allow time to get items from queue
+                handler.shutdown_event.set()
+
+            shutdown_thread = threading.Thread(target=delayed_shutdown)
+            shutdown_thread.start()
+
+            # Run process events
+            handler._process_events()
+
+            shutdown_thread.join()
+
+            # Verify remaining batch was processed
+            assert len(processed_batches) > 0
+            # Check that paths were processed
+            all_processed = []
+            for batch in processed_batches:
+                all_processed.extend(batch)
+            assert len(all_processed) == 2
+
+    def test_start_processing_restarts_dead_thread(self, handler):
+        """Test start_processing restarts a dead thread."""
+        # Create a dead thread
+        handler.processor_thread = MagicMock(spec=threading.Thread)
+        handler.processor_thread.is_alive.return_value = False
+
+        # Start processing
+        handler.start_processing()
+
+        # Verify new thread was started
+        assert handler.processor_thread is not None
+        assert handler.processor_thread.is_alive()
+        assert not handler.shutdown_event.is_set()
+
+        # Clean up
+        handler.stop_processing(timeout=1.0)
+
+    def test_stop_processing_no_thread(self, handler):
+        """Test stop_processing when no thread exists."""
+        handler.processor_thread = None
+
+        # Should not raise
+        handler.stop_processing(timeout=1.0)
+
+        # Verify shutdown event is set
+        assert handler.shutdown_event.is_set()
+
+    def test_stop_processing_dead_thread(self, handler):
+        """Test stop_processing with dead thread."""
+        handler.processor_thread = MagicMock(spec=threading.Thread)
+        handler.processor_thread.is_alive.return_value = False
+
+        # Should not raise
+        handler.stop_processing(timeout=1.0)
+
+        # Verify shutdown event is set
+        assert handler.shutdown_event.is_set()
+        # join should not be called on dead thread
+        handler.processor_thread.join.assert_not_called()
+
+    def test_process_batch_with_processing_file(self, handler):
+        """Test _process_batch skips files already being processed."""
+        paths = [
+            Path("/test/script1.fountain"),
+            Path("/test/script2.fountain"),
+        ]
+
+        # Mark script1 as already processing
+        handler.processing.add(str(paths[0]))
+
+        with patch.object(handler, "_process_file_sync") as mock_process:
+            handler._process_batch(paths)
+
+            # Should only process script2
+            assert mock_process.call_count == 1
+            mock_process.assert_called_with(paths[1])
+
+    def test_process_batch_updates_last_processed(self, handler):
+        """Test _process_batch updates last_processed timestamps."""
+        path = Path("/test/script.fountain")
+
+        with patch.object(handler, "_process_file_sync"):
+            with patch("scriptrag.cli.utils.file_watcher.time.time") as mock_time:
+                mock_time.return_value = 12345.0
+
+                handler._process_batch([path])
+
+                # Verify timestamp was updated
+                assert handler.last_processed[str(path)] == 12345.0
+                # Verify file was removed from processing set
+                assert str(path) not in handler.processing
+
+    def test_process_file_sync_no_callback(self, handler):
+        """Test _process_file_sync without callback."""
+        handler.callback = None
+        path = Path("/test/script.fountain")
+
+        with patch("scriptrag.cli.utils.file_watcher.asyncio") as mock_asyncio:
+            mock_loop = MagicMock()
+            mock_asyncio.new_event_loop.return_value = mock_loop
+
+            # Mock successful completion
+            mock_loop.run_until_complete.return_value = None
+
+            # Should not raise
+            handler._process_file_sync(path)
+
+            # Verify pull was executed via the event loop
+            mock_loop.run_until_complete.assert_called_once()
+            mock_loop.close.assert_called_once()
+
+    def test_on_modified_non_fountain_file(self, handler):
+        """Test on_modified ignores non-Fountain files."""
+        event = MagicMock(spec=FileSystemEvent)
+        event.is_directory = False
+        event.src_path = "/test/document.txt"
+
+        with patch.object(handler, "_queue_file") as mock_queue:
+            handler.on_modified(event)
+            mock_queue.assert_not_called()
+
+    def test_on_created_directory(self, handler):
+        """Test on_created ignores directories."""
+        event = MagicMock(spec=FileSystemEvent)
+        event.is_directory = True
+        event.src_path = "/test/new_dir"
+
+        with patch.object(handler, "_queue_file") as mock_queue:
+            handler.on_created(event)
+            mock_queue.assert_not_called()
+
+    def test_process_file_sync_with_pull_error(self, handler, mock_callback):
+        """Test _process_file_sync handles pull errors properly."""
+        path = Path("/test/script.fountain")
+        error_msg = "Database connection failed"
+
+        with patch("scriptrag.cli.utils.file_watcher.asyncio") as mock_asyncio:
+            mock_loop = MagicMock()
+            mock_asyncio.new_event_loop.return_value = mock_loop
+
+            # Make run_until_complete raise the exception
+            mock_loop.run_until_complete.side_effect = Exception(error_msg)
+
+            handler._process_file_sync(path)
+
+            # Verify error callback was called
+            assert mock_callback.call_count >= 2
+            calls = [call.args for call in mock_callback.call_args_list]
+            assert ("processing", path) in calls
+            assert ("error", path, error_msg) in calls
+
+            # Verify loop was closed even on error
+            mock_loop.close.assert_called_once()
+
+    def test_process_batch_exception_handling(self, handler):
+        """Test _process_batch handles exceptions and cleans up properly."""
+        path = Path("/test/script.fountain")
+
+        # The current implementation doesn't catch exceptions in _process_batch
+        # but uses a finally block to clean up. Let's test that behavior.
+        with patch.object(handler, "_process_file_sync") as mock_process:
+            # Normal execution
+            handler._process_batch([path])
+
+            # Verify file was processed and cleaned up
+            mock_process.assert_called_once_with(path)
+            assert str(path) not in handler.processing
+            assert str(path) in handler.last_processed

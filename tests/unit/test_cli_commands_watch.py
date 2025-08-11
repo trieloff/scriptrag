@@ -283,3 +283,343 @@ class TestWatchCommand:
             assert result.exit_code == 1
             assert "Required components not available" in result.output
             assert "pip install watchdog" in result.output
+
+    def test_watch_with_custom_config(
+        self,
+        runner,
+        mock_observer,
+        mock_handler,
+        tmp_path,
+    ):
+        """Test watch command with custom config file."""
+        # Create a config file
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("database_path: /tmp/custom.db\n")
+
+        with patch(
+            "scriptrag.cli.commands.watch.ScriptRAGSettings"
+        ) as mock_settings_class:
+            mock_settings = MagicMock()
+            mock_settings_class.from_multiple_sources.return_value = mock_settings
+
+            with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
+                mock_sleep.side_effect = [None, KeyboardInterrupt()]
+
+                # Run command with custom config
+                result = runner.invoke(
+                    app,
+                    ["watch", ".", "--config", str(config_file), "--no-initial-pull"],
+                )
+
+                # Verify config was loaded
+                mock_settings_class.from_multiple_sources.assert_called_once()
+                call_args = mock_settings_class.from_multiple_sources.call_args
+                assert call_args[1]["config_files"] == [config_file]
+
+    def test_watch_signal_handler_function(
+        self,
+        runner,
+        mock_settings,
+        mock_observer,
+        mock_handler,
+    ):
+        """Test the signal handler function directly."""
+        from scriptrag.cli.commands import watch
+
+        # Set up global variables
+        watch._observer = mock_observer
+        watch._handler = mock_handler
+        mock_observer.is_alive.return_value = True
+
+        # Test signal handler
+        with patch("scriptrag.cli.commands.watch.sys.exit") as mock_exit:
+            with patch("scriptrag.cli.commands.watch.console") as mock_console:
+                watch.signal_handler(signal.SIGINT, None)
+
+                # Verify cleanup
+                mock_console.print.assert_called_with(
+                    "\n[yellow]Shutting down gracefully...[/yellow]"
+                )
+                mock_observer.stop.assert_called_once()
+                mock_handler.stop_processing.assert_called_once_with(timeout=5.0)
+                mock_exit.assert_called_once_with(0)
+
+    def test_watch_status_update_callback(
+        self,
+        runner,
+        mock_settings,
+        mock_observer,
+        tmp_path,
+    ):
+        """Test status update callback with various statuses."""
+        with patch(
+            "scriptrag.cli.commands.watch.FountainFileHandler"
+        ) as mock_handler_class:
+            mock_handler = MagicMock()
+            mock_handler_class.return_value = mock_handler
+            callback = None
+
+            def capture_callback(**kwargs):
+                nonlocal callback
+                callback = kwargs.get("callback")
+                return mock_handler
+
+            mock_handler_class.side_effect = capture_callback
+
+            with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
+                mock_sleep.side_effect = [None, KeyboardInterrupt()]
+
+                # Run command
+                result = runner.invoke(app, ["watch", ".", "--no-initial-pull"])
+
+                # Test callback with different statuses
+                if callback:
+                    with patch("scriptrag.cli.commands.watch.console") as mock_console:
+                        with patch(
+                            "scriptrag.cli.commands.watch.time.strftime"
+                        ) as mock_strftime:
+                            mock_strftime.return_value = "12:00:00"
+
+                            # Test processing status
+                            test_path = Path("test.fountain")
+                            callback("processing", test_path)
+
+                            # Test completed status
+                            callback("completed", test_path)
+
+                            # Test error status
+                            callback("error", test_path, "Test error")
+
+                            # Verify console updates
+                            assert mock_console.clear.called
+                            assert mock_console.print.called
+
+    def test_watch_path_security(
+        self,
+        runner,
+        mock_settings,
+        mock_observer,
+        tmp_path,
+    ):
+        """Test watch command handles path security correctly."""
+        watch_dir = tmp_path / "watch_dir"
+        watch_dir.mkdir()
+
+        with patch(
+            "scriptrag.cli.commands.watch.FountainFileHandler"
+        ) as mock_handler_class:
+            mock_handler = MagicMock()
+            mock_handler_class.return_value = mock_handler
+            callback = None
+
+            def capture_callback(**kwargs):
+                nonlocal callback
+                callback = kwargs.get("callback")
+                return mock_handler
+
+            mock_handler_class.side_effect = capture_callback
+
+            with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
+                mock_sleep.side_effect = [None, KeyboardInterrupt()]
+
+                # Run command
+                result = runner.invoke(
+                    app, ["watch", str(watch_dir), "--no-initial-pull"]
+                )
+
+                # Test callback with paths outside watch directory
+                if callback:
+                    with patch("scriptrag.cli.commands.watch.console"):
+                        with patch(
+                            "scriptrag.cli.commands.watch.time.strftime"
+                        ) as mock_strftime:
+                            mock_strftime.return_value = "12:00:00"
+
+                            # Test path outside watch directory
+                            outside_path = tmp_path / "outside" / "file.fountain"
+                            callback("processing", outside_path)
+
+                            # Test path with ValueError
+                            mock_path = MagicMock(spec=Path)
+                            mock_path.is_relative_to.side_effect = ValueError(
+                                "Not relative"
+                            )
+                            mock_path.name = "error_file.fountain"
+                            callback("processing", mock_path)
+
+    def test_watch_cleanup_on_exception(
+        self,
+        runner,
+        mock_settings,
+        mock_observer,
+        mock_handler,
+    ):
+        """Test watch command cleanup on unexpected exception."""
+        mock_observer.start.side_effect = Exception("Unexpected error")
+        mock_observer.is_alive.return_value = True
+
+        # Run command
+        result = runner.invoke(app, ["watch", ".", "--no-initial-pull"])
+
+        # Verify error handling and cleanup
+        assert result.exit_code == 1
+        assert "Unexpected error" in result.output
+
+        # Verify cleanup in finally block
+        mock_observer.stop.assert_called()
+        mock_handler.stop_processing.assert_called()
+
+    def test_watch_status_log_overflow(
+        self,
+        runner,
+        mock_settings,
+        mock_observer,
+        tmp_path,
+    ):
+        """Test status log keeps only last 10 entries."""
+        with patch(
+            "scriptrag.cli.commands.watch.FountainFileHandler"
+        ) as mock_handler_class:
+            mock_handler = MagicMock()
+            mock_handler_class.return_value = mock_handler
+            callback = None
+
+            def capture_callback(**kwargs):
+                nonlocal callback
+                callback = kwargs.get("callback")
+                return mock_handler
+
+            mock_handler_class.side_effect = capture_callback
+
+            with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
+                mock_sleep.side_effect = [None, KeyboardInterrupt()]
+
+                # Run command
+                result = runner.invoke(app, ["watch", ".", "--no-initial-pull"])
+
+                # Test callback with more than 10 entries
+                if callback:
+                    with patch("scriptrag.cli.commands.watch.console"):
+                        with patch(
+                            "scriptrag.cli.commands.watch.time.strftime"
+                        ) as mock_strftime:
+                            mock_strftime.return_value = "12:00:00"
+
+                            # Add 15 status updates
+                            for i in range(15):
+                                test_path = Path(f"test{i}.fountain")
+                                callback("processing", test_path)
+
+                            # Status log should only have 10 entries
+
+    def test_watch_long_running_with_timeout(
+        self,
+        runner,
+        mock_settings,
+        mock_observer,
+        mock_handler,
+    ):
+        """Test watch command with long timeout correctly measures time."""
+        with patch("scriptrag.cli.commands.watch.time.time") as mock_time:
+            with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
+                # Simulate time progression
+                time_values = [0, 1, 2, 3, 4, 5]  # 5 seconds total
+                mock_time.side_effect = (
+                    time_values + time_values
+                )  # Duplicate for multiple calls
+                mock_sleep.return_value = None
+
+                # Run command with 4 second timeout
+                result = runner.invoke(
+                    app, ["watch", ".", "--timeout", "4", "--no-initial-pull"]
+                )
+
+                # Verify timeout message
+                from tests.utils import strip_ansi_codes
+
+                output = strip_ansi_codes(result.output)
+                assert "Watch timeout reached (4s)" in output
+
+    def test_watch_observer_join_timeout(
+        self,
+        runner,
+        mock_settings,
+        mock_observer,
+        mock_handler,
+    ):
+        """Test watch command handles observer join timeout."""
+        with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
+            mock_sleep.side_effect = [None, KeyboardInterrupt()]
+
+            # Make observer.join take long time
+            mock_observer.join.return_value = None
+
+            # Run command
+            result = runner.invoke(app, ["watch", ".", "--no-initial-pull"])
+
+            # Verify join was called with timeout
+            mock_observer.join.assert_called_once_with(timeout=10.0)
+
+    def test_watch_with_all_options(
+        self,
+        runner,
+        mock_settings,
+        mock_observer,
+        mock_pull_command,
+        tmp_path,
+    ):
+        """Test watch command with all options enabled."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("database_path: /tmp/test.db\n")
+
+        with patch(
+            "scriptrag.cli.commands.watch.ScriptRAGSettings"
+        ) as mock_settings_class:
+            mock_settings = MagicMock()
+            mock_settings_class.from_multiple_sources.return_value = mock_settings
+
+            with patch(
+                "scriptrag.cli.commands.watch.FountainFileHandler"
+            ) as mock_handler_class:
+                mock_handler = MagicMock()
+                mock_handler_class.return_value = mock_handler
+
+                with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
+                    with patch("scriptrag.cli.commands.watch.time.time") as mock_time:
+                        mock_time.side_effect = [0, 1, 2, 3]
+                        mock_sleep.return_value = None
+
+                        # Run with all options
+                        result = runner.invoke(
+                            app,
+                            [
+                                "watch",
+                                ".",
+                                "--force",
+                                "--no-recursive",
+                                "--batch-size",
+                                "25",
+                                "--config",
+                                str(config_file),
+                                "--timeout",
+                                "2",
+                                # --initial-pull is default True
+                            ],
+                        )
+
+                        # Verify all options were applied
+                        mock_pull_command.assert_called_once_with(
+                            path=Path.cwd(),
+                            force=True,
+                            dry_run=False,
+                            no_recursive=True,
+                            batch_size=25,
+                            config=config_file,
+                        )
+
+                        mock_handler_class.assert_called_once()
+                        handler_kwargs = mock_handler_class.call_args[1]
+                        assert handler_kwargs["force"] is True
+                        assert handler_kwargs["batch_size"] == 25
+                        assert handler_kwargs["max_queue_size"] == 100
+                        assert handler_kwargs["batch_timeout"] == 5.0

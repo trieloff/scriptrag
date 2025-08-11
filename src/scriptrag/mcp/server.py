@@ -1,5 +1,6 @@
 """ScriptRAG MCP Server implementation."""
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from mcp.server.fastmcp import FastMCP
@@ -23,7 +24,7 @@ class ServerContext:
 
 
 @asynccontextmanager
-async def lifespan(server: FastMCP):  # noqa: ARG001
+async def lifespan(server: FastMCP) -> AsyncGenerator[ServerContext, None]:  # noqa: ARG001
     """Manage server lifecycle.
 
     Args:
@@ -40,10 +41,10 @@ async def lifespan(server: FastMCP):  # noqa: ARG001
     try:
         from scriptrag.api.database import DatabaseInitializer
 
-        db_init = DatabaseInitializer(settings)
-        if not db_init.database_exists():
+        db_init = DatabaseInitializer()
+        if not settings.database_path.exists():
             logger.info("Initializing database")
-            db_init.initialize()
+            db_init.initialize_database(settings=settings)
             logger.info("Database initialized successfully")
     except Exception as e:
         logger.error("Failed to initialize database", error=str(e))
@@ -60,21 +61,6 @@ mcp = FastMCP("ScriptRAG", lifespan=lifespan)
 # Import and register all tools
 def register_tools() -> None:
     """Register all MCP tools from the tools directory."""
-    from scriptrag.mcp.tools import (
-        get_character,
-        get_scene,
-        get_script,
-        import_script,
-        list_agents,
-        list_characters,
-        list_scenes,
-        list_scripts,
-        run_agent,
-        search_character,
-        search_dialogue,
-        semantic_search,
-    )
-
     # All tools are automatically registered via decorators in their modules
     logger.info("All MCP tools registered successfully")
 

@@ -56,7 +56,8 @@ def isolated_test_environment(request, tmp_path, monkeypatch):
     """
     # Only apply isolation to unit tests, not integration tests
     test_path = str(request.fspath)
-    if "/integration/" in test_path:
+    # Use os.sep for cross-platform compatibility
+    if f"{os.sep}integration{os.sep}" in test_path or "/integration/" in test_path:
         # Skip isolation for integration tests - they should test real behavior
         yield
         return

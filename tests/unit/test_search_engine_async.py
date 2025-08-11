@@ -24,6 +24,9 @@ class TestSearchEngineAsync:
         settings.search_vector_threshold = 10
         settings.llm_embedding_model = "text-embedding-ada-002"
         settings.llm_embedding_dimensions = 1536
+        settings.search_vector_similarity_threshold = 0.3
+        settings.search_vector_result_limit_factor = 0.5
+        settings.search_vector_min_results = 5
         return settings
 
     @pytest.fixture

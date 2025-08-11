@@ -148,7 +148,12 @@ class SearchEngine:
 
                 # Enhance results with vector search
                 try:
-                    vector_limit = max(5, query.limit // 2)
+                    # Use configurable settings for vector search
+                    limit_factor = self.settings.search_vector_result_limit_factor
+                    vector_limit = max(
+                        self.settings.search_vector_min_results,
+                        int(query.limit * limit_factor),
+                    )
                     enhance_fn = self.vector_engine.enhance_results_with_vector_search
                     results = await enhance_fn(
                         conn=conn,

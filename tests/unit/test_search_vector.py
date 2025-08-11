@@ -21,6 +21,9 @@ class TestVectorSearchEngine:
         settings = MagicMock(spec=ScriptRAGSettings)
         settings.llm_embedding_model = "text-embedding-ada-002"
         settings.llm_embedding_dimensions = 1536
+        settings.search_vector_similarity_threshold = 0.3
+        settings.search_vector_result_limit_factor = 0.5
+        settings.search_vector_min_results = 5
         return settings
 
     @pytest.fixture
@@ -70,6 +73,20 @@ class TestVectorSearchEngine:
 
         assert vector_engine.llm_client is None
         assert len(vector_engine._query_embeddings_cache) == 0
+
+    @pytest.mark.asyncio
+    async def test_async_context_manager(self, mock_settings):
+        """Test async context manager for resource management."""
+        with patch("scriptrag.search.vector.get_default_llm_client") as mock_get_client:
+            mock_client = AsyncMock()
+            mock_get_client.return_value = mock_client
+
+            async with VectorSearchEngine(mock_settings) as engine:
+                assert engine.llm_client == mock_client
+                mock_get_client.assert_called_once()
+
+            # After exiting context, client should be cleaned up
+            assert engine.llm_client is None
 
     @pytest.mark.asyncio
     async def test_generate_query_embedding(

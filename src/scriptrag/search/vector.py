@@ -4,6 +4,7 @@ import json
 import sqlite3
 import struct
 from contextlib import suppress
+from types import TracebackType
 
 import numpy as np
 
@@ -42,8 +43,32 @@ class VectorSearchEngine:
 
     async def cleanup(self) -> None:
         """Clean up resources."""
-        self.llm_client = None
-        self._query_embeddings_cache.clear()
+        try:
+            if self.llm_client is not None:
+                # If the client has a cleanup method, call it
+                if hasattr(self.llm_client, "cleanup"):
+                    await self.llm_client.cleanup()
+                elif hasattr(self.llm_client, "close"):
+                    await self.llm_client.close()
+        except Exception as e:
+            logger.warning(f"Error cleaning up LLM client: {e}")
+        finally:
+            self.llm_client = None
+            self._query_embeddings_cache.clear()
+
+    async def __aenter__(self) -> "VectorSearchEngine":
+        """Async context manager entry."""
+        await self.initialize()
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Async context manager exit."""
+        await self.cleanup()
 
     async def generate_query_embedding(self, query_text: str) -> np.ndarray:
         """Generate embedding for a search query.
@@ -63,10 +88,14 @@ class VectorSearchEngine:
             return self._query_embeddings_cache[query_text]
 
         if self.llm_client is None:
-            await self.initialize()
+            try:
+                await self.initialize()
+            except Exception as e:
+                logger.error(f"Failed to initialize LLM client: {e}")
+                raise RuntimeError(f"Failed to initialize LLM client: {e}") from e
 
         if self.llm_client is None:
-            raise RuntimeError("Failed to initialize LLM client")
+            raise RuntimeError("LLM client initialization returned None")
 
         # Generate embedding
         request = EmbeddingRequest(
@@ -295,7 +324,7 @@ class VectorSearchEngine:
                 query=query,
                 query_embedding=query_embedding,
                 limit=limit * 2,  # Get more to allow for deduplication
-                threshold=0.3,  # Lower threshold for wider search
+                threshold=self.settings.search_vector_similarity_threshold,
             )
 
             # Create a set of existing scene IDs for deduplication

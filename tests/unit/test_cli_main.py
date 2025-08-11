@@ -347,13 +347,15 @@ class TestModuleLevelConstants:
         """Test that the expected number of commands are registered."""
         commands = app.registered_commands
 
-        # Should have exactly 6 commands: init, list, ls (alias), analyze, index, search
-        expected_count = 6
+        # Should have exactly 8 commands including init, list, ls alias,
+        # analyze, index, pull, search, and watch
+        expected_count = 8
         actual_count = len(commands)
 
+        command_names = [c.name for c in commands if hasattr(c, "name")]
+
         assert actual_count == expected_count, (
-            f"Expected {expected_count} commands, found {actual_count}: "
-            f"{list(commands.keys())}"
+            f"Expected {expected_count} commands, found {actual_count}: {command_names}"
         )
 
     def test_hidden_commands_configuration(self):

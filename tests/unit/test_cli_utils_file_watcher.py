@@ -1,6 +1,5 @@
 """Unit tests for the file watcher utility."""
 
-import asyncio
 import threading
 import time
 from pathlib import Path
@@ -49,7 +48,7 @@ class TestFountainFileHandler:
         assert handler.force is False
         assert handler.batch_size == 5
         assert handler.callback == mock_callback
-        assert handler.max_queue_size == 10
+        assert handler.event_queue.maxsize == 10  # Check queue's maxsize instead
         assert handler.batch_timeout == 1.0
         assert handler.debounce_seconds == 2.0
         assert len(handler.processing) == 0
@@ -88,14 +87,15 @@ class TestFountainFileHandler:
         assert handler.should_process(path) is True
 
         # Mark as recently processed
-        handler.last_processed[str(path)] = time.time()
+        current_time = time.time()
+        handler.last_processed[str(path)] = current_time
 
         # Immediate check should return False due to debounce
         assert handler.should_process(path) is False
 
         # Mock time to simulate debounce period passing
         with patch("scriptrag.cli.utils.file_watcher.time.time") as mock_time:
-            mock_time.return_value = time.time() + 3  # 3 seconds later
+            mock_time.return_value = current_time + 3  # 3 seconds later
             assert handler.should_process(path) is True
 
     def test_on_modified_with_valid_file(self, handler):
@@ -138,7 +138,7 @@ class TestFountainFileHandler:
     def test_queue_file_handles_full_queue(self, handler):
         """Test _queue_file handles full queue gracefully."""
         # Fill the queue
-        for i in range(handler.max_queue_size):
+        for i in range(handler.event_queue.maxsize):
             handler.event_queue.put(Path(f"/test/script{i}.fountain"))
 
         # Try to add one more
@@ -176,7 +176,11 @@ class TestFountainFileHandler:
         path = Path("/test/script.fountain")
 
         with patch.object(handler, "_pull_single_file") as mock_pull:
-            mock_pull.return_value = asyncio.coroutine(lambda: None)()
+            # Create a coroutine that returns None
+            async def async_noop():
+                return None
+
+            mock_pull.return_value = async_noop()
 
             handler._process_file_sync(path)
 
@@ -237,7 +241,6 @@ class TestFountainFileHandler:
             index_cmd.index.assert_called_once_with(
                 path=path,
                 recursive=False,
-                force=handler.force,
                 dry_run=False,
                 batch_size=1,
             )

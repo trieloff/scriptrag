@@ -246,14 +246,16 @@ class TestPullCommand:
         # Verify success
         assert result.exit_code == 0
 
-        # Verify force was passed to commands
+        # Verify force was passed to analyze command only
+        # (index no longer accepts force)
         assert mock_analyze_cmd.analyze.call_count == 1
         call_kwargs = mock_analyze_cmd.analyze.call_args[1]
         assert call_kwargs["force"] is True
 
+        # Verify index was called (but without force parameter)
         assert mock_index_cmd.index.call_count == 1
         call_kwargs = mock_index_cmd.index.call_args[1]
-        assert call_kwargs["force"] is True
+        assert "force" not in call_kwargs
 
     def test_pull_handles_errors(
         self,

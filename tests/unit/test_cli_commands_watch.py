@@ -3,7 +3,7 @@
 import signal
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -148,42 +148,52 @@ class TestWatchCommand:
         runner,
         mock_settings,
         mock_observer,
-        mock_handler,
     ):
         """Test watch command with force option."""
         # Setup mock with timeout
         with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
             mock_sleep.side_effect = [None, KeyboardInterrupt()]
 
-            # Run command with force
-            runner.invoke(app, ["watch", ".", "--force", "--no-initial-pull"])
+            with patch(
+                "scriptrag.cli.commands.watch.FountainFileHandler"
+            ) as mock_handler_class:
+                mock_handler = MagicMock()
+                mock_handler_class.return_value = mock_handler
 
-            # Verify force was passed to handler
-            assert mock_handler.call_count == 1
-            call_kwargs = mock_handler.call_args[1]
-            assert call_kwargs["force"] is True
+                # Run command with force
+                runner.invoke(app, ["watch", ".", "--force", "--no-initial-pull"])
+
+                # Verify force was passed to handler constructor
+                assert mock_handler_class.call_count == 1
+                call_kwargs = mock_handler_class.call_args[1]
+                assert call_kwargs["force"] is True
 
     def test_watch_with_batch_size(
         self,
         runner,
         mock_settings,
         mock_observer,
-        mock_handler,
     ):
         """Test watch command with custom batch size."""
         # Setup mock with timeout
         with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
             mock_sleep.side_effect = [None, KeyboardInterrupt()]
 
-            # Run command with custom batch size
-            runner.invoke(
-                app, ["watch", ".", "--batch-size", "20", "--no-initial-pull"]
-            )
+            with patch(
+                "scriptrag.cli.commands.watch.FountainFileHandler"
+            ) as mock_handler_class:
+                mock_handler = MagicMock()
+                mock_handler_class.return_value = mock_handler
 
-            # Verify batch size was passed to handler
-            assert mock_handler.call_count == 1
-            call_kwargs = mock_handler.call_args[1]
-            assert call_kwargs["batch_size"] == 20
+                # Run command with custom batch size
+                runner.invoke(
+                    app, ["watch", ".", "--batch-size", "20", "--no-initial-pull"]
+                )
+
+                # Verify batch size was passed to handler constructor
+                assert mock_handler_class.call_count == 1
+                call_kwargs = mock_handler_class.call_args[1]
+                assert call_kwargs["batch_size"] == 20
 
     def test_watch_handles_keyboard_interrupt(
         self,
@@ -246,8 +256,8 @@ class TestWatchCommand:
 
                 # Verify signal handlers were registered
                 assert mock_signal.call_count >= 2
-                mock_signal.assert_any_call(signal.SIGINT, pytest.Any())
-                mock_signal.assert_any_call(signal.SIGTERM, pytest.Any())
+                mock_signal.assert_any_call(signal.SIGINT, ANY)
+                mock_signal.assert_any_call(signal.SIGTERM, ANY)
 
     def test_watch_handles_import_error(
         self,

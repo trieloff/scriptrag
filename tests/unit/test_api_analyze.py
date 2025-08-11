@@ -617,3 +617,209 @@ class TestAnalyzeCommandMissingCoverage:
             # File should NOT be updated
             assert not result.updated
             assert result.error is None
+
+
+class TestAnalyzeCommandBrittleMode:
+    """Test brittle mode functionality for 99% coverage."""
+
+    @pytest.mark.asyncio
+    async def test_analyze_brittle_mode_file_processing_failure(self, tmp_path):
+        """Test brittle=True propagates exceptions when file processing fails."""
+        from scriptrag.api.analyze import AnalyzeCommand
+
+        cmd = AnalyzeCommand()
+
+        # Create a file that will cause a parsing error
+        bad_file = tmp_path / "bad.fountain"
+        bad_file.write_text("Invalid fountain content")
+
+        # Mock parser to raise an exception
+        with patch("scriptrag.api.analyze.FountainParser") as mock_parser:
+            mock_parser.return_value.parse_file.side_effect = RuntimeError(
+                "Parse failed"
+            )
+
+            # Mock ScriptLister to return our bad file
+            with patch("scriptrag.api.analyze.ScriptLister") as mock_lister:
+                from scriptrag.api.list import FountainMetadata
+
+                mock_lister.return_value.list_scripts.return_value = [
+                    FountainMetadata(file_path=bad_file, title="Bad Script")
+                ]
+
+                # Test brittle=True - should propagate exception
+                with pytest.raises(RuntimeError, match="Parse failed"):
+                    await cmd.analyze(path=tmp_path, brittle=True)
+
+    @pytest.mark.asyncio
+    async def test_analyze_brittle_mode_operation_failure(self, tmp_path):
+        """Test brittle=True propagates exceptions at operation level."""
+        from scriptrag.api.analyze import AnalyzeCommand
+
+        cmd = AnalyzeCommand()
+
+        # Mock ScriptLister to raise an exception during the main operation
+        with patch("scriptrag.api.analyze.ScriptLister") as mock_lister:
+            mock_lister.return_value.list_scripts.side_effect = RuntimeError(
+                "Listing failed"
+            )
+
+            # Test brittle=True - should propagate exception
+            with pytest.raises(RuntimeError, match="Listing failed"):
+                await cmd.analyze(path=tmp_path, brittle=True)
+
+    @pytest.mark.asyncio
+    async def test_analyze_brittle_mode_analyzer_failure(self, temp_fountain_file):
+        """Test brittle=True causes analyzer exceptions to propagate (lines 302-307)."""
+        from scriptrag.analyzers.base import BaseSceneAnalyzer
+        from scriptrag.api.analyze import AnalyzeCommand
+
+        class BrittleFailingAnalyzer(BaseSceneAnalyzer):
+            name = "brittle_failing"
+
+            async def analyze(self, scene: dict) -> dict:
+                raise RuntimeError("Analyzer failed in brittle mode")
+
+        cmd = AnalyzeCommand(analyzers=[BrittleFailingAnalyzer()])
+
+        # Test brittle=True - should propagate analyzer exception
+        with pytest.raises(RuntimeError, match="Analyzer failed in brittle mode"):
+            await cmd.analyze(path=temp_fountain_file.parent, force=True, brittle=True)
+
+    @pytest.mark.asyncio
+    async def test_analyze_brittle_false_file_processing_failure(self, tmp_path):
+        """Test brittle=False logs and continues when file processing fails."""
+        from scriptrag.api.analyze import AnalyzeCommand
+
+        cmd = AnalyzeCommand()
+
+        # Create a file that will cause a parsing error
+        bad_file = tmp_path / "bad.fountain"
+        bad_file.write_text("Invalid fountain content")
+
+        # Mock parser to raise an exception
+        with patch("scriptrag.api.analyze.FountainParser") as mock_parser:
+            mock_parser.return_value.parse_file.side_effect = RuntimeError(
+                "Parse failed"
+            )
+
+            # Mock ScriptLister to return our bad file
+            with patch("scriptrag.api.analyze.ScriptLister") as mock_lister:
+                from scriptrag.api.list import FountainMetadata
+
+                mock_lister.return_value.list_scripts.return_value = [
+                    FountainMetadata(file_path=bad_file, title="Bad Script")
+                ]
+
+                # Test brittle=False - should not raise, but capture error
+                result = await cmd.analyze(path=tmp_path, brittle=False)
+
+                assert len(result.errors) == 1
+                assert "Parse failed" in result.errors[0]
+                assert len(result.files) == 1
+                assert result.files[0].error == "Parse failed"
+                assert not result.files[0].updated
+
+    @pytest.mark.asyncio
+    async def test_analyze_brittle_false_operation_failure(self, tmp_path):
+        """Test brittle=False (default) logs and continues when operation fails."""
+        from scriptrag.api.analyze import AnalyzeCommand
+
+        cmd = AnalyzeCommand()
+
+        # Mock ScriptLister to raise an exception during the main operation
+        with patch("scriptrag.api.analyze.ScriptLister") as mock_lister:
+            mock_lister.return_value.list_scripts.side_effect = RuntimeError(
+                "Listing failed"
+            )
+
+            # Test brittle=False - should not raise, but capture error
+            result = await cmd.analyze(path=tmp_path, brittle=False)
+
+            assert len(result.errors) == 1
+            assert "Analyze failed: Listing failed" in result.errors[0]
+
+    @pytest.mark.asyncio
+    async def test_analyze_brittle_false_analyzer_failure(self, temp_fountain_file):
+        """Test brittle=False (default) logs and continues when analyzer fails."""
+        from scriptrag.analyzers.base import BaseSceneAnalyzer
+        from scriptrag.api.analyze import AnalyzeCommand
+
+        class NonBrittleFailingAnalyzer(BaseSceneAnalyzer):
+            name = "non_brittle_failing"
+
+            async def analyze(self, scene: dict) -> dict:
+                raise RuntimeError("Analyzer failed in non-brittle mode")
+
+        cmd = AnalyzeCommand(analyzers=[NonBrittleFailingAnalyzer()])
+
+        # Test brittle=False - should not raise, but log warning and continue
+        result = await cmd.analyze(
+            path=temp_fountain_file.parent, force=True, brittle=False
+        )
+
+        # Should still complete successfully
+        assert len(result.errors) == 0  # Analyzer failures are warned but not in errors
+        assert len(result.files) == 1
+        assert result.files[0].updated  # File should still be processed
+
+    def test_load_analyzer_builtin_success(self, analyze_command):
+        """Test loading a built-in analyzer successfully (lines 109-112)."""
+        # Mock the builtin analyzers module
+        mock_analyzer_class = MockAnalyzer
+
+        with patch(
+            "scriptrag.analyzers.builtin.BUILTIN_ANALYZERS",
+            {"test_builtin": mock_analyzer_class},
+        ):
+            analyze_command.load_analyzer("test_builtin")
+
+            assert len(analyze_command.analyzers) == 1
+            assert isinstance(analyze_command.analyzers[0], MockAnalyzer)
+
+    def test_load_analyzer_builtin_import_error(self, analyze_command):
+        """Test builtin analyzer loading with ImportError (lines 113-114)."""
+        import builtins
+
+        # Mock ImportError when trying to import builtin analyzers
+        original_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            if "scriptrag.analyzers.builtin" in name:
+                raise ImportError("Cannot import builtin analyzers")
+            return original_import(name, *args, **kwargs)
+
+        with patch.object(builtins, "__import__", mock_import):
+            # Should fall back to agent loading and eventually fail
+            with pytest.raises(ValueError, match="Unknown analyzer: nonexistent"):
+                analyze_command.load_analyzer("nonexistent")
+
+    @pytest.mark.asyncio
+    async def test_dry_run_with_script_context(self, temp_fountain_file):
+        """Test dry run mode sets script context on analyzers (line 243)."""
+        from scriptrag.analyzers.base import BaseSceneAnalyzer
+        from scriptrag.api.analyze import AnalyzeCommand
+
+        class ScriptContextAnalyzer(BaseSceneAnalyzer):
+            name = "script_context"
+            script = None  # Will be set by analyze command
+
+            async def analyze(self, scene: dict) -> dict:
+                return {"has_script_context": self.script is not None}
+
+        analyzer = ScriptContextAnalyzer()
+        cmd = AnalyzeCommand(analyzers=[analyzer])
+
+        # Test dry run mode - should set script context but not write
+        result = await cmd.analyze(
+            path=temp_fountain_file.parent, force=True, dry_run=True
+        )
+
+        # Analyzer should have received script context
+        assert analyzer.script is not None
+        assert result.files[0].updated  # Shows scenes would be updated
+        assert result.files[0].scenes_updated == 2  # Two scenes in test file
+
+        # But file should not actually be modified
+        content = temp_fountain_file.read_text()
+        assert "SCRIPTRAG-META-START" not in content

@@ -255,31 +255,34 @@ class AnalyzeCommand:
                         updated_scenes.append(scene)
                         continue
 
-                    # Run analyzers
-                    metadata: dict[str, Any] = {
-                        "content_hash": scene.content_hash,
-                        "analyzed_at": datetime.now().isoformat(),
-                        "analyzers": {},
-                    }
+                    # Only process metadata if not in dry run mode
+                    # (Should be unreachable due to continue above, but defensive)
+                    if not dry_run:
+                        # Run analyzers
+                        metadata: dict[str, Any] = {
+                            "content_hash": scene.content_hash,
+                            "analyzed_at": datetime.now().isoformat(),
+                            "analyzers": {},
+                        }
 
-                    for analyzer in self.analyzers:
-                        try:
-                            result = await analyzer.analyze(scene_data)
-                            analyzer_result = {
-                                "result": result,
-                            }
-                            if hasattr(analyzer, "version"):  # pragma: no cover
-                                analyzer_result["version"] = analyzer.version
-                            metadata["analyzers"][analyzer.name] = analyzer_result
-                        except Exception as e:  # pragma: no cover
-                            logger.error(
-                                f"Analyzer {analyzer.name} failed on "
-                                f"scene {scene.number}: {e}"
-                            )
+                        for analyzer in self.analyzers:
+                            try:
+                                result = await analyzer.analyze(scene_data)
+                                analyzer_result = {
+                                    "result": result,
+                                }
+                                if hasattr(analyzer, "version"):  # pragma: no cover
+                                    analyzer_result["version"] = analyzer.version
+                                metadata["analyzers"][analyzer.name] = analyzer_result
+                            except Exception as e:  # pragma: no cover
+                                logger.error(
+                                    f"Analyzer {analyzer.name} failed on "
+                                    f"scene {scene.number}: {e}"
+                                )
 
-                    # Update scene metadata
-                    scene.update_boneyard(metadata)
-                    updated_scenes.append(scene)
+                        # Update scene metadata only if not in dry run mode
+                        scene.update_boneyard(metadata)
+                        updated_scenes.append(scene)
 
             # Clean up analyzers
             for analyzer in self.analyzers:

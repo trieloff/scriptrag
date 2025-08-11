@@ -252,7 +252,7 @@ class TestFountainFileHandler:
 
         with (
             patch("scriptrag.cli.utils.file_watcher.DatabaseOperations") as mock_db_ops,
-            patch("scriptrag.cli.utils.file_watcher.DatabaseInitializer") as mock_init,
+            patch("scriptrag.api.DatabaseInitializer") as mock_init,
             patch("scriptrag.cli.utils.file_watcher.AnalyzeCommand") as mock_analyze,
             patch("scriptrag.cli.utils.file_watcher.IndexCommand") as mock_index,
         ):

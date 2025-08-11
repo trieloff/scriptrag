@@ -237,6 +237,11 @@ class AnalyzeCommand:
             updated_scenes = []
             for scene in script.scenes:
                 if force or self._scene_needs_update(scene):
+                    # In dry run mode, just track that we would update this scene
+                    if dry_run:
+                        updated_scenes.append(scene)
+                        continue
+
                     # Build scene data for analyzers
                     scene_data = {
                         "content": scene.content,
@@ -272,11 +277,8 @@ class AnalyzeCommand:
                                 f"scene {scene.number}: {e}"
                             )
 
-                    # In dry run mode, don't modify the original scene objects
-                    if not dry_run:
-                        # Update scene metadata only if not in dry run mode
-                        scene.update_boneyard(metadata)
-
+                    # Update scene metadata
+                    scene.update_boneyard(metadata)
                     updated_scenes.append(scene)
 
             # Clean up analyzers

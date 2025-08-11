@@ -3211,6 +3211,7 @@ dependencies = [
     { name = "tenacity" },
     { name = "typer" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "watchdog" },
 ]
 
 [package.optional-dependencies]
@@ -3332,6 +3333,7 @@ requires-dist = [
     { name = "types-requests", marker = "extra == 'dev'", specifier = ">=2.31.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
     { name = "vulture", marker = "extra == 'dev'", specifier = ">=2.10" },
+    { name = "watchdog", specifier = ">=3.0.0" },
 ]
 provides-extras = ["dev", "test", "docs"]
 

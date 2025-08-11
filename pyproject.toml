@@ -60,6 +60,8 @@ dependencies = [
     # HTTP requests (used in CLI)
     "requests>=2.31.0",
     "markdown-it-py>=3.0.0",
+    # File system monitoring
+    "watchdog>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -212,7 +214,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "S101", "S110"]
+"tests/*" = ["D", "S101", "S110", "S108", "ARG001", "ARG002", "F841", "SIM117"]
 "src/scriptrag/config/settings.py" = ["N805"]  # Pydantic field validators use cls, not self
 
 [tool.ruff.lint.pydocstyle]

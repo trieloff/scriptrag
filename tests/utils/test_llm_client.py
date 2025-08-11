@@ -43,7 +43,7 @@ class TestClaudeCodeProvider:
     async def test_is_available_with_sdk_no_env(self):
         """Test availability check with SDK but not in Claude environment."""
         # Remove PATH to simulate claude executable not available
-        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):  # noqa: S108
+        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):
             provider = ClaudeCodeProvider()
             # Clear env vars to ensure no Claude environment markers
             with patch.dict(os.environ, {}, clear=True):
@@ -85,7 +85,7 @@ class TestClaudeCodeProvider:
     async def test_complete_not_available(self):
         """Test completion when claude executable is not available."""
         # Remove PATH to simulate claude executable not available
-        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):  # noqa: S108
+        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):
             provider = ClaudeCodeProvider()
 
             request = CompletionRequest(
@@ -602,7 +602,7 @@ class TestLLMClient:
     async def test_complete_without_model(self):
         """Test completion without specifying model."""
         # Remove PATH to disable Claude Code
-        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):  # noqa: S108
+        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):
             client = LLMClient()
 
             # Mock provider with models

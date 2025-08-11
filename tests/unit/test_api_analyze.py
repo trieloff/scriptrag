@@ -26,14 +26,56 @@ def analyze_command():
 
 
 @pytest.fixture
-def temp_fountain_file(tmp_path):
-    """Copy test fountain file to temp directory."""
-    import shutil
-
+def temp_fountain_file(tmp_path, request):
+    """Copy test fountain file to temp directory with unique name per test."""
     fixtures_dir = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
     source_file = fixtures_dir / "test_script.fountain"
-    file_path = tmp_path / "test_script.fountain"
-    shutil.copy2(source_file, file_path)
+
+    # Ensure we're reading from the correct location (absolute path)
+    source_file = source_file.resolve()
+
+    # Use a unique filename based on the test name to avoid any collision
+    test_name = request.node.name.replace("[", "_").replace("]", "_").replace(" ", "_")
+    # Add timestamp and random suffix to ensure uniqueness even in parallel execution
+    import random
+    import time
+
+    unique_suffix = f"{int(time.time() * 1000)}_{random.randint(1000, 9999)}"  # noqa: S311
+    file_path = tmp_path / f"{test_name}_{unique_suffix}_test_script.fountain"
+
+    # Ensure temp path is fully resolved to avoid any path confusion
+    file_path = file_path.resolve()
+
+    # Read content and write fresh to avoid any metadata issues
+    # Use explicit encoding to ensure consistent behavior across platforms
+    content = source_file.read_text(encoding="utf-8")
+
+    # Double-check that source content is clean (no metadata)
+    if "SCRIPTRAG-META-START" in content:
+        # The source fixture is contaminated - try to extract clean content
+        import warnings
+
+        warnings.warn(
+            f"Source fixture file is contaminated with metadata: {source_file}\n"
+            f"Attempting to extract clean content...",
+            stacklevel=2,
+        )
+        # Extract content before metadata section
+        content = content.split("SCRIPTRAG-META-START")[0].rstrip()
+
+    # Write to temp file with explicit encoding
+    file_path.write_text(content, encoding="utf-8")
+
+    # Verify the written file is clean
+    written_content = file_path.read_text(encoding="utf-8")
+    assert "SCRIPTRAG-META-START" not in written_content, (
+        f"Written file has metadata immediately after creation: {file_path}"
+    )
+
+    # Ensure we return the temp file, not the source
+    assert file_path != source_file, "Fixture must return temp file, not source!"
+    assert str(tmp_path) in str(file_path), "File must be in temp directory!"
+
     return file_path
 
 
@@ -129,6 +171,12 @@ class TestAnalyzeCommand:
     @pytest.mark.asyncio
     async def test_analyze_dry_run(self, analyze_command, temp_fountain_file):
         """Test analyze in dry run mode."""
+        # Check initial file content
+        initial_content = temp_fountain_file.read_text()
+        assert "SCRIPTRAG-META-START" not in initial_content, (
+            f"File already has metadata before test! Content:\n{initial_content}"
+        )
+
         result = await analyze_command.analyze(
             path=temp_fountain_file.parent,
             force=True,
@@ -531,7 +579,7 @@ class TestAnalyzeCommandMissingCoverage:
             def version(self):
                 return "1.0"
 
-            async def analyze(self, scene):  # noqa: ARG002
+            async def analyze(self, scene):
                 return {"test": "data"}
 
         cmd.register_analyzer("test", TestAnalyzer())

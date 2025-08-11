@@ -3,27 +3,3 @@ Title: Nested Script
 EXT. PARK - DAY
 
 An outdoor scene.
-
-/* SCRIPTRAG-META-START
-{
-  "content_hash": "a4994be18d7288f1",
-  "analyzed_at": "2025-08-11T07:32:36.692430",
-  "analyzers": {
-    "props_inventory": {
-      "result": {
-        "props": [],
-        "summary": {
-          "total_props": 0,
-          "hero_props": 0,
-          "requires_action": 0,
-          "categories": []
-        },
-        "analyzer": "props_inventory",
-        "version": "1.0",
-        "property": "props_inventory"
-      },
-      "version": "1.0"
-    }
-  }
-}
-SCRIPTRAG-META-END */

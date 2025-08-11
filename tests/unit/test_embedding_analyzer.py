@@ -111,7 +111,7 @@ class TestSceneEmbeddingAnalyzer:
         assert path == expected
 
     @pytest.mark.asyncio
-    async def test_initialize(self, analyzer_config, tmp_path, mock_repo):  # noqa: ARG002
+    async def test_initialize(self, analyzer_config, tmp_path, mock_repo):
         """Test analyzer initialization."""
         analyzer = SceneEmbeddingAnalyzer(analyzer_config)
 
@@ -178,7 +178,7 @@ class TestSceneEmbeddingAnalyzer:
         tmp_path,
         mock_llm_client,
         sample_scene,
-        mock_repo,  # noqa: ARG002
+        mock_repo,
     ):
         """Test loading embedding from file."""
         analyzer = SceneEmbeddingAnalyzer(analyzer_config)
@@ -238,7 +238,7 @@ class TestSceneEmbeddingAnalyzer:
         tmp_path,
         mock_llm_client,
         sample_scene,
-        mock_repo,  # noqa: ARG002
+        mock_repo,
     ):
         """Test successful scene analysis."""
         analyzer = SceneEmbeddingAnalyzer(analyzer_config)

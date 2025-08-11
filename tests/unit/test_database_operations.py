@@ -168,7 +168,7 @@ class TestDatabaseOperations:
         # After initialization
         assert initialized_db.check_database_exists()
 
-    def test_get_existing_script(self, initialized_db, sample_script):  # noqa: ARG002
+    def test_get_existing_script(self, initialized_db, sample_script):
         """Test getting existing script record."""
         file_path = Path("/test/script.fountain")
 

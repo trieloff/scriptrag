@@ -170,7 +170,7 @@ class TestListCommand:
         script.write_text("Title: Test\n\nFADE IN:")
 
         # Mock read_text to raise an error
-        def mock_read_text(self, encoding=None):  # noqa: ARG001
+        def mock_read_text(self, encoding=None):
             raise PermissionError("Cannot read file")
 
         monkeypatch.setattr(Path, "read_text", mock_read_text)
@@ -239,7 +239,7 @@ class TestListCommand:
         from scriptrag.api import ScriptLister
 
         # Mock the list_scripts method to raise an exception
-        def mock_list_scripts(*args, **kwargs):  # noqa: ARG001
+        def mock_list_scripts(*args, **kwargs):
             raise RuntimeError("Database connection failed")
 
         monkeypatch.setattr(ScriptLister, "list_scripts", mock_list_scripts)

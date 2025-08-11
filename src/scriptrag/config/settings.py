@@ -116,6 +116,23 @@ class ScriptRAGSettings(BaseSettings):
         description="Word count threshold for automatic vector search",
         ge=1,
     )
+    search_vector_similarity_threshold: float = Field(
+        default=0.3,
+        description="Minimum similarity score for vector search results",
+        ge=0.0,
+        le=1.0,
+    )
+    search_vector_result_limit_factor: float = Field(
+        default=0.5,
+        description="Factor of query limit to use for vector results",
+        ge=0.1,
+        le=1.0,
+    )
+    search_vector_min_results: int = Field(
+        default=5,
+        description="Minimum number of vector results to fetch",
+        ge=1,
+    )
 
     # LLM settings
     llm_provider: str | None = Field(
@@ -137,6 +154,10 @@ class ScriptRAGSettings(BaseSettings):
     llm_embedding_model: str | None = Field(
         default=None,
         description="Default model to use for embeddings",
+    )
+    llm_embedding_dimensions: int | None = Field(
+        default=None,
+        description="Dimensions for embedding vectors (e.g., 1536)",
     )
     llm_temperature: float = Field(
         default=0.7,

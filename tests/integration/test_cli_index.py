@@ -63,7 +63,6 @@ class TestIndexCommand:
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.stdout)
         assert "Index analyzed Fountain files" in clean_output
-        assert "--force" in clean_output
         assert "--dry-run" in clean_output
         assert "--batch-size" in clean_output
 
@@ -196,10 +195,10 @@ class TestIndexCommand:
         cursor = conn.execute("SELECT COUNT(*) as count FROM scripts")
         assert cursor.fetchone()[0] == 1  # Still just one script
 
-        # Now force re-index
+        # Now re-index
         result = runner.invoke(
             app,
-            ["index", str(script_dir), "--force"],
+            ["index", str(script_dir)],
         )
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.stdout)
@@ -439,11 +438,11 @@ New dialogue.
 """
         script_path.write_text(content_v2)
 
-        # Re-index with force
+        # Re-index the script
         # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
-            ["index", str(tmp_path), "--force"],
+            ["index", str(tmp_path)],
         )
         assert result.exit_code == 0
 

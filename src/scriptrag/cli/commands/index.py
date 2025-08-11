@@ -37,7 +37,9 @@ def index_command(
     ] = None,
     force: Annotated[
         bool,
-        typer.Option("--force", "-f", help="Force re-indexing of all scripts"),
+        typer.Option(
+            "--force", "-f", help="[Deprecated] Scripts are always re-indexed now"
+        ),
     ] = False,
     dry_run: Annotated[
         bool,
@@ -73,10 +75,14 @@ def index_command(
     This command:
     1. Finds all Fountain files with boneyard metadata
     2. Parses the scripts and extracts structured data
-    3. Stores scripts, scenes, characters, dialogues, and actions in the database
-    4. Creates relationships between entities for graph-based queries
+    3. Re-indexes all scripts to ensure data consistency
+    4. Stores scripts, scenes, characters, dialogues, and actions in the database
+    5. Creates relationships between entities for graph-based queries
 
     The database must be initialized first with 'scriptrag init'.
+
+    Note: Scripts are always re-indexed to ensure the database reflects the current
+    state of the files. The --force flag is deprecated.
     Scripts should be analyzed first with 'scriptrag analyze' to add metadata.
     """
     try:

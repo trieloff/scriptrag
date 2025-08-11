@@ -353,9 +353,9 @@ class TestSceneIndexUpdates:
         scenes_before = query_scenes(temp_db)
         assert len(scenes_before) == 4
 
-        # Update to v3 (2 scenes)
+        # Update to v3 (2 scenes) - without force flag to verify it works by default
         create_script_v3_with_removal(script_path)
-        result = await index_command.index(path=tmp_path, force=True)
+        result = await index_command.index(path=tmp_path, force=False)
 
         assert result.total_scripts_updated == 1
         assert result.total_scenes_indexed == 2
@@ -481,7 +481,7 @@ class TestSceneIndexUpdates:
         assert script_count == 1
 
     async def test_scene_updates_without_force(self, index_command, temp_db, tmp_path):
-        """Test that scene updates WITHOUT force flag show the issue."""
+        """Test that scene updates now work correctly without force flag."""
         script_path = tmp_path / "test.fountain"
 
         # Initial index with 3 scenes
@@ -499,22 +499,23 @@ class TestSceneIndexUpdates:
         create_script_v2_with_insertion(script_path)
         result = await index_command.index(path=tmp_path, force=False)
 
-        # Check if it thinks it needs to update
-        assert result.total_scripts_updated == 0  # Won't update without force
-        assert result.total_scripts_indexed == 0  # Won't re-index without force
+        # Now it should update automatically without force
+        assert result.total_scripts_updated == 1
+        assert result.total_scenes_indexed == 4
 
-        # The database still has old data
+        # The database should have the new data
         scenes = query_scenes(temp_db)
-        assert len(scenes) == 3  # Still has 3 scenes, not 4
+        assert len(scenes) == 4  # Now has 4 scenes
+        assert scenes[1][1] == "INT. NEW SCENE INSERTED - MORNING"
 
-        # Now try with force=True to see the difference
+        # Verify the force flag still works (for backward compatibility)
+        create_script_v3_with_removal(script_path)
         result = await index_command.index(path=tmp_path, force=True)
         assert result.total_scripts_updated == 1
 
-        # Now it should have 4 scenes
+        # Should now have 2 scenes
         scenes = query_scenes(temp_db)
-        assert len(scenes) == 4
-        assert scenes[1][1] == "INT. NEW SCENE INSERTED - MORNING"
+        assert len(scenes) == 2
 
     async def test_scene_content_hash_updates(self, index_command, temp_db, tmp_path):
         """Test that scene content hashes are properly updated."""

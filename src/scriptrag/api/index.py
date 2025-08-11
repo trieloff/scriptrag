@@ -141,11 +141,9 @@ class IndexCommand:
 
             logger.info(f"Found {len(scripts)} Fountain files")
 
-            # Step 2: Filter scripts that need indexing
-            if not force:
-                scripts_to_index = await self._filter_scripts_for_indexing(scripts)
-            else:
-                scripts_to_index = scripts
+            # Step 2: Process all scripts (always re-index to ensure data consistency)
+            # The force parameter is now deprecated but kept for backward compatibility
+            scripts_to_index = scripts
 
             if not scripts_to_index:
                 logger.info("No scripts need indexing")
@@ -334,8 +332,8 @@ class IndexCommand:
                 existing = self.db_ops.get_existing_script(conn, file_path)
                 is_update = existing is not None
 
-                # Clear existing data if forcing or updating
-                if force and existing and existing.id is not None:
+                # Always clear existing data when updating to ensure consistency
+                if existing and existing.id is not None:
                     self.db_ops.clear_script_data(conn, existing.id)
 
                 # Upsert script

@@ -169,6 +169,26 @@ class ScriptRAGSettings(BaseSettings):
         default=None,
         description="Default max tokens for completions",
     )
+    llm_force_static_models: bool = Field(
+        default=False,
+        description="Force use of static model lists instead of dynamic discovery",
+    )
+    llm_model_cache_ttl: int = Field(
+        default=3600,
+        description="TTL in seconds for cached model lists (0 to disable caching)",
+        ge=0,
+    )
+
+    # Bible-specific settings
+    bible_embeddings_path: str = Field(
+        default="embeddings/bible",
+        description="Path for storing bible chunk embeddings in Git LFS",
+    )
+    bible_max_file_size: int = Field(
+        default=10 * 1024 * 1024,  # 10 MB
+        description="Maximum size for bible files in bytes",
+        gt=0,
+    )
 
     @field_validator("database_path", "log_file", mode="before")
     @classmethod

@@ -5,10 +5,11 @@ import contextlib
 import json
 import os
 import time
-from typing import Any
+from typing import Any, ClassVar
 
-from scriptrag.config import get_logger
+from scriptrag.config import get_logger, get_settings
 from scriptrag.llm.base import BaseLLMProvider
+from scriptrag.llm.model_discovery import ClaudeCodeModelDiscovery
 from scriptrag.llm.models import (
     CompletionRequest,
     CompletionResponse,
@@ -26,10 +27,69 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
     provider_type = LLMProvider.CLAUDE_CODE
 
+    # Static model list as fallback
+    STATIC_MODELS: ClassVar[list[Model]] = [
+        Model(
+            id="claude-3-opus-20240229",
+            name="Claude 3 Opus",
+            provider=LLMProvider.CLAUDE_CODE,
+            capabilities=["completion", "chat"],
+            context_window=200000,
+            max_output_tokens=4096,
+        ),
+        Model(
+            id="claude-3-sonnet-20240229",
+            name="Claude 3 Sonnet",
+            provider=LLMProvider.CLAUDE_CODE,
+            capabilities=["completion", "chat"],
+            context_window=200000,
+            max_output_tokens=4096,
+        ),
+        Model(
+            id="claude-3-haiku-20240307",
+            name="Claude 3 Haiku",
+            provider=LLMProvider.CLAUDE_CODE,
+            capabilities=["completion", "chat"],
+            context_window=200000,
+            max_output_tokens=4096,
+        ),
+        Model(
+            id="claude-3-5-sonnet-20241022",
+            name="Claude 3.5 Sonnet",
+            provider=LLMProvider.CLAUDE_CODE,
+            capabilities=["completion", "chat"],
+            context_window=200000,
+            max_output_tokens=8192,
+        ),
+        Model(
+            id="claude-3-5-haiku-20241022",
+            name="Claude 3.5 Haiku",
+            provider=LLMProvider.CLAUDE_CODE,
+            capabilities=["completion", "chat"],
+            context_window=200000,
+            max_output_tokens=8192,
+        ),
+    ]
+
     def __init__(self) -> None:
         """Initialize Claude Code provider."""
         self.sdk_available = False
         self._check_sdk()
+
+        # Initialize model discovery
+        settings = get_settings()
+
+        self.model_discovery = ClaudeCodeModelDiscovery(
+            provider_name="claude_code",
+            static_models=self.STATIC_MODELS,
+            cache_ttl=(
+                settings.llm_model_cache_ttl
+                if settings.llm_model_cache_ttl > 0
+                else None
+            ),
+            use_cache=settings.llm_model_cache_ttl > 0,
+            force_static=settings.llm_force_static_models,
+        )
 
     def _check_sdk(self) -> None:
         """Check if Claude Code SDK and executable are available."""
@@ -95,37 +155,8 @@ class ClaudeCodeProvider(BaseLLMProvider):
         )
 
     async def list_models(self) -> list[Model]:
-        """List available Claude models."""
-        # TODO: Implement dynamic model discovery when Claude Code SDK supports it
-        # Currently the SDK doesn't provide a way to list available models,
-        # so we return a static list that may become outdated.
-        # This should be updated when the SDK adds model enumeration support.
-        return [
-            Model(
-                id="claude-3-opus-20240229",
-                name="Claude 3 Opus",
-                provider=self.provider_type,
-                capabilities=["completion", "chat"],
-                context_window=200000,
-                max_output_tokens=4096,
-            ),
-            Model(
-                id="claude-3-sonnet-20240229",
-                name="Claude 3 Sonnet",
-                provider=self.provider_type,
-                capabilities=["completion", "chat"],
-                context_window=200000,
-                max_output_tokens=4096,
-            ),
-            Model(
-                id="claude-3-haiku-20240307",
-                name="Claude 3 Haiku",
-                provider=self.provider_type,
-                capabilities=["completion", "chat"],
-                context_window=200000,
-                max_output_tokens=4096,
-            ),
-        ]
+        """List available Claude models using dynamic discovery with fallback."""
+        return await self.model_discovery.discover_models()
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         """Generate completion using Claude Code SDK."""

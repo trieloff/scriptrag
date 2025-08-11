@@ -18,51 +18,18 @@ ALICE nods and sits down.
 /* SCRIPTRAG-META-START
 {
   "content_hash": "830dda1fe63b0bcd",
-  "analyzed_at": "2025-08-11T05:46:09.022206",
+  "analyzed_at": "2025-08-11T07:38:13.512585",
   "analyzers": {
     "props_inventory": {
       "result": {
         "props": [
           {
-            "name": "coffee shop door",
-            "category": "furniture",
-            "description": "Entry door to the coffee shop that Alice enters through",
-            "significance": "practical",
-            "action_required": true,
-            "quantity": 1,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
-            "name": "chair",
-            "category": "furniture",
-            "description": "Chair that Alice sits in",
-            "significance": "practical",
-            "action_required": true,
-            "quantity": 1,
-            "mentions": [
-              "action"
-            ]
-          },
-          {
-            "name": "table",
-            "category": "furniture",
-            "description": "Table at which Alice sits",
-            "significance": "practical",
-            "action_required": false,
-            "quantity": 1,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
             "name": "coffee cups",
             "category": "food_beverage",
-            "description": "Background coffee cups for atmosphere in bustling coffee shop",
-            "significance": "background",
-            "action_required": false,
-            "quantity": 10,
+            "description": "Coffee cups/mugs for serving coffee in the shop",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 2,
             "mentions": [
               "implied"
             ]
@@ -70,7 +37,7 @@ ALICE nods and sits down.
           {
             "name": "coffee",
             "category": "food_beverage",
-            "description": "Alice's usual coffee order referenced by Bob",
+            "description": "Coffee beverage, Alice's usual order",
             "significance": "practical",
             "action_required": false,
             "quantity": 1,
@@ -90,9 +57,42 @@ ALICE nods and sits down.
             ]
           },
           {
+            "name": "chair",
+            "category": "furniture",
+            "description": "Chair for Alice to sit in",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "action"
+            ]
+          },
+          {
+            "name": "table",
+            "category": "furniture",
+            "description": "Coffee shop table where Alice sits",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee shop furniture",
+            "category": "furniture",
+            "description": "Various tables and chairs for bustling coffee shop atmosphere",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 10,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
             "name": "coffee machine",
             "category": "tools_equipment",
-            "description": "Equipment behind counter for making coffee",
+            "description": "Espresso machine or coffee maker behind counter",
             "significance": "background",
             "action_required": false,
             "quantity": 1,
@@ -112,37 +112,27 @@ ALICE nods and sits down.
             ]
           },
           {
-            "name": "other chairs",
-            "category": "furniture",
-            "description": "Seating for other customers in bustling coffee shop",
+            "name": "cash register",
+            "category": "technology",
+            "description": "Point of sale system at counter",
             "significance": "background",
             "action_required": false,
-            "quantity": 15,
-            "mentions": [
-              "implied"
-            ]
-          },
-          {
-            "name": "other tables",
-            "category": "furniture",
-            "description": "Tables for other customers in bustling coffee shop",
-            "significance": "background",
-            "action_required": false,
-            "quantity": 5,
+            "quantity": 1,
             "mentions": [
               "implied"
             ]
           }
         ],
         "summary": {
-          "total_props": 10,
+          "total_props": 9,
           "hero_props": 0,
           "requires_action": 2,
           "categories": [
-            "furniture",
             "food_beverage",
+            "furniture",
             "tools_equipment",
-            "miscellaneous"
+            "miscellaneous",
+            "technology"
           ]
         },
         "analyzer": "props_inventory",
@@ -154,6 +144,8 @@ ALICE nods and sits down.
   }
 }
 SCRIPTRAG-META-END */
+
+
 
 EXT. PARK - NIGHT
 
@@ -169,7 +161,7 @@ Yeah, quite different from the morning rush.
 /* SCRIPTRAG-META-START
 {
   "content_hash": "c4f09000c61a7d01",
-  "analyzed_at": "2025-08-11T05:46:30.292550",
+  "analyzed_at": "2025-08-11T07:38:42.995169",
   "analyzers": {
     "props_inventory": {
       "result": {

@@ -260,6 +260,8 @@ class TestSearchAPISearch:
             mode=SearchMode.AUTO,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
         # Verify engine was called
@@ -314,6 +316,8 @@ class TestSearchAPISearch:
             mode=SearchMode.AUTO,
             limit=20,
             offset=10,
+            include_bible=True,
+            only_bible=False,
         )
 
     @patch("scriptrag.api.search.QueryParser")
@@ -346,6 +350,8 @@ class TestSearchAPISearch:
             mode=SearchMode.STRICT,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     @patch("scriptrag.api.search.QueryParser")
@@ -378,6 +384,8 @@ class TestSearchAPISearch:
             mode=SearchMode.FUZZY,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     @patch("scriptrag.api.search.QueryParser")
@@ -410,6 +418,8 @@ class TestSearchAPISearch:
             mode=SearchMode.AUTO,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     @patch("scriptrag.api.search.QueryParser")
@@ -443,6 +453,8 @@ class TestSearchAPISearch:
             mode=SearchMode.STRICT,  # Should be strict, not fuzzy
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     @patch("scriptrag.api.search.QueryParser")
@@ -606,6 +618,8 @@ class TestSearchAPIEdgeCases:
             mode=SearchMode.AUTO,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
         assert result is not None
 
@@ -643,6 +657,8 @@ class TestSearchAPIEdgeCases:
             mode=SearchMode.AUTO,
             limit=10000,
             offset=50000,
+            include_bible=True,
+            only_bible=False,
         )
 
     @patch("scriptrag.api.search.QueryParser")
@@ -673,6 +689,8 @@ class TestSearchAPIEdgeCases:
             mode=SearchMode.AUTO,
             limit=0,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     @patch("scriptrag.api.search.QueryParser")
@@ -705,6 +723,8 @@ class TestSearchAPIEdgeCases:
             mode=SearchMode.AUTO,
             limit=5,
             offset=-10,
+            include_bible=True,
+            only_bible=False,
         )
 
     @patch("scriptrag.api.search.QueryParser")
@@ -736,6 +756,8 @@ class TestSearchAPIEdgeCases:
             mode=SearchMode.AUTO,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     @patch("scriptrag.api.search.QueryParser")
@@ -775,4 +797,6 @@ class TestSearchAPIEdgeCases:
             mode=SearchMode.AUTO,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )

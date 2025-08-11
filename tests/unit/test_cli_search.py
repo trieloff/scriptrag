@@ -50,6 +50,8 @@ class TestSearchCommand:
             mode=SearchMode.AUTO,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
         results = [
             SearchResult(
@@ -103,6 +105,8 @@ class TestSearchCommand:
             strict=False,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
         # Verify formatter was called
@@ -155,6 +159,8 @@ class TestSearchCommand:
             strict=False,
             limit=10,
             offset=5,
+            include_bible=True,
+            only_bible=False,
         )
 
         # Verify verbose formatting
@@ -277,6 +283,8 @@ class TestSearchCommand:
             strict=False,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     @pytest.mark.parametrize(
@@ -321,6 +329,8 @@ class TestSearchCommand:
             strict=False,
             limit=limit,
             offset=offset,
+            include_bible=True,
+            only_bible=False,
         )
 
     @pytest.mark.parametrize(
@@ -364,6 +374,8 @@ class TestSearchCommand:
             strict=strict,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     @pytest.mark.parametrize(
@@ -564,6 +576,8 @@ class TestSearchCommand:
             strict=False,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
         # Verify default output format
@@ -602,6 +616,8 @@ class TestSearchCommand:
             strict=False,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     def test_special_characters_in_query(
@@ -637,6 +653,8 @@ class TestSearchCommand:
             strict=False,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     def test_unicode_query(
@@ -672,6 +690,8 @@ class TestSearchCommand:
             strict=False,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )
 
     def test_extreme_pagination_values(
@@ -705,6 +725,8 @@ class TestSearchCommand:
             strict=False,
             limit=99999,
             offset=99999,
+            include_bible=True,
+            only_bible=False,
         )
 
     def test_complex_range_filter(
@@ -740,4 +762,6 @@ class TestSearchCommand:
             strict=False,
             limit=5,
             offset=0,
+            include_bible=True,
+            only_bible=False,
         )

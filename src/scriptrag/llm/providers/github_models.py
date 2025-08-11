@@ -10,6 +10,7 @@ import httpx
 
 from scriptrag.config import get_logger
 from scriptrag.llm.base import BaseLLMProvider
+from scriptrag.llm.model_discovery import GitHubModelsDiscovery
 from scriptrag.llm.models import (
     CompletionRequest,
     CompletionResponse,
@@ -56,6 +57,26 @@ class GitHubModelsProvider(BaseLLMProvider):
         "azureml://registries/azure-openai/models/gpt-4o/versions/2": "gpt-4o",
     }
 
+    # Static model list as fallback
+    STATIC_MODELS: ClassVar[list[Model]] = [
+        Model(
+            id="gpt-4o",
+            name="GPT-4o",
+            provider=LLMProvider.GITHUB_MODELS,
+            capabilities=["completion", "chat"],
+            context_window=128000,
+            max_output_tokens=16384,
+        ),
+        Model(
+            id="gpt-4o-mini",
+            name="GPT-4o Mini",
+            provider=LLMProvider.GITHUB_MODELS,
+            capabilities=["completion", "chat"],
+            context_window=128000,
+            max_output_tokens=16384,
+        ),
+    ]
+
     def __init__(self, token: str | None = None, timeout: float = 30.0) -> None:
         """Initialize GitHub Models provider.
 
@@ -70,11 +91,32 @@ class GitHubModelsProvider(BaseLLMProvider):
         self._cache_timestamp: float = 0
         self._rate_limit_reset_time: float = 0  # Track when rate limit resets
 
+        # Initialize model discovery
+        from scriptrag.config import get_settings
+
+        settings = get_settings()
+
+        self.model_discovery = GitHubModelsDiscovery(
+            provider_name="github_models",
+            static_models=self.STATIC_MODELS,
+            client=self.client,
+            token=self.token,
+            base_url=self.base_url,
+            cache_ttl=(
+                settings.llm_model_cache_ttl
+                if settings.llm_model_cache_ttl > 0
+                else None
+            ),
+            use_cache=settings.llm_model_cache_ttl > 0,
+            force_static=settings.llm_force_static_models,
+        )
+
         logger.info(
             "Initialized GitHub Models provider",
             endpoint=self.base_url,
             has_token=bool(self.token),
             timeout=timeout,
+            force_static=settings.llm_force_static_models,
         )
 
     async def is_available(self) -> bool:
@@ -173,85 +215,8 @@ class GitHubModelsProvider(BaseLLMProvider):
         await self.client.aclose()
 
     async def list_models(self) -> list[Model]:
-        """List available models from GitHub Models."""
-        if not self.token:
-            return []
-
-        try:
-            headers = {
-                "Authorization": f"Bearer {self.token}",
-                "Accept": "application/json",
-            }
-            response = await self.client.get(f"{self.base_url}/models", headers=headers)
-
-            if response.status_code != 200:
-                # Check for rate limit error
-                if response.status_code == 429:
-                    wait_seconds = self._parse_rate_limit_error(response.text)
-                    if wait_seconds:
-                        # Set rate limit reset time
-                        self._rate_limit_reset_time = time.time() + wait_seconds
-                        self._availability_cache = False
-                        self._cache_timestamp = time.time()
-                        logger.warning(
-                            "GitHub Models rate limited on list_models",
-                            wait_seconds=wait_seconds,
-                            reset_time=self._rate_limit_reset_time,
-                        )
-
-                logger.warning(f"Failed to list GitHub models: {response.status_code}")
-                return []
-
-            data = response.json()
-
-            # Handle different response formats
-            if isinstance(data, list):
-                models_data = data
-            elif isinstance(data, dict) and "data" in data:
-                models_data = data["data"]
-            else:
-                models_data = []
-
-            models = []
-            for model_info in models_data:
-                azure_id = model_info.get("id", "")
-                name = model_info.get("name") or model_info.get("friendly_name", "")
-
-                # Map Azure registry path to simple model ID
-                model_id = self.MODEL_ID_MAP.get(azure_id, azure_id)
-
-                # Skip models we don't have mappings for
-                if model_id == azure_id and azure_id.startswith("azureml://"):
-                    logger.debug(f"Skipping unmapped model: {azure_id}")
-                    continue
-
-                # Only include models we know work with the API
-                # For now, just include GPT models that we know work
-                if model_id not in ["gpt-4o-mini", "gpt-4o"]:
-                    # Skip models that don't work with the current API
-                    continue
-
-                # Determine capabilities based on model type
-                capabilities = []
-                if "gpt" in model_id.lower() or "llama" in model_id.lower():
-                    capabilities = ["completion", "chat"]
-                if "embedding" in model_id.lower():
-                    capabilities.append("embedding")
-
-                models.append(
-                    Model(
-                        id=model_id,
-                        name=name or model_id,
-                        provider=self.provider_type,
-                        capabilities=capabilities,
-                    )
-                )
-
-            return models
-
-        except Exception as e:
-            logger.error(f"Failed to list GitHub models: {e}")
-            return []
+        """List available models using dynamic discovery with fallback."""
+        return await self.model_discovery.discover_models()
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         """Generate completion using GitHub Models."""

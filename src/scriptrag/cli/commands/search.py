@@ -108,6 +108,20 @@ def search_command(
             help="Show brief one-line results",
         ),
     ] = False,
+    no_bible: Annotated[
+        bool,
+        typer.Option(
+            "--no-bible",
+            help="Exclude bible content from search results",
+        ),
+    ] = False,
+    only_bible: Annotated[
+        bool,
+        typer.Option(
+            "--only-bible",
+            help="Search only bible content, exclude script scenes",
+        ),
+    ] = False,
 ) -> None:
     """Search through indexed screenplays.
 
@@ -152,6 +166,13 @@ def search_command(
             )
             raise typer.Exit(1)
 
+        if no_bible and only_bible:
+            console.print(
+                "[red]Error:[/red] Cannot use both --no-bible and --only-bible options",
+                style="bold",
+            )
+            raise typer.Exit(1)
+
         # Execute search
         response = search_api.search(
             query=query,
@@ -164,6 +185,8 @@ def search_command(
             strict=strict,
             limit=limit,
             offset=offset,
+            include_bible=not no_bible,
+            only_bible=only_bible,
         )
 
         # Format and display results

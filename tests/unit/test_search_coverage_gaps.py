@@ -64,18 +64,20 @@ class TestAPISearchCoverage:
             assert api.settings == mock_settings
 
     def test_from_config_with_path(self, tmp_path):
-        """Test SearchAPI.from_config with config_path parameter (line 103)."""
+        """Test SearchAPI.from_config with config_path parameter."""
         db_path = tmp_path / "test.db"
         db_path.touch()
 
-        with patch("scriptrag.config.get_settings") as mock_get_settings:
+        with patch(
+            "scriptrag.api.search.ScriptRAGSettings.from_file"
+        ) as mock_from_file:
             mock_settings = ScriptRAGSettings(database_path=db_path)
-            mock_get_settings.return_value = mock_settings
+            mock_from_file.return_value = mock_settings
 
-            # Call from_config with config_path (currently a no-op pass)
+            # Call from_config with config_path - now loads from file
             api = SearchAPI.from_config(config_path="some/config.yaml")
 
-            assert mock_get_settings.called
+            mock_from_file.assert_called_with("some/config.yaml")
             assert isinstance(api, SearchAPI)
 
 

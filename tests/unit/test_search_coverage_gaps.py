@@ -77,7 +77,7 @@ class TestAPISearchCoverage:
             # Call from_config with config_path - now loads from file
             api = SearchAPI.from_config(config_path="some/config.yaml")
 
-            assert mock_from_file.called_with("some/config.yaml")
+            mock_from_file.assert_called_with("some/config.yaml")
             assert isinstance(api, SearchAPI)
 
 

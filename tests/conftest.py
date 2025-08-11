@@ -44,15 +44,24 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest.fixture(autouse=True)
-def isolated_test_environment(tmp_path, monkeypatch):
-    """Ensure tests run with isolated database and settings.
+def isolated_test_environment(request, tmp_path, monkeypatch):
+    """Ensure unit tests run with isolated database and settings.
 
-    This fixture runs automatically for ALL tests to prevent:
+    This fixture runs automatically for unit tests to prevent:
     1. Database creation at repo root
     2. Fixture file contamination
     3. Cross-test interference
+
+    Integration tests are excluded to allow testing of real application behavior.
     """
-    # Set isolated database path for ALL tests
+    # Only apply isolation to unit tests, not integration tests
+    test_path = str(request.fspath)
+    if "/integration/" in test_path:
+        # Skip isolation for integration tests - they should test real behavior
+        yield
+        return
+
+    # Set isolated database path for unit tests
     db_path = tmp_path / "test_scriptrag.db"
     monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
 

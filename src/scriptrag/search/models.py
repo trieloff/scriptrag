@@ -34,6 +34,8 @@ class SearchQuery:
     mode: SearchMode = SearchMode.AUTO
     limit: int = 5
     offset: int = 0
+    include_bible: bool = True  # Include bible content in search
+    only_bible: bool = False  # Search only bible content
 
     @property
     def needs_vector_search(self) -> bool:
@@ -71,13 +73,32 @@ class SearchResult:
 
 
 @dataclass
+class BibleSearchResult:
+    """Bible content search result."""
+
+    script_id: int
+    script_title: str
+    bible_id: int
+    bible_title: str | None
+    chunk_id: int
+    chunk_heading: str | None
+    chunk_level: int
+    chunk_content: str
+    match_type: str = "text"  # text, vector
+    relevance_score: float = 1.0
+    matched_text: str | None = None
+
+
+@dataclass
 class SearchResponse:
     """Complete search response with results and metadata."""
 
     query: SearchQuery
     results: list[SearchResult]
-    total_count: int
-    has_more: bool
+    bible_results: list[BibleSearchResult] = field(default_factory=list)
+    total_count: int = 0
+    bible_total_count: int = 0
+    has_more: bool = False
     execution_time_ms: float | None = None
     search_methods: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)

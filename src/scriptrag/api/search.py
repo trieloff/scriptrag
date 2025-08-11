@@ -38,6 +38,8 @@ class SearchAPI:
         strict: bool = False,
         limit: int = 5,
         offset: int = 0,
+        include_bible: bool = True,
+        only_bible: bool = False,
     ) -> SearchResponse:
         """Execute a search query.
 
@@ -52,6 +54,8 @@ class SearchAPI:
             strict: Disable vector search
             limit: Maximum results to return
             offset: Result offset for pagination
+            include_bible: Include bible content in search
+            only_bible: Search only bible content
 
         Returns:
             Search response with results
@@ -75,6 +79,8 @@ class SearchAPI:
             mode=mode,
             limit=limit,
             offset=offset,
+            include_bible=include_bible,
+            only_bible=only_bible,
         )
 
         logger.info(

@@ -147,6 +147,14 @@ class DatabaseInitializer:
 
         # Execute initialization script
         conn.executescript(init_sql)
+
+        # Read and execute bible schema SQL if it exists
+        try:
+            bible_sql = self._read_sql_file("bible_schema.sql")
+            conn.executescript(bible_sql)
+            logger.info("Bible schema initialized successfully")
+        except FileNotFoundError:
+            logger.debug("No bible schema file found, skipping")
         conn.commit()
 
         logger.debug("Database schema created successfully")

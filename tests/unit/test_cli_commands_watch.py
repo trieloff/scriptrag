@@ -276,8 +276,8 @@ class TestWatchCommand:
         with patch("scriptrag.cli.commands.watch.Observer") as mock_observer:
             mock_observer.side_effect = ImportError("No module named 'watchdog'")
 
-            # Run command
-            result = runner.invoke(app, ["watch", "."])
+            # Run command with --no-initial-pull to avoid running analysis
+            result = runner.invoke(app, ["watch", ".", "--no-initial-pull"])
 
             # Verify error handling
             assert result.exit_code == 1

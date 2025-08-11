@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from scriptrag.config import ScriptRAGSettings, set_settings
+
 
 def pytest_configure(config):
     """Configure pytest markers."""
@@ -39,6 +41,28 @@ def pytest_collection_modifyitems(config, items):
 # Note: protect_fixture_files fixture was removed as it was interfering with
 # temporary test files. The verify_fixtures_clean fixture provides sufficient
 # protection by detecting any contamination of the actual fixture files.
+
+
+@pytest.fixture(autouse=True)
+def isolated_test_environment(tmp_path, monkeypatch):
+    """Ensure tests run with isolated database and settings.
+
+    This fixture runs automatically for ALL tests to prevent:
+    1. Database creation at repo root
+    2. Fixture file contamination
+    3. Cross-test interference
+    """
+    # Set isolated database path for ALL tests
+    db_path = tmp_path / "test_scriptrag.db"
+    monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+    # Create isolated settings
+    settings = ScriptRAGSettings(database_path=db_path)
+    set_settings(settings)
+
+    yield
+
+    # Settings cleanup happens automatically
 
 
 @pytest.fixture(autouse=True)

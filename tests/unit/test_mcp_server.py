@@ -103,16 +103,19 @@ async def test_search_tool_success(mock_search_api):
     mcp = FastMCP("test")
     register_search_tool(mcp)
 
-    # The tool is registered via decorator, so we call it directly
-    from scriptrag.mcp.tools.search import scriptrag_search
-
-    # Execute the tool
-    result = await scriptrag_search(
-        query="test query",
-        character="ALICE",
-        limit=10,
-        offset=0,
+    # Execute the tool via MCP protocol
+    response = await mcp.call_tool(
+        "scriptrag_search",
+        {
+            "query": "test query",
+            "character": "ALICE",
+            "limit": 10,
+            "offset": 0,
+        },
     )
+
+    # Extract result - call_tool returns tuple (text_content_list, raw_result)
+    result = response[1]  # Use the raw dictionary result
 
     # Verify result structure
     assert result["success"] is True
@@ -131,7 +134,7 @@ async def test_search_tool_success(mock_search_api):
 @pytest.mark.asyncio
 async def test_search_tool_error_handling(mock_search_api):
     """Test search tool error handling."""
-    from mcp import FastMCP
+    from mcp.server import FastMCP
 
     # Configure mock to raise exception
     mock_search_api.search.side_effect = Exception("Search failed")
@@ -139,15 +142,11 @@ async def test_search_tool_error_handling(mock_search_api):
     mcp = FastMCP("test")
     register_search_tool(mcp)
 
-    # Get the registered tool
-    tool_func = None
-    for name, func in mcp._tools.items():
-        if "scriptrag_search" in name:
-            tool_func = func
-            break
+    # Execute the tool via MCP protocol
+    response = await mcp.call_tool("scriptrag_search", {"query": "test query"})
 
-    # Execute the tool
-    result = await tool_func(query="test query")
+    # Extract result - call_tool returns tuple (text_content_list, raw_result)
+    result = response[1]  # Use the raw dictionary result
 
     # Verify error response
     assert result["success"] is False
@@ -163,30 +162,32 @@ async def test_search_tool_conflicting_options():
     mcp = FastMCP("test")
     register_search_tool(mcp)
 
-    # Get the registered tool
-    tool_func = None
-    for name, func in mcp._tools.items():
-        if "scriptrag_search" in name:
-            tool_func = func
-            break
-
     # Test fuzzy and strict conflict
-    result = await tool_func(
-        query="test",
-        fuzzy=True,
-        strict=True,
+    response = await mcp.call_tool(
+        "scriptrag_search",
+        {
+            "query": "test",
+            "fuzzy": True,
+            "strict": True,
+        },
     )
-    assert result["success"] is False
-    assert "Cannot use both fuzzy and strict" in result["error"]
+
+    result_data = response[1]  # Use the raw dictionary result
+    assert result_data["success"] is False
+    assert "Cannot use both fuzzy and strict" in result_data["error"]
 
     # Test bible options conflict
-    result = await tool_func(
-        query="test",
-        include_bible=False,
-        only_bible=True,
+    response = await mcp.call_tool(
+        "scriptrag_search",
+        {
+            "query": "test",
+            "include_bible": False,
+            "only_bible": True,
+        },
     )
-    assert result["success"] is False
-    assert "Cannot use both no_bible and only_bible" in result["error"]
+    result_data = response[1]  # Use the raw dictionary result
+    assert result_data["success"] is False
+    assert "Cannot use both no_bible and only_bible" in result_data["error"]
 
 
 @pytest.mark.asyncio
@@ -198,7 +199,8 @@ async def test_query_tools_registration(mock_query_api):
     register_query_tools(mcp)
 
     # Check that tools were registered
-    tool_names = list(mcp._tools.keys())
+    tools = await mcp.list_tools()
+    tool_names = [tool.name for tool in tools]
 
     # Should have the query list tool
     assert any("scriptrag_query_list" in name for name in tool_names)
@@ -216,16 +218,22 @@ async def test_query_tool_execution(mock_query_api):
     register_query_tools(mcp)
 
     # Find the test query tool
-    tool_func = None
-    for name, func in mcp._tools.items():
-        if "scriptrag_query_test_query" in name:
-            tool_func = func
+    tools = await mcp.list_tools()
+    test_tool_name = None
+    for tool in tools:
+        if "scriptrag_query_test_query" in tool.name:
+            test_tool_name = tool.name
             break
 
-    assert tool_func is not None
+    assert test_tool_name is not None
 
-    # Execute the tool
-    result = await tool_func(param1="test_value", limit=5)
+    # Execute the tool - query tools expect kwargs wrapper
+    response = await mcp.call_tool(
+        test_tool_name, {"kwargs": {"param1": "test_value", "limit": 5}}
+    )
+
+    # Extract result - call_tool returns tuple (text_content_list, raw_result)
+    result = response[1]  # Use the raw dictionary result
 
     # Verify result
     assert result["success"] is True
@@ -238,7 +246,7 @@ async def test_query_tool_execution(mock_query_api):
 @pytest.mark.asyncio
 async def test_query_tool_error_handling(mock_query_api):
     """Test query tool error handling."""
-    from mcp import FastMCP
+    from mcp.server import FastMCP
 
     # Configure mock to raise exception
     mock_query_api.execute_query.side_effect = Exception("Query failed")
@@ -247,14 +255,18 @@ async def test_query_tool_error_handling(mock_query_api):
     register_query_tools(mcp)
 
     # Find the test query tool
-    tool_func = None
-    for name, func in mcp._tools.items():
-        if "scriptrag_query_test_query" in name:
-            tool_func = func
+    tools = await mcp.list_tools()
+    test_tool_name = None
+    for tool in tools:
+        if "scriptrag_query_test_query" in tool.name:
+            test_tool_name = tool.name
             break
 
-    # Execute the tool
-    result = await tool_func(param1="test_value")
+    # Execute the tool - query tools expect kwargs wrapper
+    response = await mcp.call_tool(test_tool_name, {"kwargs": {"param1": "test_value"}})
+
+    # Extract result - call_tool returns tuple (text_content_list, raw_result)
+    result = response[1]  # Use the raw dictionary result
 
     # Verify error response
     assert result["success"] is False
@@ -271,16 +283,20 @@ async def test_query_list_tool(mock_query_api):
     register_query_tools(mcp)
 
     # Find the list tool
-    tool_func = None
-    for name, func in mcp._tools.items():
-        if "scriptrag_query_list" in name:
-            tool_func = func
+    tools = await mcp.list_tools()
+    list_tool_name = None
+    for tool in tools:
+        if "scriptrag_query_list" in tool.name:
+            list_tool_name = tool.name
             break
 
-    assert tool_func is not None
+    assert list_tool_name is not None
 
     # Execute the tool
-    result = await tool_func()
+    response = await mcp.call_tool(list_tool_name, {})
+
+    # Extract result - call_tool returns tuple (text_content_list, raw_result)
+    result = response[1]  # Use the raw dictionary result
 
     # Verify result
     assert result["success"] is True
@@ -298,7 +314,7 @@ async def test_no_queries_available():
         mock_api.list_queries.return_value = []
         mock_api.loader.reload_queries.return_value = None
 
-        from mcp import FastMCP
+        from mcp.server import FastMCP
 
         from scriptrag.mcp.tools.query import register_query_tools
 
@@ -306,18 +322,22 @@ async def test_no_queries_available():
         register_query_tools(mcp)
 
         # Should only have the list tool
-        tool_names = list(mcp._tools.keys())
+        tools = await mcp.list_tools()
+        tool_names = [tool.name for tool in tools]
         assert any("scriptrag_query_list" in name for name in tool_names)
 
         # Find the list tool
-        tool_func = None
-        for name, func in mcp._tools.items():
-            if "scriptrag_query_list" in name:
-                tool_func = func
+        list_tool_name = None
+        for tool in tools:
+            if "scriptrag_query_list" in tool.name:
+                list_tool_name = tool.name
                 break
 
         # Execute the tool
-        result = await tool_func()
+        response = await mcp.call_tool(list_tool_name, {})
+
+        # Extract result - call_tool returns tuple (text_content_list, raw_result)
+        result = response[1]  # Use the raw dictionary result
 
         # Verify empty result
         assert result["success"] is True

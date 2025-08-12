@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy import text
 
-from scriptrag.api.database import DatabaseAPI
-from scriptrag.api.index import IndexAPI
+from scriptrag.api.database import DatabaseInitializer
+from scriptrag.api.index import IndexCommand
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.mcp.server import create_server
 
@@ -34,8 +34,8 @@ SELECT 'test' as result WHERE :name = :name;
         )
 
         # Initialize database
-        db_api = DatabaseAPI(settings)
-        db_api.init_database()
+        db_api = DatabaseInitializer()
+        db_api.initialize_database(settings=settings)
 
         yield settings
 
@@ -78,7 +78,7 @@ async def test_mcp_server_search_integration(temp_db_settings, sample_fountain_s
 
     try:
         # Index the script
-        index_api = IndexAPI(temp_db_settings)
+        index_api = IndexCommand(temp_db_settings)
         index_api.index_file(script_path)
 
         # Create MCP server with the test settings
@@ -86,34 +86,44 @@ async def test_mcp_server_search_integration(temp_db_settings, sample_fountain_s
             server = create_server()
 
             # Find the search tool
-            search_tool = None
-            for name, func in server._tools.items():
-                if "scriptrag_search" in name:
-                    search_tool = func
+            tools = await server.list_tools()
+            search_tool_name = None
+            for tool in tools:
+                if "scriptrag_search" in tool.name:
+                    search_tool_name = tool.name
                     break
 
-            assert search_tool is not None
+            assert search_tool_name is not None
 
             # Test basic search
-            result = await search_tool(query="adventure")
-            assert result["success"] is True
-            assert result["total_results"] > 0
-            assert "adventure" in result["results"][0]["content"].lower()
+            response = await server.call_tool(search_tool_name, {"query": "adventure"})
+            # Extract result - call_tool returns tuple (text_content_list, raw_result)
+            result_data = response[1]  # Use the raw dictionary result
+            assert result_data["success"] is True
+            assert result_data["total_count"] > 0
+            assert "adventure" in result_data["results"][0]["scene_content"].lower()
 
             # Test character search
-            result = await search_tool(query="ALICE")
-            assert result["success"] is True
-            assert any("ALICE" in r.get("characters", []) for r in result["results"])
+            response = await server.call_tool(search_tool_name, {"query": "ALICE"})
+            result_data = response[1]
+            assert result_data["success"] is True
+            assert any(
+                "ALICE" in r.get("character_name", "") for r in result_data["results"]
+            )
 
             # Test dialogue search
-            result = await search_tool(dialogue="Hello")
-            assert result["success"] is True
-            assert result["total_results"] > 0
+            response = await server.call_tool(search_tool_name, {"dialogue": "Hello"})
+            result_data = response[1]
+            assert result_data["success"] is True
+            assert result_data["total_count"] > 0
 
             # Test parenthetical search
-            result = await search_tool(parenthetical="whispers")
-            assert result["success"] is True
-            assert result["total_results"] > 0
+            response = await server.call_tool(
+                search_tool_name, {"parenthetical": "whispers"}
+            )
+            result_data = response[1]
+            assert result_data["success"] is True
+            assert result_data["total_count"] > 0
 
     finally:
         Path(script_path).unlink(missing_ok=True)
@@ -125,7 +135,9 @@ async def test_mcp_server_query_integration(temp_db_settings):
     from unittest.mock import patch
 
     # Add some test data to the database
-    db_api = DatabaseAPI(temp_db_settings)
+    from scriptrag.api.database_operations import DatabaseOperations
+
+    db_api = DatabaseOperations(temp_db_settings)
     with db_api.get_session() as session:
         session.execute(
             text("CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT)")
@@ -143,32 +155,32 @@ async def test_mcp_server_query_integration(temp_db_settings):
             server = create_server()
 
             # Find the query list tool
-            list_tool = None
-            for name, func in server._tools.items():
-                if "scriptrag_query_list" in name:
-                    list_tool = func
-                    break
+            tools = await server.list_tools()
+            list_tool_name = None
+            test_tool_name = None
+            for tool in tools:
+                if "scriptrag_query_list" in tool.name:
+                    list_tool_name = tool.name
+                elif "scriptrag_query_test_query" in tool.name:
+                    test_tool_name = tool.name
 
-            assert list_tool is not None
+            assert list_tool_name is not None
 
             # List available queries
-            result = await list_tool()
-            assert result["success"] is True
-            assert len(result["queries"]) > 0
-            assert any(q["name"] == "test-query" for q in result["queries"])
+            response = await server.call_tool(list_tool_name, {})
+            result_data = response[1]
+            assert result_data["success"] is True
+            assert len(result_data["queries"]) > 0
+            assert any(q["name"] == "test-query" for q in result_data["queries"])
 
-            # Find the test query tool
-            test_tool = None
-            for name, func in server._tools.items():
-                if "scriptrag_query_test_query" in name:
-                    test_tool = func
-                    break
-
-            # If the tool exists, test it
-            if test_tool:
-                result = await test_tool(name="test")
-                assert result["success"] is True
-                assert "results" in result
+            # If the test query tool exists, test it
+            if test_tool_name:
+                response = await server.call_tool(
+                    test_tool_name, {"kwargs": {"name": "test"}}
+                )
+                result_data = response[1]
+                assert result_data["success"] is True
+                assert "results" in result_data
 
 
 @pytest.mark.asyncio
@@ -183,7 +195,7 @@ async def test_mcp_server_full_workflow(temp_db_settings, sample_fountain_script
 
     try:
         # Index the script
-        index_api = IndexAPI(temp_db_settings)
+        index_api = IndexCommand(temp_db_settings)
         index_api.index_file(script_path)
 
         # Create MCP server
@@ -191,61 +203,86 @@ async def test_mcp_server_full_workflow(temp_db_settings, sample_fountain_script
             server = create_server()
 
             # Get search tool
-            search_tool = None
-            for name, func in server._tools.items():
-                if "scriptrag_search" in name:
-                    search_tool = func
+            tools = await server.list_tools()
+            search_tool_name = None
+            for tool in tools:
+                if "scriptrag_search" in tool.name:
+                    search_tool_name = tool.name
                     break
 
             # Perform various searches
 
             # 1. Search for dialogue with character filter
-            result = await search_tool(
-                query="test",
-                character="ALICE",
-                limit=10,
+            response = await server.call_tool(
+                search_tool_name,
+                {
+                    "query": "test",
+                    "character": "ALICE",
+                    "limit": 10,
+                },
             )
-            assert result["success"] is True
+            result_data = response[1]
+            assert result_data["success"] is True
 
             # 2. Search with pagination
-            result1 = await search_tool(
-                query="the",
-                limit=1,
-                offset=0,
+            response1 = await server.call_tool(
+                search_tool_name,
+                {
+                    "query": "the",
+                    "limit": 1,
+                    "offset": 0,
+                },
             )
-            result2 = await search_tool(
-                query="the",
-                limit=1,
-                offset=1,
+            response2 = await server.call_tool(
+                search_tool_name,
+                {
+                    "query": "the",
+                    "limit": 1,
+                    "offset": 1,
+                },
             )
-            assert result1["success"] is True
-            assert result2["success"] is True
+            result1_data = response1[1]
+            result2_data = response2[1]
+            assert result1_data["success"] is True
+            assert result2_data["success"] is True
             # Results should be different due to offset
-            if result1["results"] and result2["results"]:
-                r1_id = result1["results"][0]["scene_id"]
-                r2_id = result2["results"][0]["scene_id"]
+            if result1_data["results"] and result2_data["results"]:
+                r1_id = result1_data["results"][0]["scene_id"]
+                r2_id = result2_data["results"][0]["scene_id"]
                 assert r1_id != r2_id
 
             # 3. Test auto-detection of search components
-            result = await search_tool(
-                query='ALICE "Hello" (whispers)',
+            response = await server.call_tool(
+                search_tool_name,
+                {
+                    "query": 'ALICE "Hello" (whispers)',
+                },
             )
-            assert result["success"] is True
+            result_data = response[1]
+            assert result_data["success"] is True
 
             # 4. Test fuzzy search
-            result = await search_tool(
-                query="greetings salutations",
-                fuzzy=True,
+            response = await server.call_tool(
+                search_tool_name,
+                {
+                    "query": "greetings salutations",
+                    "fuzzy": True,
+                },
             )
-            assert result["success"] is True
+            result_data = response[1]
+            assert result_data["success"] is True
 
             # 5. Test strict search
-            result = await search_tool(
-                query="exact phrase that doesn't exist",
-                strict=True,
+            response = await server.call_tool(
+                search_tool_name,
+                {
+                    "query": "exact phrase that doesn't exist",
+                    "strict": True,
+                },
             )
-            assert result["success"] is True
-            assert result["total_results"] == 0
+            result_data = response[1]
+            assert result_data["success"] is True
+            assert result_data["total_count"] == 0
 
     finally:
         Path(script_path).unlink(missing_ok=True)

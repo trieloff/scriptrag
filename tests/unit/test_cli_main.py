@@ -347,9 +347,9 @@ class TestModuleLevelConstants:
         """Test that the expected number of commands are registered."""
         commands = app.registered_commands
 
-        # Should have exactly 8 commands including init, list, ls alias,
-        # analyze, index, pull, search, and watch
-        expected_count = 8
+        # Should have exactly 9 commands including init, list, ls alias,
+        # analyze, index, pull, search, watch, and mcp
+        expected_count = 9
         actual_count = len(commands)
 
         command_names = [c.name for c in commands if hasattr(c, "name")]

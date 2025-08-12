@@ -9,6 +9,7 @@ from scriptrag.cli.commands import (
     index_command,
     init_command,
     list_command,
+    mcp_command,
     pull_command,
     search_command,
     watch_command,
@@ -36,6 +37,7 @@ class TestCLICommandsModule:
             "index_command",
             "init_command",
             "list_command",
+            "mcp_command",
             "pull_command",
             "query_app",
             "search_command",
@@ -58,6 +60,7 @@ class TestCLICommandsModule:
             index_command,
             init_command,
             list_command,
+            mcp_command,
             pull_command,
             search_command,
             watch_command,
@@ -75,6 +78,7 @@ class TestCLICommandsModule:
             index_command,
             init_command,
             list_command,
+            mcp_command,
             pull_command,
             search_command,
             watch_command,
@@ -106,7 +110,17 @@ class TestCLICommandsModule:
         expected_attrs = set(commands_module.__all__)
         # Add the module names that get imported as side effects
         expected_attrs.update(
-            ["analyze", "index", "init", "list", "pull", "query", "search", "watch"]
+            [
+                "analyze",
+                "index",
+                "init",
+                "list",
+                "mcp",
+                "pull",
+                "query",
+                "search",
+                "watch",
+            ]
         )
 
         assert set(public_attrs) == expected_attrs
@@ -120,6 +134,7 @@ class TestCLICommandsModule:
             index_command,
             init_command,
             list_command,
+            mcp_command,
             pull_command,
             search_command,
             watch_command,
@@ -128,6 +143,7 @@ class TestCLICommandsModule:
         from scriptrag.cli.commands.index import index_command as direct_index
         from scriptrag.cli.commands.init import init_command as direct_init
         from scriptrag.cli.commands.list import list_command as direct_list
+        from scriptrag.cli.commands.mcp import mcp_command as direct_mcp
         from scriptrag.cli.commands.pull import pull_command as direct_pull
         from scriptrag.cli.commands.search import search_command as direct_search
         from scriptrag.cli.commands.watch import watch_command as direct_watch
@@ -137,6 +153,7 @@ class TestCLICommandsModule:
         assert index_command is direct_index
         assert init_command is direct_init
         assert list_command is direct_list
+        assert mcp_command is direct_mcp
         assert pull_command is direct_pull
         assert search_command is direct_search
         assert watch_command is direct_watch
@@ -173,6 +190,7 @@ class TestCLICommandsModule:
             "index_command",
             "init_command",
             "list_command",
+            "mcp_command",
             "pull_command",
             "query_app",
             "search_command",
@@ -200,6 +218,7 @@ class TestCLICommandsModule:
             analyze,
             index,
             init,
+            mcp,
             pull,
             search,
             watch,
@@ -212,6 +231,7 @@ class TestCLICommandsModule:
         assert isinstance(index, ModuleType)
         assert isinstance(init, ModuleType)
         assert isinstance(list_module, ModuleType)
+        assert isinstance(mcp, ModuleType)
         assert isinstance(pull, ModuleType)
         assert isinstance(search, ModuleType)
         assert isinstance(watch, ModuleType)
@@ -221,6 +241,7 @@ class TestCLICommandsModule:
         assert hasattr(index, "index_command")
         assert hasattr(init, "init_command")
         assert hasattr(list_module, "list_command")
+        assert hasattr(mcp, "mcp_command")
         assert hasattr(pull, "pull_command")
         assert hasattr(search, "search_command")
         assert hasattr(watch, "watch_command")
@@ -231,6 +252,7 @@ class TestCLICommandsModule:
             analyze,
             index,
             init,
+            mcp,
             pull,
             search,
             watch,
@@ -244,6 +266,7 @@ class TestCLICommandsModule:
         assert index.__name__.endswith("index")
         assert init.__name__.endswith("init")
         assert list_module.__name__.endswith("list")
+        assert mcp.__name__.endswith("mcp")
         assert pull.__name__.endswith("pull")
         assert search.__name__.endswith("search")
         assert watch.__name__.endswith("watch")

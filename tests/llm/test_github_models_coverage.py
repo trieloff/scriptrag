@@ -8,8 +8,8 @@ import pytest
 
 from scriptrag.llm.providers.github_models import GitHubModelsProvider
 
-# Test token constant to avoid S106 linting issues
-TEST_TOKEN = "test-token"  # noqa: S105
+# Test token constant for unit tests (not a real secret)
+TEST_TOKEN = "test-token"  # noqa: S105 - Test token for unit tests
 
 
 class TestGitHubModelsProviderCoverage:

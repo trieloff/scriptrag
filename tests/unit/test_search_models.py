@@ -193,7 +193,10 @@ class TestSearchQuery:
     def test_needs_vector_search_auto_mode_fallback_to_text_query(
         self, mock_get_settings
     ) -> None:
-        """Test needs_vector_search falls back to text_query when dialogue/action absent."""  # noqa: E501
+        """Test needs_vector_search falls back to text_query.
+
+        When dialogue/action are absent, should use text_query for evaluation.
+        """
         mock_settings = Mock(spec=ScriptRAGSettings)
         mock_settings.search_vector_threshold = 3
         mock_get_settings.return_value = mock_settings

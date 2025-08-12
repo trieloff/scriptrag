@@ -198,14 +198,17 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
         """
         try:
             # Try to import and check for model listing capability
-            from claude_code_sdk import ClaudeCodeOptions  # noqa: F401
+            import claude_code_sdk
+
+            # Check if SDK is available by accessing the module
+            _ = claude_code_sdk.ClaudeCodeOptions
 
             # TODO: When SDK adds model enumeration, implement it here
             # For now, the SDK doesn't expose available models
             logger.debug("Claude Code SDK doesn't support model enumeration yet")
             return None
 
-        except ImportError:
+        except (ImportError, AttributeError):
             logger.debug("Claude Code SDK not available for model discovery")
             return None
 

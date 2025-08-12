@@ -7,6 +7,9 @@ import pytest
 
 from scriptrag.config import ScriptRAGSettings, set_settings
 
+# Import CLI fixtures to make them available globally
+from tests.cli_fixtures import clean_runner, cli_helper, cli_invoke  # noqa: F401
+
 
 def pytest_configure(config):
     """Configure pytest markers."""

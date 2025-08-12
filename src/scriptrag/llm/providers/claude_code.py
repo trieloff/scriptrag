@@ -156,11 +156,14 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
         # Try to import and use the SDK directly
         try:
-            from claude_code_sdk import ClaudeCodeOptions  # noqa: F401
+            import claude_code_sdk
+
+            # Check if SDK is available by accessing the module
+            _ = claude_code_sdk.ClaudeCodeOptions
 
             # If import succeeds, we have SDK access
             return True
-        except ImportError:
+        except (ImportError, AttributeError):
             # SDK not available, check for environment markers as fallback
             # But only if we think SDK is available (which shouldn't happen)
             pass

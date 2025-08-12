@@ -472,7 +472,7 @@ class DatabaseOperations:
         entity_id: int,
         embedding_model: str,
         embedding_data: bytes | None = None,
-        embedding_path: str | None = None,  # noqa: ARG002
+        embedding_path: str | None = None,
     ) -> int:
         """Insert or update embedding record.
 
@@ -487,6 +487,10 @@ class DatabaseOperations:
         Returns:
             ID of the inserted or updated embedding
         """
+        # Note: embedding_path is reserved for future Git LFS storage support
+        # Currently, we store binary data directly in the database
+        _ = embedding_path  # Mark as intentionally unused
+
         # Check if embedding exists
         cursor = conn.execute(
             """

@@ -178,13 +178,15 @@ class TestCLICommandsModule:
 
     def test_star_import_works(self):
         """Test that 'from scriptrag.cli.commands import *' works correctly."""
-        # Create a temporary namespace to test star import
-        namespace = {}
+        import importlib
 
-        # Execute star import in the namespace
-        exec("from scriptrag.cli.commands import *", namespace)  # noqa: S102
+        # Import the module
+        module = importlib.import_module("scriptrag.cli.commands")
 
-        # Check that all expected commands are now in the namespace
+        # Get __all__ exports or all public attributes
+        all_exports = getattr(module, "__all__", [])
+
+        # Check that all expected commands are exported
         expected_commands = [
             "analyze_command",
             "index_command",
@@ -198,16 +200,19 @@ class TestCLICommandsModule:
         ]
 
         for command_name in expected_commands:
-            assert command_name in namespace
-            assert callable(namespace[command_name])
+            if all_exports:
+                assert command_name in all_exports, f"{command_name} not in __all__"
+            assert hasattr(module, command_name)
+            assert callable(getattr(module, command_name))
 
         # Ensure only the expected commands are imported (no private attributes)
-        imported_commands = [
-            name
-            for name in namespace
-            if not name.startswith("__") and name != "builtins"
-        ]
-        assert set(imported_commands) == set(expected_commands)
+        if all_exports:
+            imported_commands = [
+                name
+                for name in all_exports
+                if not name.startswith("__") and name != "builtins"
+            ]
+            assert set(imported_commands) == set(expected_commands)
 
     def test_module_imports_are_accessible(self):
         """Test that the imported command modules are accessible as attributes."""

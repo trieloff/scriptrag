@@ -197,8 +197,14 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
         Returns None if SDK doesn't support model enumeration or is not available.
         """
         try:
-            # Import SDK components
-            from claude_code_sdk import ClaudeCodeOptions, ClaudeSDKClient  # noqa: F401
+            # Try to import and check for model listing capability
+            import claude_code_sdk
+
+            # Check if SDK is available by accessing the module
+            _ = claude_code_sdk.ClaudeCodeOptions
+
+            # Import SDK client if available
+            from claude_code_sdk import ClaudeSDKClient
 
             # Check if the SDK has model enumeration capabilities
             # NOTE: As of claude-code-sdk v0.0.20, model enumeration is not yet
@@ -231,7 +237,7 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             )
             return None
 
-        except ImportError as e:
+        except (ImportError, AttributeError) as e:
             logger.debug(f"Claude Code SDK not available: {e}")
             return None
         except Exception as e:

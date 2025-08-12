@@ -115,6 +115,26 @@ class TestModelDiscoveryCache:
         result = cache.get()
         assert result is None
 
+    def test_cache_set_write_error(self, cache, monkeypatch):
+        """Test cache set when file write fails."""
+        models = [
+            Model(
+                id="model-1",
+                name="Test Model",
+                provider=LLMProvider.GITHUB_MODELS,
+                capabilities=["chat"],
+            )
+        ]
+
+        # Mock file open to raise an exception
+        def mock_open_error(*args, **kwargs):
+            raise PermissionError("Cannot write file")
+
+        monkeypatch.setattr("builtins.open", mock_open_error)
+
+        # Should not raise, just log warning
+        cache.set(models)  # This should handle the exception gracefully
+
 
 class TestModelDiscovery:
     """Test base model discovery functionality."""
@@ -193,6 +213,28 @@ class TestModelDiscovery:
             use_cache=True,
         )
 
+        models = await discovery.discover_models()
+        assert len(models) == 2
+        assert models[0].id == "static-model-1"
+
+    @pytest.mark.asyncio
+    async def test_base_fetch_models_returns_none(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test base ModelDiscovery._fetch_models returns None."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        discovery = ModelDiscovery(
+            provider_name="test",
+            static_models=static_models,
+            use_cache=False,
+        )
+
+        # Base implementation should return None
+        result = await discovery._fetch_models()
+        assert result is None
+
+        # And discover_models should fall back to static
         models = await discovery.discover_models()
         assert len(models) == 2
         assert models[0].id == "static-model-1"
@@ -311,6 +353,89 @@ class TestClaudeCodeModelDiscovery:
             assert models[0].id == "claude-3-5-haiku"
             assert models[1].id == "claude-4-opus"
             assert models[1].max_output_tokens == 10000
+
+    @pytest.mark.asyncio
+    async def test_claude_code_sdk_exception(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test Claude Code when SDK raises an exception."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock SDK that raises an exception
+        mock_sdk = MagicMock()
+        mock_sdk.ClaudeSDKClient.side_effect = RuntimeError("SDK initialization failed")
+        mock_sdk.ClaudeCodeOptions = MagicMock
+
+        with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            models = await discovery.discover_models()
+            # Should fall back to static models
+            assert len(models) == 1
+            assert models[0].id == "claude-3-opus"
+
+    @pytest.mark.asyncio
+    async def test_claude_code_parse_models_empty(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test Claude Code when SDK returns empty models."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock SDK with list_models returning empty list
+        mock_sdk = MagicMock()
+        mock_client = MagicMock()
+        mock_client.list_models = AsyncMock(return_value=[])
+        mock_sdk.ClaudeSDKClient.return_value = mock_client
+        mock_sdk.ClaudeCodeOptions = MagicMock
+
+        with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            models = await discovery.discover_models()
+            # Should fall back to static models when empty
+            assert len(models) == 1
+            assert models[0].id == "claude-3-opus"
+
+    @pytest.mark.asyncio
+    async def test_claude_code_parse_models_invalid_data(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test Claude Code when SDK returns invalid model data."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock SDK with list_models returning invalid data
+        mock_sdk = MagicMock()
+        mock_client = MagicMock()
+        # Return list with invalid items (no id)
+        mock_client.list_models = AsyncMock(
+            return_value=[
+                {"name": "Model without ID"},
+                {"id": None, "name": "Model with None ID"},
+                "not a dict",
+            ]
+        )
+        mock_sdk.ClaudeSDKClient.return_value = mock_client
+        mock_sdk.ClaudeCodeOptions = MagicMock
+
+        with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            models = await discovery.discover_models()
+            # Should fall back to static models when parsing fails
+            assert len(models) == 1
+            assert models[0].id == "claude-3-opus"
 
 
 class TestGitHubModelsDiscovery:
@@ -519,3 +644,137 @@ class TestGitHubModelsDiscovery:
 
         embedding_model = next(m for m in processed if m.id == "text-embedding-ada")
         assert "embedding" in embedding_model.capabilities
+
+    @pytest.mark.asyncio
+    async def test_github_models_list_response_format(
+        self, static_models, mock_client, tmp_path, monkeypatch
+    ):
+        """Test GitHub Models API with list response format."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock response as a list (not dict with "data" key)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {"id": "gpt-4", "name": "GPT-4"},
+            {"id": "claude-3", "name": "Claude 3"},
+        ]
+        mock_client.get.return_value = mock_response
+
+        discovery = GitHubModelsDiscovery(
+            provider_name="github_models",
+            static_models=static_models,
+            client=mock_client,
+            token="test-token",  # noqa: S106
+            base_url="https://api.test.com",
+            use_cache=False,
+        )
+
+        models = await discovery.discover_models()
+        assert len(models) == 2
+        assert models[0].id == "gpt-4"
+        assert models[1].id == "claude-3"
+
+    @pytest.mark.asyncio
+    async def test_github_models_rate_limit_without_retry_header(
+        self, static_models, mock_client, tmp_path, monkeypatch
+    ):
+        """Test GitHub Models API rate limiting without Retry-After header."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock rate limited response without Retry-After header
+        mock_response = MagicMock()
+        mock_response.status_code = 429
+        mock_response.headers = {}
+        mock_response.text = "Rate limit exceeded. Please wait 30 seconds."
+        mock_client.get.return_value = mock_response
+
+        discovery = GitHubModelsDiscovery(
+            provider_name="github_models",
+            static_models=static_models,
+            client=mock_client,
+            token="test-token",  # noqa: S106
+            base_url="https://api.test.com",
+            use_cache=False,
+        )
+
+        models = await discovery.discover_models()
+        # Should fall back to static models
+        assert len(models) == 1
+        assert models[0].id == "gpt-4o"
+
+    @pytest.mark.asyncio
+    async def test_github_models_non_200_status(
+        self, static_models, mock_client, tmp_path, monkeypatch
+    ):
+        """Test GitHub Models API with non-200 status code."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock response with 403 Forbidden
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+        mock_response.text = "Forbidden: Invalid token"
+        mock_client.get.return_value = mock_response
+
+        discovery = GitHubModelsDiscovery(
+            provider_name="github_models",
+            static_models=static_models,
+            client=mock_client,
+            token="test-token",  # noqa: S106
+            base_url="https://api.test.com",
+            use_cache=False,
+        )
+
+        models = await discovery.discover_models()
+        # Should fall back to static models
+        assert len(models) == 1
+        assert models[0].id == "gpt-4o"
+
+    def test_process_github_models_with_empty_id(self, static_models):
+        """Test processing GitHub models with empty or missing IDs."""
+        discovery = GitHubModelsDiscovery(
+            provider_name="github_models",
+            static_models=static_models,
+            client=MagicMock(),
+            token="test",  # noqa: S106
+            base_url="https://api.test.com",
+        )
+
+        raw_models = [
+            {"id": "", "name": "Empty ID Model"},
+            {"name": "No ID Model"},  # Missing id key
+            {"id": "gpt-4", "name": "Valid Model"},
+        ]
+
+        processed = discovery._process_github_models(raw_models)
+
+        # Should only include model with valid ID
+        assert len(processed) == 1
+        assert processed[0].id == "gpt-4"
+
+    def test_process_github_models_with_cohere(self, static_models):
+        """Test processing GitHub models with Cohere models."""
+        discovery = GitHubModelsDiscovery(
+            provider_name="github_models",
+            static_models=static_models,
+            client=MagicMock(),
+            token="test",  # noqa: S106
+            base_url="https://api.test.com",
+        )
+
+        raw_models = [
+            {"id": "cohere-command", "name": "Cohere Command"},
+            {"id": "phi-2", "name": "Phi 2"},
+        ]
+
+        processed = discovery._process_github_models(raw_models)
+
+        # Should include both models
+        assert len(processed) == 2
+        model_ids = [m.id for m in processed]
+        assert "cohere-command" in model_ids
+        assert "phi-2" in model_ids
+
+        # Check capabilities
+        cohere_model = next(m for m in processed if m.id == "cohere-command")
+        assert "chat" in cohere_model.capabilities

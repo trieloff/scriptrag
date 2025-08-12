@@ -430,6 +430,8 @@ class TestMarkdownAgentAnalyzer:
     @pytest.mark.asyncio
     async def test_analyze_invalid_json_response(self, sample_spec: AgentSpec) -> None:
         """Test handling of invalid JSON response from LLM."""
+        from jsonschema import ValidationError
+
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
         mock_client = AsyncMock()
@@ -439,13 +441,13 @@ class TestMarkdownAgentAnalyzer:
         analyzer.llm_client = mock_client
 
         scene = {"text": "Test scene"}
-        result = await analyzer.analyze(scene)
 
-        # Should return error result on invalid JSON after 3 attempts
-        assert "error" in result
-        assert "validation failed after 3 attempts" in result["error"].lower()
-        assert result["analyzer"] == "test-analyzer"
-        assert result["version"] == "2.0.0"
+        # Should raise ValidationError after 3 attempts
+        with pytest.raises(ValidationError) as exc_info:
+            await analyzer.analyze(scene)
+
+        assert "validation failed after 3 attempts" in str(exc_info.value).lower()
+        assert "test-analyzer" in str(exc_info.value)
         # Should have tried 3 times
         assert mock_client.complete.call_count == 3
 

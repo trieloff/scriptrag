@@ -4,6 +4,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from jsonschema import ValidationError
 
 from scriptrag.agents.agent_spec import AgentSpec
 from scriptrag.agents.markdown_agent_analyzer import MarkdownAgentAnalyzer
@@ -166,11 +167,13 @@ class TestMarkdownAgentAnalyzer:
         }
 
         analyzer = MarkdownAgentAnalyzer(basic_spec)
-        result = await analyzer.analyze(sample_scene)
 
-        assert "error" in result
-        assert "validation failed" in result["error"].lower()
-        assert result["analyzer"] == "test_agent"
+        # Should raise ValidationError instead of returning error dict
+        with pytest.raises(ValidationError) as exc_info:
+            await analyzer.analyze(sample_scene)
+
+        assert "test_agent" in str(exc_info.value)
+        assert "validation failed" in str(exc_info.value).lower()
 
     @pytest.mark.asyncio
     async def test_analyze_with_llm_success(
@@ -270,10 +273,11 @@ class TestMarkdownAgentAnalyzer:
 
         llm_analyzer.llm_client = mock_client
 
-        result = await llm_analyzer.analyze(sample_scene)
+        # Should raise ValidationError after 3 attempts
+        with pytest.raises(ValidationError) as exc_info:
+            await llm_analyzer.analyze(sample_scene)
 
-        assert "error" in result
-        assert "3 attempts" in result["error"]
+        assert "3 attempts" in str(exc_info.value)
         # Should have tried 3 times
         assert mock_client.complete.call_count == 3
 

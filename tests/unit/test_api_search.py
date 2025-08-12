@@ -800,3 +800,211 @@ class TestSearchAPIEdgeCases:
             include_bible=True,
             only_bible=False,
         )
+
+
+class TestSearchAPIAsync:
+    """Test SearchAPI.search_async method."""
+
+    @patch("scriptrag.api.search.QueryParser")
+    @patch("scriptrag.api.search.SearchEngine")
+    @patch("scriptrag.api.search.logger")
+    @pytest.mark.asyncio
+    async def test_search_async_basic_query(
+        self, mock_logger, mock_engine_class, mock_parser_class, settings
+    ):
+        """Test basic async search with minimal parameters."""
+        # Setup mocks
+        mock_parser = Mock()
+        mock_engine = Mock()
+        mock_parser_class.return_value = mock_parser
+        mock_engine_class.return_value = mock_engine
+
+        mock_query = SearchQuery(
+            raw_query="async test query",
+            text_query="async test query",
+            mode=SearchMode.AUTO,
+            limit=5,
+            offset=0,
+        )
+        mock_parser.parse.return_value = mock_query
+
+        mock_response = SearchResponse(
+            query=mock_query,
+            results=[],
+            total_count=0,
+            has_more=False,
+        )
+
+        # Mock the async method
+        async def mock_search_async(query):
+            return mock_response
+
+        mock_engine.search_async = mock_search_async
+
+        api = SearchAPI(settings)
+        result = await api.search_async(query="async test query")
+
+        # Verify parser was called correctly
+        mock_parser.parse.assert_called_once_with(
+            query="async test query",
+            character=None,
+            dialogue=None,
+            parenthetical=None,
+            project=None,
+            range_str=None,
+            mode=SearchMode.AUTO,
+            limit=5,
+            offset=0,
+            include_bible=True,
+            only_bible=False,
+        )
+
+        # Verify logging
+        mock_logger.info.assert_called_once_with(
+            "Executing async search: query='async test query', "
+            "mode=SearchMode.AUTO, limit=5, offset=0"
+        )
+
+        assert result == mock_response
+
+    @patch("scriptrag.api.search.QueryParser")
+    @patch("scriptrag.api.search.SearchEngine")
+    @pytest.mark.asyncio
+    async def test_search_async_with_all_parameters(
+        self, mock_engine_class, mock_parser_class, settings
+    ):
+        """Test async search with all possible parameters."""
+        mock_parser = Mock()
+        mock_engine = Mock()
+        mock_parser_class.return_value = mock_parser
+        mock_engine_class.return_value = mock_engine
+
+        mock_query = SearchQuery(raw_query="complex async query")
+        mock_parser.parse.return_value = mock_query
+
+        mock_response = SearchResponse(
+            query=mock_query, results=[], total_count=0, has_more=False
+        )
+
+        async def mock_search_async(query):
+            return mock_response
+
+        mock_engine.search_async = mock_search_async
+
+        api = SearchAPI(settings)
+        result = await api.search_async(
+            query="complex async query",
+            character="ALICE",
+            dialogue="Hello async world",
+            parenthetical="asynchronously",
+            project="Async Project",
+            range_str="s1e1-s1e5",
+            fuzzy=True,
+            strict=False,
+            limit=20,
+            offset=10,
+            include_bible=False,
+            only_bible=True,
+        )
+
+        mock_parser.parse.assert_called_once_with(
+            query="complex async query",
+            character="ALICE",
+            dialogue="Hello async world",
+            parenthetical="asynchronously",
+            project="Async Project",
+            range_str="s1e1-s1e5",
+            mode=SearchMode.FUZZY,
+            limit=20,
+            offset=10,
+            include_bible=False,
+            only_bible=True,
+        )
+
+        assert result == mock_response
+
+    @patch("scriptrag.api.search.QueryParser")
+    @patch("scriptrag.api.search.SearchEngine")
+    @patch("scriptrag.api.search.logger")
+    @pytest.mark.asyncio
+    async def test_search_async_logging_with_custom_params(
+        self, mock_logger, mock_engine_class, mock_parser_class, settings
+    ):
+        """Test async search logging with custom parameters."""
+        mock_parser = Mock()
+        mock_engine = Mock()
+        mock_parser_class.return_value = mock_parser
+        mock_engine_class.return_value = mock_engine
+
+        mock_query = SearchQuery(raw_query="custom async query")
+        mock_parser.parse.return_value = mock_query
+
+        mock_response = SearchResponse(
+            query=mock_query, results=[], total_count=0, has_more=False
+        )
+
+        async def mock_search_async(query):
+            return mock_response
+
+        mock_engine.search_async = mock_search_async
+
+        api = SearchAPI(settings)
+        result = await api.search_async(
+            query="custom async query",
+            fuzzy=True,
+            limit=15,
+            offset=25,
+        )
+
+        mock_logger.info.assert_called_once_with(
+            "Executing async search: query='custom async query', "
+            "mode=SearchMode.FUZZY, limit=15, offset=25"
+        )
+
+        assert result == mock_response
+
+    @patch("scriptrag.api.search.QueryParser")
+    @patch("scriptrag.api.search.SearchEngine")
+    @pytest.mark.asyncio
+    async def test_search_async_error_propagation(
+        self, mock_engine_class, mock_parser_class, settings
+    ):
+        """Test that async search errors are properly propagated."""
+        mock_parser = Mock()
+        mock_engine = Mock()
+        mock_parser_class.return_value = mock_parser
+        mock_engine_class.return_value = mock_engine
+
+        # Make parser raise an exception
+        mock_parser.parse.side_effect = ValueError("Async parse error")
+
+        api = SearchAPI(settings)
+
+        with pytest.raises(ValueError, match="Async parse error"):
+            await api.search_async(query="invalid query")
+
+    @patch("scriptrag.api.search.QueryParser")
+    @patch("scriptrag.api.search.SearchEngine")
+    @pytest.mark.asyncio
+    async def test_search_async_engine_error_propagation(
+        self, mock_engine_class, mock_parser_class, settings
+    ):
+        """Test that async search engine errors are properly propagated."""
+        mock_parser = Mock()
+        mock_engine = Mock()
+        mock_parser_class.return_value = mock_parser
+        mock_engine_class.return_value = mock_engine
+
+        mock_query = SearchQuery(raw_query="test")
+        mock_parser.parse.return_value = mock_query
+
+        # Make engine raise an exception
+        async def mock_search_async_error(query):
+            raise RuntimeError("Async database connection failed")
+
+        mock_engine.search_async = mock_search_async_error
+
+        api = SearchAPI(settings)
+
+        with pytest.raises(RuntimeError, match="Async database connection failed"):
+            await api.search_async(query="test")

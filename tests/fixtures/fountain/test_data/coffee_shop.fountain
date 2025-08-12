@@ -15,6 +15,147 @@ Hey Alice! The usual?
 
 ALICE nods and sits down.
 
+/* SCRIPTRAG-META-START
+{
+  "content_hash": "830dda1fe63b0bcd",
+  "analyzed_at": "2025-08-12T04:04:36.826734",
+  "analyzers": {
+    "props_inventory": {
+      "result": {
+        "props": [
+          {
+            "name": "coffee shop door",
+            "category": "furniture",
+            "description": "Entry door to the coffee shop that Alice enters through",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "chair",
+            "category": "furniture",
+            "description": "Chair that Alice sits in",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "action"
+            ]
+          },
+          {
+            "name": "table",
+            "category": "furniture",
+            "description": "Coffee shop table where Alice sits",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee cups",
+            "category": "food_beverage",
+            "description": "Various coffee cups in the bustling coffee shop environment",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 10,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "Alice's usual order",
+            "category": "food_beverage",
+            "description": "Whatever Alice typically orders, referenced by Bob",
+            "significance": "character_defining",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "dialogue"
+            ]
+          },
+          {
+            "name": "coffee shop counter",
+            "category": "furniture",
+            "description": "Service counter where Bob would be working",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee machine",
+            "category": "tools_equipment",
+            "description": "Equipment for making coffee in the shop",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "menu",
+            "category": "documents",
+            "description": "Coffee shop menu (on wall or table)",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 2,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "other tables and chairs",
+            "category": "furniture",
+            "description": "Additional seating in the bustling coffee shop",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 20,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "cash register",
+            "category": "technology",
+            "description": "Point of sale system at the counter",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          }
+        ],
+        "summary": {
+          "total_props": 10,
+          "hero_props": 0,
+          "requires_action": 3,
+          "categories": [
+            "furniture",
+            "food_beverage",
+            "tools_equipment",
+            "documents",
+            "technology"
+          ]
+        },
+        "analyzer": "props_inventory",
+        "version": "1.0",
+        "property": "props_inventory"
+      },
+      "version": "1.0"
+    }
+  }
+}
+SCRIPTRAG-META-END */
+
 EXT. PARK - NIGHT
 
 They walk through the quiet park.
@@ -25,3 +166,27 @@ It's so peaceful here at night.
 
 BOB
 Yeah, quite different from the morning rush.
+
+/* SCRIPTRAG-META-START
+{
+  "content_hash": "c4f09000c61a7d01",
+  "analyzed_at": "2025-08-12T04:05:28.104575",
+  "analyzers": {
+    "props_inventory": {
+      "result": {
+        "props": [],
+        "summary": {
+          "total_props": 0,
+          "hero_props": 0,
+          "requires_action": 0,
+          "categories": []
+        },
+        "analyzer": "props_inventory",
+        "version": "1.0",
+        "property": "props_inventory"
+      },
+      "version": "1.0"
+    }
+  }
+}
+SCRIPTRAG-META-END */

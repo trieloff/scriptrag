@@ -17,11 +17,11 @@ graph TB
 
     subgraph "Core"
         FP[Fountain Parser]
-        CE[Content Extractor]
-        EG[Embedding Generator]
+        AA[Analyze API]
+        IA[Index API]
         GS[Git Synchronizer]
-        DI[Database Indexer]
         QE[Query Engine]
+        SE[Search Engine]
         BIA(Built-in Insight Agents)
 
         %% Channels (circles with triangles)
@@ -79,37 +79,38 @@ graph TB
     GS --> ch4
     ch4 --> FP
     FP --> ch5
-    ch5 --> CE
-    CE --> ch6
-    ch6 --> EG
+    ch5 --> AA
+    AA --> ch6
+    ch6 --> IA
     GS --> ch7
-    ch7 --> DI
+    ch7 --> IA
 
     %% Actor to LLM channels
-    CE --> ch_llm1
+    AA --> ch_llm1
     ch_llm1 --> LLM
-    EG --> ch_llm2
+    SE --> ch_llm2
     ch_llm2 --> LLM
 
     %% Actor to Place connections (no channels needed)
     FF --> GS
     GS --> LFS
-    BIA --> CE
-    CIA --> CE
-    EG --> LFS
-    DI --> DB
-    FF --> DI
-    LFS --> DI
+    BIA --> AA
+    CIA --> AA
+    AA --> LFS
+    IA --> DB
+    FF --> IA
+    LFS --> IA
     DB --> QE
+    DB --> SE
 
     %% Actor styling (rectangular boxes)
     style CLI fill:#b3d9ff,stroke:#333,stroke-width:4px
     style MCP fill:#b3d9ff,stroke:#333,stroke-width:4px
     style FP fill:#fff,stroke:#333,stroke-width:4px
-    style CE fill:#fff,stroke:#333,stroke-width:4px
-    style EG fill:#fff,stroke:#333,stroke-width:4px
+    style AA fill:#fff,stroke:#333,stroke-width:4px
+    style IA fill:#fff,stroke:#333,stroke-width:4px
     style GS fill:#fff,stroke:#333,stroke-width:4px
-    style DI fill:#fff,stroke:#333,stroke-width:4px
+    style SE fill:#fff,stroke:#333,stroke-width:4px
     style QE fill:#fff,stroke:#333,stroke-width:4px
     style LLM fill:#ffccb3,stroke:#333,stroke-width:4px
 
@@ -159,26 +160,30 @@ graph TB
   - Extract boneyard JSON metadata
   - Calculate content hashes for scenes
 
-#### 2. **Content Extractor**
+#### 2. **Analyze API**
 
-- **Purpose**: Analyzes scene content to extract semantic information
+- **Purpose**: Analyzes scene content using insight agents and LLMs
 - **Input**: Parsed scene objects
-- **Output**: Structured metadata (characters, props, emotions, themes)
+- **Output**: Structured metadata (characters, props, emotions, themes, embeddings)
 - **Responsibilities**:
+  - Load and execute Insight Agents (built-in and custom)
   - Interface with LLM for content analysis
-  - Load and execute Insight Agents
+  - Generate scene embeddings via LLM API
+  - Store embeddings in Git LFS
   - Validate output against JSON schemas
-  - Aggregate results from multiple agents
+  - Aggregate results from multiple analyzers
 
-#### 3. **Embedding Generator**
+#### 3. **Index API**
 
-- **Purpose**: Creates vector representations of scenes
-- **Input**: Scene text and metadata
-- **Output**: Numpy arrays of embeddings
+- **Purpose**: Indexes scripts and scenes into the database
+- **Input**: Fountain files with metadata
+- **Output**: Updated SQLite database
 - **Responsibilities**:
-  - Generate embeddings via LLM API
-  - Compress and optimize vector storage
-  - Handle batching for efficiency
+  - Parse Fountain files
+  - Extract characters from dialogue
+  - Index scenes, dialogues, and actions
+  - Process embedded metadata from boneyard
+  - Maintain database consistency
 
 #### 4. **Git Synchronizer**
 
@@ -190,15 +195,19 @@ graph TB
   - Trigger processing pipeline
   - Manage Git LFS for embeddings
 
-#### 5. **Database Indexer**
+#### 5. **Search Engine**
 
-- **Purpose**: Maintains searchable database from Fountain files
-- **Input**: Fountain files with boneyard metadata
-- **Output**: Updated SQLite database
+- **Purpose**: Executes semantic and text searches
+- **Input**: Search queries
+- **Output**: Ranked search results
 - **Responsibilities**:
-  - Parse all Fountain files in repository
+  - Parse search syntax
+  - Execute database queries
   - Update only changed content (via hash comparison)
   - Maintain search indices
+
+  - Perform vector similarity search
+  - Combine results from multiple sources
 
 #### 6. **Query Engine**
 
@@ -493,11 +502,11 @@ flowchart TD
     B --> C[Changed scenes detected via content hash]
     C --> D{For each changed scene}
 
-    D --> E[Content Extractor]
+    D --> E[Analyze API]
     E --> F[LLM Analysis]
     F --> G[Metadata Generated]
 
-    D --> H[Embedding Generator]
+    D --> H[Analyze API - Embeddings]
     H --> I[LLM Embedding]
     I --> J[Vectors Generated]
 
@@ -507,7 +516,7 @@ flowchart TD
     K --> M[Commit proceeds with updated files]
     L --> M
 
-    M --> N[Database Indexer updates local cache]
+    M --> N[Index API updates local cache]
     N --> O[Scene ready for search/analysis]
 
     style A fill:#e1f5e1
@@ -605,7 +614,7 @@ The system supports various query patterns using SQLite's JSON functions:
 
 ### Insight Agents - Extensible Content Extraction
 
-Insight Agents provide a flexible, declarative way to extend the Content Extractor's capabilities without modifying code. Each agent is defined as a Markdown file that specifies what information to extract and how.
+Insight Agents provide a flexible, declarative way to extend the Analyze API's capabilities without modifying code. Each agent is defined as a Markdown file that specifies what information to extract and how.
 
 #### Agent File Structure
 
@@ -622,7 +631,7 @@ See [Example Insight Agent: Emotional Beats](docs/example-insight-agent.md) for 
 
 ```mermaid
 flowchart LR
-    A[Content Extractor] --> B[Scan insight-agents/]
+    A[Analyze API] --> B[Scan insight-agents/]
     B --> C[Load Agent Files]
     C --> D[Execute SQL Context Query]
     D --> E[Gather Scene Data]

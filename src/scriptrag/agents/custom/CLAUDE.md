@@ -1,6 +1,6 @@
 # Custom Insight Agents
 
-This directory is a placeholder for custom insight agents defined by users. Custom agents are stored in the Git repository under `insight-agents/` and loaded by the Content Extractor.
+This directory is a placeholder for custom insight agents defined by users. Custom agents are stored in the Git repository under `insight-agents/` and loaded by the Analyze API.
 
 ## Purpose
 

@@ -7,6 +7,7 @@ from typer.testing import CliRunner
 
 from scriptrag.cli import app
 from scriptrag.cli.commands.init import init_command
+from tests.utils import strip_ansi_codes
 
 
 class TestInitCommand:
@@ -31,7 +32,8 @@ class TestInitCommand:
 
             # Should exit with code 1 and show error
             assert result.exit_code == 1
-            assert "Database exists" in result.stdout
+            output = strip_ansi_codes(result.stdout)
+            assert "Database exists" in output
 
     def test_init_with_force_confirmation_cancelled(self, tmp_path):
         """Test that force confirmation can be cancelled."""
@@ -45,7 +47,8 @@ class TestInitCommand:
 
         # Should exit with code 0
         assert result.exit_code == 0
-        assert "Initialization cancelled" in result.stdout
+        output = strip_ansi_codes(result.stdout)
+        assert "Initialization cancelled" in output
 
     def test_runtime_error_handled(self, tmp_path):
         """Test generic runtime errors are handled."""
@@ -66,7 +69,8 @@ class TestInitCommand:
 
             # Should exit with code 1 and show error
             assert result.exit_code == 1
-            assert "Failed to initialize database: Something failed" in result.stdout
+            output = strip_ansi_codes(result.stdout)
+            assert "Failed to initialize database: Something failed" in output
 
     def test_init_command_direct_call(self, tmp_path):
         """Test calling init_command directly."""

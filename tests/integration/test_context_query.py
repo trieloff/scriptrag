@@ -13,6 +13,7 @@ from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
 from scriptrag.config import set_settings
+from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
 
@@ -95,12 +96,10 @@ class TestContextQuerySystem:
         )
 
         if result.exit_code != 0:
-            print(f"Analyze failed: {result.stdout}")
+            output = strip_ansi_codes(result.stdout)
+            print(f"Analyze failed: {output}")
             # Check for rate limiting
-            if (
-                "Rate limit" in result.stdout
-                or "All LLM providers failed" in result.stdout
-            ):
+            if "Rate limit" in output or "All LLM providers failed" in output:
                 pytest.skip("LLM provider rate limited - skipping test")
         assert result.exit_code == 0
 
@@ -186,8 +185,9 @@ class TestContextQuerySystem:
         )
 
         if result.exit_code != 0:
-            print(f"Second analyze failed: {result.stdout}")
-            if "Rate limit" in result.stdout:
+            output = strip_ansi_codes(result.stdout)
+            print(f"Second analyze failed: {output}")
+            if "Rate limit" in output:
                 pytest.skip("LLM provider rate limited - skipping test")
         assert result.exit_code == 0
 

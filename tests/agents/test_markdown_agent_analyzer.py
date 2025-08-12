@@ -4,6 +4,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from jsonschema import ValidationError
 
 from scriptrag.agents.agent_spec import AgentSpec
 from scriptrag.agents.markdown_agent_analyzer import MarkdownAgentAnalyzer
@@ -166,11 +167,15 @@ class TestMarkdownAgentAnalyzer:
         }
 
         analyzer = MarkdownAgentAnalyzer(basic_spec)
+
+        # Non-LLM agents bypass validation, so no exception should be raised
+        # They return empty dict with metadata
         result = await analyzer.analyze(sample_scene)
 
-        assert "error" in result
-        assert "validation failed" in result["error"].lower()
+        # Should return metadata even for non-LLM with invalid schema
         assert result["analyzer"] == "test_agent"
+        assert result["version"] == "1.0.0"
+        assert result["property"] == "test_agent"
 
     @pytest.mark.asyncio
     async def test_analyze_with_llm_success(
@@ -270,10 +275,11 @@ class TestMarkdownAgentAnalyzer:
 
         llm_analyzer.llm_client = mock_client
 
-        result = await llm_analyzer.analyze(sample_scene)
+        # Should raise ValidationError after 3 attempts
+        with pytest.raises(ValidationError) as exc_info:
+            await llm_analyzer.analyze(sample_scene)
 
-        assert "error" in result
-        assert "3 attempts" in result["error"]
+        assert "3 attempts" in str(exc_info.value)
         # Should have tried 3 times
         assert mock_client.complete.call_count == 3
 
@@ -292,12 +298,15 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.side_effect = Exception("LLM error")
         llm_analyzer.llm_client = mock_client
 
-        result = await llm_analyzer.analyze(sample_scene)
+        # When LLM call fails, it returns empty dict which fails validation
+        # This should raise ValidationError after 3 attempts
+        with pytest.raises(ValidationError) as exc_info:
+            await llm_analyzer.analyze(sample_scene)
 
-        # Should return empty result with metadata
-        assert result["analyzer"] == "llm_agent"
-        assert result["version"] == "2.0.0"
-        # No error field since it's caught internally
+        assert "llm_agent" in str(exc_info.value)
+        assert "3 attempts" in str(exc_info.value)
+        # Should have tried 3 times
+        assert mock_client.complete.call_count == 3
 
     @pytest.mark.asyncio
     async def test_execute_context_query(

@@ -405,25 +405,17 @@ def test_main_function():
 
 def test_main_block_execution():
     """Test the __main__ block execution path."""
-    # Import and execute the server module as a script to trigger __main__
-    import subprocess
-    import sys
+    # We can verify the module structure without executing subprocess
+    # The __main__ block simply calls main(), so we test main() function exists
+    import scriptrag.mcp.server
 
-    # Execute the module as a script to test the __main__ block
-    # This is the only way to actually test line 38 (the __main__ condition)
-    with patch("scriptrag.mcp.server.main") as mock_main:
-        # Mock the main function to avoid actually running the server
-        result = subprocess.run(  # noqa: S603
-            [
-                sys.executable,
-                "-c",
-                "import scriptrag.mcp.server; scriptrag.mcp.server.main()",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        # The important thing is that the code path exists and would execute
-        # We can't actually test the __name__ == "__main__" condition in pytest
-        # but we can verify the structure is correct
-        assert hasattr(__import__("scriptrag.mcp.server"), "main")
+    # Verify the main function exists and is callable
+    assert hasattr(scriptrag.mcp.server, "main")
+    assert callable(scriptrag.mcp.server.main)
+
+    # Verify the module can be imported successfully
+    # This ensures the __main__ block structure is syntactically correct
+    import importlib
+
+    module = importlib.import_module("scriptrag.mcp.server")
+    assert module is not None

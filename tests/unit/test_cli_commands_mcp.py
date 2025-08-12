@@ -270,15 +270,23 @@ class TestMCPCommand:
                     "Starting MCP server", host="", port=5173
                 )
 
-    def test_mcp_command_circular_import_error(self, runner):
-        """Test MCP command handles circular import edge case."""
-        # This test ensures the command structure handles complex scenarios
-        # We test with an invalid host to trigger error handling
+    @patch("scriptrag.cli.commands.mcp.logger")
+    @patch("scriptrag.mcp.server.main")
+    def test_mcp_command_edge_case_empty_host(self, mock_mcp_main, mock_logger, runner):
+        """Test MCP command handles edge case of empty host string."""
+        # Test with empty host to ensure it doesn't crash
         result = runner.invoke(app, ["mcp", "--host", ""])
 
-        # Should handle the invalid configuration
-        # The specific exit code may vary, but it should not crash
-        assert result.exit_code in [0, 1]  # Either succeeds or fails gracefully
+        # Should succeed (empty host is valid, server validation happens elsewhere)
+        assert result.exit_code == 0
+
+        # Verify MCP main was called
+        mock_mcp_main.assert_called_once_with()
+
+        # Verify logging with empty host
+        mock_logger.info.assert_called_once_with(
+            "Starting MCP server", host="", port=5173
+        )
 
 
 class TestMCPCommandDirect:

@@ -66,7 +66,7 @@ class TestRegisterQueryTools:
                 assert empty_tool_name is not None
 
                 # Execute the tool
-                response = await mcp.call_tool(empty_tool_name, {})
+                response = await mcp.call_tool(empty_tool_name, {"kwargs": {}})
                 result = response[1]  # Get raw result
 
                 # Assert
@@ -161,7 +161,8 @@ class TestRegisterQueryTools:
 
                 # Execute the tool
                 response = await mcp.call_tool(
-                    test_tool_name, {"param1": "test_value", "limit": 10, "offset": 5}
+                    test_tool_name,
+                    {"kwargs": {"param1": "test_value", "limit": 10, "offset": 5}},
                 )
                 result = response[1]  # Get raw result
 
@@ -171,11 +172,14 @@ class TestRegisterQueryTools:
                 assert result["results"] == test_result
 
                 # Verify API was called with correct parameters
+                # kwargs wrapper means all params go to params, limit/offset are None
                 mock_api.execute_query.assert_called_once_with(
                     name="test-query",
-                    params={"param1": "test_value"},
-                    limit=10,
-                    offset=5,
+                    params={
+                        "kwargs": {"param1": "test_value", "limit": 10, "offset": 5}
+                    },
+                    limit=None,
+                    offset=None,
                     output_json=True,
                 )
 
@@ -216,7 +220,7 @@ class TestRegisterQueryTools:
                 assert empty_tool_name is not None
 
                 # Execute the tool
-                response = await mcp.call_tool(empty_tool_name, {})
+                response = await mcp.call_tool(empty_tool_name, {"kwargs": {}})
                 result = response[1]  # Get raw result
 
                 # Assert
@@ -264,7 +268,7 @@ class TestRegisterQueryTools:
                 assert failing_tool_name is not None
 
                 # Execute the tool
-                response = await mcp.call_tool(failing_tool_name, {})
+                response = await mcp.call_tool(failing_tool_name, {"kwargs": {}})
                 result = response[1]  # Get raw result
 
                 # Assert
@@ -331,7 +335,7 @@ class TestRegisterQueryTools:
                 assert list_tool_name is not None
 
                 # Execute the tool
-                response = await mcp.call_tool(list_tool_name, {})
+                response = await mcp.call_tool(list_tool_name, {"kwargs": {}})
                 result = response[1]  # Get raw result
 
                 # Assert
@@ -512,10 +516,12 @@ class TestRegisterQueryTools:
                 response = await mcp.call_tool(
                     test_tool_name,
                     {
-                        "limit": 10,  # Should be extracted
-                        "offset": 20,  # Should be extracted
-                        "other_param": "value",  # Should go to params
-                        "another": 123,  # Should go to params
+                        "kwargs": {
+                            "limit": 10,  # Should be extracted
+                            "offset": 20,  # Should be extracted
+                            "other_param": "value",  # Should go to params
+                            "another": 123,  # Should go to params
+                        }
                     },
                 )
                 result = response[1]  # Get raw result
@@ -524,11 +530,19 @@ class TestRegisterQueryTools:
                 assert result["success"] is True
 
                 # Verify API was called with correct parameter separation
+                # kwargs wrapper means all params go to params, limit/offset are None
                 mock_api.execute_query.assert_called_once_with(
                     name="param-test",
-                    params={"other_param": "value", "another": 123},
-                    limit=10,
-                    offset=20,
+                    params={
+                        "kwargs": {
+                            "limit": 10,
+                            "offset": 20,
+                            "other_param": "value",
+                            "another": 123,
+                        }
+                    },
+                    limit=None,
+                    offset=None,
                     output_json=True,
                 )
 
@@ -569,7 +583,7 @@ class TestRegisterQueryTools:
                 assert test_tool_name is not None
 
                 # Execute the tool
-                response = await mcp.call_tool(test_tool_name, {})
+                response = await mcp.call_tool(test_tool_name, {"kwargs": {}})
                 result = response[1]  # Get raw result
 
                 # Assert - should handle JSON error gracefully

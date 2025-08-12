@@ -193,20 +193,120 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
     async def _fetch_models(self) -> list[Model] | None:
         """Fetch models from Claude Code SDK.
 
-        Currently, the Claude Code SDK doesn't provide model enumeration,
-        so this returns None to use static models.
+        Attempts to discover available models through the Claude Code SDK.
+        Returns None if SDK doesn't support model enumeration or is not available.
         """
         try:
-            # Try to import and check for model listing capability
-            from claude_code_sdk import ClaudeCodeOptions  # noqa: F401
+            # Import SDK components
+            from claude_code_sdk import ClaudeCodeOptions, ClaudeSDKClient  # noqa: F401
 
-            # TODO: When SDK adds model enumeration, implement it here
-            # For now, the SDK doesn't expose available models
-            logger.debug("Claude Code SDK doesn't support model enumeration yet")
+            # Check if the SDK has model enumeration capabilities
+            # NOTE: As of claude-code-sdk v0.0.20, model enumeration is not yet
+            # available. This implementation is future-proof and will automatically
+            # use the SDK's model listing when it becomes available through
+            # list_models(), get_models(), or models attribute
+            client = ClaudeSDKClient()
+
+            # Look for model listing methods
+            if hasattr(client, "list_models"):
+                logger.info("Found list_models method in Claude SDK")
+                models_data = await client.list_models()
+                return self._parse_claude_models(models_data)
+            if hasattr(client, "get_models"):
+                logger.info("Found get_models method in Claude SDK")
+                models_data = await client.get_models()
+                return self._parse_claude_models(models_data)
+            if hasattr(client, "models"):
+                logger.info("Found models attribute in Claude SDK")
+                models_data = client.models
+                return self._parse_claude_models(models_data)
+
+            # SDK exists but doesn't support model enumeration yet
+            # TODO: Monitor claude-code-sdk releases for model enumeration support
+            # Check: https://pypi.org/project/claude-code-sdk/ for updates
+            logger.debug(
+                "Claude Code SDK doesn't expose model enumeration yet",
+                sdk_version="0.0.20+",
+                sdk_methods=[m for m in dir(client) if not m.startswith("_")],
+            )
             return None
 
-        except ImportError:
-            logger.debug("Claude Code SDK not available for model discovery")
+        except ImportError as e:
+            logger.debug(f"Claude Code SDK not available: {e}")
+            return None
+        except Exception as e:
+            logger.warning(f"Error checking Claude Code SDK for models: {e}")
+            return None
+
+    def _parse_claude_models(self, models_data: Any) -> list[Model] | None:
+        """Parse model data from Claude SDK into Model objects.
+
+        Args:
+            models_data: Raw model data from SDK
+
+        Returns:
+            List of Model objects or None if parsing fails
+        """
+        from scriptrag.llm.models import LLMProvider
+
+        if not models_data:
+            return None
+
+        try:
+            models = []
+            # Handle different possible formats
+            if isinstance(models_data, list):
+                for model_info in models_data:
+                    if isinstance(model_info, dict):
+                        model_id = model_info.get("id") or model_info.get("model_id")
+                        if model_id:
+                            models.append(
+                                Model(
+                                    id=model_id,
+                                    name=model_info.get("name") or model_id,
+                                    provider=LLMProvider.CLAUDE_CODE,
+                                    capabilities=model_info.get(
+                                        "capabilities", ["completion", "chat"]
+                                    ),
+                                    context_window=model_info.get(
+                                        "context_window", 200000
+                                    ),
+                                    max_output_tokens=model_info.get(
+                                        "max_tokens", 8192
+                                    ),
+                                )
+                            )
+            elif isinstance(models_data, dict):
+                # Might be a dict of model_id -> model_info
+                for model_id, model_info in models_data.items():
+                    if isinstance(model_info, dict):
+                        name = model_info.get("name") or model_id
+                        capabilities = model_info.get(
+                            "capabilities", ["completion", "chat"]
+                        )
+                        context_window = model_info.get("context_window", 200000)
+                        max_output = model_info.get("max_tokens", 8192)
+                    else:
+                        name = model_id
+                        capabilities = ["completion", "chat"]
+                        context_window = 200000
+                        max_output = 8192
+
+                    models.append(
+                        Model(
+                            id=model_id,
+                            name=name,
+                            provider=LLMProvider.CLAUDE_CODE,
+                            capabilities=capabilities,
+                            context_window=context_window,
+                            max_output_tokens=max_output,
+                        )
+                    )
+
+            return models if models else None
+
+        except Exception as e:
+            logger.warning(f"Failed to parse Claude models data: {e}")
             return None
 
 

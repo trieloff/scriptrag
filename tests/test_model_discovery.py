@@ -237,6 +237,8 @@ class TestClaudeCodeModelDiscovery:
 
         # Mock the SDK import
         mock_sdk = MagicMock()
+        mock_sdk.ClaudeSDKClient = MagicMock
+        mock_sdk.ClaudeCodeOptions = MagicMock
         with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
             discovery = ClaudeCodeModelDiscovery(
                 provider_name="claude_code",
@@ -248,6 +250,67 @@ class TestClaudeCodeModelDiscovery:
             # Should still use static models as SDK doesn't support enumeration
             assert len(models) == 1
             assert models[0].id == "claude-3-opus"
+
+    @pytest.mark.asyncio
+    async def test_claude_code_with_list_models_method(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test Claude Code when SDK has list_models method."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock SDK with list_models method
+        mock_sdk = MagicMock()
+        mock_client = MagicMock()
+        mock_client.list_models = AsyncMock(
+            return_value=[
+                {"id": "claude-3-5-sonnet", "name": "Claude 3.5 Sonnet"},
+                {"id": "claude-3-opus", "name": "Claude 3 Opus"},
+            ]
+        )
+        mock_sdk.ClaudeSDKClient.return_value = mock_client
+        mock_sdk.ClaudeCodeOptions = MagicMock
+
+        with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            models = await discovery.discover_models()
+            assert len(models) == 2
+            assert models[0].id == "claude-3-5-sonnet"
+            assert models[1].id == "claude-3-opus"
+
+    @pytest.mark.asyncio
+    async def test_claude_code_with_models_attribute(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test Claude Code when SDK has models attribute."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock SDK with models attribute (but no list_models or get_models)
+        mock_sdk = MagicMock()
+        mock_client = MagicMock(spec=["models"])  # Only has models attribute
+        mock_client.models = {
+            "claude-3-5-haiku": {"name": "Claude 3.5 Haiku", "context_window": 200000},
+            "claude-4-opus": {"name": "Claude 4 Opus", "max_tokens": 10000},
+        }
+        mock_sdk.ClaudeSDKClient.return_value = mock_client
+        mock_sdk.ClaudeCodeOptions = MagicMock
+
+        with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            models = await discovery.discover_models()
+            assert len(models) == 2
+            assert models[0].id == "claude-3-5-haiku"
+            assert models[1].id == "claude-4-opus"
+            assert models[1].max_output_tokens == 10000
 
 
 class TestGitHubModelsDiscovery:

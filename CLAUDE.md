@@ -261,6 +261,7 @@ make check-fast    # Quick quality checks (recommended first step)
 - Write both unit and integration tests
 - Test error conditions and edge cases
 - Current test suite: 86+ tests, 2230+ lines of test code
+- **See [TESTING.md](docs/TESTING.md)** for comprehensive testing guidelines and cross-platform best practices
 
 ### **Testing Gotchas (from recent iterations)**
 
@@ -314,6 +315,7 @@ make run-mcp          # Run MCP server
 
 - **README.md**: Project roadmap and architecture
 - **AGENTS.md**: Commit message guidelines and project rules
+- **[TESTING.md](docs/TESTING.md)**: Comprehensive testing best practices and cross-platform guidelines
 - **Database Schema**: `src/scriptrag/database/schema.py`
 - **Configuration**: `src/scriptrag/config/settings.py`
 - **Module CLAUDE.md files**: 21+ distributed documentation files

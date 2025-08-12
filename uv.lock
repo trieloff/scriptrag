@@ -1599,6 +1599,12 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/2f/cf/3fd38cfe43962452e4bfadc6966b2ea0afaf8e0286cb3991c247c8c33ebd/mcp-1.12.2-py3-none-any.whl", hash = "sha256:b86d584bb60193a42bd78aef01882c5c42d614e416cbf0480149839377ab5a5f", size = 158473, upload-time = "2025-07-24T18:29:03.419Z" },
 ]
 
+[package.optional-dependencies]
+cli = [
+    { name = "python-dotenv" },
+    { name = "typer" },
+]
+
 [[package]]
 name = "mdurl"
 version = "0.1.2"
@@ -3192,7 +3198,7 @@ dependencies = [
     { name = "jouvence" },
     { name = "jsonschema" },
     { name = "markdown-it-py" },
-    { name = "mcp" },
+    { name = "mcp", extra = ["cli"] },
     { name = "networkx" },
     { name = "numpy" },
     { name = "openai" },
@@ -3282,7 +3288,7 @@ requires-dist = [
     { name = "jsonschema", specifier = ">=4.25.0" },
     { name = "jupyter", marker = "extra == 'dev'", specifier = ">=1.0.0" },
     { name = "markdown-it-py", specifier = ">=3.0.0" },
-    { name = "mcp", specifier = ">=0.1.0" },
+    { name = "mcp", extras = ["cli"], specifier = ">=0.1.0" },
     { name = "mkdocs", marker = "extra == 'dev'", specifier = ">=1.5.0" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = ">=1.5.0" },
     { name = "mkdocs-material", marker = "extra == 'dev'", specifier = ">=9.5.0" },

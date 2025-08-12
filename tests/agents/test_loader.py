@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from jsonschema import ValidationError
 
 from scriptrag.agents.loader import AgentLoader, AgentSpec, MarkdownAgentAnalyzer
 
@@ -462,17 +463,20 @@ class TestMarkdownAgentAnalyzer:
         mock_response = MagicMock()
         # Missing required "result" field
         mock_response.content = '{"wrong_field": "value"}'
+        mock_response.model = "test-model"
+        mock_response.provider = None
+        mock_response.usage = {}
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
         scene = {"text": "Test scene"}
-        result = await analyzer.analyze(scene)
 
-        # Should return error result on validation failure after 3 attempts
-        assert "error" in result
-        assert "validation failed after 3 attempts" in result["error"].lower()
-        assert result["analyzer"] == "test-analyzer"
-        assert result["version"] == "2.0.0"
+        # Should raise ValidationError after 3 attempts instead of returning error dict
+        with pytest.raises(ValidationError) as exc_info:
+            await analyzer.analyze(scene)
+
+        assert "validation failed after 3 attempts" in str(exc_info.value).lower()
+        assert "test-analyzer" in str(exc_info.value)
         # Should have tried 3 times
         assert mock_client.complete.call_count == 3
 

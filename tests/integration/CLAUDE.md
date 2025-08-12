@@ -1,5 +1,7 @@
 # Integration Test Guidelines
 
+> **For complete testing documentation**, see the main **[Testing Best Practices Guide](../../docs/TESTING.md)**. This document focuses specifically on integration testing patterns.
+
 ## Core Principle: NO MOCKING
 
 **Integration tests verify real component interactions. Never mock dependencies in integration tests.**

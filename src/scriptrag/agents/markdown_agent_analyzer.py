@@ -115,15 +115,12 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
                         temperature=temperature,
                     )
 
-                    # If this was the last attempt, return error
+                    # If this was the last attempt, raise exception
                     if attempt == max_attempts - 1:
-                        return {
-                            "error": (
-                                f"Validation failed after {max_attempts} attempts: {e}"
-                            ),
-                            "analyzer": self.name,
-                            "version": self.version,
-                        }
+                        raise ValidationError(
+                            f"Agent {self.spec.name} validation failed after "
+                            f"{max_attempts} attempts: {e}"
+                        ) from e
                     # Log that we're retrying
                     logger.info(
                         f"Retrying {self.spec.name} with higher temperature",
@@ -132,21 +129,8 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
                     )
         else:
             # For non-LLM agents, just return empty result
+            # No validation needed for non-LLM agents since they don't generate content
             result = {}
-            # Validate non-LLM result too
-            try:
-                jsonschema.validate(result, self.spec.output_schema)
-            except ValidationError as e:
-                logger.error(
-                    f"Agent {self.spec.name} output failed validation",
-                    error=str(e),
-                    scene_heading=scene.get("heading", ""),
-                )
-                return {
-                    "error": f"Output validation failed: {e.message}",
-                    "analyzer": self.name,
-                    "version": self.version,
-                }
 
         # Add metadata
         result["analyzer"] = self.name

@@ -7,7 +7,7 @@ This directory contains the Insight Agents system for extensible content extract
 Insight Agents are **configuration components** that:
 
 - Store extraction logic as markdown files
-- Provide prompts and schemas to the Content Extractor
+- Provide prompts and schemas to the Analyze API
 - Enable domain experts to contribute without coding
 - Support both built-in and custom agents
 

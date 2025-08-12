@@ -94,7 +94,8 @@ class TestClaudeCodeProvider:
             )
 
             # The SDK will raise an error when trying to execute claude
-            with pytest.raises(Exception):  # noqa: B017
+            # Using broad Exception as the SDK may raise various error types
+            with pytest.raises(Exception):  # noqa: B017 - Testing any SDK failure
                 await provider.complete(request)
 
     @pytest.mark.asyncio

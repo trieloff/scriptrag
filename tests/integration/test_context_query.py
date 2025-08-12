@@ -63,11 +63,14 @@ class TestContextQuerySystem:
 
         # Try to use Claude Code if available, otherwise skip
         try:
-            import claude_code_sdk  # noqa: F401
+            import claude_code_sdk
+
+            # Access an attribute to ensure the module is fully imported
+            _ = claude_code_sdk.ClaudeCodeOptions
 
             monkeypatch.delenv("SCRIPTRAG_IGNORE_CLAUDE", raising=False)
             monkeypatch.setenv("SCRIPTRAG_LLM_PROVIDER", "claude_code")
-        except ImportError:
+        except (ImportError, AttributeError):
             # Try GitHub Models as fallback
             import os
 

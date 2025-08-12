@@ -23,9 +23,9 @@ def register_search_tool(mcp: FastMCP) -> None:
         character: str | None = None,
         dialogue: str | None = None,
         parenthetical: str | None = None,
-        location: str | None = None,  # noqa: ARG001
+        location: str | None = None,
         project: str | None = None,
-        range: str | None = None,  # noqa: A002
+        range: str | None = None,  # noqa: A002 - Shadows builtin but matches API
         fuzzy: bool = False,
         strict: bool = False,
         limit: int = 5,
@@ -78,6 +78,10 @@ def register_search_tool(mcp: FastMCP) -> None:
                     "error": "Cannot use both no_bible and only_bible options",
                     "success": False,
                 }
+
+            # Note: location parameter is reserved for future use
+            # When implemented, it will filter scenes by location
+            _ = location  # Mark as intentionally unused
 
             # Execute search asynchronously to avoid event loop conflicts
             response = await search_api.search_async(

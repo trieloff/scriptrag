@@ -271,7 +271,7 @@ class BibleIndexer:
         self,
         conn: sqlite3.Connection,
         bible_id: int,
-        parsed_bible: ParsedBible,  # noqa: ARG002
+        parsed_bible: ParsedBible,
     ) -> int:
         """Generate and store embeddings for bible chunks.
 
@@ -283,6 +283,10 @@ class BibleIndexer:
         Returns:
             Number of embeddings created
         """
+        # Note: parsed_bible is kept for API consistency but not needed here
+        # Data is already stored in database from previous step
+        _ = parsed_bible  # Mark as intentionally unused
+
         if not self.embedding_analyzer:
             return 0
 

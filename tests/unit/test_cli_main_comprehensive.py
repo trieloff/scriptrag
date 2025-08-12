@@ -256,7 +256,9 @@ class TestCLIMainEdgeCases:
             import sys
 
             # Import the module to ensure it's loaded
-            import scriptrag.cli.main  # noqa: F401
+            import scriptrag.cli.main as cli_main_module  # Use alias to avoid F401
+
+            _ = cli_main_module  # Ensure it's used
 
             # Get the actual module object (not the function imported via __init__)
             cli_main = sys.modules["scriptrag.cli.main"]

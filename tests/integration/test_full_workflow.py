@@ -637,11 +637,14 @@ class TestFullWorkflow:
                 import shutil
 
                 # Try to import the SDK to check if it's available
-                import claude_code_sdk  # noqa: F401
+                import claude_code_sdk
+
+                # Access an attribute to ensure the module is fully imported
+                _ = claude_code_sdk.ClaudeCodeOptions
 
                 if shutil.which("claude") is None:
                     pytest.skip("Claude Code binary not available in PATH")
-            except ImportError:
+            except (ImportError, AttributeError):
                 pytest.skip("Claude Code SDK not available")
 
             # Don't set SCRIPTRAG_IGNORE_CLAUDE

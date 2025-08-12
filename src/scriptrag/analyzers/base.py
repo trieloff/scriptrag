@@ -65,7 +65,10 @@ class BaseSceneAnalyzer(ABC):
 
         Called once before processing begins.
         Override if you need to set up connections, load models, etc.
+
+        Base implementation does nothing - subclasses should override if needed.
         """
+        # Intentionally empty - subclasses override as needed
         pass  # pragma: no cover
 
     async def cleanup(self) -> None:  # noqa: B027
@@ -73,5 +76,8 @@ class BaseSceneAnalyzer(ABC):
 
         Called once after processing completes.
         Override if you need to close connections, free memory, etc.
+
+        Base implementation does nothing - subclasses should override if needed.
         """
+        # Intentionally empty - subclasses override as needed
         pass  # pragma: no cover

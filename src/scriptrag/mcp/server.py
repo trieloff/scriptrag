@@ -13,7 +13,7 @@ def create_server() -> FastMCP:
     Returns:
         Configured FastMCP server instance
     """
-    mcp = FastMCP("scriptrag-mcp")
+    mcp = FastMCP("scriptrag")
 
     # Import and register tools
     from scriptrag.mcp.tools.query import register_query_tools

@@ -353,7 +353,7 @@ def test_create_server():
 
             # Verify server was created
             assert server is not None
-            assert server.name == "scriptrag-mcp"
+            assert server.name == "scriptrag"
 
             # Verify tools were registered
             mock_search.assert_called_once()

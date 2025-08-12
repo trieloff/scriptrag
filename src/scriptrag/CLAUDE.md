@@ -9,17 +9,20 @@ The scriptrag module serves as the main package that orchestrates all components
 ## Key Components
 
 - `api/`: Public API surface (used by CLI and MCP)
+  - `analyze.py`: Scene analysis with insight agents and embeddings
+  - `index.py`: Script indexing with character extraction
+  - `database_operations.py`: Core database operations
 - `cli/`: Command-line interface implementation
 - `mcp/`: Model Context Protocol server
 - `parser/`: Fountain file parsing
-- `extractor/`: Content extraction with LLM
-- `embeddings/`: Vector embedding generation
-- `indexer/`: Database indexing
+- `analyzers/`: Content analyzers including embedding generation
 - `query/`: Query engine for search
+- `search/`: Search engine with vector similarity
 - `storage/`: Storage layer implementations
 - `agents/`: Insight agents for extensible extraction
 - `config/`: Configuration management
 - `models/`: Data models and types
+- `llm/`: LLM client and provider implementations
 - `utils/`: Shared utilities
 
 ## Development Guidelines

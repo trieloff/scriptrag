@@ -25,7 +25,8 @@ class TestCLIMainApp:
         assert app.info.name == "scriptrag"
         assert app.info.help == "ScriptRAG: A Graph-Based Screenwriting Assistant"
         assert app.pretty_exceptions_enable is False
-        assert app.add_completion is False
+        # add_completion is a private attribute in Typer 0.16.0
+        assert app._add_completion is False
 
     def test_app_commands_registered(self, runner):
         """Test that all expected commands are registered."""
@@ -54,21 +55,22 @@ class TestCLIMainApp:
 
     def test_app_hidden_alias(self, runner):
         """Test that the 'ls' alias for 'list' works but is hidden."""
-        # Test that 'ls' works
-        with pytest.raises(SystemExit):
-            # This will try to run the actual command, which might fail
-            # due to missing dependencies, but it should recognize the command
-            runner.invoke(app, ["ls", "--help"], catch_exceptions=False)
+        # Test that 'ls' works (should show help successfully)
+        result = runner.invoke(app, ["ls", "--help"])
+        assert result.exit_code == 0  # Help should work
+        assert "Usage:" in result.output
+        assert "scriptrag ls" in result.output
 
-        # Or test more safely by checking it doesn't appear in help
+        # Test more safely by checking it doesn't appear in main help
         result = runner.invoke(app, ["--help"])
         from tests.utils import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
 
-        # ls should be hidden (not appear in help)
+        # ls should be hidden (not appear in main help)
         assert "Commands:" in output or "Usage:" in output
         # The 'ls' command should not be listed as it's hidden
+        assert "ls" not in output  # Hidden command shouldn't appear in main help
 
     def test_app_subapp_registered(self, runner):
         """Test that query subapp is properly registered."""
@@ -116,9 +118,13 @@ class TestCLIMainFunction:
 
     def test_main_function_calls_app(self):
         """Test that main() calls the app."""
-        from unittest.mock import patch
+        from unittest.mock import MagicMock, patch
 
-        with patch.object(app, "__call__") as mock_call:
+        # Mock the app itself rather than just __call__
+        mock_app = MagicMock()
+        mock_app.side_effect = SystemExit(0)  # Simulate normal typer exit
+
+        with patch("scriptrag.cli.main.app", mock_app):
             from contextlib import suppress
 
             with suppress(SystemExit):
@@ -126,7 +132,7 @@ class TestCLIMainFunction:
                 main()
 
             # The app should have been called
-            mock_call.assert_called_once_with()
+            mock_app.assert_called_once_with()
 
     def test_main_function_handles_system_exit(self):
         """Test that main function properly handles SystemExit."""
@@ -181,16 +187,20 @@ class TestCLIMainModuleIntegration:
         assert app.pretty_exceptions_enable is False
 
         # add_completion should be False to avoid auto shell completion
-        assert app.add_completion is False
+        # In Typer 0.16.0, this is a private attribute
+        assert app._add_completion is False
 
     def test_module_imports_complete(self):
         """Test that all necessary imports are present."""
-        # Test that we can import everything needed
-        import scriptrag.cli.main
+        # Test that we can import everything needed from the main module
+        import sys
+
+        # Get the actual module object (not the function imported via __init__)
+        main_module = sys.modules["scriptrag.cli.main"]
 
         # Should have app and main
-        assert hasattr(scriptrag.cli.main, "app")
-        assert hasattr(scriptrag.cli.main, "main")
+        assert hasattr(main_module, "app")
+        assert hasattr(main_module, "main")
 
         # Should be able to access all the imported commands
         from scriptrag.cli.main import app
@@ -201,7 +211,10 @@ class TestCLIMainModuleIntegration:
         """Test the if __name__ == '__main__' block."""
         # The direct execution block should be covered by pragma: no cover
         # We can test that the module has the right structure
-        import scriptrag.cli.main as main_module
+        import sys
+
+        # Get the actual module object (not the function imported via __init__)
+        main_module = sys.modules["scriptrag.cli.main"]
 
         # Module should have the expected structure
         assert hasattr(main_module, "main")
@@ -240,10 +253,17 @@ class TestCLIMainEdgeCases:
         # command modules have issues
 
         try:
-            import scriptrag.cli.main
+            import sys
+
+            # Import the module to ensure it's loaded
+            import scriptrag.cli.main  # noqa: F401
+
+            # Get the actual module object (not the function imported via __init__)
+            cli_main = sys.modules["scriptrag.cli.main"]
 
             # Should succeed
-            assert scriptrag.cli.main.app is not None
+            assert cli_main.app is not None
+            assert cli_main.main is not None
         except ImportError as e:
             pytest.fail(f"Main CLI module failed to import: {e}")
 
@@ -254,7 +274,8 @@ class TestCLIMainEdgeCases:
 
         # Configuration should be production-ready
         assert app.pretty_exceptions_enable is False  # Don't show stack traces to users
-        assert app.add_completion is False  # Don't auto-add shell completion
+        # In Typer 0.16.0, add_completion is a private attribute
+        assert app._add_completion is False  # Don't auto-add shell completion
 
         # App info should be properly set
         assert app.info.name == "scriptrag"
@@ -305,7 +326,8 @@ class TestCLIMainEdgeCases:
 
         # Should have reasonable configuration
         assert hasattr(app, "pretty_exceptions_enable")
-        assert hasattr(app, "add_completion")
+        # In Typer 0.16.0, add_completion is a private attribute
+        assert hasattr(app, "_add_completion")
 
         # Should have registered commands
         assert len(app.registered_commands) > 0

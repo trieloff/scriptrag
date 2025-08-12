@@ -191,61 +191,150 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
     """Model discovery for Claude Code provider."""
 
     async def _fetch_models(self) -> list[Model] | None:
-        """Fetch models from Claude Code SDK.
+        """Fetch models from Claude Code SDK or Anthropic API.
 
-        Attempts to discover available models through the Claude Code SDK.
-        Returns None if SDK doesn't support model enumeration or is not available.
+        Attempts to discover available models through:
+        1. Claude Code SDK (if it adds model enumeration in the future)
+        2. Anthropic API /v1/models endpoint (if API key is available)
+
+        Returns None if model discovery is not available.
         """
+        # Try Claude Code SDK first (currently doesn't support model enumeration)
         try:
-            # Try to import and check for model listing capability
-            import claude_code_sdk
-
-            # Check if SDK is available by accessing the module
-            _ = claude_code_sdk.ClaudeCodeOptions
-
-            # Import SDK client if available
             from claude_code_sdk import ClaudeSDKClient
 
-            # Check if the SDK has model enumeration capabilities
-            # NOTE: As of claude-code-sdk v0.0.20, model enumeration is not yet
-            # available. This implementation is future-proof and will automatically
-            # use the SDK's model listing when it becomes available through
-            # list_models(), get_models(), or models attribute
             client = ClaudeSDKClient()
 
-            # Look for model listing methods
-            if hasattr(client, "list_models"):
-                logger.info("Found list_models method in Claude SDK")
+            # Check if SDK has model enumeration (not available as of v0.0.20)
+            # Check for list_models method (most likely interface if added)
+            if hasattr(client, "list_models") and callable(client.list_models):
+                logger.info("Using Claude SDK list_models method")
                 models_data = await client.list_models()
                 return self._parse_claude_models(models_data)
-            if hasattr(client, "get_models"):
-                logger.info("Found get_models method in Claude SDK")
-                models_data = await client.get_models()
-                return self._parse_claude_models(models_data)
-            if hasattr(client, "models"):
-                logger.info("Found models attribute in Claude SDK")
-                models_data = client.models
-                return self._parse_claude_models(models_data)
 
-            # SDK exists but doesn't support model enumeration yet
-            # TODO: Monitor claude-code-sdk releases for model enumeration support
-            # Check: https://pypi.org/project/claude-code-sdk/ for updates
-            logger.debug(
-                "Claude Code SDK doesn't expose model enumeration yet",
-                sdk_version="0.0.20+",
-                sdk_methods=[m for m in dir(client) if not m.startswith("_")],
-            )
-            return None
+            # Check for models attribute (alternative interface)
+            if hasattr(client, "models") and client.models is not None:
+                logger.info("Using Claude SDK models attribute")
+                return self._parse_claude_models(client.models)
 
-        except (ImportError, AttributeError) as e:
-            logger.debug(f"Claude Code SDK not available: {e}")
+        except ImportError:
+            logger.debug("Claude Code SDK not available")
+        except Exception as e:
+            logger.debug(f"Error checking Claude Code SDK: {e}")
+
+        # Try Anthropic API models endpoint if API key is available
+        import os
+
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if api_key:
+            return await self._fetch_from_anthropic_api(api_key)
+
+        logger.debug("No model discovery available - using static models")
+        return None
+
+    async def _fetch_from_anthropic_api(self, api_key: str) -> list[Model] | None:
+        """Fetch models from Anthropic API /v1/models endpoint.
+
+        Args:
+            api_key: Anthropic API key
+
+        Returns:
+            List of models from API or None on error
+        """
+        try:
+            import httpx
+
+            headers = {
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            }
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    "https://api.anthropic.com/v1/models",
+                    headers=headers,
+                    timeout=10.0,
+                )
+
+                if response.status_code != 200:
+                    logger.debug(
+                        f"Anthropic models endpoint returned {response.status_code}"
+                    )
+                    return None
+
+                data = response.json()
+                models_list = data.get("data", [])
+
+                if not models_list:
+                    return None
+
+                return self._parse_anthropic_models(models_list)
+
+        except ImportError:
+            logger.debug("httpx not available for Anthropic API calls")
             return None
         except Exception as e:
-            logger.warning(f"Error checking Claude Code SDK for models: {e}")
+            logger.debug(f"Failed to fetch models from Anthropic API: {e}")
+            return None
+
+    def _parse_anthropic_models(self, models_data: list[dict]) -> list[Model] | None:
+        """Parse model data from Anthropic API into Model objects.
+
+        Args:
+            models_data: Raw model data from Anthropic API
+
+        Returns:
+            List of Model objects or None if parsing fails
+        """
+        from scriptrag.llm.models import LLMProvider
+
+        if not models_data:
+            return None
+
+        try:
+            models = []
+            for model_info in models_data:
+                model_id = model_info.get("id")
+                if not model_id:
+                    continue
+
+                # Extract display name or use ID
+                name = model_info.get("display_name") or model_id
+
+                # Default capabilities for Claude models
+                capabilities = ["completion", "chat"]
+
+                # Default context window and output tokens for Claude models
+                # These may need adjustment based on actual API response
+                context_window = 200000
+                max_output = 8192
+
+                # Adjust for specific model types if needed
+                if "haiku" in model_id.lower() or "opus" in model_id.lower():
+                    max_output = 4096
+
+                models.append(
+                    Model(
+                        id=model_id,
+                        name=name,
+                        provider=LLMProvider.CLAUDE_CODE,
+                        capabilities=capabilities,
+                        context_window=context_window,
+                        max_output_tokens=max_output,
+                    )
+                )
+
+            return models if models else None
+
+        except Exception as e:
+            logger.warning(f"Failed to parse Anthropic models data: {e}")
             return None
 
     def _parse_claude_models(self, models_data: Any) -> list[Model] | None:
         """Parse model data from Claude SDK into Model objects.
+
+        This method is retained for future compatibility if the Claude Code SDK
+        adds model enumeration support.
 
         Args:
             models_data: Raw model data from SDK
@@ -260,7 +349,8 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
 
         try:
             models = []
-            # Handle different possible formats
+
+            # Handle list format (most likely format from SDK)
             if isinstance(models_data, list):
                 for model_info in models_data:
                     if isinstance(model_info, dict):
@@ -282,8 +372,9 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
                                     ),
                                 )
                             )
+
+            # Handle dict format (models attribute might return dict)
             elif isinstance(models_data, dict):
-                # Might be a dict of model_id -> model_info
                 for model_id, model_info in models_data.items():
                     if isinstance(model_info, dict):
                         name = model_info.get("name") or model_id
@@ -293,6 +384,7 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
                         context_window = model_info.get("context_window", 200000)
                         max_output = model_info.get("max_tokens", 8192)
                     else:
+                        # Simple value, use defaults
                         name = model_id
                         capabilities = ["completion", "chat"]
                         context_window = 200000
@@ -312,7 +404,7 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             return models if models else None
 
         except Exception as e:
-            logger.warning(f"Failed to parse Claude models data: {e}")
+            logger.warning(f"Failed to parse Claude SDK models data: {e}")
             return None
 
 

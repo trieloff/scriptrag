@@ -49,17 +49,103 @@ class TestInitCommand:
 
 ### 1. ANSI Code Stripping
 
-**Problem**: CLI output contains ANSI escape sequences and Unicode characters that vary across platforms.
+**Problem**: CLI output contains ANSI escape sequences and Unicode characters that vary across platforms, causing test failures in CI environments.
 
-**Solution**: Always strip ANSI codes when testing CLI output:
+**Background**: The codebase has over 100 usages of `strip_ansi_codes` across tests, which was a major cross-platform compatibility effort that succeeded but introduced significant boilerplate.
+
+#### Modern Solution: Automatic ANSI Stripping Fixtures (Recommended)
+
+Use the new `cli_fixtures` module that provides automatic ANSI stripping:
 
 ```python
-from scriptrag.tools.utils import strip_ansi_codes
+# Use the cli_invoke fixture for automatic ANSI stripping
+def test_cli_with_fixture(cli_invoke):
+    result = cli_invoke("status")
+    result.assert_success().assert_contains("Ready")
+    # No manual strip_ansi_codes needed!
+
+# Or use the cli_helper for more complex workflows
+def test_workflow(cli_helper):
+    result = cli_helper.init_database()
+    result.assert_success().assert_contains("Database initialized")
+
+    result = cli_helper.analyze_scripts(script_dir=Path("."))
+    result.assert_success()
+```
+
+#### Legacy Solution: Manual ANSI Stripping
+
+For existing tests or when not using fixtures:
+
+```python
+from tests.utils import strip_ansi_codes  # or from tests.cli_fixtures
 
 def test_cli_output(runner):
     result = runner.invoke(app, ["command"])
     output = strip_ansi_codes(result.stdout)
     assert "expected text" in output
+```
+
+#### Using Enhanced CLI Test Fixtures
+
+The `tests/cli_fixtures.py` module provides several improvements:
+
+1. **CleanCliRunner**: Automatically returns cleaned results
+
+   ```python
+   from tests.cli_fixtures import CleanCliRunner
+
+   runner = CleanCliRunner()
+   result = runner.invoke(app, ["status"])  # Returns CleanResult
+   assert "Ready" in result.output  # Already stripped!
+   ```
+
+2. **CleanResult**: Chainable assertions with automatic ANSI stripping
+
+   ```python
+   result.assert_success()
+       .assert_contains("Database initialized", "Ready")
+       .assert_not_contains("Error", "Failed")
+   ```
+
+3. **cli_helper fixture**: Full workflow helper
+
+   ```python
+   def test_full_workflow(cli_helper):
+       # All methods return CleanResult with stripped output
+       cli_helper.init_database().assert_success()
+       cli_helper.index_scripts("./scripts").assert_success()
+
+       result = cli_helper.search("query", json=True)
+       data = result.parse_json()  # Automatic JSON parsing
+       assert len(data["results"]) > 0
+   ```
+
+#### Migration Guide
+
+To migrate existing tests to use automatic ANSI stripping:
+
+1. Replace `CliRunner` with `CleanCliRunner` or use `clean_runner` fixture
+2. Replace manual `strip_ansi_codes` calls with CleanResult assertions
+3. Use `cli_invoke` fixture for simple command invocations
+4. Use `cli_helper` fixture for complex workflows
+
+Before:
+
+```python
+def test_old_style(runner):
+    result = runner.invoke(app, ["init"])
+    output = strip_ansi_codes(result.stdout)
+    assert result.exit_code == 0
+    assert "initialized" in output
+```
+
+After:
+
+```python
+def test_new_style(cli_invoke):
+    result = cli_invoke("init")
+    result.assert_success().assert_contains("initialized")
 ```
 
 ### 2. Path Handling

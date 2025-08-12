@@ -3,7 +3,7 @@
 This document establishes essential coding standards and development guidelines
 for Claude when working on the ScriptRAG project - a Git-native screenplay
 analysis system. With specialized sub-agents and distributed CLAUDE.md files
-across 21+ modules, this focuses on immediate code creation rules while
+across 17 modules, this focuses on immediate code creation rules while
 delegating specialized work to appropriate experts.
 
 **Codebase Scale**: 20+ Python modules, 86+ tests, 2230+ lines of test code
@@ -219,7 +219,7 @@ src/scriptrag/
 └── tools/              # Utility functions and helpers
 ```
 
-**Distributed Documentation**: 21+ CLAUDE.md files across modules for local context
+**Distributed Documentation**: 17 CLAUDE.md files across modules for local context
 
 ### **Import Organization**
 
@@ -316,7 +316,7 @@ make run-mcp          # Run MCP server
 - **AGENTS.md**: Commit message guidelines and project rules
 - **Database Schema**: `src/scriptrag/database/schema.py`
 - **Configuration**: `src/scriptrag/config/settings.py`
-- **Module CLAUDE.md files**: 21+ distributed documentation files
+- **Module CLAUDE.md files**: 17 distributed documentation files
 - **Test Utilities**: `src/scriptrag/tools/utils.py` (ANSI stripping)
 
 ### **Common Development Patterns**

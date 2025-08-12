@@ -126,7 +126,7 @@ Key test cases:
 ## Integration Points
 
 - **Input from**: Git Synchronizer
-- **Output to**: Content Extractor
+- **Output to**: Analyze API, Index API
 - **Reads from**: Fountain Files
 
 ## Fountain Specification

@@ -57,7 +57,7 @@ Key test scenarios:
 
 - **Called by**: CLI and MCP interfaces
 - **Reads from**: SQLite Database, Git LFS storage backends
-- **Uses**: Embedding Generator for query embeddings
+- **Uses**: Analyze API for query embeddings
 
 ## Configuration
 

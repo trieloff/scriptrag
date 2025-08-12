@@ -79,8 +79,8 @@ def register_search_tool(mcp: FastMCP) -> None:
                     "success": False,
                 }
 
-            # Execute search
-            response = search_api.search(
+            # Execute search asynchronously to avoid event loop conflicts
+            response = await search_api.search_async(
                 query=query,
                 character=character,
                 dialogue=dialogue,

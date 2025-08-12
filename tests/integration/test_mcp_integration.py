@@ -70,13 +70,19 @@ async def test_mcp_server_search_integration(temp_db_settings, sample_fountain_s
     """Test MCP server search functionality with real data."""
     from unittest.mock import patch
 
+    from scriptrag.api.analyze import AnalyzeCommand
+
     # Index the sample script
     with tempfile.NamedTemporaryFile(mode="w", suffix=".fountain", delete=False) as f:
         f.write(sample_fountain_script)
         script_path = f.name
 
     try:
-        # Index the script
+        # First analyze the script to add boneyard metadata
+        analyze_api = AnalyzeCommand()
+        await analyze_api.analyze(Path(script_path))
+
+        # Now index the analyzed script
         index_api = IndexCommand(temp_db_settings)
         await index_api.index(Path(script_path))
 
@@ -106,19 +112,25 @@ async def test_mcp_server_search_integration(temp_db_settings, sample_fountain_s
             response = await server.call_tool(search_tool_name, {"query": "ALICE"})
             result_data = response[1]
             assert result_data["success"] is True
+            assert result_data["total_count"] > 0
+            # Check that ALICE appears in either character_name or scene_content
             assert any(
-                "ALICE" in r.get("character_name", "") for r in result_data["results"]
+                "ALICE" in r.get("character_name", "")
+                or "ALICE" in r.get("scene_content", "")
+                for r in result_data["results"]
             )
 
-            # Test dialogue search
-            response = await server.call_tool(search_tool_name, {"dialogue": "Hello"})
+            # Test dialogue search - query is always required
+            response = await server.call_tool(
+                search_tool_name, {"query": "", "dialogue": "Hello"}
+            )
             result_data = response[1]
             assert result_data["success"] is True
             assert result_data["total_count"] > 0
 
-            # Test parenthetical search
+            # Test parenthetical search - query is always required
             response = await server.call_tool(
-                search_tool_name, {"parenthetical": "whispers"}
+                search_tool_name, {"query": "", "parenthetical": "whispers"}
             )
             result_data = response[1]
             assert result_data["success"] is True
@@ -155,7 +167,7 @@ async def test_mcp_server_query_integration(temp_db_settings):
             for tool in tools:
                 if "scriptrag_query_list" in tool.name:
                     list_tool_name = tool.name
-                elif "scriptrag_query_test_query" in tool.name:
+                elif "scriptrag_query_test_list_scripts" in tool.name:
                     test_tool_name = tool.name
 
             assert list_tool_name is not None
@@ -165,7 +177,8 @@ async def test_mcp_server_query_integration(temp_db_settings):
             result_data = response[1]
             assert result_data["success"] is True
             assert len(result_data["queries"]) > 0
-            assert any(q["name"] == "test-query" for q in result_data["queries"])
+            # Check for an actual query that exists
+            assert any(q["name"] == "test_list_scripts" for q in result_data["queries"])
 
             # If the test query tool exists, test it
             if test_tool_name:

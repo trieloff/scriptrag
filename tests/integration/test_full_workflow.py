@@ -18,6 +18,7 @@ from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
 from scriptrag.config import set_settings
+from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
 
@@ -118,7 +119,7 @@ class TestFullWorkflow:
         # Step 1: Initialize database
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])
         assert result.exit_code == 0
-        assert "Database initialized successfully" in result.stdout
+        assert "Database initialized successfully" in strip_ansi_codes(result.stdout)
         assert db_path.exists()
 
         # Step 2: Analyze the screenplay
@@ -136,7 +137,8 @@ class TestFullWorkflow:
             print(f"stderr: {result.stderr if hasattr(result, 'stderr') else 'N/A'}")
         assert result.exit_code == 0
         # The analyze command outputs "Processing" and "Updated" messages
-        assert "Processing" in result.stdout or "Updated" in result.stdout
+        output = strip_ansi_codes(result.stdout)
+        assert "Processing" in output or "Updated" in output
 
         # Verify the screenplay now contains metadata
         updated_content = sample_screenplay.read_text()
@@ -152,7 +154,8 @@ class TestFullWorkflow:
             ],
         )
         assert result.exit_code == 0
-        assert "Index" in result.stdout or "index" in result.stdout.lower()
+        output = strip_ansi_codes(result.stdout)
+        assert "Index" in output or "index" in output.lower()
 
         # Step 4: Verify database contents
         conn = sqlite3.connect(str(db_path))
@@ -335,7 +338,7 @@ class TestFullWorkflow:
         # Initialize database
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])
         assert result.exit_code == 0
-        assert "Database initialized successfully" in result.stdout
+        assert "Database initialized successfully" in strip_ansi_codes(result.stdout)
 
         # Analyze with scene_embeddings analyzer
         print("\n=== Running scene_embeddings analyzer ===")
@@ -696,7 +699,7 @@ class TestFullWorkflow:
         # Step 1: Initialize database
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])
         assert result.exit_code == 0
-        assert "Database initialized successfully" in result.stdout
+        assert "Database initialized successfully" in strip_ansi_codes(result.stdout)
 
         # Step 2: Analyze with props_inventory analyzer
         print(
@@ -937,17 +940,20 @@ class TestFullWorkflow:
         # Test 1: Simple text search
         result = runner.invoke(app, ["search", "coffee"])
         assert result.exit_code == 0
-        assert "COFFEE SHOP" in result.stdout or "coffee" in result.stdout.lower()
+        output = strip_ansi_codes(result.stdout)
+        assert "COFFEE SHOP" in output or "coffee" in output.lower()
 
         # Test 2: Search for dialogue
         result = runner.invoke(app, ["search", '"Another refill?"'])
         assert result.exit_code == 0
-        assert "JAMES" in result.stdout or "refill" in result.stdout.lower()
+        output = strip_ansi_codes(result.stdout)
+        assert "JAMES" in output or "refill" in output.lower()
 
         # Test 3: Search for action
         result = runner.invoke(app, ["search", "typing furiously"])
         assert result.exit_code == 0
-        assert "SARAH'S APARTMENT" in result.stdout or "typing" in result.stdout.lower()
+        output = strip_ansi_codes(result.stdout)
+        assert "SARAH'S APARTMENT" in output or "typing" in output.lower()
 
     def test_search_auto_detection(self, tmp_path, sample_screenplay, monkeypatch):
         """Test auto-detection of query components."""
@@ -968,23 +974,27 @@ class TestFullWorkflow:
         result = runner.invoke(app, ["search", "SARAH"])
         assert result.exit_code == 0
         # Should find scenes with SARAH
-        assert "SARAH" in result.stdout or "Sarah" in result.stdout
+        output = strip_ansi_codes(result.stdout)
+        assert "SARAH" in output or "Sarah" in output
 
         # Test 2: Auto-detect dialogue (quoted text)
         result = runner.invoke(app, ["search", '"lifesaver"'])
         assert result.exit_code == 0
-        assert "lifesaver" in result.stdout.lower()
+        output = strip_ansi_codes(result.stdout)
+        assert "lifesaver" in output.lower()
 
         # Test 3: Auto-detect parenthetical
         result = runner.invoke(app, ["search", "(grateful)"])
         assert result.exit_code == 0
         # Should find the scene with this parenthetical
-        assert "grateful" in result.stdout.lower() or "SARAH" in result.stdout
+        output = strip_ansi_codes(result.stdout)
+        assert "grateful" in output.lower() or "SARAH" in output
 
         # Test 4: Combined auto-detection
         result = runner.invoke(app, ["search", 'SARAH "done"'])
         assert result.exit_code == 0
-        assert "SARAH" in result.stdout or "done" in result.stdout.lower()
+        output = strip_ansi_codes(result.stdout)
+        assert "SARAH" in output or "done" in output.lower()
 
     def test_search_character_filter(self, tmp_path, sample_screenplay, monkeypatch):
         """Test character-specific search filters."""
@@ -1005,16 +1015,18 @@ class TestFullWorkflow:
         # Query is positional, must come first
         result = runner.invoke(app, ["search", "done", "--character", "SARAH"])
         if result.exit_code != 0:
-            print(f"Search failed: {result.stdout}")
+            print(f"Search failed: {strip_ansi_codes(result.stdout)}")
         assert result.exit_code == 0
         # Should find SARAH's dialogue containing "done"
-        assert "SARAH" in result.stdout or "done" in result.stdout.lower()
+        output = strip_ansi_codes(result.stdout)
+        assert "SARAH" in output or "done" in output.lower()
 
         # Test dialogue filter
         # Can use empty query when using dialogue filter
         result = runner.invoke(app, ["search", "", "--dialogue", "refill"])
         assert result.exit_code == 0
-        assert "refill" in result.stdout.lower()
+        output = strip_ansi_codes(result.stdout)
+        assert "refill" in output.lower()
 
     def test_search_pagination(self, tmp_path, sample_screenplay, monkeypatch):
         """Test search pagination functionality."""
@@ -1091,12 +1103,14 @@ class TestFullWorkflow:
         # Test location search (ALL CAPS multi-word)
         result = runner.invoke(app, ["search", "COFFEE SHOP"])
         assert result.exit_code == 0
-        assert "COFFEE SHOP" in result.stdout
+        output = strip_ansi_codes(result.stdout)
+        assert "COFFEE SHOP" in output
 
         # Test another location
         result = runner.invoke(app, ["search", "CITY STREET"])
         assert result.exit_code == 0
-        assert "CITY STREET" in result.stdout or "EXT." in result.stdout
+        output = strip_ansi_codes(result.stdout)
+        assert "CITY STREET" in output or "EXT." in output
 
     def test_search_brief_mode(self, tmp_path, sample_screenplay, monkeypatch):
         """Test brief output mode."""
@@ -1158,7 +1172,8 @@ class TestFullWorkflow:
         # Search for something that doesn't exist
         result = runner.invoke(app, ["search", "unicorn rainbow sparkles"])
         assert result.exit_code == 0
-        assert "No results found" in result.stdout
+        output = strip_ansi_codes(result.stdout)
+        assert "No results found" in output
 
     def test_search_with_series_metadata(self, tmp_path, monkeypatch):
         """Test search with series/episode metadata."""
@@ -1221,17 +1236,19 @@ That's what she said!
         result = runner.invoke(app, ["query", "test_list_scripts"])
         assert result.exit_code == 0
         # The title might be wrapped in the table output
-        assert "Integration Test" in result.stdout or "test" in result.stdout.lower()
-        assert "Test Suite" in result.stdout or "author" in result.stdout.lower()
+        output = strip_ansi_codes(result.stdout)
+        assert "Integration Test" in output or "test" in output.lower()
+        assert "Test Suite" in output or "author" in output.lower()
 
         # Test 2: Query scenes (table output)
         result = runner.invoke(app, ["query", "simple_scene_list"])
         assert result.exit_code == 0
         # Should show scenes
+        output = strip_ansi_codes(result.stdout)
         assert (
-            "COFFEE SHOP" in result.stdout
-            or "CITY STREET" in result.stdout
-            or "scene" in result.stdout.lower()
+            "COFFEE SHOP" in output
+            or "CITY STREET" in output
+            or "scene" in output.lower()
         )
 
         # Test 3: Query with limit parameter
@@ -1260,14 +1277,11 @@ That's what she said!
         result = runner.invoke(app, ["query", "simple_scene_list"])
         assert result.exit_code == 0
         # Should show scene headings (note: rich table may wrap text)
-        assert "COFFEE SHOP" in result.stdout
-        assert "CITY STREET" in result.stdout
+        output = strip_ansi_codes(result.stdout)
+        assert "COFFEE SHOP" in output
+        assert "CITY STREET" in output
         # Check for script title - may be wrapped in table
-        assert (
-            "Integration" in result.stdout
-            and "Test" in result.stdout
-            and "Script" in result.stdout
-        )
+        assert "Integration" in output and "Test" in output and "Script" in output
 
         # Test 2: Query with limit
         result = runner.invoke(app, ["query", "simple_scene_list", "--limit", "2"])
@@ -1320,14 +1334,16 @@ That's what she said!
         # We don't assert exit_code == 0 here since the query might fail
         if result.exit_code == 0:
             # If it works, check the output
+            output = strip_ansi_codes(result.stdout)
             assert (
-                "COFFEE SHOP" in result.stdout
-                or "CITY STREET" in result.stdout
-                or "scene" in result.stdout.lower()
+                "COFFEE SHOP" in output
+                or "CITY STREET" in output
+                or "scene" in output.lower()
             )
         else:
             # The query failed, which is expected if dialogues table doesn't match
-            assert "error" in result.stdout.lower() or "Error" in result.stdout
+            output = strip_ansi_codes(result.stdout)
+            assert "error" in output.lower() or "Error" in output
 
     def test_query_command_list_available(self, tmp_path, monkeypatch):
         """Test listing available queries."""
@@ -1342,14 +1358,12 @@ That's what she said!
         result = runner.invoke(app, ["query", "list"])
         assert result.exit_code == 0
         # Should show available queries (note: names use underscores in output)
-        assert "character_lines" in result.stdout or "character-lines" in result.stdout
-        assert "character_stats" in result.stdout or "character-stats" in result.stdout
-        assert "list_scenes" in result.stdout or "list-scenes" in result.stdout
+        output = strip_ansi_codes(result.stdout)
+        assert "character_lines" in output or "character-lines" in output
+        assert "character_stats" in output or "character-stats" in output
+        assert "list_scenes" in output or "list-scenes" in output
         # Should show descriptions
-        assert (
-            "dialogue lines" in result.stdout.lower()
-            or "character" in result.stdout.lower()
-        )
+        assert "dialogue lines" in output.lower() or "character" in output.lower()
 
     def test_query_command_with_simple_queries(self, tmp_path, monkeypatch):
         """Test query commands with multiple scripts."""
@@ -1406,7 +1420,8 @@ A simple scene.
         # Test 1: Query without initializing database
         result = runner.invoke(app, ["query", "test_list_scripts"])
         assert result.exit_code != 0
-        assert "error" in result.stdout.lower() or "database" in result.stdout.lower()
+        output = strip_ansi_codes(result.stdout)
+        assert "error" in output.lower() or "database" in output.lower()
 
         # Initialize empty database
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])
@@ -1487,7 +1502,8 @@ More action.
 
         # Test custom query (skip if not loaded due to module import timing)
         result = runner.invoke(app, ["query", "list"])
-        if "scene_count" not in result.stdout:
+        output = strip_ansi_codes(result.stdout)
+        if "scene_count" not in output:
             # Custom query not loaded - skip test
             import pytest
 

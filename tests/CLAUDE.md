@@ -2,6 +2,8 @@
 
 **Current Scale**: 86+ tests, 2230+ lines of test code covering all major components
 
+> **For comprehensive testing guidelines**, see the main **[Testing Best Practices Guide](../docs/TESTING.md)**. This document focuses on specific issues encountered during recent development iterations.
+
 ## ANSI Escape Codes in CI Environment
 
 ### The Issue

@@ -4,7 +4,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from sqlalchemy import text
 
 from scriptrag.api.database import DatabaseInitializer
 from scriptrag.api.index import IndexCommand
@@ -28,7 +27,7 @@ SELECT 'test' as result WHERE :name = :name;
 """)
 
         settings = ScriptRAGSettings(
-            database_url=f"sqlite:///{db_path}",
+            database_path=db_path,
             query_directory=str(query_dir),
             enable_llm=False,
         )
@@ -79,7 +78,7 @@ async def test_mcp_server_search_integration(temp_db_settings, sample_fountain_s
     try:
         # Index the script
         index_api = IndexCommand(temp_db_settings)
-        index_api.index_file(script_path)
+        await index_api.index(Path(script_path))
 
         # Create MCP server with the test settings
         with patch("scriptrag.config.get_settings", return_value=temp_db_settings):
@@ -138,14 +137,9 @@ async def test_mcp_server_query_integration(temp_db_settings):
     from scriptrag.api.database_operations import DatabaseOperations
 
     db_api = DatabaseOperations(temp_db_settings)
-    with db_api.get_session() as session:
-        session.execute(
-            text("CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT)")
-        )
-        session.execute(
-            text("INSERT INTO test_table (name) VALUES ('test1'), ('test2')")
-        )
-        session.commit()
+    with db_api.transaction() as conn:
+        conn.execute("CREATE TABLE test_table (id INTEGER PRIMARY KEY, name TEXT)")
+        conn.execute("INSERT INTO test_table (name) VALUES ('test1'), ('test2')")
 
     # Create MCP server with the test settings
     with patch("scriptrag.config.get_settings", return_value=temp_db_settings):
@@ -196,7 +190,7 @@ async def test_mcp_server_full_workflow(temp_db_settings, sample_fountain_script
     try:
         # Index the script
         index_api = IndexCommand(temp_db_settings)
-        index_api.index_file(script_path)
+        await index_api.index(Path(script_path))
 
         # Create MCP server
         with patch("scriptrag.config.get_settings", return_value=temp_db_settings):
@@ -293,14 +287,12 @@ def test_mcp_server_main_entry_point():
     from unittest.mock import MagicMock, patch
 
     mock_server = MagicMock()
-    mock_run = MagicMock()
-    mock_server.run.return_value = mock_run
+    mock_server.run = MagicMock()
 
     with patch("scriptrag.mcp.server.create_server", return_value=mock_server):
-        with patch("asyncio.run") as mock_asyncio_run:
-            from scriptrag.mcp.server import main
+        from scriptrag.mcp.server import main
 
-            main()
+        main()
 
-            # Verify server was created and run
-            mock_asyncio_run.assert_called_once_with(mock_run)
+        # Verify server.run() was called
+        mock_server.run.assert_called_once()

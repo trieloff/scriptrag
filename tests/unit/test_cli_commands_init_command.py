@@ -3,17 +3,13 @@
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from typer.testing import CliRunner
-
-from scriptrag.cli import app
 from scriptrag.cli.commands.init import init_command
-from tests.utils import strip_ansi_codes
 
 
 class TestInitCommand:
     """Test init command function."""
 
-    def test_file_exists_error_handled(self, tmp_path):
+    def test_file_exists_error_handled(self, tmp_path, cli_invoke):
         """Test FileExistsError is caught and handled."""
         # Create a mock initializer that raises FileExistsError
         mock_initializer = Mock()
@@ -25,32 +21,22 @@ class TestInitCommand:
         with patch("scriptrag.cli.commands.init.DatabaseInitializer") as mock_class:
             mock_class.return_value = mock_initializer
 
-            runner = CliRunner()
-            result = runner.invoke(
-                app, ["init", "--db-path", str(tmp_path / "test.db")]
-            )
+            result = cli_invoke("init", "--db-path", str(tmp_path / "test.db"))
 
             # Should exit with code 1 and show error
-            assert result.exit_code == 1
-            output = strip_ansi_codes(result.stdout)
-            assert "Database exists" in output
+            result.assert_failure(exit_code=1).assert_contains("Database exists")
 
-    def test_init_with_force_confirmation_cancelled(self, tmp_path):
+    def test_init_with_force_confirmation_cancelled(self, tmp_path, cli_invoke):
         """Test that force confirmation can be cancelled."""
         db_path = tmp_path / "existing.db"
         db_path.touch()
 
-        runner = CliRunner()
-        result = runner.invoke(
-            app, ["init", "--db-path", str(db_path), "--force"], input="n\n"
-        )
+        result = cli_invoke("init", "--db-path", str(db_path), "--force", input="n\n")
 
         # Should exit with code 0
-        assert result.exit_code == 0
-        output = strip_ansi_codes(result.stdout)
-        assert "Initialization cancelled" in output
+        result.assert_success().assert_contains("Initialization cancelled")
 
-    def test_runtime_error_handled(self, tmp_path):
+    def test_runtime_error_handled(self, tmp_path, cli_invoke):
         """Test generic runtime errors are handled."""
         # Create a mock initializer that raises RuntimeError
         mock_initializer = Mock()
@@ -62,15 +48,12 @@ class TestInitCommand:
         with patch("scriptrag.cli.commands.init.DatabaseInitializer") as mock_class:
             mock_class.return_value = mock_initializer
 
-            runner = CliRunner()
-            result = runner.invoke(
-                app, ["init", "--db-path", str(tmp_path / "test.db")]
-            )
+            result = cli_invoke("init", "--db-path", str(tmp_path / "test.db"))
 
             # Should exit with code 1 and show error
-            assert result.exit_code == 1
-            output = strip_ansi_codes(result.stdout)
-            assert "Failed to initialize database: Something failed" in output
+            result.assert_failure(exit_code=1).assert_contains(
+                "Failed to initialize database: Something failed"
+            )
 
     def test_init_command_direct_call(self, tmp_path):
         """Test calling init_command directly."""
@@ -89,7 +72,7 @@ class TestInitCommand:
             # Verify initializer was called
             mock_initializer.initialize_database.assert_called_once()
 
-    def test_init_with_config_file(self, tmp_path):
+    def test_init_with_config_file(self, tmp_path, cli_invoke):
         """Test init command with config file parameter."""
         config_file = tmp_path / "config.toml"
         config_file.write_text("""
@@ -119,18 +102,17 @@ log_level = "DEBUG"
             mock_from_sources.return_value = expected_settings
             mock_class.return_value = mock_initializer
 
-            runner = CliRunner()
             # When app has multiple commands (like in v2), we need to specify "init"
             # When app has single command (current branch), init is the default
             # Try with "init" first for v2 compatibility
-            result = runner.invoke(app, ["init", "--config", str(config_file)])
+            result = cli_invoke("init", "--config", str(config_file))
 
             # If that fails with "unexpected argument", try without "init"
-            if result.exit_code == 2 and "unexpected extra argument" in result.stderr:
-                result = runner.invoke(app, ["--config", str(config_file)])
+            if result.exit_code == 2 and "unexpected extra argument" in result.output:
+                result = cli_invoke("--config", str(config_file))
 
             # Should succeed
-            assert result.exit_code == 0
+            result.assert_success()
 
             # Verify settings were loaded from config file
             mock_from_sources.assert_called_once()

@@ -1,7 +1,7 @@
 """Unit tests for MCP server."""
 
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -53,11 +53,14 @@ def mock_search_api():
                 )
             ],
             total_count=1,
+            bible_results=[],
+            bible_total_count=0,
             has_more=False,
             execution_time_ms=123.0,
             search_methods=["text"],
         )
-        mock_api.search.return_value = mock_response
+        # Use AsyncMock for async method
+        mock_api.search_async = AsyncMock(return_value=mock_response)
 
         yield mock_api
 
@@ -136,8 +139,8 @@ async def test_search_tool_error_handling(mock_search_api):
     """Test search tool error handling."""
     from mcp.server import FastMCP
 
-    # Configure mock to raise exception
-    mock_search_api.search.side_effect = Exception("Search failed")
+    # Configure mock to raise exception - must use AsyncMock for async method
+    mock_search_api.search_async = AsyncMock(side_effect=Exception("Search failed"))
 
     mcp = FastMCP("test")
     register_search_tool(mcp)

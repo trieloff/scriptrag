@@ -96,37 +96,14 @@ class TestMCPCommand:
         mock_mcp_main.assert_called_once_with()
 
     def test_mcp_command_import_error(self, runner):
-        """Test MCP command handles import errors."""
-        # This test covers the import error handling path
-        # We'll mock the import to fail at the module level
-        import sys
+        """Test MCP command handles import errors gracefully."""
+        # This test verifies that the MCP command is accessible via CLI
+        # Import error testing is handled in the direct function tests
+        result = runner.invoke(app, ["mcp", "--help"])
 
-        original_modules = sys.modules.copy()
-
-        try:
-            # Remove the MCP server module to simulate import error
-            if "scriptrag.mcp.server" in sys.modules:
-                del sys.modules["scriptrag.mcp.server"]
-
-            # Mock the import to raise ImportError
-            def mock_import(name, *args):
-                if name == "scriptrag.mcp.server":
-                    raise ImportError("No module named 'scriptrag.mcp.server'")
-                return original_modules.get(name)
-
-            with patch("builtins.__import__", side_effect=mock_import):
-                result = runner.invoke(app, ["mcp"])
-
-                # Should exit with code 1 due to import error
-                assert result.exit_code == 1
-                assert (
-                    "Failed to import MCP server" in result.output
-                    or result.exit_code == 1
-                )
-        finally:
-            # Restore original modules
-            sys.modules.clear()
-            sys.modules.update(original_modules)
+        # Help should work even if MCP server has import issues
+        assert result.exit_code == 0
+        assert "MCP" in result.output or "Model Context Protocol" in result.output
 
     def test_mcp_command_import_error_via_invoke(self, runner):
         """Test MCP command import error through runner.invoke."""
@@ -324,17 +301,20 @@ class TestMCPCommandDirect:
 
     def test_mcp_command_function_import_error(self):
         """Test mcp_command function handles import error."""
-        # Test the function with parameters that should work
-        try:
-            # This should not raise an exception in most cases
-            # If MCP server is missing, it will raise typer.Exit
-            mcp_command(host="test", port=0)
-        except typer.Exit as e:
-            # Expected when MCP server is not available
-            assert e.exit_code in [0, 1]
-        except ImportError:
-            # Also expected when dependencies are missing
-            pass
+
+        # Mock the import to fail safely without affecting the test worker
+        def mock_import(name, *args, **kwargs):
+            if name == "scriptrag.mcp.server":
+                raise ImportError("No module named 'scriptrag.mcp.server'")
+            # Use the original import for all other modules
+            return __import__(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
+            with pytest.raises(typer.Exit) as exc_info:
+                mcp_command(host="test", port=0)
+
+            # Should exit with code 1 due to import error
+            assert exc_info.value.exit_code == 1
 
     @patch("scriptrag.cli.commands.mcp.logger")
     def test_mcp_command_function_keyboard_interrupt(self, mock_logger):

@@ -128,7 +128,9 @@ class TestClaudeCodeProvider:
     async def test_list_models(self, provider: ClaudeCodeProvider) -> None:
         """Test listing available models."""
         models = await provider.list_models()
-        assert len(models) == 5  # Updated static list includes 3.5 models
+        assert (
+            len(models) == 8
+        )  # Static list now includes 3 original + 2 new 3.5 models + 3 aliases
         assert all(m.provider == LLMProvider.CLAUDE_CODE for m in models)
         assert any("opus" in m.id for m in models)
         assert any("sonnet" in m.id for m in models)
@@ -136,6 +138,10 @@ class TestClaudeCodeProvider:
         # Check for new 3.5 models
         assert any("claude-3-5-sonnet" in m.id for m in models)
         assert any("claude-3-5-haiku" in m.id for m in models)
+        # Check for new model aliases
+        assert any(m.id == "sonnet" for m in models)
+        assert any(m.id == "opus" for m in models)
+        assert any(m.id == "haiku" for m in models)
 
     @pytest.mark.asyncio
     async def test_embed_not_implemented(self, provider: ClaudeCodeProvider) -> None:

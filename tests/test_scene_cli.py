@@ -13,6 +13,7 @@ from scriptrag.api.scene_management import (
 )
 from scriptrag.cli.main import app
 from scriptrag.parser import Scene
+from tests.cli_fixtures import strip_ansi_codes
 
 runner = CliRunner()
 
@@ -51,8 +52,9 @@ class TestSceneReadCommand:
         )
 
         assert result.exit_code == 0
-        assert "Walter enters" in result.output
-        assert "test-token-123" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Walter enters" in clean_output
+        assert "test-token-123" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_read_scene_json_output(self, mock_api_class):
@@ -87,7 +89,7 @@ class TestSceneReadCommand:
 
         # Parse JSON output (Rich's print_json outputs multi-line formatted JSON)
         # Join all lines to get the complete JSON string
-        json_str = result.output.strip()
+        json_str = strip_ansi_codes(result.output).strip()
         json_output = json.loads(json_str)
 
         assert json_output["success"] is True
@@ -116,7 +118,8 @@ class TestSceneReadCommand:
         )
 
         assert result.exit_code == 1
-        assert "Scene not found" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Scene not found" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_read_tv_scene(self, mock_api_class):
@@ -159,8 +162,9 @@ class TestSceneReadCommand:
         )
 
         assert result.exit_code == 0
-        assert "The RV sits alone" in result.output
-        assert "tv-token-456" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "The RV sits alone" in clean_output
+        assert "tv-token-456" in clean_output
 
 
 class TestSceneAddCommand:
@@ -204,8 +208,9 @@ class TestSceneAddCommand:
         )
 
         assert result.exit_code == 0
-        assert "Scene added" in result.output
-        assert "Renumbered scenes: 6, 7, 8" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Scene added" in clean_output
+        assert "Renumbered scenes: 6, 7, 8" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_add_scene_before(self, mock_api_class):
@@ -245,7 +250,8 @@ class TestSceneAddCommand:
         )
 
         assert result.exit_code == 0
-        assert "Scene added" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Scene added" in clean_output
 
     def test_add_scene_no_position(self):
         """Test add scene without position."""
@@ -262,7 +268,8 @@ class TestSceneAddCommand:
         )
 
         assert result.exit_code == 1
-        assert "Must specify either --after-scene or --before-scene" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Must specify either --after-scene or --before-scene" in clean_output
 
     def test_add_scene_both_positions(self):
         """Test add scene with both positions."""
@@ -283,7 +290,8 @@ class TestSceneAddCommand:
         )
 
         assert result.exit_code == 1
-        assert "Cannot specify both" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Cannot specify both" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_add_scene_validation_error(self, mock_api_class):
@@ -313,7 +321,8 @@ class TestSceneAddCommand:
         )
 
         assert result.exit_code == 1
-        assert "Invalid Fountain format" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Invalid Fountain format" in clean_output
 
 
 class TestSceneUpdateCommand:
@@ -359,7 +368,8 @@ class TestSceneUpdateCommand:
         )
 
         assert result.exit_code == 0
-        assert "Scene updated" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Scene updated" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_update_scene_invalid_token(self, mock_api_class):
@@ -392,8 +402,9 @@ class TestSceneUpdateCommand:
         )
 
         assert result.exit_code == 1
-        assert "Session token not found or expired" in result.output
-        assert "SESSION_INVALID" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Session token not found or expired" in clean_output
+        assert "SESSION_INVALID" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_update_scene_concurrent_modification(self, mock_api_class):
@@ -426,7 +437,8 @@ class TestSceneUpdateCommand:
         )
 
         assert result.exit_code == 1
-        assert "modified by another process" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "modified by another process" in clean_output
 
     def test_update_scene_no_content(self):
         """Test update without content.
@@ -452,7 +464,8 @@ class TestSceneUpdateCommand:
         assert result.exit_code == 1
         # In test environment, empty stdin results in validation error
         # rather than "No content provided"
-        assert "Invalid Fountain format" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Invalid Fountain format" in clean_output
 
 
 class TestSceneDeleteCommand:
@@ -486,8 +499,9 @@ class TestSceneDeleteCommand:
         )
 
         assert result.exit_code == 0
-        assert "Scene deleted" in result.output
-        assert "Renumbered scenes: 6, 7, 8" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Scene deleted" in clean_output
+        assert "Renumbered scenes: 6, 7, 8" in clean_output
 
     def test_delete_scene_no_confirm(self):
         """Test delete without confirmation."""
@@ -504,8 +518,9 @@ class TestSceneDeleteCommand:
         )
 
         assert result.exit_code == 0
-        assert "Warning" in result.output
-        assert "--confirm" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Warning" in clean_output
+        assert "--confirm" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_delete_scene_not_found(self, mock_api_class):
@@ -534,7 +549,8 @@ class TestSceneDeleteCommand:
         )
 
         assert result.exit_code == 1
-        assert "Scene not found" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Scene not found" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_delete_tv_scene(self, mock_api_class):
@@ -568,4 +584,5 @@ class TestSceneDeleteCommand:
         )
 
         assert result.exit_code == 0
-        assert "Scene deleted" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Scene deleted" in clean_output

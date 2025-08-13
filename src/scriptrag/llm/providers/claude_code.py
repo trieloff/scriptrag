@@ -5,7 +5,7 @@ import contextlib
 import json
 import os
 import time
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal, TypedDict
 
 from scriptrag.config import get_logger, get_settings
 from scriptrag.llm.base import BaseLLMProvider
@@ -20,6 +20,72 @@ from scriptrag.llm.models import (
 )
 
 logger = get_logger(__name__)
+
+
+# Type definitions for structured data
+class MessageDict(TypedDict):
+    """Type for message dictionary."""
+
+    role: Literal["user", "assistant", "system"]
+    content: str
+
+
+class CompletionChoice(TypedDict):
+    """Type for completion choice."""
+
+    index: int
+    message: MessageDict
+    finish_reason: Literal["stop", "length", "content_filter"]
+
+
+class CompletionUsage(TypedDict):
+    """Type for completion usage stats."""
+
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
+class JSONSchema(TypedDict, total=False):
+    """Type for JSON Schema structure."""
+
+    type: str
+    properties: dict[str, "JSONSchemaProperty"]
+    required: list[str]
+    items: "JSONSchemaProperty"
+
+
+class JSONSchemaProperty(TypedDict, total=False):
+    """Type for JSON Schema property."""
+
+    type: str
+    description: str
+    properties: dict[str, "JSONSchemaProperty"]
+    items: "JSONSchemaProperty"
+
+
+class ResponseFormat(TypedDict, total=False):
+    """Type for response format specification."""
+
+    type: Literal["json_object", "json_schema"]
+    json_schema: "JSONSchemaSpec"
+    schema: JSONSchema
+    name: str
+
+
+class JSONSchemaSpec(TypedDict, total=False):
+    """Type for JSON schema specification."""
+
+    name: str
+    schema: JSONSchema
+    strict: bool
+
+
+class SchemaInfo(TypedDict, total=False):
+    """Type for extracted schema information."""
+
+    name: str
+    schema: JSONSchema
 
 
 class ClaudeCodeProvider(BaseLLMProvider):
@@ -100,13 +166,13 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
     def __init__(self) -> None:
         """Initialize Claude Code provider."""
-        self.sdk_available = False
+        self.sdk_available: bool = False
         self._check_sdk()
 
         # Initialize model discovery
         settings = get_settings()
 
-        self.model_discovery = ClaudeCodeModelDiscovery(
+        self.model_discovery: ClaudeCodeModelDiscovery = ClaudeCodeModelDiscovery(
             provider_name="claude_code",
             static_models=self.STATIC_MODELS,
             cache_ttl=(
@@ -384,17 +450,22 @@ class ClaudeCodeProvider(BaseLLMProvider):
                     # No response_format, accept any response
                     break
 
+            choice: dict[str, Any] = {
+                "index": 0,
+                "message": {"role": "assistant", "content": response_text},
+                "finish_reason": "stop",
+            }
+            usage: dict[str, int] = {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            }
+
             return CompletionResponse(
                 id=f"claude-code-{os.getpid()}",
                 model=request.model,
-                choices=[
-                    {
-                        "index": 0,
-                        "message": {"role": "assistant", "content": response_text},
-                        "finish_reason": "stop",
-                    }
-                ],
-                usage={"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                choices=[choice],
+                usage=usage,
                 provider=self.provider_type,
             )
 
@@ -427,7 +498,9 @@ class ClaudeCodeProvider(BaseLLMProvider):
                 prompt_parts.append(f"Assistant: {content}")
         return "\n\n".join(prompt_parts)
 
-    def _extract_schema_info(self, response_format: dict) -> dict | None:
+    def _extract_schema_info(
+        self, response_format: dict[str, Any]
+    ) -> SchemaInfo | None:
         """Extract schema information from response_format.
 
         Args:
@@ -459,7 +532,7 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
         return None
 
-    def _add_json_instructions(self, prompt: str, schema_info: dict) -> str:
+    def _add_json_instructions(self, prompt: str, schema_info: SchemaInfo) -> str:
         """Add JSON output instructions to the prompt.
 
         Args:
@@ -502,7 +575,9 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
         return prompt + json_instruction
 
-    def _generate_example_from_schema(self, schema: dict) -> dict | None:
+    def _generate_example_from_schema(
+        self, schema: JSONSchema
+    ) -> dict[str, Any] | None:
         """Generate an example JSON object from schema.
 
         Args:
@@ -540,7 +615,9 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
         return example
 
-    def _generate_object_example(self, obj_schema: dict) -> dict:
+    def _generate_object_example(
+        self, obj_schema: JSONSchema | JSONSchemaProperty
+    ) -> dict[str, Any]:
         """Generate example for object type.
 
         Args:

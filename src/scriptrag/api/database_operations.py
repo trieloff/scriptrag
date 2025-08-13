@@ -24,7 +24,7 @@ class ScriptRecord:
     title: str | None = None
     author: str | None = None
     file_path: str | None = None
-    metadata: dict | None = None
+    metadata: dict[str, Any] | None = None
 
 
 class DatabaseOperations:

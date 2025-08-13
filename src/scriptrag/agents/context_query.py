@@ -106,12 +106,12 @@ class ContextParameters:
             if hasattr(script, "scenes"):
                 scenes = script.scenes
                 for i, s in enumerate(scenes):
-                    # Match by content hash or by object identity
+                    # Match by content hash
                     if (
                         hasattr(s, "content_hash")
                         and params.content_hash
                         and s.content_hash == params.content_hash
-                    ) or s == scene:
+                    ):
                         # Set scene number if not already set
                         if params.scene_number is None:
                             params.scene_number = i + 1  # 1-indexed

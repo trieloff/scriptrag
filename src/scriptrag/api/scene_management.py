@@ -5,8 +5,10 @@ import sqlite3
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
+from scriptrag.api.bible_index import BibleAutoDetector
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.parser import FountainParser, Scene
@@ -126,6 +128,16 @@ class DeleteSceneResult:
     success: bool
     error: str | None
     renumbered_scenes: list[int] = field(default_factory=list)
+
+
+@dataclass
+class BibleReadResult:
+    """Result of reading script bible content."""
+
+    success: bool
+    error: str | None
+    bible_files: list[dict[str, Any]] = field(default_factory=list)
+    content: str | None = None
 
 
 class ReadTracker:
@@ -869,3 +881,105 @@ class SceneManagementAPI:
 
         cursor = conn.execute(query, params)
         return [row[0] for row in cursor.fetchall()]
+
+    async def read_bible(
+        self, project: str, bible_name: str | None = None
+    ) -> BibleReadResult:
+        """Read script bible content.
+
+        Args:
+            project: Project/script name
+            bible_name: Optional specific bible file name (without path)
+
+        Returns:
+            BibleReadResult with bible content or list of available bible files
+        """
+        try:
+            # Get the script record to find project path
+            with self.db_ops.transaction() as conn:
+                cursor = conn.execute(
+                    "SELECT file_path FROM scripts WHERE title = ?", (project,)
+                )
+                row = cursor.fetchone()
+                if not row:
+                    return BibleReadResult(
+                        success=False, error=f"Project '{project}' not found"
+                    )
+
+                script_path = Path(row["file_path"])
+                project_path = script_path.parent
+
+            # Find bible files in the project
+            bible_files = BibleAutoDetector.find_bible_files(project_path, script_path)
+
+            if not bible_files:
+                return BibleReadResult(
+                    success=False,
+                    error=f"No bible files found for project '{project}'",
+                )
+
+            # If no specific bible requested, return list of available files
+            if bible_name is None:
+                bible_list = []
+                for bible_path in bible_files:
+                    relative_path = (
+                        bible_path.relative_to(project_path)
+                        if (
+                            project_path in bible_path.parents
+                            or bible_path.parent == project_path
+                        )
+                        else bible_path
+                    )
+                    bible_list.append(
+                        {
+                            "name": bible_path.name,
+                            "path": str(relative_path),
+                            "size": bible_path.stat().st_size,
+                        }
+                    )
+                return BibleReadResult(success=True, error=None, bible_files=bible_list)
+
+            # Find the specific bible file
+            target_bible = None
+            for bible_path in bible_files:
+                if bible_path.name == bible_name:
+                    target_bible = bible_path
+                    break
+                # Also check relative path
+                relative_path = (
+                    bible_path.relative_to(project_path)
+                    if (
+                        project_path in bible_path.parents
+                        or bible_path.parent == project_path
+                    )
+                    else bible_path
+                )
+                if str(relative_path) == bible_name:
+                    target_bible = bible_path
+                    break
+
+            if not target_bible:
+                # Provide helpful error with available files
+                available = [bp.name for bp in bible_files]
+                available_str = ", ".join(available)
+                return BibleReadResult(
+                    success=False,
+                    error=(
+                        f"Bible file '{bible_name}' not found. "
+                        f"Available: {available_str}"
+                    ),
+                )
+
+            # Read the bible content
+            try:
+                content = target_bible.read_text(encoding="utf-8")
+                return BibleReadResult(success=True, error=None, content=content)
+            except Exception as e:
+                logger.error(f"Failed to read bible file {target_bible}: {e}")
+                return BibleReadResult(
+                    success=False, error=f"Failed to read bible file: {e}"
+                )
+
+        except Exception as e:
+            logger.error(f"Failed to read bible for project '{project}': {e}")
+            return BibleReadResult(success=False, error=str(e))

@@ -28,7 +28,15 @@ def read_scene(
     project: Annotated[
         str, typer.Option("--project", "-p", help="Project/script name")
     ],
-    scene: Annotated[int, typer.Option("--scene", "-s", help="Scene number")],
+    scene: Annotated[
+        int | None, typer.Option("--scene", "-s", help="Scene number")
+    ] = None,
+    bible: Annotated[
+        bool, typer.Option("--bible", "-b", help="Read script bible files")
+    ] = False,
+    bible_name: Annotated[
+        str | None, typer.Option("--bible-name", help="Specific bible file to read")
+    ] = None,
     season: Annotated[
         int | None, typer.Option("--season", help="Season number (for TV)")
     ] = None,
@@ -37,15 +45,79 @@ def read_scene(
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
-    """Read a scene and get a session token for updates.
+    """Read a scene or script bible content.
 
     The session token is valid for 10 minutes and must be used for updates.
 
     Examples:
         scriptrag scene read --project "breaking_bad" --season 1 --episode 1 --scene 3
         scriptrag scene read --project "inception" --scene 42
+        scriptrag scene read --project "inception" --bible  # List available bible files
+        scriptrag scene read --project "inception" --bible-name "world_bible.md"
     """
     try:
+        # Initialize API
+        api = SceneManagementAPI()
+        import asyncio
+
+        # Check if reading bible content
+        if bible or bible_name is not None:
+            # Reading bible content
+            bible_result = asyncio.run(api.read_bible(project, bible_name))
+
+            if not bible_result.success:
+                console.print(f"[red]Error: {bible_result.error}[/red]")
+                raise typer.Exit(1)
+
+            if json_output:
+                if bible_result.content:
+                    # Specific bible content
+                    output = {
+                        "success": True,
+                        "content": bible_result.content,
+                    }
+                else:
+                    # List of bible files
+                    output = {
+                        "success": True,
+                        "bible_files": bible_result.bible_files,
+                    }
+                console.print_json(data=output)
+            else:
+                if bible_result.content:
+                    # Display bible content
+                    console.print(
+                        Panel(
+                            Syntax(bible_result.content, "markdown", theme="monokai"),
+                            title=f"Bible: {bible_name or 'Content'}",
+                            subtitle=f"Project: {project}",
+                        )
+                    )
+                else:
+                    # Display list of available bible files
+                    console.print(
+                        f"\n[green]Available bible files for "
+                        f"project '{project}':[/green]\n"
+                    )
+                    for bible_file in bible_result.bible_files:
+                        size_kb = bible_file["size"] / 1024
+                        console.print(
+                            f"  • [cyan]{bible_file['name']}[/cyan] "
+                            f"({bible_file['path']}) - {size_kb:.1f} KB"
+                        )
+                    console.print(
+                        "\n[dim]Use --bible-name <filename> to read a "
+                        "specific bible file[/dim]"
+                    )
+            return
+
+        # Reading scene content
+        if scene is None:
+            console.print(
+                "[red]Error: Either --scene or --bible must be specified[/red]"
+            )
+            raise typer.Exit(1)
+
         # Create scene identifier
         scene_id = SceneIdentifier(
             project=project,
@@ -54,12 +126,7 @@ def read_scene(
             episode=episode,
         )
 
-        # Initialize API
-        api = SceneManagementAPI()
-
         # Read scene (run async operation)
-        import asyncio
-
         result = asyncio.run(api.read_scene(scene_id))
 
         if not result.success:
@@ -102,8 +169,8 @@ def read_scene(
             )
 
     except Exception as e:
-        logger.error(f"Failed to read scene: {e}")
-        console.print(f"[red]Failed to read scene: {e}[/red]")
+        logger.error(f"Failed to read: {e}")
+        console.print(f"[red]Failed to read: {e}[/red]")
         raise typer.Exit(1) from e
 
 

@@ -382,3 +382,58 @@ def register_scene_tools(mcp: FastMCP) -> None:
                 "renumbered_scenes": [],
                 "error": str(e),
             }
+
+    @mcp.tool()
+    async def scriptrag_bible_read(
+        project: str, bible_name: str | None = None
+    ) -> dict[str, Any]:
+        """Read script bible content.
+
+        This tool reads script bible (markdown) files associated with a project.
+        If no specific bible file is specified, it returns a list of available
+        bible files. Bible files typically contain world-building information,
+        character descriptions, backstory, and other reference material.
+
+        Args:
+            project: Project/script name
+            bible_name: Optional specific bible file name (can be just the filename
+                       or relative path from project root)
+
+        Returns:
+            Dictionary containing either:
+            - When bible_name is None: List of available bible files with their
+              names, paths, and sizes
+            - When bible_name is specified: The content of that bible file
+
+        Examples:
+            List available bible files:
+            {"project": "inception"}
+
+            Read a specific bible file:
+            {"project": "inception", "bible_name": "world_bible.md"}
+            {"project": "breaking_bad", "bible_name": "characters.md"}
+        """
+        try:
+            api = SceneManagementAPI()
+            result = await api.read_bible(project, bible_name)
+
+            if result.success:
+                if result.content:
+                    # Returning specific bible content
+                    return {
+                        "success": True,
+                        "content": result.content,
+                        "bible_name": bible_name,
+                        "error": None,
+                    }
+                # Returning list of available bible files
+                return {
+                    "success": True,
+                    "bible_files": result.bible_files,
+                    "error": None,
+                }
+            return {"success": False, "error": result.error or "Unknown error"}
+
+        except Exception as e:
+            logger.error(f"Bible read failed: {e}")
+            return {"success": False, "error": str(e)}

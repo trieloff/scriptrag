@@ -99,19 +99,20 @@ class TestSearchModuleInit:
 
     def test_import_star_functionality(self):
         """Test that 'from scriptrag.search import *' works correctly."""
-        # Create a namespace to test star import
-        namespace = {}
+        import importlib
 
-        # Execute star import
-        exec("from scriptrag.search import *", namespace)  # noqa: S102
+        # Import the module
+        module = importlib.import_module("scriptrag.search")
 
-        # Verify all __all__ items are in namespace
+        # Get __all__ exports
+        all_exports = getattr(module, "__all__", [])
+
+        # Verify expected exports are in __all__
         expected_exports = ["SearchQuery", "SearchResponse", "SearchResult"]
         for export_name in expected_exports:
-            assert export_name in namespace, (
-                f"{export_name} not imported with star import"
-            )
-            assert namespace[export_name] is not None
+            assert export_name in all_exports, f"{export_name} not in __all__"
+            # Also verify the attribute exists
+            assert hasattr(module, export_name)
 
     def test_no_private_exports(self):
         """Test that no private attributes are accidentally exported."""

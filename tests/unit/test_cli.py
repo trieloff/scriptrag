@@ -19,6 +19,7 @@ class TestCLIMain:
     def test_main_as_script(self):
         """Test __main__ execution."""
         # Test the if __name__ == "__main__" block
+        # Note: exec is required here to test script execution behavior
         test_code = """
 __name__ = "__main__"
 main_called = False
@@ -29,6 +30,7 @@ def main():
 if __name__ == "__main__":
     main()
 """
-        namespace = {}
-        exec(test_code, namespace)  # noqa: S102
+        # Use restricted namespace for safety
+        namespace = {"__builtins__": {}}
+        exec(test_code, namespace)  # noqa: S102 - Required for testing script execution
         assert namespace["main_called"] is True

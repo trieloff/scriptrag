@@ -129,7 +129,7 @@ def add_scene(
         typer.Option("--content", "-c", help="Scene content (or pipe from stdin)"),
     ] = None,
 ) -> None:
-    """Add a new scene with automatic renumbering.
+    r"""Add a new scene with automatic renumbering.
 
     Scene content can be provided via --content or piped from stdin.
     Content must be valid Fountain format starting with a scene heading.
@@ -234,7 +234,7 @@ def update_scene(
         typer.Option("--content", "-c", help="New scene content (or pipe from stdin)"),
     ] = None,
 ) -> None:
-    """Update a scene using a valid session token.
+    r"""Update a scene using a valid session token.
 
     Requires a session token from a recent 'scene read' command (within 10 minutes).
     Content must be valid Fountain format.
@@ -304,7 +304,7 @@ def delete_scene(
         bool, typer.Option("--confirm", help="Confirm deletion")
     ] = False,
 ) -> None:
-    """Delete a scene with automatic renumbering.
+    r"""Delete a scene with automatic renumbering.
 
     Requires --confirm flag to prevent accidental deletions.
     Automatically renumbers subsequent scenes.

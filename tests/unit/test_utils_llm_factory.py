@@ -216,7 +216,7 @@ class TestCreateLLMClient:
         mock_llm_client.assert_called_once_with(
             preferred_provider=None,
             fallback_order=None,
-            github_token="env_github_token",  # pragma: allowlist secret
+            github_token="env_github_token",  # pragma: allowlist secret  # noqa: S106
             openai_endpoint=None,
             openai_api_key=None,
             timeout=30.0,
@@ -427,7 +427,7 @@ class TestCreateLLMClient:
                 LLMProvider.GITHUB_MODELS,
                 LLMProvider.CLAUDE_CODE,
             ],
-            github_token="ghp_custom",  # pragma: allowlist secret
+            github_token="ghp_custom",  # pragma: allowlist secret  # noqa: S106
             openai_endpoint="https://custom.example.com",
             openai_api_key="sk-custom",  # pragma: allowlist secret
             timeout=45.0,
@@ -456,7 +456,7 @@ class TestCreateLLMClient:
             mock_llm_client.assert_called_with(
                 preferred_provider=None,
                 fallback_order=None,
-                github_token="env_token",  # pragma: allowlist secret
+                github_token="env_token",  # pragma: allowlist secret  # noqa: S106
                 openai_endpoint="https://settings.example.com",  # Settings wins
                 openai_api_key="sk-settings",  # pragma: allowlist secret
                 timeout=30.0,
@@ -474,7 +474,7 @@ class TestCreateLLMClient:
             mock_llm_client.assert_called_with(
                 preferred_provider=None,
                 fallback_order=None,
-                github_token="param_token",  # pragma: allowlist secret
+                github_token="param_token",  # pragma: allowlist secret  # noqa: S106
                 openai_endpoint="https://param.example.com",
                 openai_api_key="sk-param",  # pragma: allowlist secret
                 timeout=30.0,

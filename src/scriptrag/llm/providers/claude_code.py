@@ -93,8 +93,9 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
     provider_type = LLMProvider.CLAUDE_CODE
 
-    # Static model list as fallback
+    # Static model list as fallback - updated with latest models
     STATIC_MODELS: ClassVar[list[Model]] = [
+        # Claude 3 models
         Model(
             id="claude-3-opus-20240229",
             name="Claude 3 Opus",
@@ -119,6 +120,7 @@ class ClaudeCodeProvider(BaseLLMProvider):
             context_window=200000,
             max_output_tokens=4096,
         ),
+        # Claude 3.5 models
         Model(
             id="claude-3-5-sonnet-20241022",
             name="Claude 3.5 Sonnet",
@@ -130,6 +132,31 @@ class ClaudeCodeProvider(BaseLLMProvider):
         Model(
             id="claude-3-5-haiku-20241022",
             name="Claude 3.5 Haiku",
+            provider=LLMProvider.CLAUDE_CODE,
+            capabilities=["completion", "chat"],
+            context_window=200000,
+            max_output_tokens=8192,
+        ),
+        # Latest Claude models (model aliases)
+        Model(
+            id="sonnet",
+            name="Claude Sonnet (Latest)",
+            provider=LLMProvider.CLAUDE_CODE,
+            capabilities=["completion", "chat"],
+            context_window=200000,
+            max_output_tokens=8192,
+        ),
+        Model(
+            id="opus",
+            name="Claude Opus (Latest)",
+            provider=LLMProvider.CLAUDE_CODE,
+            capabilities=["completion", "chat"],
+            context_window=200000,
+            max_output_tokens=8192,
+        ),
+        Model(
+            id="haiku",
+            name="Claude Haiku (Latest)",
             provider=LLMProvider.CLAUDE_CODE,
             capabilities=["completion", "chat"],
             context_window=200000,

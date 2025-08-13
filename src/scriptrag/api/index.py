@@ -140,7 +140,6 @@ class IndexCommand:
             logger.info(f"Found {len(scripts)} Fountain files")
 
             # Step 2: Process all scripts (always re-index to ensure data consistency)
-            # The force parameter is now deprecated but kept for backward compatibility
             scripts_to_index = scripts
 
             if not scripts_to_index:

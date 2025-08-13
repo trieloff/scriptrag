@@ -70,16 +70,20 @@ class TestClaudeCodeProvider:
 
         models = await provider.list_models()
 
-        # Now expects 5 models due to dynamic discovery (3 original + 2 new 3.5 models)
-        assert len(models) == 5
+        # Now expects 8 models (3 original + 2 new 3.5 models + 3 aliases)
+        assert len(models) == 8
         assert all(isinstance(m, Model) for m in models)
         assert all(m.provider == LLMProvider.CLAUDE_CODE for m in models)
         assert any("opus" in m.id for m in models)
         assert any("sonnet" in m.id for m in models)
         assert any("haiku" in m.id for m in models)
-        # New 3.5 models added by dynamic discovery
+        # New 3.5 models added
         assert any("3-5-sonnet" in m.id for m in models)
         assert any("3-5-haiku" in m.id for m in models)
+        # Check for new model aliases
+        assert any(m.id == "sonnet" for m in models)
+        assert any(m.id == "opus" for m in models)
+        assert any(m.id == "haiku" for m in models)
 
     @pytest.mark.asyncio
     async def test_complete_not_available(self):

@@ -171,8 +171,8 @@ class TestIndexCommand:
         assert cursor.fetchone()[0] == 0
         conn.close()
 
-    def test_index_force_reindex(self, initialized_db, sample_fountain_with_metadata):
-        """Test force re-indexing."""
+    def test_index_reindex(self, initialized_db, sample_fountain_with_metadata):
+        """Test re-indexing behavior (scripts are always re-indexed for consistency)."""
         script_dir = sample_fountain_with_metadata.parent
 
         # Index once
@@ -183,19 +183,19 @@ class TestIndexCommand:
         )
         assert result.exit_code == 0
 
-        # Index again without force (should skip)
+        # Index again (scripts are always re-indexed for consistency)
         result = runner.invoke(
             app,
             ["index", str(script_dir)],
         )
         assert result.exit_code == 0
 
-        # Check that script was not re-indexed
+        # Check that script exists (re-indexed, not duplicated)
         conn = sqlite3.connect(str(initialized_db))
         cursor = conn.execute("SELECT COUNT(*) as count FROM scripts")
         assert cursor.fetchone()[0] == 1  # Still just one script
 
-        # Now re-index
+        # Index again to verify idempotent behavior
         result = runner.invoke(
             app,
             ["index", str(script_dir)],

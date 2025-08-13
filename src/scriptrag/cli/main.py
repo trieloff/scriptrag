@@ -13,6 +13,7 @@ from scriptrag.cli.commands import (
     watch_command,
 )
 from scriptrag.cli.commands.mcp import mcp_command
+from scriptrag.cli.commands.scene import scene_app
 
 app = typer.Typer(
     name="scriptrag",
@@ -34,6 +35,9 @@ app.command(name="mcp")(mcp_command)
 
 # Register query subapp
 app.add_typer(query_app, name="query")
+
+# Register scene subapp
+app.add_typer(scene_app, name="scene")
 
 
 def main() -> None:

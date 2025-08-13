@@ -17,6 +17,7 @@ def create_server() -> FastMCP:
 
     # Import and register tools
     from scriptrag.mcp.tools.query import register_query_tools
+    from scriptrag.mcp.tools.scene import register_scene_tools
     from scriptrag.mcp.tools.search import register_search_tool
 
     # Register the search tool
@@ -24,6 +25,9 @@ def create_server() -> FastMCP:
 
     # Register dynamic query tools
     register_query_tools(mcp)
+
+    # Register scene management tools
+    register_scene_tools(mcp)
 
     return mcp
 

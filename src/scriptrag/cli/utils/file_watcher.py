@@ -47,7 +47,7 @@ class FountainFileHandler(FileSystemEventHandler):
 
         Args:
             settings: ScriptRAG settings
-            force: Force re-processing
+            force: Force re-processing (only affects analyze, not index)
             batch_size: Batch size for indexing
             callback: Callback for status updates
             max_queue_size: Maximum queue size for pending events

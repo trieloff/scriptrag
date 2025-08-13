@@ -352,15 +352,17 @@ def test_create_server():
     """Test server creation."""
     with patch("scriptrag.mcp.tools.search.register_search_tool") as mock_search:
         with patch("scriptrag.mcp.tools.query.register_query_tools") as mock_query:
-            server = create_server()
+            with patch("scriptrag.mcp.tools.scene.register_scene_tools") as mock_scene:
+                server = create_server()
 
-            # Verify server was created
-            assert server is not None
-            assert server.name == "scriptrag"
+                # Verify server was created
+                assert server is not None
+                assert server.name == "scriptrag"
 
-            # Verify tools were registered
-            mock_search.assert_called_once()
-            mock_query.assert_called_once()
+                # Verify all tools were registered
+                mock_search.assert_called_once()
+                mock_query.assert_called_once()
+                mock_scene.assert_called_once()
 
 
 def test_utils_format_error():
@@ -419,3 +421,35 @@ def test_main_block_execution():
 
     module = importlib.import_module("scriptrag.mcp.server")
     assert module is not None
+
+
+@pytest.mark.asyncio
+async def test_scene_tools_integration():
+    """Test that scene tools are properly integrated into the server."""
+    with patch("scriptrag.mcp.tools.search.register_search_tool"):
+        with patch("scriptrag.mcp.tools.query.register_query_tools"):
+            with patch("scriptrag.mcp.tools.scene.register_scene_tools"):
+                server = create_server()
+
+                # Verify server was created successfully
+                assert server is not None
+                assert server.name == "scriptrag"
+
+
+def test_import_scene_tools():
+    """Test that scene tools module can be imported successfully."""
+    # This ensures the import path in create_server works
+    from scriptrag.mcp.tools.scene import register_scene_tools
+
+    assert callable(register_scene_tools)
+
+
+def test_server_module_exports():
+    """Test that server module exports the expected functions."""
+    import scriptrag.mcp.server as server_module
+
+    # Verify main exports
+    assert hasattr(server_module, "create_server")
+    assert hasattr(server_module, "main")
+    assert callable(server_module.create_server)
+    assert callable(server_module.main)

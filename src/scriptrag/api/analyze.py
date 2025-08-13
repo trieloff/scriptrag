@@ -47,7 +47,7 @@ class AnalyzeResult:
 class SceneAnalyzer(Protocol):
     """Protocol for scene analysis callbacks."""
 
-    async def analyze(self, scene: dict) -> dict:
+    async def analyze(self, scene: dict[str, Any]) -> dict[str, Any]:
         """Analyze a scene and return metadata."""
         ...
 

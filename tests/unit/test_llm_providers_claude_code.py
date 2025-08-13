@@ -84,31 +84,50 @@ class TestClaudeCodeProvider:
 
     def test_check_sdk_with_sdk_available(self):
         """Test SDK check when both SDK and CLI are available."""
-        with patch(
-            "scriptrag.llm.providers.claude_code.shutil.which",
-            return_value="/usr/bin/claude",
-        ):
-            with patch("scriptrag.llm.providers.claude_code.claude_code_sdk"):
+        # Temporarily add a fake module to sys.modules
+        import sys
+        import types
+
+        mock_module = types.ModuleType("claude_code_sdk")
+        sys.modules["claude_code_sdk"] = mock_module
+
+        try:
+            with patch("shutil.which", return_value="/usr/bin/claude"):
                 provider = ClaudeCodeProvider()
                 assert provider.sdk_available is True
+        finally:
+            # Clean up
+            if "claude_code_sdk" in sys.modules:
+                del sys.modules["claude_code_sdk"]
 
     def test_check_sdk_with_sdk_no_cli(self):
         """Test SDK check when SDK is installed but CLI not in PATH."""
-        with patch(
-            "scriptrag.llm.providers.claude_code.shutil.which", return_value=None
-        ):
-            with patch("scriptrag.llm.providers.claude_code.claude_code_sdk"):
+        # Temporarily add a fake module to sys.modules
+        import sys
+        import types
+
+        mock_module = types.ModuleType("claude_code_sdk")
+        sys.modules["claude_code_sdk"] = mock_module
+
+        try:
+            with patch("shutil.which", return_value=None):
                 provider = ClaudeCodeProvider()
                 assert provider.sdk_available is False
+        finally:
+            # Clean up
+            if "claude_code_sdk" in sys.modules:
+                del sys.modules["claude_code_sdk"]
 
     def test_check_sdk_no_sdk(self):
         """Test SDK check when SDK is not installed."""
-        with patch(
-            "scriptrag.llm.providers.claude_code.claude_code_sdk",
-            side_effect=ImportError("No module named 'claude_code_sdk'"),
-        ):
-            provider = ClaudeCodeProvider()
-            assert provider.sdk_available is False
+        # Ensure claude_code_sdk is NOT in sys.modules to simulate import failure
+        import sys
+
+        if "claude_code_sdk" in sys.modules:
+            del sys.modules["claude_code_sdk"]
+
+        provider = ClaudeCodeProvider()
+        assert provider.sdk_available is False
 
     @pytest.mark.asyncio
     async def test_is_available_with_sdk(self, provider):

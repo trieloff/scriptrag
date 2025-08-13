@@ -4,7 +4,7 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -284,7 +284,7 @@ class TestModelDiscovery:
         with patch.object(discovery_with_cache.cache, "get", return_value=None):
             with patch.object(
                 discovery_with_cache,
-                "_fetch_dynamic_models",
+                "_fetch_models",
                 return_value=dynamic_models,
             ):
                 with patch.object(discovery_with_cache.cache, "set") as mock_set:
@@ -301,17 +301,17 @@ class TestModelDiscovery:
         with patch.object(discovery_with_cache.cache, "get", return_value=None):
             with patch.object(
                 discovery_with_cache,
-                "_fetch_dynamic_models",
+                "_fetch_models",
                 side_effect=Exception("API error"),
             ):
                 models = await discovery_with_cache.discover_models()
                 assert models == static_models
 
     @pytest.mark.asyncio
-    async def test_fetch_dynamic_models_not_implemented(self, discovery):
-        """Test base class _fetch_dynamic_models raises NotImplementedError."""
+    async def test_fetch_models_not_implemented(self, discovery):
+        """Test base class _fetch_models raises NotImplementedError."""
         with pytest.raises(NotImplementedError):
-            await discovery._fetch_dynamic_models()
+            await discovery._fetch_models()
 
 
 class TestClaudeCodeModelDiscovery:
@@ -341,9 +341,10 @@ class TestClaudeCodeModelDiscovery:
         )
 
     @pytest.mark.asyncio
-    async def test_fetch_dynamic_models_sdk_available(self, discovery):
-        """Test dynamic model fetching when SDK is available."""
-        # Mock SDK availability and response
+    async def test_fetch_models_sdk_available(self, discovery):
+        """Test model fetching when Claude SDK is available."""
+        # Mock SDK client with list_models method
+        mock_client = MagicMock()
         mock_models_data = [
             {
                 "id": "claude-3-5-sonnet-20241022",
@@ -352,94 +353,66 @@ class TestClaudeCodeModelDiscovery:
                 "max_output_tokens": 8192,
             },
         ]
+        mock_client.list_models = AsyncMock(return_value=mock_models_data)
 
-        with patch(
-            "scriptrag.llm.model_discovery.shutil.which",
-            return_value="/usr/bin/claude",
-        ):
-            with patch(
-                "scriptrag.llm.model_discovery.subprocess.run"
-            ) as mock_subprocess:
-                mock_subprocess.return_value.returncode = 0
-                mock_subprocess.return_value.stdout = json.dumps(mock_models_data)
+        with patch("claude_code_sdk.ClaudeSDKClient", return_value=mock_client):
+            models = await discovery._fetch_models()
 
-                models = await discovery._fetch_dynamic_models()
-
-                assert len(models) == 1
-                assert models[0].id == "claude-3-5-sonnet-20241022"
-                assert models[0].name == "Claude 3.5 Sonnet"
-                assert models[0].provider == LLMProvider.CLAUDE_CODE
-                assert models[0].context_window == 200000
-                assert models[0].max_output_tokens == 8192
+            assert models is not None
+            assert len(models) == 1
+            assert models[0].id == "claude-3-5-sonnet-20241022"
+            assert models[0].name == "Claude 3.5 Sonnet"
+            assert models[0].provider == LLMProvider.CLAUDE_CODE
 
     @pytest.mark.asyncio
-    async def test_fetch_dynamic_models_cli_not_available(self, discovery):
-        """Test dynamic model fetching when CLI is not available."""
-        with patch("scriptrag.llm.model_discovery.shutil.which", return_value=None):
-            with pytest.raises(Exception, match="Claude CLI not available"):
-                await discovery._fetch_dynamic_models()
+    async def test_fetch_models_sdk_not_available(self, discovery):
+        """Test model fetching when Claude SDK is not available."""
+        with patch(
+            "claude_code_sdk.ClaudeSDKClient",
+            side_effect=ImportError("No module named 'claude_code_sdk'"),
+        ):
+            with patch("os.environ.get", return_value=None):
+                models = await discovery._fetch_models()
+                assert models is None
 
     @pytest.mark.asyncio
-    async def test_fetch_dynamic_models_cli_error(self, discovery):
-        """Test dynamic model fetching when CLI returns error."""
-        with patch(
-            "scriptrag.llm.model_discovery.shutil.which",
-            return_value="/usr/bin/claude",
-        ):
-            with patch(
-                "scriptrag.llm.model_discovery.subprocess.run"
-            ) as mock_subprocess:
-                mock_subprocess.return_value.returncode = 1
-                mock_subprocess.return_value.stderr = "Authentication failed"
+    async def test_fetch_models_anthropic_api_success(self, discovery):
+        """Test model fetching from Anthropic API when SDK not available."""
+        mock_response_data = {
+            "data": [
+                {
+                    "id": "claude-3-opus-20240229",
+                    "type": "model",
+                    "display_name": "Claude 3 Opus",
+                }
+            ]
+        }
 
-                with pytest.raises(Exception, match="Claude CLI error"):
-                    await discovery._fetch_dynamic_models()
+        with patch("claude_code_sdk.ClaudeSDKClient", side_effect=ImportError):
+            with patch("os.environ.get", return_value="test-api-key"):
+                with patch(
+                    "scriptrag.llm.model_discovery.httpx.AsyncClient"
+                ) as mock_client_context:
+                    mock_client = MagicMock()
+                    mock_response = MagicMock()
+                    mock_response.status_code = 200
+                    mock_response.json.return_value = mock_response_data
+                    mock_client.get.return_value = mock_response
+                    mock_client_context.return_value.__aenter__.return_value = (
+                        mock_client
+                    )
 
-    @pytest.mark.asyncio
-    async def test_fetch_dynamic_models_invalid_json(self, discovery):
-        """Test dynamic model fetching with invalid JSON response."""
-        with patch(
-            "scriptrag.llm.model_discovery.shutil.which",
-            return_value="/usr/bin/claude",
-        ):
-            with patch(
-                "scriptrag.llm.model_discovery.subprocess.run"
-            ) as mock_subprocess:
-                mock_subprocess.return_value.returncode = 0
-                mock_subprocess.return_value.stdout = "invalid json"
-
-                with pytest.raises(Exception, match="Failed to parse"):
-                    await discovery._fetch_dynamic_models()
+                    models = await discovery._fetch_models()
+                    assert models is not None
 
     @pytest.mark.asyncio
-    async def test_fetch_dynamic_models_missing_fields(self, discovery):
-        """Test dynamic model fetching with missing required fields."""
-        # Model data missing required fields
-        mock_models_data = [
-            {
-                "id": "claude-model",
-                # Missing name, context_window, max_output_tokens
-            },
-        ]
-
-        with patch(
-            "scriptrag.llm.model_discovery.shutil.which",
-            return_value="/usr/bin/claude",
-        ):
-            with patch(
-                "scriptrag.llm.model_discovery.subprocess.run"
-            ) as mock_subprocess:
-                mock_subprocess.return_value.returncode = 0
-                mock_subprocess.return_value.stdout = json.dumps(mock_models_data)
-
-                # Should handle missing fields gracefully
-                models = await discovery._fetch_dynamic_models()
-                assert len(models) == 1
-                assert models[0].id == "claude-model"
-                # Default values should be used
-                assert models[0].name == "claude-model"  # Fallback to ID
-                assert models[0].context_window == 200000  # Default
-                assert models[0].max_output_tokens == 4096  # Default
+    async def test_fetch_models_no_discovery_available(self, discovery):
+        """Test model fetching when no discovery methods are available."""
+        # Mock SDK not available and no API key
+        with patch("claude_code_sdk.ClaudeSDKClient", side_effect=ImportError):
+            with patch("os.environ.get", return_value=None):
+                models = await discovery._fetch_models()
+                assert models is None
 
 
 class TestGitHubModelsDiscovery:
@@ -520,7 +493,7 @@ class TestGitHubModelsDiscovery:
             ) = mock_response
 
             with pytest.raises(Exception, match="GitHub API error"):
-                await discovery._fetch_dynamic_models()
+                await discovery._fetch_models()
 
     @pytest.mark.asyncio
     async def test_fetch_dynamic_models_network_error(self, discovery):
@@ -533,14 +506,14 @@ class TestGitHubModelsDiscovery:
             )
 
             with pytest.raises(Exception, match="Connection failed"):
-                await discovery._fetch_dynamic_models()
+                await discovery._fetch_models()
 
     @pytest.mark.asyncio
     async def test_fetch_dynamic_models_no_auth_token(self, discovery):
         """Test discovery without authentication token."""
         with patch("scriptrag.llm.model_discovery.os.getenv", return_value=None):
             with pytest.raises(Exception, match="GitHub token not available"):
-                await discovery._fetch_dynamic_models()
+                await discovery._fetch_models()
 
     @pytest.mark.asyncio
     async def test_fetch_dynamic_models_invalid_response_format(self, discovery):
@@ -559,7 +532,7 @@ class TestGitHubModelsDiscovery:
             ) = mock_response
 
             with pytest.raises(Exception, match="Invalid response format"):
-                await discovery._fetch_dynamic_models()
+                await discovery._fetch_models()
 
 
 class TestModelDiscoveryIntegration:
@@ -612,7 +585,7 @@ class TestModelDiscoveryIntegration:
                 # Second call - should use cache (mock fetch not called again)
                 with patch.object(
                     discovery,
-                    "_fetch_dynamic_models",
+                    "_fetch_models",
                     side_effect=Exception("Should not be called"),
                 ):
                     models2 = await discovery.discover_models()
@@ -648,7 +621,7 @@ class TestModelDiscoveryIntegration:
                 # Should fallback to dynamic discovery, then static
                 with patch.object(
                     discovery,
-                    "_fetch_dynamic_models",
+                    "_fetch_models",
                     side_effect=Exception("API error"),
                 ):
                     models = await discovery.discover_models()

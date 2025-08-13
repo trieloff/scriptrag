@@ -1,15 +1,15 @@
 """Unit tests for MCP scene management tools."""
 # ruff: noqa: S105,S106
 
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from scriptrag.api.scene_management import (
     AddSceneResult,
+    BibleReadResult,
     DeleteSceneResult,
-    ReadBibleResult,
     ReadSceneResult,
     UpdateSceneResult,
 )
@@ -46,10 +46,11 @@ class TestSceneReadTool:
     @pytest.mark.asyncio
     async def test_read_scene_success(self, mock_scene_api, sample_scene):
         """Test successful scene read."""
+        # Setup mock response
+
         from mcp.server import FastMCP
 
-        # Setup mock response
-        expires_at = datetime.now(datetime.UTC)
+        expires_at = datetime.now(UTC)
         mock_result = ReadSceneResult(
             success=True,
             error=None,
@@ -669,7 +670,7 @@ class TestSceneBibleReadTool:
         """Test reading specific bible content."""
         from mcp.server import FastMCP
 
-        mock_result = ReadBibleResult(
+        mock_result = BibleReadResult(
             success=True,
             error=None,
             content=(
@@ -712,7 +713,7 @@ class TestSceneBibleReadTool:
             {"name": "world.md", "path": "bibles/world.md", "size": 2048},
         ]
 
-        mock_result = ReadBibleResult(
+        mock_result = BibleReadResult(
             success=True,
             error=None,
             content=None,
@@ -744,7 +745,7 @@ class TestSceneBibleReadTool:
         """Test reading non-existent bible."""
         from mcp.server import FastMCP
 
-        mock_result = ReadBibleResult(
+        mock_result = BibleReadResult(
             success=False,
             error="Bible file not found: missing.md",
             content=None,

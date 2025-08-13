@@ -135,6 +135,37 @@ class TestModelDiscoveryCache:
         # Should not raise, just log warning
         cache.set(models)  # This should handle the exception gracefully
 
+    def test_cache_set_non_permission_error(self, cache, monkeypatch):
+        """Test cache set when file write fails with non-PermissionError."""
+        models = [
+            Model(
+                id="model-1",
+                name="Test Model",
+                provider=LLMProvider.GITHUB_MODELS,
+                capabilities=["chat"],
+            )
+        ]
+
+        # Mock json.dump to raise an exception (lines 94-95)
+        import json
+
+        def mock_json_dump(*args, **kwargs):
+            raise ValueError("JSON serialization failed")
+
+        monkeypatch.setattr(json, "dump", mock_json_dump)
+
+        # Should not raise, just log warning (should hit exception handler)
+        cache.set(models)
+
+    def test_cache_clear_nonexistent_file(self, cache):
+        """Test clearing cache when file doesn't exist (line 99)."""
+        # Ensure cache file doesn't exist
+        if cache.cache_file.exists():
+            cache.cache_file.unlink()
+
+        # Should not raise exception
+        cache.clear()
+
 
 class TestModelDiscovery:
     """Test base model discovery functionality."""
@@ -436,6 +467,329 @@ class TestClaudeCodeModelDiscovery:
             # Should fall back to static models when parsing fails
             assert len(models) == 1
             assert models[0].id == "claude-3-opus"
+
+    @pytest.mark.asyncio
+    async def test_claude_code_import_error(self, static_models, tmp_path, monkeypatch):
+        """Test Claude Code when SDK import fails (line 221)."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock import to raise ImportError
+        with patch.dict("sys.modules", {"claude_code_sdk": None}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            models = await discovery.discover_models()
+            # Should fall back to static models
+            assert len(models) == 1
+            assert models[0].id == "claude-3-opus"
+
+    @pytest.mark.asyncio
+    async def test_claude_code_with_anthropic_api_key(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test Claude Code with ANTHROPIC_API_KEY set (line 230)."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-api-key")
+
+        # Mock httpx for successful API response
+        mock_httpx = MagicMock()
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "id": "claude-3-5-sonnet-20241022",
+                    "display_name": "Claude 3.5 Sonnet",
+                }
+            ]
+        }
+        mock_client.get.return_value = mock_response
+        mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
+        mock_httpx.AsyncClient.return_value.__aexit__.return_value = None
+
+        with patch.dict("sys.modules", {"httpx": mock_httpx}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            models = await discovery.discover_models()
+            assert len(models) == 1
+            assert models[0].id == "claude-3-5-sonnet-20241022"
+
+    @pytest.mark.asyncio
+    async def test_anthropic_api_success(self, static_models, tmp_path, monkeypatch):
+        """Test successful Anthropic API call (lines 244-278)."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock httpx for successful API response
+        mock_httpx = MagicMock()
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "data": [
+                {"id": "claude-3-opus-20240229", "display_name": "Claude 3 Opus"},
+                {"id": "claude-3-haiku-20240307", "display_name": "Claude 3 Haiku"},
+            ]
+        }
+        mock_client.get.return_value = mock_response
+        mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
+        mock_httpx.AsyncClient.return_value.__aexit__.return_value = None
+
+        with patch.dict("sys.modules", {"httpx": mock_httpx}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            result = await discovery._fetch_from_anthropic_api("test-api-key")
+            assert result is not None
+            assert len(result) == 2
+            assert result[0].id == "claude-3-opus-20240229"
+            assert result[1].id == "claude-3-haiku-20240307"
+            # Test haiku gets smaller max_output (line 313-314)
+            assert result[1].max_output_tokens == 4096
+
+    @pytest.mark.asyncio
+    async def test_anthropic_api_non_200_status(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test Anthropic API with non-200 status code (lines 259-263)."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock httpx for non-200 response
+        mock_httpx = MagicMock()
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 401
+        mock_client.get.return_value = mock_response
+        mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
+        mock_httpx.AsyncClient.return_value.__aexit__.return_value = None
+
+        with patch.dict("sys.modules", {"httpx": mock_httpx}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            result = await discovery._fetch_from_anthropic_api("test-api-key")
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_anthropic_api_empty_models(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test Anthropic API with empty models list (lines 268-269)."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock httpx for empty models response
+        mock_httpx = MagicMock()
+        mock_client = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": []}
+        mock_client.get.return_value = mock_response
+        mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
+        mock_httpx.AsyncClient.return_value.__aexit__.return_value = None
+
+        with patch.dict("sys.modules", {"httpx": mock_httpx}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            result = await discovery._fetch_from_anthropic_api("test-api-key")
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_anthropic_api_httpx_not_available(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test Anthropic API when httpx not available (lines 273-275)."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock import to raise ImportError for httpx
+        with patch.dict("sys.modules", {"httpx": None}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            result = await discovery._fetch_from_anthropic_api("test-api-key")
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_anthropic_api_general_exception(
+        self, static_models, tmp_path, monkeypatch
+    ):
+        """Test Anthropic API with general exception (lines 276-278)."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock httpx to raise general exception
+        mock_httpx = MagicMock()
+        mock_httpx.AsyncClient.side_effect = Exception("Network error")
+
+        with patch.dict("sys.modules", {"httpx": mock_httpx}):
+            discovery = ClaudeCodeModelDiscovery(
+                provider_name="claude_code",
+                static_models=static_models,
+                use_cache=False,
+            )
+
+            result = await discovery._fetch_from_anthropic_api("test-api-key")
+            assert result is None
+
+    def test_parse_anthropic_models_empty_list(self, static_models):
+        """Test parsing empty Anthropic models list (lines 291-292)."""
+        discovery = ClaudeCodeModelDiscovery(
+            provider_name="claude_code",
+            static_models=static_models,
+            use_cache=False,
+        )
+
+        result = discovery._parse_anthropic_models([])
+        assert result is None
+
+    def test_parse_anthropic_models_missing_id(self, static_models):
+        """Test parsing Anthropic models with missing IDs (lines 297-299)."""
+        discovery = ClaudeCodeModelDiscovery(
+            provider_name="claude_code",
+            static_models=static_models,
+            use_cache=False,
+        )
+
+        models_data = [
+            {"display_name": "Model without ID"},
+            {"id": "", "display_name": "Model with empty ID"},
+            {"id": "claude-3-opus", "display_name": "Valid model"},
+        ]
+
+        result = discovery._parse_anthropic_models(models_data)
+        assert result is not None
+        assert len(result) == 1
+        assert result[0].id == "claude-3-opus"
+
+    def test_parse_anthropic_models_haiku_opus_types(self, static_models):
+        """Test parsing Anthropic models with haiku/opus types (lines 313-314)."""
+        discovery = ClaudeCodeModelDiscovery(
+            provider_name="claude_code",
+            static_models=static_models,
+            use_cache=False,
+        )
+
+        models_data = [
+            {"id": "claude-3-haiku-20240307", "display_name": "Claude 3 Haiku"},
+            {"id": "claude-3-opus-20240229", "display_name": "Claude 3 Opus"},
+            {"id": "claude-3-sonnet-20240229", "display_name": "Claude 3 Sonnet"},
+        ]
+
+        result = discovery._parse_anthropic_models(models_data)
+        assert result is not None
+        assert len(result) == 3
+
+        # Haiku and Opus should have reduced max_output
+        haiku_model = next(m for m in result if "haiku" in m.id.lower())
+        opus_model = next(m for m in result if "opus" in m.id.lower())
+        sonnet_model = next(m for m in result if "sonnet" in m.id.lower())
+
+        assert haiku_model.max_output_tokens == 4096
+        assert opus_model.max_output_tokens == 4096
+        assert sonnet_model.max_output_tokens == 8192
+
+    def test_parse_anthropic_models_exception(self, static_models):
+        """Test parsing Anthropic models with exception (lines 329-331)."""
+        discovery = ClaudeCodeModelDiscovery(
+            provider_name="claude_code",
+            static_models=static_models,
+            use_cache=False,
+        )
+
+        # Pass invalid data that will cause an exception
+        result = discovery._parse_anthropic_models("not a list")
+        assert result is None
+
+    def test_parse_claude_models_dict_format(self, static_models):
+        """Test parsing Claude SDK models in dict format (lines 377-404)."""
+        discovery = ClaudeCodeModelDiscovery(
+            provider_name="claude_code",
+            static_models=static_models,
+            use_cache=False,
+        )
+
+        # Dict format with complex model info
+        models_data = {
+            "claude-3-5-sonnet": {
+                "name": "Claude 3.5 Sonnet",
+                "capabilities": ["chat", "completion"],
+                "context_window": 200000,
+                "max_tokens": 8192,
+            },
+            "claude-4-opus": {"name": "Claude 4 Opus", "max_tokens": 10000},
+        }
+
+        result = discovery._parse_claude_models(models_data)
+        assert result is not None
+        assert len(result) == 2
+
+        sonnet_model = next(m for m in result if m.id == "claude-3-5-sonnet")
+        opus_model = next(m for m in result if m.id == "claude-4-opus")
+
+        assert sonnet_model.name == "Claude 3.5 Sonnet"
+        assert sonnet_model.max_output_tokens == 8192
+        assert opus_model.max_output_tokens == 10000
+
+    def test_parse_claude_models_dict_simple_values(self, static_models):
+        """Test parsing Claude SDK models dict format with simple values.
+
+        Tests lines 388-391 of model_discovery.py.
+        """
+        discovery = ClaudeCodeModelDiscovery(
+            provider_name="claude_code",
+            static_models=static_models,
+            use_cache=False,
+        )
+
+        # Dict format with simple values (not dict)
+        models_data = {"claude-instant": "Claude Instant", "claude-2": "Claude 2"}
+
+        result = discovery._parse_claude_models(models_data)
+        assert result is not None
+        assert len(result) == 2
+
+        instant_model = next(m for m in result if m.id == "claude-instant")
+        claude2_model = next(m for m in result if m.id == "claude-2")
+
+        # Should use defaults for simple values
+        assert instant_model.name == "claude-instant"
+        assert instant_model.capabilities == ["completion", "chat"]
+        assert instant_model.context_window == 200000
+        assert instant_model.max_output_tokens == 8192
+
+    def test_parse_claude_models_exception(self, static_models):
+        """Test parsing Claude SDK models with exception (lines 406-408)."""
+        discovery = ClaudeCodeModelDiscovery(
+            provider_name="claude_code",
+            static_models=static_models,
+            use_cache=False,
+        )
+
+        # Mock the Model constructor to raise an exception
+        with patch(
+            "scriptrag.llm.model_discovery.Model",
+            side_effect=Exception("Model creation failed"),
+        ):
+            result = discovery._parse_claude_models([{"id": "test-model"}])
+            assert result is None
 
 
 class TestGitHubModelsDiscovery:
@@ -778,3 +1132,36 @@ class TestGitHubModelsDiscovery:
         # Check capabilities
         cohere_model = next(m for m in processed if m.id == "cohere-command")
         assert "chat" in cohere_model.capabilities
+
+    @pytest.mark.asyncio
+    async def test_github_models_rate_limit_no_match_in_text(
+        self, static_models, mock_client, tmp_path, monkeypatch
+    ):
+        """Test GitHub Models rate limit without matching text pattern.
+
+        Tests line 474->480 of model_discovery.py.
+        """
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock rate limited response without Retry-After header
+        # and no matching regex pattern
+        mock_response = MagicMock()
+        mock_response.status_code = 429
+        mock_response.headers = {}
+        # No "wait X seconds" pattern in response text
+        mock_response.text = "Rate limit exceeded. Try again later."
+        mock_client.get.return_value = mock_response
+
+        discovery = GitHubModelsDiscovery(
+            provider_name="github_models",
+            static_models=static_models,
+            client=mock_client,
+            token="test-token",  # noqa: S106
+            base_url="https://api.test.com",
+            use_cache=False,
+        )
+
+        models = await discovery.discover_models()
+        # Should fall back to static models when no regex match
+        assert len(models) == 1
+        assert models[0].id == "gpt-4o"

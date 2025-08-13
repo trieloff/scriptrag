@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 
 @dataclass
@@ -178,7 +178,7 @@ class HeaderParser:
         )
 
     @classmethod
-    def _parse_param(cls, match: re.Match) -> ParamSpec | None:
+    def _parse_param(cls, match: re.Match[str]) -> ParamSpec | None:
         """Parse a parameter specification from regex match.
 
         Args:
@@ -195,6 +195,9 @@ class HeaderParser:
         # Validate type
         if param_type not in ("str", "int", "float", "bool"):
             return None
+
+        # Type narrowing for mypy - use a cast since we validated above
+        param_type = cast(Literal["str", "int", "float", "bool"], param_type)
 
         # Parse options (default, help, choices)
         default: Any = None

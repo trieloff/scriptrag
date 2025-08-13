@@ -4,7 +4,7 @@ import json
 import os
 import re
 import time
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal, TypedDict
 
 import httpx
 
@@ -21,6 +21,52 @@ from scriptrag.llm.models import (
 )
 
 logger = get_logger(__name__)
+
+
+# Type definitions for structured data
+class GitHubErrorInfo(TypedDict, total=False):
+    """Type for GitHub API error information."""
+
+    code: str
+    message: str
+    type: str
+
+
+class GitHubErrorResponse(TypedDict, total=False):
+    """Type for GitHub API error response."""
+
+    error: GitHubErrorInfo
+
+
+class CompletionChoice(TypedDict):
+    """Type for completion choice."""
+
+    index: int
+    message: dict[str, str]
+    finish_reason: Literal["stop", "length", "content_filter"]
+
+
+class CompletionUsage(TypedDict):
+    """Type for completion usage stats."""
+
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
+class EmbeddingData(TypedDict):
+    """Type for embedding data."""
+
+    index: int
+    embedding: list[float]
+    object: Literal["embedding"]
+
+
+class EmbeddingUsage(TypedDict):
+    """Type for embedding usage stats."""
+
+    prompt_tokens: int
+    total_tokens: int
 
 
 class GitHubModelsProvider(BaseLLMProvider):
@@ -84,9 +130,9 @@ class GitHubModelsProvider(BaseLLMProvider):
             token: GitHub token. If not provided, checks GITHUB_TOKEN env var.
             timeout: HTTP request timeout in seconds.
         """
-        self.token = token or os.getenv("GITHUB_TOKEN")
-        self.timeout = timeout
-        self.client = httpx.AsyncClient(timeout=timeout)
+        self.token: str | None = token or os.getenv("GITHUB_TOKEN")
+        self.timeout: float = timeout
+        self.client: httpx.AsyncClient = httpx.AsyncClient(timeout=timeout)
         self._availability_cache: bool | None = None
         self._cache_timestamp: float = 0
         self._rate_limit_reset_time: float = 0  # Track when rate limit resets
@@ -96,7 +142,7 @@ class GitHubModelsProvider(BaseLLMProvider):
 
         settings = get_settings()
 
-        self.model_discovery = GitHubModelsDiscovery(
+        self.model_discovery: GitHubModelsDiscovery = GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=self.STATIC_MODELS,
             client=self.client,
@@ -192,7 +238,7 @@ class GitHubModelsProvider(BaseLLMProvider):
         """
         try:
             # Parse JSON error response
-            error_data = json.loads(error_text)
+            error_data: dict[str, Any] = json.loads(error_text)
             if "error" in error_data:
                 error_info = error_data["error"]
                 if error_info.get("code") == "RateLimitReached":

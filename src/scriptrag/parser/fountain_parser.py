@@ -43,10 +43,10 @@ class Scene:
     time_of_day: str = ""
     dialogue_lines: list[Dialogue] = field(default_factory=list)
     action_lines: list[str] = field(default_factory=list)
-    boneyard_metadata: dict | None = None
+    boneyard_metadata: dict[str, Any] | None = None
     has_new_metadata: bool = False
 
-    def update_boneyard(self, metadata: dict) -> None:
+    def update_boneyard(self, metadata: dict[str, Any]) -> None:
         """Update the boneyard metadata for this scene."""
         if self.boneyard_metadata is None:
             self.boneyard_metadata = {}
@@ -61,7 +61,7 @@ class Script:
     title: str | None
     author: str | None
     scenes: list[Scene]
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class FountainParser:
@@ -408,7 +408,7 @@ class FountainParser:
         )
 
     def _update_scene_boneyard(
-        self, content: str, scene_text: str, metadata: dict
+        self, content: str, scene_text: str, metadata: dict[str, Any]
     ) -> str:
         """Update or insert boneyard metadata for a scene.
 

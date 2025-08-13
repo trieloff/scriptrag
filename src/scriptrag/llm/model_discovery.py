@@ -3,12 +3,37 @@
 import json
 import time
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypedDict
 
 from scriptrag.config import get_logger
 from scriptrag.llm.models import Model
 
 logger = get_logger(__name__)
+
+
+# Type definitions for structured data
+class CacheData(TypedDict):
+    """Type for cache data structure."""
+
+    timestamp: float
+    models: list[dict[str, Any]]
+    provider: str
+
+
+class GitHubModelInfo(TypedDict, total=False):
+    """Type for GitHub API model information."""
+
+    id: str
+    name: str
+    friendly_name: str
+    context_window: int
+    max_output_tokens: int
+
+
+class GitHubModelsResponse(TypedDict, total=False):
+    """Type for GitHub Models API response."""
+
+    data: list[GitHubModelInfo]
 
 
 class ModelDiscoveryCache:
@@ -45,7 +70,7 @@ class ModelDiscoveryCache:
 
         try:
             with self.cache_file.open("r") as f:
-                cache_data = json.load(f)
+                cache_data: dict[str, Any] = json.load(f)
 
             timestamp = cache_data.get("timestamp", 0)
             if time.time() - timestamp > self.ttl:
@@ -56,8 +81,8 @@ class ModelDiscoveryCache:
                 )
                 return None
 
-            models_data = cache_data.get("models", [])
-            models = [Model(**model_dict) for model_dict in models_data]
+            models_data: list[dict[str, Any]] = cache_data.get("models", [])
+            models: list[Model] = [Model(**model_dict) for model_dict in models_data]
 
             logger.info(
                 f"Using cached models for {self.provider_name}",
@@ -77,7 +102,7 @@ class ModelDiscoveryCache:
             models: List of models to cache
         """
         try:
-            cache_data = {
+            cache_data: CacheData = {
                 "timestamp": time.time(),
                 "models": [model.model_dump() for model in models],
                 "provider": self.provider_name,
@@ -220,7 +245,7 @@ class GitHubModelsDiscovery(ModelDiscovery):
         self,
         provider_name: str,
         static_models: list[Model],
-        client: Any,
+        client: Any,  # HTTP client with async get method
         token: str | None,
         base_url: str,
         cache_ttl: int | None = None,
@@ -256,7 +281,7 @@ class GitHubModelsDiscovery(ModelDiscovery):
             return None
 
         try:
-            headers = {
+            headers: dict[str, str] = {
                 "Authorization": f"Bearer {self.token}",
                 "Accept": "application/json",
             }
@@ -291,9 +316,10 @@ class GitHubModelsDiscovery(ModelDiscovery):
                 )
                 return None
 
-            data = response.json()
+            data: dict[str, Any] | list[Any] = response.json()
 
             # Parse the response based on format
+            models_data: list[dict[str, Any]]
             if isinstance(data, list):
                 models_data = data
             elif isinstance(data, dict) and "data" in data:
@@ -310,7 +336,7 @@ class GitHubModelsDiscovery(ModelDiscovery):
             logger.debug(f"Failed to fetch GitHub Models: {e}")
             return None
 
-    def _process_github_models(self, models_data: list[dict]) -> list[Model]:
+    def _process_github_models(self, models_data: list[dict[str, Any]]) -> list[Model]:
         """Process raw model data from GitHub API.
 
         Args:
@@ -322,7 +348,7 @@ class GitHubModelsDiscovery(ModelDiscovery):
         from scriptrag.llm.models import LLMProvider
 
         # Known working model patterns
-        supported_patterns = [
+        supported_patterns: list[str] = [
             "gpt-4",
             "gpt-3.5",
             "claude",
@@ -334,23 +360,25 @@ class GitHubModelsDiscovery(ModelDiscovery):
             "ada",
         ]
 
-        models = []
+        models: list[Model] = []
         for model_info in models_data:
-            model_id = model_info.get("id", "")
-            name = model_info.get("name") or model_info.get("friendly_name", model_id)
+            model_id: str = model_info.get("id", "")
+            name: str = model_info.get("name") or model_info.get(
+                "friendly_name", model_id
+            )
 
             # Skip if no valid ID
             if not model_id:
                 continue
 
             # Check if model matches supported patterns
-            model_id_lower = model_id.lower()
+            model_id_lower: str = model_id.lower()
             if not any(pattern in model_id_lower for pattern in supported_patterns):
                 logger.debug(f"Skipping unsupported model: {model_id}")
                 continue
 
             # Determine capabilities
-            capabilities = []
+            capabilities: list[str] = []
             if "embedding" in model_id_lower:
                 capabilities.append("embedding")
             elif any(
@@ -363,8 +391,8 @@ class GitHubModelsDiscovery(ModelDiscovery):
                 capabilities = ["chat"]
 
             # Extract context window and token limits from metadata
-            context_window = model_info.get("context_window", 4096)
-            max_output = model_info.get("max_output_tokens", 4096)
+            context_window: int = model_info.get("context_window", 4096)
+            max_output: int = model_info.get("max_output_tokens", 4096)
 
             models.append(
                 Model(

@@ -15,6 +15,147 @@ Hey Alice! The usual?
 
 ALICE nods and sits down.
 
+/* SCRIPTRAG-META-START
+{
+  "content_hash": "830dda1fe63b0bcd",
+  "analyzed_at": "2025-08-13T09:16:10.506743",
+  "analyzers": {
+    "props_inventory": {
+      "result": {
+        "props": [
+          {
+            "name": "coffee shop door",
+            "category": "furniture",
+            "description": "Entry door that Alice enters through",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "chair",
+            "category": "furniture",
+            "description": "Chair that Alice sits in",
+            "significance": "practical",
+            "action_required": true,
+            "quantity": 1,
+            "mentions": [
+              "action"
+            ]
+          },
+          {
+            "name": "table",
+            "category": "furniture",
+            "description": "Coffee shop table where Alice sits",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee cups",
+            "category": "food_beverage",
+            "description": "Background coffee cups for atmosphere",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 10,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee",
+            "category": "food_beverage",
+            "description": "Alice's usual coffee order referenced in dialogue",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "dialogue"
+            ]
+          },
+          {
+            "name": "coffee shop counter",
+            "category": "furniture",
+            "description": "Service counter where Bob works",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "coffee machines",
+            "category": "tools_equipment",
+            "description": "Espresso machines and coffee equipment",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 2,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "menu boards",
+            "category": "miscellaneous",
+            "description": "Coffee shop menu displays",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 2,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "cash register",
+            "category": "technology",
+            "description": "Point of sale system at counter",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "other tables and chairs",
+            "category": "furniture",
+            "description": "Additional seating for bustling atmosphere",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 20,
+            "mentions": [
+              "implied"
+            ]
+          }
+        ],
+        "summary": {
+          "total_props": 10,
+          "hero_props": 0,
+          "requires_action": 2,
+          "categories": [
+            "furniture",
+            "food_beverage",
+            "tools_equipment",
+            "miscellaneous",
+            "technology"
+          ]
+        },
+        "analyzer": "props_inventory",
+        "version": "1.0",
+        "property": "props_inventory"
+      },
+      "version": "1.0"
+    }
+  }
+}
+SCRIPTRAG-META-END */
+
 EXT. PARK - NIGHT
 
 They walk through the quiet park.
@@ -25,3 +166,64 @@ It's so peaceful here at night.
 
 BOB
 Yeah, quite different from the morning rush.
+
+/* SCRIPTRAG-META-START
+{
+  "content_hash": "c4f09000c61a7d01",
+  "analyzed_at": "2025-08-13T09:17:11.738205",
+  "analyzers": {
+    "props_inventory": {
+      "result": {
+        "props": [
+          {
+            "name": "park bench",
+            "category": "furniture",
+            "description": "Standard park bench for seating",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "street lamp",
+            "category": "miscellaneous",
+            "description": "Park lighting fixture for night scene",
+            "significance": "practical",
+            "action_required": false,
+            "quantity": 2,
+            "mentions": [
+              "implied"
+            ]
+          },
+          {
+            "name": "park trash can",
+            "category": "miscellaneous",
+            "description": "Public waste receptacle",
+            "significance": "background",
+            "action_required": false,
+            "quantity": 1,
+            "mentions": [
+              "implied"
+            ]
+          }
+        ],
+        "summary": {
+          "total_props": 3,
+          "hero_props": 0,
+          "requires_action": 0,
+          "categories": [
+            "furniture",
+            "miscellaneous"
+          ]
+        },
+        "analyzer": "props_inventory",
+        "version": "1.0",
+        "property": "props_inventory"
+      },
+      "version": "1.0"
+    }
+  }
+}
+SCRIPTRAG-META-END */

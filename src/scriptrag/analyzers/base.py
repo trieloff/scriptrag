@@ -1,6 +1,7 @@
 """Base classes for scene analyzers."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class BaseSceneAnalyzer(ABC):
@@ -10,7 +11,7 @@ class BaseSceneAnalyzer(ABC):
     additional metadata from scenes beyond the basic extraction.
     """
 
-    def __init__(self, config: dict | None = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initialize analyzer.
 
         Args:
@@ -19,7 +20,7 @@ class BaseSceneAnalyzer(ABC):
         self.config = config or {}
 
     @abstractmethod
-    async def analyze(self, scene: dict) -> dict:
+    async def analyze(self, scene: dict[str, Any]) -> dict[str, Any]:
         """Analyze a scene and return metadata.
 
         Args:

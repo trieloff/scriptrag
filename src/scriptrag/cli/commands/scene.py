@@ -379,14 +379,14 @@ def delete_scene(
     Examples:
         scriptrag scene delete --project "inception" --scene 42 --confirm
     """
-    try:
-        if not confirm:
-            console.print(
-                "[yellow]Warning: This will permanently delete the scene.[/yellow]"
-            )
-            console.print("Add --confirm flag to proceed with deletion.")
-            raise typer.Exit(0)
+    if not confirm:
+        console.print(
+            "[yellow]Warning: This will permanently delete the scene.[/yellow]"
+        )
+        console.print("Add --confirm flag to proceed with deletion.")
+        raise typer.Exit(0)
 
+    try:
         # Create scene identifier
         scene_id = SceneIdentifier(
             project=project,

@@ -1,5 +1,6 @@
 """Tests for query CLI commands."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -665,3 +666,294 @@ class TestQueryAppManager:
             mock_register_single.assert_any_call(manager.app, mock_api, spec1)
             mock_register_single.assert_any_call(manager.app, mock_api, spec2)
             assert manager.commands_registered is True
+
+
+class TestCoverageGaps:
+    """Test coverage gaps to reach 95% coverage."""
+
+    def test_query_command_with_db_path_option(self):
+        """Test query command execution with db_path parameter."""
+        mock_api = MagicMock(spec=QueryAPI)
+        spec = QuerySpec(
+            name="test_query",
+            description="Test query",
+            params=[],
+            sql="SELECT * FROM test",
+        )
+        mock_api.get_query.return_value = spec
+
+        # Create command with db_path option enabled (default)
+        command = create_query_command(mock_api, "test_query", db_path_option=True)
+        assert command is not None
+
+        # Check that db_path is in the signature
+        sig = command.__signature__
+        assert "db_path" in sig.parameters
+
+        # Test execution with db_path
+        with (
+            patch("scriptrag.cli.commands.query.QueryAPI") as mock_api_class,
+            patch("scriptrag.config.settings._settings", None),
+        ):
+            mock_runtime_api = MagicMock()
+            mock_api_class.return_value = mock_runtime_api
+            mock_runtime_api.execute_query.return_value = None
+
+            test_db_path = Path("/tmp/test.db")
+            command(db_path=test_db_path)
+
+            # Verify that API was created (deepcopy happens internally on real settings)
+            assert mock_api_class.called
+            # Get the settings that was passed to QueryAPI
+            call_args = mock_api_class.call_args[0]
+            if call_args:
+                settings_used = call_args[0]
+                # Check that database_path was set to our test path
+                assert settings_used.database_path == test_db_path
+
+    def test_query_command_without_db_path_option(self):
+        """Test query command creation without db_path option."""
+        mock_api = MagicMock(spec=QueryAPI)
+        spec = QuerySpec(
+            name="test_query",
+            description="Test query",
+            params=[],
+            sql="SELECT * FROM test",
+        )
+        mock_api.get_query.return_value = spec
+
+        # Create command with db_path option disabled
+        command = create_query_command(mock_api, "test_query", db_path_option=False)
+        assert command is not None
+
+        # Check that db_path is NOT in the signature
+        sig = command.__signature__
+        assert "db_path" not in sig.parameters
+
+    def test_query_command_with_non_choice_parameters(self):
+        """Test query command with parameters that don't have choices."""
+        mock_api = MagicMock(spec=QueryAPI)
+        spec = QuerySpec(
+            name="test_query",
+            description="Test query",
+            params=[
+                ParamSpec(
+                    name="user_id",
+                    type="int",
+                    required=True,
+                    help="User ID",
+                    choices=None,  # No choices
+                ),
+                ParamSpec(
+                    name="name",
+                    type="str",
+                    required=False,
+                    default="test",
+                    help="Name parameter",
+                    choices=None,  # No choices
+                ),
+            ],
+            sql="SELECT * FROM users WHERE id = :user_id AND name = :name",
+        )
+        mock_api.get_query.return_value = spec
+
+        command = create_query_command(mock_api, "test_query")
+        assert command is not None
+
+        # Check parameters are in signature
+        sig = command.__signature__
+        assert "user_id" in sig.parameters
+        assert "name" in sig.parameters
+
+    def test_query_command_with_offset_spec(self):
+        """Test query command with offset parameter from spec."""
+        mock_api = MagicMock(spec=QueryAPI)
+        spec = QuerySpec(
+            name="test_query",
+            description="Test query",
+            params=[
+                ParamSpec(
+                    name="offset",
+                    type="int",
+                    required=False,
+                    default=10,  # Custom default
+                    help="Offset for pagination",
+                ),
+            ],
+            sql="SELECT * FROM test OFFSET :offset",
+        )
+        mock_api.get_query.return_value = spec
+
+        command = create_query_command(mock_api, "test_query")
+        assert command is not None
+
+        # Check offset is in signature with custom default
+        sig = command.__signature__
+        assert "offset" in sig.parameters
+
+    def test_query_command_output_non_json(self):
+        """Test query command with non-JSON output that gets printed."""
+        mock_api = MagicMock(spec=QueryAPI)
+        spec = QuerySpec(
+            name="test_query",
+            description="Test query",
+            params=[],
+            sql="SELECT * FROM test",
+        )
+        mock_api.get_query.return_value = spec
+
+        command = create_query_command(mock_api, "test_query")
+
+        with (
+            patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings,
+            patch("scriptrag.cli.commands.query.QueryAPI") as mock_api_class,
+            patch("scriptrag.config.settings._settings", None),
+            patch("scriptrag.cli.commands.query.console") as mock_console,
+        ):
+            mock_settings = MagicMock()
+            mock_get_settings.return_value = mock_settings
+            mock_runtime_api = MagicMock()
+            mock_api_class.return_value = mock_runtime_api
+            mock_runtime_api.execute_query.return_value = "Result Table Data"
+
+            # Execute with non-JSON output
+            command(json=False)
+
+            # Verify console.print was called with the result
+            mock_console.print.assert_called_once_with("Result Table Data")
+
+    def test_register_list_command_execution_with_queries(self):
+        """Test the list command execution when queries exist."""
+        mock_app = MagicMock(spec=typer.Typer)
+        queries = [
+            QuerySpec(
+                name="query1",
+                description="First query",
+                params=[
+                    ParamSpec(name="param1", type="str", required=True),
+                    ParamSpec(name="param2", type="int", required=False),
+                ],
+                sql="SELECT 1",
+            ),
+            QuerySpec(
+                name="query2",
+                description="Second query",
+                params=[],
+                sql="SELECT 2",
+            ),
+            QuerySpec(
+                name="query3",
+                description=None,  # No description
+                params=[],
+                sql="SELECT 3",
+            ),
+        ]
+
+        # Register the list command
+        _register_list_command(mock_app, queries)
+
+        # Get the decorator call
+        decorator_call = mock_app.command.call_args
+        assert decorator_call[1]["name"] == "list"
+
+        # Get the function that was decorated
+        decorated_func = mock_app.command.return_value.call_args[0][0]
+
+        # Execute the list command
+        with patch("scriptrag.cli.commands.query.console") as mock_console:
+            decorated_func()
+
+            # Verify the output
+            calls = mock_console.print.call_args_list
+            assert any("[bold]Available queries:[/bold]" in str(call) for call in calls)
+            assert any("query1" in str(call) for call in calls)
+            assert any("First query" in str(call) for call in calls)
+            assert any("param1, param2" in str(call) for call in calls)
+            assert any("query2" in str(call) for call in calls)
+            assert any("query3" in str(call) for call in calls)
+
+    def test_register_list_command_execution_no_queries(self):
+        """Test the list command execution when no queries exist."""
+        mock_app = MagicMock(spec=typer.Typer)
+        queries = []
+
+        # Register the list command
+        _register_list_command(mock_app, queries)
+
+        # Get the decorator call
+        decorator_call = mock_app.command.call_args
+        assert decorator_call[1]["name"] == "list"
+
+        # Get the function that was decorated
+        decorated_func = mock_app.command.return_value.call_args[0][0]
+
+        # Execute the list command
+        with patch("scriptrag.cli.commands.query.console") as mock_console:
+            decorated_func()
+
+            # Verify the output for no queries
+            calls = mock_console.print.call_args_list
+            assert any(
+                "No queries found in query directory" in str(call) for call in calls
+            )
+            assert any(
+                "Add .sql files to the query directory" in str(call) for call in calls
+            )
+
+    def test_query_command_with_float_and_bool_params(self):
+        """Test query command with float and bool parameter types."""
+        mock_api = MagicMock(spec=QueryAPI)
+        spec = QuerySpec(
+            name="test_query",
+            description="Test query",
+            params=[
+                ParamSpec(
+                    name="threshold",
+                    type="float",
+                    required=True,
+                    help="Threshold value",
+                ),
+                ParamSpec(
+                    name="active",
+                    type="bool",
+                    required=False,
+                    default=True,
+                    help="Active flag",
+                ),
+            ],
+            sql="SELECT * FROM test WHERE threshold = :threshold AND active = :active",
+        )
+        mock_api.get_query.return_value = spec
+
+        command = create_query_command(mock_api, "test_query")
+        assert command is not None
+
+        # Check parameters are in signature with correct types
+        sig = command.__signature__
+        assert "threshold" in sig.parameters
+        assert "active" in sig.parameters
+
+    def test_query_spec_with_has_limit_offset(self):
+        """Test query command when spec.has_limit_offset() returns True."""
+        mock_api = MagicMock(spec=QueryAPI)
+        spec = MagicMock(spec=QuerySpec)
+        spec.name = "test_query"
+        spec.description = "Test query"
+        spec.params = []
+        spec.has_limit_offset.return_value = (True, True)  # Both limit and offset
+        spec.get_param.side_effect = lambda name: (
+            ParamSpec(name="limit", type="int", default=20)
+            if name == "limit"
+            else ParamSpec(name="offset", type="int", default=5)
+            if name == "offset"
+            else None
+        )
+        mock_api.get_query.return_value = spec
+
+        command = create_query_command(mock_api, "test_query")
+        assert command is not None
+
+        # Check both limit and offset are in signature
+        sig = command.__signature__
+        assert "limit" in sig.parameters
+        assert "offset" in sig.parameters

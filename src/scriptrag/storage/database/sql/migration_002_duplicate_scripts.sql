@@ -23,10 +23,14 @@ CREATE TABLE scripts_new (
 -- Step 2: Create indexes for the new table
 CREATE INDEX idx_scripts_new_title ON scripts_new (title);
 CREATE INDEX idx_scripts_new_title_author ON scripts_new (title, author);
+CREATE INDEX idx_scripts_new_title_author_path ON scripts_new (
+    title, author, file_path
+);
 CREATE INDEX idx_scripts_new_version ON scripts_new (title, author, version);
 CREATE INDEX idx_scripts_new_current ON scripts_new (is_current);
 
 -- Step 3: Copy data from old table to new table
+-- Handle existing duplicates by assigning proper version numbers
 INSERT INTO scripts_new (
     id, title, author, created_at, updated_at,
     file_path, format, metadata, version, is_current
@@ -40,8 +44,21 @@ SELECT
     scripts.file_path,
     scripts.format,
     scripts.metadata,
-    1, -- noqa: AL03
-    1  -- noqa: AL03
+    -- Assign version numbers based on creation order for duplicates
+    ROW_NUMBER() OVER (
+        PARTITION BY scripts.title, scripts.author
+        ORDER BY scripts.created_at, scripts.id
+    ) version,
+    -- Mark only the latest version as current
+    CASE
+        WHEN
+            ROW_NUMBER() OVER (
+                PARTITION BY scripts.title, scripts.author
+                ORDER BY scripts.created_at DESC, scripts.id DESC
+            ) = 1
+            THEN 1
+        ELSE 0
+    END is_current
 FROM scripts;
 
 -- Step 4: Drop the old table and rename the new one

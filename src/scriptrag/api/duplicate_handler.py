@@ -54,26 +54,18 @@ class DuplicateHandler:
         if not title:
             return None
 
-        if author:
-            cursor = conn.execute(
-                """
-                SELECT id, title, author, file_path, version, is_current
-                FROM scripts
-                WHERE title = ? AND author = ? AND file_path != ?
-                ORDER BY version DESC
-                """,
-                (title, author, str(file_path)),
-            )
-        else:
-            cursor = conn.execute(
-                """
-                SELECT id, title, author, file_path, version, is_current
-                FROM scripts
-                WHERE title = ? AND author IS NULL AND file_path != ?
-                ORDER BY version DESC
-                """,
-                (title, str(file_path)),
-            )
+        # Optimized query that handles both NULL and non-NULL authors
+        cursor = conn.execute(
+            """
+            SELECT id, title, author, file_path, version, is_current
+            FROM scripts
+            WHERE title = ?
+                AND (author = ? OR (author IS NULL AND ? IS NULL))
+                AND file_path != ?
+            ORDER BY version DESC
+            """,
+            (title, author, author, str(file_path)),
+        )
 
         duplicates = cursor.fetchall()
         if duplicates:
@@ -96,7 +88,7 @@ class DuplicateHandler:
         conn: sqlite3.Connection,
         duplicate_info: dict[str, Any],
         strategy: DuplicateStrategy,
-        new_file_path: Path,  # noqa: ARG002
+        new_file_path: Path,
     ) -> tuple[DuplicateStrategy, int | None]:
         """Handle a duplicate script based on the specified strategy.
 
@@ -112,7 +104,7 @@ class DuplicateHandler:
         if strategy == DuplicateStrategy.SKIP:
             logger.info(
                 f"Skipping duplicate script: {duplicate_info['title']} "
-                f"(already exists at {duplicate_info['file_path']})"
+                f"(new: {new_file_path}, existing: {duplicate_info['file_path']})"
             )
             return (DuplicateStrategy.SKIP, None)
 
@@ -120,7 +112,7 @@ class DuplicateHandler:
             # Mark the old script as replaced and we'll insert a new one
             logger.info(
                 f"Replacing existing script: {duplicate_info['title']} "
-                f"(was at {duplicate_info['file_path']})"
+                f"(old: {duplicate_info['file_path']}, new: {new_file_path})"
             )
             # We'll delete the old one and insert new
             conn.execute("DELETE FROM scripts WHERE id = ?", (duplicate_info["id"],))
@@ -130,28 +122,21 @@ class DuplicateHandler:
             # Create a new version, mark old ones as not current
             new_version = duplicate_info.get("version", 1) + 1
             logger.info(
-                f"Creating version {new_version} of script: {duplicate_info['title']}"
+                f"Creating version {new_version} of script: {duplicate_info['title']} "
+                f"(new file: {new_file_path})"
             )
 
-            # Mark all existing versions as not current
-            if duplicate_info.get("author"):
-                conn.execute(
-                    """
-                    UPDATE scripts
-                    SET is_current = 0
-                    WHERE title = ? AND author = ?
-                    """,
-                    (duplicate_info["title"], duplicate_info["author"]),
-                )
-            else:
-                conn.execute(
-                    """
-                    UPDATE scripts
-                    SET is_current = 0
-                    WHERE title = ? AND author IS NULL
-                    """,
-                    (duplicate_info["title"],),
-                )
+            # Mark all existing versions as not current (optimized query)
+            author = duplicate_info.get("author")
+            conn.execute(
+                """
+                UPDATE scripts
+                SET is_current = 0
+                WHERE title = ?
+                    AND (author = ? OR (author IS NULL AND ? IS NULL))
+                """,
+                (duplicate_info["title"], author, author),
+            )
 
             return (DuplicateStrategy.VERSION, new_version)
 

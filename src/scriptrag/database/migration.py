@@ -1,11 +1,17 @@
 """Database migration module for ScriptRAG."""
 
 import sqlite3
+from collections.abc import Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 
 logger = get_logger(__name__)
+
+
+class MigrationError(Exception):
+    """Base exception for migration errors."""
 
 
 class DatabaseMigrator:
@@ -25,6 +31,27 @@ class DatabaseMigrator:
         self.db_path = settings.database_path
         self.sql_dir = Path(__file__).parent.parent / "storage" / "database" / "sql"
 
+    @contextmanager
+    def _get_connection(self) -> Generator[sqlite3.Connection, None, None]:
+        """Get a database connection with proper error handling and cleanup.
+
+        Yields:
+            Database connection
+
+        Raises:
+            MigrationError: If database connection fails
+        """
+        conn = None
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            yield conn
+        except sqlite3.Error as e:
+            logger.error(f"Database connection error: {e}")
+            raise MigrationError(f"Failed to connect to database: {e}") from e
+        finally:
+            if conn:
+                conn.close()
+
     def get_current_schema_version(self) -> int:
         """Get the current schema version from the database.
 
@@ -35,18 +62,16 @@ class DatabaseMigrator:
             return 0
 
         try:
-            conn = sqlite3.connect(str(self.db_path))
-            try:
-                cursor = conn.execute("SELECT MAX(version) FROM schema_version")
-                result = cursor.fetchone()
-                return result[0] if result and result[0] is not None else 1
-            except sqlite3.OperationalError:
-                # schema_version table doesn't exist, assume version 1
-                return 1
-            finally:
-                conn.close()
-        except sqlite3.Error as e:
-            logger.error(f"Error checking schema version: {e}")
+            with self._get_connection() as conn:
+                try:
+                    cursor = conn.execute("SELECT MAX(version) FROM schema_version")
+                    result = cursor.fetchone()
+                    return result[0] if result and result[0] is not None else 1
+                except sqlite3.OperationalError:
+                    # schema_version table doesn't exist, assume version 1
+                    return 1
+        except MigrationError:
+            logger.error("Failed to determine schema version")
             return 0
 
     def get_available_migrations(self) -> list[tuple[int, Path]]:
@@ -71,22 +96,47 @@ class DatabaseMigrator:
         Args:
             version: The migration version number.
             migration_path: Path to the migration SQL file.
+
+        Raises:
+            MigrationError: If migration fails
         """
         logger.info(f"Applying migration {version} from {migration_path.name}")
 
-        conn = sqlite3.connect(str(self.db_path))
+        # Check if migration file is readable
+        if not migration_path.exists():
+            raise MigrationError(f"Migration file not found: {migration_path}")
+        if not migration_path.is_file():
+            raise MigrationError(f"Migration path is not a file: {migration_path}")
+
         try:
-            # Read and execute migration SQL
-            migration_sql = migration_path.read_text(encoding="utf-8")
-            conn.executescript(migration_sql)
-            conn.commit()
-            logger.info(f"Successfully applied migration {version}")
-        except sqlite3.Error as e:
-            conn.rollback()
-            logger.error(f"Failed to apply migration {version}: {e}")
+            # Read migration SQL with error handling
+            try:
+                migration_sql = migration_path.read_text(encoding="utf-8")
+            except OSError as e:
+                logger.error(f"Failed to read migration file {migration_path}: {e}")
+                raise MigrationError(
+                    f"Cannot read migration file {migration_path.name}: {e}"
+                ) from e
+
+            # Apply migration with context manager
+            with self._get_connection() as conn:
+                try:
+                    conn.executescript(migration_sql)
+                    conn.commit()
+                    logger.info(f"Successfully applied migration {version}")
+                except sqlite3.Error as e:
+                    conn.rollback()
+                    logger.error(f"Failed to apply migration {version}: {e}")
+                    raise MigrationError(
+                        f"Database error during migration {version}: {e}"
+                    ) from e
+        except MigrationError:
             raise
-        finally:
-            conn.close()
+        except Exception as e:
+            logger.error(f"Unexpected error during migration {version}: {e}")
+            raise MigrationError(
+                f"Unexpected error during migration {version}: {e}"
+            ) from e
 
     def migrate(self) -> int:
         """Run all pending migrations.

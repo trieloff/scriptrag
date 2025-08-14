@@ -150,7 +150,7 @@ addopts = [
     "--strict-markers",
     "--cov=scriptrag",
     "--cov-report=xml",  # Only XML for codecov.io
-    "--timeout=300",  # 5 minute timeout per test
+    "--timeout=60",  # 60 second timeout per test to catch hanging tests
     "--timeout-method=thread",  # Use thread method for Windows compatibility
 ]
 testpaths = ["tests"]

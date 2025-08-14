@@ -7,7 +7,7 @@ import typer
 from rich.console import Console
 
 from scriptrag.api.query import QueryAPI
-from scriptrag.config import get_settings  # noqa: F401 - Keep for test compatibility
+from scriptrag.config import get_settings
 
 # Create query app
 query_app = typer.Typer(
@@ -227,9 +227,7 @@ def register_query_commands() -> None:
     )
 
     # Get fresh settings without modifying global state
-    from scriptrag.config.settings import ScriptRAGSettings
-
-    settings = ScriptRAGSettings.from_env()
+    settings = get_settings()
     api = QueryAPI(settings)
 
     # Force reload queries from (possibly new) directory

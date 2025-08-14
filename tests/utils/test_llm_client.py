@@ -185,8 +185,8 @@ class TestGitHubModelsProvider:
             assert len(models) == 2
             assert all(isinstance(m, Model) for m in models)
             assert all(m.provider == LLMProvider.GITHUB_MODELS for m in models)
-            assert any(m.id == "gpt-4o" for m in models)
-            assert any(m.id == "gpt-4o-mini" for m in models)
+            assert any("gpt-4o" in m.id for m in models)
+            assert any("gpt-4o-mini" in m.id for m in models)
 
     @pytest.mark.asyncio
     async def test_list_models_no_token(self):

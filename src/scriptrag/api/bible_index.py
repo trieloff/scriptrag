@@ -92,12 +92,13 @@ class BibleIndexer:
                 cursor = conn.cursor()
 
                 # Check for existing bible entry
+                # Use as_posix() to ensure consistent path format across platforms
                 cursor.execute(
                     """
                     SELECT id, file_hash FROM script_bibles
                     WHERE script_id = ? AND file_path = ?
                     """,
-                    (script_id, str(bible_path)),
+                    (script_id, bible_path.as_posix()),
                 )
                 existing = cursor.fetchone()
 
@@ -166,7 +167,7 @@ class BibleIndexer:
             """,
             (
                 script_id,
-                str(parsed_bible.file_path),
+                parsed_bible.file_path.as_posix(),
                 parsed_bible.title,
                 parsed_bible.file_hash,
                 json.dumps(parsed_bible.metadata),

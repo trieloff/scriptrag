@@ -41,9 +41,11 @@ class DuplicateHandler:
             Dictionary with duplicate info if found, None otherwise
         """
         # First check if this exact file path already exists
+        # Use as_posix() to ensure consistent path format across platforms
+        posix_path = file_path.as_posix()
         cursor = conn.execute(
             "SELECT id, title, author, file_path FROM scripts WHERE file_path = ?",
-            (str(file_path),),
+            (posix_path,),
         )
         existing_by_path = cursor.fetchone()
         if existing_by_path:
@@ -64,7 +66,7 @@ class DuplicateHandler:
                 AND file_path != ?
             ORDER BY version DESC
             """,
-            (title, author, author, str(file_path)),
+            (title, author, author, posix_path),
         )
 
         duplicates = cursor.fetchall()

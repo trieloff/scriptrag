@@ -112,10 +112,11 @@ class DatabaseOperations:
         Returns:
             ScriptRecord if found, None otherwise
         """
+        # Use as_posix() to ensure consistent path format across platforms
         cursor = conn.execute(
             "SELECT id, title, author, file_path, metadata "
             "FROM scripts WHERE file_path = ?",
-            (str(file_path),),
+            (file_path.as_posix(),),
         )
         row = cursor.fetchone()
 
@@ -163,6 +164,8 @@ class DatabaseOperations:
             return existing.id
 
         # Insert new script
+        # Use as_posix() to ensure consistent path format across platforms
+        posix_path = file_path.as_posix()
         cursor = conn.execute(
             """
             INSERT INTO scripts (
@@ -170,7 +173,7 @@ class DatabaseOperations:
             )
             VALUES (?, ?, ?, ?, 1, 1)
             """,
-            (script.title, script.author, str(file_path), json.dumps(metadata)),
+            (script.title, script.author, posix_path, json.dumps(metadata)),
         )
         script_id = cursor.lastrowid
         if script_id is None:
@@ -179,7 +182,7 @@ class DatabaseOperations:
                 hint="Database constraint violation or transaction issue",
                 details={
                     "script_title": script.title,
-                    "script_path": str(file_path),
+                    "script_path": posix_path,
                     "operation": "INSERT INTO scripts",
                 },
             )
@@ -231,6 +234,8 @@ class DatabaseOperations:
             return existing.id
 
         # Insert new script with version
+        # Use as_posix() to ensure consistent path format across platforms
+        posix_path = file_path.as_posix()
         cursor = conn.execute(
             """
             INSERT INTO scripts (
@@ -241,7 +246,7 @@ class DatabaseOperations:
             (
                 script.title,
                 script.author,
-                str(file_path),
+                posix_path,
                 json.dumps(metadata),
                 version,
             ),

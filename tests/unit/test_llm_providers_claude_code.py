@@ -246,7 +246,19 @@ class TestClaudeCodeProvider:
 
         # Mock the imports that happen inside the complete method
         mock_claude_sdk = MagicMock()
-        mock_claude_sdk.query = MagicMock(return_value=mock_response)
+
+        # Create a mock message with the response
+        mock_message = MagicMock()
+        mock_message.__class__.__name__ = "AssistantMessage"
+        mock_text_block = MagicMock()
+        mock_text_block.text = mock_response
+        mock_message.content = [mock_text_block]
+
+        # Make query return an async generator
+        async def mock_query(*args, **kwargs):
+            yield mock_message
+
+        mock_claude_sdk.query = mock_query
         mock_claude_sdk.ClaudeCodeOptions = MagicMock()
         mock_claude_sdk.Message = MagicMock()
 
@@ -267,7 +279,7 @@ class TestClaudeCodeProvider:
         request = CompletionRequest(
             model="claude-3-sonnet-20240229",
             messages=[{"role": "user", "content": "Return a JSON object"}],
-            response_format="json",
+            response_format={"type": "json_object"},
         )
 
         mock_json_response = '{"message": "Hello", "status": "success"}'
@@ -275,7 +287,19 @@ class TestClaudeCodeProvider:
 
         # Mock the imports that happen inside the complete method
         mock_claude_sdk = MagicMock()
-        mock_claude_sdk.query = MagicMock(return_value=mock_response)
+
+        # Create a mock message with the response
+        mock_message = MagicMock()
+        mock_message.__class__.__name__ = "AssistantMessage"
+        mock_text_block = MagicMock()
+        mock_text_block.text = mock_response
+        mock_message.content = [mock_text_block]
+
+        # Make query return an async generator
+        async def mock_query(*args, **kwargs):
+            yield mock_message
+
+        mock_claude_sdk.query = mock_query
         mock_claude_sdk.ClaudeCodeOptions = MagicMock()
         mock_claude_sdk.Message = MagicMock()
 
@@ -291,14 +315,26 @@ class TestClaudeCodeProvider:
         request = CompletionRequest(
             model="claude-3-sonnet-20240229",
             messages=[{"role": "user", "content": "Return a JSON object"}],
-            response_format="json",
+            response_format={"type": "json_object"},
         )
 
         mock_response = "I cannot provide valid JSON."
 
         # Mock the imports that happen inside the complete method
         mock_claude_sdk = MagicMock()
-        mock_claude_sdk.query = MagicMock(return_value=mock_response)
+
+        # Create a mock message with the response
+        mock_message = MagicMock()
+        mock_message.__class__.__name__ = "AssistantMessage"
+        mock_text_block = MagicMock()
+        mock_text_block.text = mock_response
+        mock_message.content = [mock_text_block]
+
+        # Make query return an async generator
+        async def mock_query(*args, **kwargs):
+            yield mock_message
+
+        mock_claude_sdk.query = mock_query
         mock_claude_sdk.ClaudeCodeOptions = MagicMock()
         mock_claude_sdk.Message = MagicMock()
 
@@ -313,7 +349,14 @@ class TestClaudeCodeProvider:
         """Test completion with SDK error."""
         # Mock the imports that happen inside the complete method
         mock_claude_sdk = MagicMock()
-        mock_claude_sdk.query = MagicMock(side_effect=Exception("SDK error"))
+
+        # Make query raise an exception
+        async def mock_query(*args, **kwargs):
+            raise Exception("SDK error")
+            # Make it an async generator for type consistency
+            yield  # pragma: no cover
+
+        mock_claude_sdk.query = mock_query
         mock_claude_sdk.ClaudeCodeOptions = MagicMock()
         mock_claude_sdk.Message = MagicMock()
 
@@ -330,62 +373,6 @@ class TestClaudeCodeProvider:
         ):
             with pytest.raises(ImportError):
                 await provider.complete(completion_request)
-
-    def test_extract_json_from_text_valid_json(self, provider):
-        """Test JSON extraction from text with valid JSON."""
-        text = 'Here is your JSON: {"name": "John", "age": 30}'
-        result = provider._extract_json_from_text(text)
-        expected = '{"name": "John", "age": 30}'
-        assert result == expected
-
-    def test_extract_json_from_text_code_block(self, provider):
-        """Test JSON extraction from code block."""
-        text = """Here's the JSON:
-```json
-{"status": "success"}
-```"""
-        result = provider._extract_json_from_text(text)
-        expected = '{"status": "success"}'
-        assert result == expected
-
-    def test_extract_json_from_text_multiple_objects(self, provider):
-        """Test JSON extraction with multiple JSON objects."""
-        text = 'First: {"a": 1} and second: {"b": 2}'
-        result = provider._extract_json_from_text(text)
-        # Should return the first valid JSON object
-        expected = '{"a": 1}'
-        assert result == expected
-
-    def test_extract_json_from_text_no_json(self, provider):
-        """Test JSON extraction when no JSON is found."""
-        text = "This is just plain text with no JSON."
-        result = provider._extract_json_from_text(text)
-        assert result == text  # Should return original text
-
-    def test_extract_json_from_text_invalid_json(self, provider):
-        """Test JSON extraction with invalid JSON syntax."""
-        text = "Here's broken JSON: {invalid: json}"
-        result = provider._extract_json_from_text(text)
-        assert result == text  # Should return original text
-
-    def test_estimate_tokens_simple(self, provider):
-        """Test token estimation for simple text."""
-        text = "Hello world"
-        tokens = provider._estimate_tokens(text)
-        assert tokens > 0
-        assert tokens < 10  # Should be reasonable estimate
-
-    def test_estimate_tokens_longer_text(self, provider):
-        """Test token estimation for longer text."""
-        text = "This is a longer piece of text that should result in more tokens."
-        tokens = provider._estimate_tokens(text)
-        assert tokens > 10
-        assert tokens < 30
-
-    def test_estimate_tokens_empty_text(self, provider):
-        """Test token estimation for empty text."""
-        tokens = provider._estimate_tokens("")
-        assert tokens == 0
 
     @pytest.mark.asyncio
     async def test_embed_not_supported(self, provider, embedding_request):

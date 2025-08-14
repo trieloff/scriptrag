@@ -474,13 +474,14 @@ class TestGitHubModelsDiscovery:
         }
 
         # Configure the mock client that's already in the discovery fixture
-        mock_response = AsyncMock()
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = mock_api_response
-        discovery.client.get.return_value = mock_response
+        discovery.client.get = AsyncMock(return_value=mock_response)
 
         models = await discovery._fetch_models()
 
+        assert models is not None
         assert len(models) == 2
         assert models[0].id == "gpt-4o-mini"
         assert models[0].name == "GPT-4o Mini"

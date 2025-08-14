@@ -930,10 +930,12 @@ class SceneManagementAPI:
                         )
                         else bible_path
                     )
+                    # Convert to forward slashes for cross-platform consistency
+                    path_str = str(relative_path).replace("\\", "/")
                     bible_list.append(
                         {
                             "name": bible_path.name,
-                            "path": str(relative_path),
+                            "path": path_str,
                             "size": bible_path.stat().st_size,
                         }
                     )
@@ -954,7 +956,9 @@ class SceneManagementAPI:
                     )
                     else bible_path
                 )
-                if str(relative_path) == bible_name:
+                # Convert to forward slashes for cross-platform comparison
+                relative_path_str = str(relative_path).replace("\\", "/")
+                if relative_path_str == bible_name:
                     target_bible = bible_path
                     break
 

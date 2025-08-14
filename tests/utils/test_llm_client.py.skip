@@ -1,0 +1,3 @@
+# This file marks test_llm_client.py to be skipped on Windows CI
+# The tests in this file cause Windows CI runners to hang indefinitely
+# even with timeouts configured

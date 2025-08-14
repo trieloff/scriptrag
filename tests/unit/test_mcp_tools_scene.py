@@ -1,5 +1,4 @@
 """Unit tests for MCP scene management tools."""
-# ruff: noqa: S105, S106
 
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -61,8 +60,7 @@ class TestSceneReadTool:
             success=True,
             error=None,
             scene=sample_scene,
-            session_token="fake-test-token-not-real",
-            expires_at=expires_at,
+            last_read=None,
         )
         mock_scene_api.read_scene = AsyncMock(return_value=mock_result)
 
@@ -91,8 +89,6 @@ class TestSceneReadTool:
         assert result["scene"]["content"] == sample_scene.content
         assert result["scene"]["location"] == "COFFEE SHOP"
         assert result["scene"]["time_of_day"] == "DAY"
-        assert result["session_token"] == "fake-test-token-not-real"
-        assert result["expires_at"] == expires_at.isoformat()
 
         # Verify API was called correctly
         mock_scene_api.read_scene.assert_called_once()
@@ -115,8 +111,7 @@ class TestSceneReadTool:
             success=True,
             error=None,
             scene=sample_scene,
-            session_token="fake-token-test-456",
-            expires_at=None,
+            last_read=None,
         )
         mock_scene_api.read_scene = AsyncMock(return_value=mock_result)
 
@@ -133,7 +128,6 @@ class TestSceneReadTool:
 
         result = response[1]
         assert result["success"] is True
-        assert result["expires_at"] is None
 
         # Verify scene identifier was created correctly
         call_args = mock_scene_api.read_scene.call_args[0]
@@ -152,8 +146,7 @@ class TestSceneReadTool:
             success=False,
             error="Scene not found",
             scene=None,
-            session_token=None,
-            expires_at=None,
+            last_read=None,
         )
         mock_scene_api.read_scene = AsyncMock(return_value=mock_result)
 
@@ -172,7 +165,6 @@ class TestSceneReadTool:
         assert result["success"] is False
         assert result["error"] == "Scene not found"
         assert result["scene"] is None
-        assert result["session_token"] is None
 
     @pytest.mark.asyncio
     async def test_read_scene_exception_handling(self, mock_scene_api):
@@ -197,7 +189,6 @@ class TestSceneReadTool:
         assert result["success"] is False
         assert "Database error" in result["error"]
         assert result["scene"] is None
-        assert result["session_token"] is None
 
 
 class TestSceneAddTool:
@@ -432,7 +423,8 @@ class TestSceneUpdateTool:
                 "project": "breaking_bad",
                 "scene_number": 5,
                 "content": "INT. UPDATED SCENE - DAY\n\nUpdated content here",
-                "session_token": "fake-valid-token",
+                "check_conflicts": False,
+                "last_read": None,
                 "season": 1,
                 "episode": 1,
                 "reader_id": "test_reader",
@@ -450,12 +442,10 @@ class TestSceneUpdateTool:
         # Verify API call
         mock_scene_api.update_scene.assert_called_once()
         call_args = mock_scene_api.update_scene.call_args[0]
-        scene_id, content, token, reader_id = call_args
+        scene_id, content = call_args[0], call_args[1]
         assert scene_id.project == "breaking_bad"
         assert scene_id.scene_number == 5
         assert content == "INT. UPDATED SCENE - DAY\n\nUpdated content here"
-        assert token == "fake-valid-token"
-        assert reader_id == "test_reader"
 
     @pytest.mark.asyncio
     async def test_update_scene_invalid_session(self, mock_scene_api):
@@ -464,9 +454,9 @@ class TestSceneUpdateTool:
 
         mock_result = UpdateSceneResult(
             success=False,
-            error="Session token not found or expired",
+            error="Scene not found",
             updated_scene=None,
-            validation_errors=["SESSION_INVALID"],
+            validation_errors=["SCENE_NOT_FOUND"],
         )
         mock_scene_api.update_scene = AsyncMock(return_value=mock_result)
 
@@ -479,15 +469,16 @@ class TestSceneUpdateTool:
                 "project": "test_project",
                 "scene_number": 5,
                 "content": "INT. SCENE - DAY\n\nContent",
-                "session_token": "fake-invalid-token",
+                "check_conflicts": False,
+                "last_read": None,
             },
         )
 
         result = response[1]
         assert result["success"] is False
-        assert "Session token not found or expired" in result["error"]
+        assert "Scene not found" in result["error"]
         assert result["updated_scene"] is None
-        assert "SESSION_INVALID" in result["validation_errors"]
+        assert "SCENE_NOT_FOUND" in result["validation_errors"]
 
     @pytest.mark.asyncio
     async def test_update_scene_concurrent_modification(self, mock_scene_api):
@@ -511,7 +502,8 @@ class TestSceneUpdateTool:
                 "project": "test_project",
                 "scene_number": 5,
                 "content": "INT. SCENE - DAY\n\nContent",
-                "session_token": "fake-valid-session-token",
+                "check_conflicts": False,
+                "last_read": None,
             },
         )
 
@@ -536,7 +528,8 @@ class TestSceneUpdateTool:
                 "project": "test_project",
                 "scene_number": 5,
                 "content": "INT. SCENE - DAY\n\nContent",
-                "session_token": "fake-session-token",
+                "check_conflicts": False,
+                "last_read": None,
             },
         )
 

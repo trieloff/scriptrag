@@ -1,5 +1,6 @@
 """Scene management commands for AI-friendly editing."""
 
+import asyncio
 import sys
 from typing import Annotated
 
@@ -58,7 +59,6 @@ def read_scene(
     try:
         # Initialize API
         api = SceneManagementAPI()
-        import asyncio
 
         # Check if reading bible content
         if bible or bible_name is not None:
@@ -250,8 +250,6 @@ def add_scene(
         api = SceneManagementAPI()
 
         # Add scene
-        import asyncio
-
         result = asyncio.run(api.add_scene(scene_id, content, position))
 
         if not result.success:
@@ -334,8 +332,6 @@ def update_scene(
         api = SceneManagementAPI()
 
         # Update scene
-        import asyncio
-
         result = asyncio.run(api.update_scene(scene_id, content, token))
 
         if not result.success:
@@ -399,8 +395,6 @@ def delete_scene(
         api = SceneManagementAPI()
 
         # Delete scene
-        import asyncio
-
         result = asyncio.run(api.delete_scene(scene_id, confirm=True))
 
         if not result.success:

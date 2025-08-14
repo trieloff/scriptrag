@@ -174,16 +174,23 @@ class TestPathHandling:
             test_path = tmp_path / f"{reserved}.txt"
 
             if platform_info["is_windows"]:
-                # On modern Windows, reserved names might not always fail
+                # Modern Windows (Server 2022) may allow reserved names
                 # depending on the file system and Windows version
+                # We need to test both scenarios
                 try:
                     test_path.write_text("test")
-                    # If it succeeds, verify we can read it back
+                    # If it succeeds on modern Windows, verify we can read it back
                     assert test_path.read_text() == "test"
                     test_path.unlink()  # Clean up
+                    # Skip the pytest.raises check since it succeeded
+                    continue
                 except (OSError, ValueError, PermissionError, FileNotFoundError):
-                    # This is also acceptable - Windows blocked the reserved name
+                    # This is expected on older Windows versions
                     pass
+
+                # If we couldn't write, verify it raises an exception
+                with pytest.raises((OSError, ValueError)):
+                    test_path.write_text("test")
             else:
                 # Should work on Unix-like systems
                 test_path.write_text("test")
@@ -198,30 +205,25 @@ class TestLineEndings:
         """Test reading and writing text files with different line endings."""
         test_file = tmp_path / "test.txt"
 
-        # Write with explicit line ending
+        # Write with explicit line ending using open() to control newline behavior
         content = "Line 1\nLine 2\nLine 3"
-        test_file.write_text(content, encoding="utf-8", newline="\n")
+        with test_file.open("w", encoding="utf-8", newline="") as f:
+            # Write with LF only, no translation
+            f.write(content)
 
-        # Read with explicit newline handling to prevent Windows text mode issues
-        with test_file.open(encoding="utf-8", newline=None) as f:
-            read_content = f.read()
+        # Read and normalize - newline=None allows Python to normalize line endings
+        read_content = test_file.read_text(encoding="utf-8")
 
         # Both should normalize to the same thing
-        normalized_original = normalize_text(content)
-        normalized_read = normalize_text(read_content)
-
-        assert normalized_read == normalized_original, (
-            f"Line ending mismatch:\n"
-            f"Original: {content!r} -> {normalized_original!r}\n"
-            f"Read:     {read_content!r} -> {normalized_read!r}"
+        assert normalize_text(read_content) == normalize_text(content), (
+            f"Line ending mismatch:\nOriginal: {content!r}\nRead:     {read_content!r}"
         )
 
         # Test CRLF
         crlf_content = "Line 1\r\nLine 2\r\nLine 3"
         with test_file.open("w", encoding="utf-8", newline="") as f:
             f.write(crlf_content)
-        with test_file.open(encoding="utf-8", newline=None) as f:
-            read_content = f.read()
+        read_content = test_file.read_text(encoding="utf-8")
         assert normalize_text(read_content) == normalize_text(content)
 
     def test_binary_mode_preservation(self, tmp_path):

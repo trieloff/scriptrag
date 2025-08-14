@@ -373,14 +373,18 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
-        scene = {"text": "Test scene", "id": 1}
-        result = await analyzer.analyze(scene)
+        # Mock context query execution to avoid database dependency
+        with patch.object(analyzer, "_execute_context_query") as mock_context:
+            mock_context.return_value = {"scene_data": {"text": "Test scene", "id": 1}}
 
-        assert result["result"] == "analyzed"
-        assert result["analyzer"] == "test-analyzer"
-        assert result["version"] == "2.0.0"
-        assert result["property"] == "test-analyzer"  # Property is same as name
-        mock_client.complete.assert_called_once()
+            scene = {"text": "Test scene", "id": 1}
+            result = await analyzer.analyze(scene)
+
+            assert result["result"] == "analyzed"
+            assert result["analyzer"] == "test-analyzer"
+            assert result["version"] == "2.0.0"
+            assert result["property"] == "test-analyzer"  # Property is same as name
+            mock_client.complete.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_analyze_without_llm(self) -> None:
@@ -421,12 +425,16 @@ class TestMarkdownAgentAnalyzer:
             mock_client.complete.return_value = mock_response
             mock_get_client.return_value = mock_client
 
-            scene = {"text": "Test scene"}
-            result = await analyzer.analyze(scene)
+            # Mock context query execution to avoid database dependency
+            with patch.object(analyzer, "_execute_context_query") as mock_context:
+                mock_context.return_value = {"scene_data": {"text": "Test scene"}}
 
-            # Should have initialized the client
-            mock_get_client.assert_called_once()
-            assert result["result"] == "test"
+                scene = {"text": "Test scene"}
+                result = await analyzer.analyze(scene)
+
+                # Should have initialized the client
+                mock_get_client.assert_called_once()
+                assert result["result"] == "test"
 
     @pytest.mark.asyncio
     async def test_analyze_invalid_json_response(self, sample_spec: AgentSpec) -> None:
@@ -441,16 +449,20 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
-        scene = {"text": "Test scene"}
+        # Mock context query execution to avoid database dependency
+        with patch.object(analyzer, "_execute_context_query") as mock_context:
+            mock_context.return_value = {"scene_data": {"text": "Test scene"}}
 
-        # Should raise ValidationError after 3 attempts
-        with pytest.raises(ValidationError) as exc_info:
-            await analyzer.analyze(scene)
+            scene = {"text": "Test scene"}
 
-        assert "validation failed after 3 attempts" in str(exc_info.value).lower()
-        assert "test-analyzer" in str(exc_info.value)
-        # Should have tried 3 times
-        assert mock_client.complete.call_count == 3
+            # Should raise ValidationError after 3 attempts
+            with pytest.raises(ValidationError) as exc_info:
+                await analyzer.analyze(scene)
+
+            assert "validation failed after 3 attempts" in str(exc_info.value).lower()
+            assert "test-analyzer" in str(exc_info.value)
+            # Should have tried 3 times
+            assert mock_client.complete.call_count == 3
 
     @pytest.mark.asyncio
     async def test_analyze_schema_validation_error(
@@ -469,16 +481,20 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
-        scene = {"text": "Test scene"}
+        # Mock context query execution to avoid database dependency
+        with patch.object(analyzer, "_execute_context_query") as mock_context:
+            mock_context.return_value = {"scene_data": {"text": "Test scene"}}
 
-        # Should raise ValidationError after 3 attempts instead of returning error dict
-        with pytest.raises(ValidationError) as exc_info:
-            await analyzer.analyze(scene)
+            scene = {"text": "Test scene"}
 
-        assert "validation failed after 3 attempts" in str(exc_info.value).lower()
-        assert "test-analyzer" in str(exc_info.value)
-        # Should have tried 3 times
-        assert mock_client.complete.call_count == 3
+            # Should raise ValidationError after 3 attempts
+            with pytest.raises(ValidationError) as exc_info:
+                await analyzer.analyze(scene)
+
+            assert "validation failed after 3 attempts" in str(exc_info.value).lower()
+            assert "test-analyzer" in str(exc_info.value)
+            # Should have tried 3 times
+            assert mock_client.complete.call_count == 3
 
     @pytest.mark.asyncio
     async def test_analyze_prompt_formatting(self, sample_spec: AgentSpec) -> None:
@@ -491,20 +507,26 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
-        scene = {"heading": "Test scene content", "id": 1}
-        await analyzer.analyze(scene)
+        # Mock context query execution to avoid database dependency
+        with patch.object(analyzer, "_execute_context_query") as mock_context:
+            mock_context.return_value = {
+                "scene_data": {"heading": "Test scene content", "id": 1}
+            }
 
-        # Check that the prompt was formatted with scene text
-        call_args = mock_client.complete.call_args
-        # The complete method is now called with a CompletionRequest object
-        assert call_args.args
-        request = call_args.args[0]
-        assert hasattr(request, "messages")
-        messages = request.messages
-        assert len(messages) == 1
-        assert messages[0]["role"] == "user"
-        # The prompt should contain formatted scene content
-        assert "SCENE HEADING: Test scene content" in messages[0]["content"]
+            scene = {"heading": "Test scene content", "id": 1}
+            await analyzer.analyze(scene)
+
+            # Check that the prompt was formatted with scene text
+            call_args = mock_client.complete.call_args
+            # The complete method is now called with a CompletionRequest object
+            assert call_args.args
+            request = call_args.args[0]
+            assert hasattr(request, "messages")
+            messages = request.messages
+            assert len(messages) == 1
+            assert messages[0]["role"] == "user"
+            # The prompt should contain formatted scene content
+            assert "SCENE HEADING: Test scene content" in messages[0]["content"]
 
 
 class TestAgentLoader:

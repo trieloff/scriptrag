@@ -162,6 +162,8 @@ cython_debug/
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
 screenplay.db
 data/raw/
 data/processed/

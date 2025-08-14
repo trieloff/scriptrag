@@ -145,16 +145,16 @@ class TestSearchEngine:
 
     def test_get_read_only_connection_path_traversal(self, mock_settings, tmp_path):
         """Test path traversal prevention."""
-        from scriptrag.exceptions import DatabaseError
+        # Create a path with ".." to test path traversal protection
+        evil_path = tmp_path / ".." / ".." / "etc" / "passwd"
+        mock_settings.database_path = evil_path
 
-        # Set expected database path to tmp_path
-        safe_path = tmp_path / "safe.db"
-        mock_settings.database_path = safe_path
-
-        # Create engine with evil path that tries to escape
+        # Create engine with settings that have path traversal
         engine = SearchEngine(mock_settings)
-        evil_path = tmp_path / ".." / "evil.db"
-        engine.db_path = evil_path  # Override with evil path
+
+        # The validation now happens in get_read_only_connection from readonly module
+        # The search engine converts ValueError to DatabaseError
+        from scriptrag.exceptions import DatabaseError
 
         with (
             pytest.raises(DatabaseError, match="Invalid database path"),

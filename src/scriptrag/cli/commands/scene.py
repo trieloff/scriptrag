@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -45,6 +46,14 @@ def read_scene(
         int | None, typer.Option("--episode", "-e", help="Episode number (for TV)")
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
+    ] = None,
 ) -> None:
     """Read a scene or script bible content.
 
@@ -57,8 +66,20 @@ def read_scene(
         scriptrag scene read --project "inception" --bible-name "world_bible.md"
     """
     try:
+        from scriptrag.config import get_settings
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        # Load settings with proper precedence
+        if config:
+            settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=[config],
+            )
+        else:
+            # Use default settings
+            settings = get_settings()
+
         # Initialize API
-        api = SceneManagementAPI()
+        api = SceneManagementAPI(settings=settings)
 
         # Check if reading bible content
         if bible or bible_name is not None:
@@ -193,7 +214,15 @@ def add_scene(
     ] = None,
     content: Annotated[
         str | None,
-        typer.Option("--content", "-c", help="Scene content (or pipe from stdin)"),
+        typer.Option("--content", help="Scene content (or pipe from stdin)"),
+    ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
     ] = None,
 ) -> None:
     r"""Add a new scene with automatic renumbering.
@@ -246,8 +275,20 @@ def add_scene(
             episode=episode,
         )
 
+        from scriptrag.config import get_settings
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        # Load settings with proper precedence
+        if config:
+            settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=[config],
+            )
+        else:
+            # Use default settings
+            settings = get_settings()
+
         # Initialize API
-        api = SceneManagementAPI()
+        api = SceneManagementAPI(settings=settings)
 
         # Add scene
         result = asyncio.run(api.add_scene(scene_id, content, position))
@@ -296,7 +337,15 @@ def update_scene(
     ] = None,
     content: Annotated[
         str | None,
-        typer.Option("--content", "-c", help="New scene content (or pipe from stdin)"),
+        typer.Option("--content", help="New scene content (or pipe from stdin)"),
+    ] = None,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
     ] = None,
 ) -> None:
     r"""Update a scene using a valid session token.
@@ -328,8 +377,20 @@ def update_scene(
             episode=episode,
         )
 
+        from scriptrag.config import get_settings
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        # Load settings with proper precedence
+        if config:
+            settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=[config],
+            )
+        else:
+            # Use default settings
+            settings = get_settings()
+
         # Initialize API
-        api = SceneManagementAPI()
+        api = SceneManagementAPI(settings=settings)
 
         # Update scene
         result = asyncio.run(api.update_scene(scene_id, content, token))
@@ -366,6 +427,14 @@ def delete_scene(
     confirm: Annotated[
         bool, typer.Option("--confirm", help="Confirm deletion")
     ] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
+    ] = None,
 ) -> None:
     r"""Delete a scene with automatic renumbering.
 
@@ -391,8 +460,20 @@ def delete_scene(
             episode=episode,
         )
 
+        from scriptrag.config import get_settings
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        # Load settings with proper precedence
+        if config:
+            settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=[config],
+            )
+        else:
+            # Use default settings
+            settings = get_settings()
+
         # Initialize API
-        api = SceneManagementAPI()
+        api = SceneManagementAPI(settings=settings)
 
         # Delete scene
         result = asyncio.run(api.delete_scene(scene_id, confirm=True))

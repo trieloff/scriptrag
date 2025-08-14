@@ -63,6 +63,14 @@ def index_command(
             "--verbose", "-v", help="Show detailed information for each script"
         ),
     ] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
+    ] = None,
 ) -> None:
     """Index analyzed Fountain files into the database.
 
@@ -81,9 +89,20 @@ def index_command(
     """
     try:
         from scriptrag.api.index import IndexCommand
+        from scriptrag.config import get_settings
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        # Load settings with proper precedence
+        if config:
+            settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=[config],
+            )
+        else:
+            # Use default settings
+            settings = get_settings()
 
         # Initialize index command
-        index_cmd = IndexCommand.from_config()
+        index_cmd = IndexCommand(settings=settings)
 
         # Run with progress tracking
         with Progress(

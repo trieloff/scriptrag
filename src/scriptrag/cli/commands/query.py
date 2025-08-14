@@ -1,5 +1,6 @@
 """Query command for executing SQL queries."""
 
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -39,17 +40,27 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
         output_json = kwargs.pop("json", False)
         limit = kwargs.pop("limit", None)
         offset = kwargs.pop("offset", None)
+        config = kwargs.pop("config", None)
 
         # Remaining kwargs are query parameters
         params = kwargs
 
         try:
-            # Get fresh API instance with current settings at execution time
-            # Force fresh settings to pick up environment variable changes
-            import scriptrag.config.settings as settings_module
+            from scriptrag.config.settings import ScriptRAGSettings
 
-            settings_module._settings = None  # Clear cached settings
-            current_settings = get_settings()
+            # Load settings with proper precedence
+            if config:
+                current_settings = ScriptRAGSettings.from_multiple_sources(
+                    config_files=[config],
+                )
+            else:
+                # Get fresh API instance with current settings at execution time
+                # Force fresh settings to pick up environment variable changes
+                import scriptrag.config.settings as settings_module
+
+                settings_module._settings = None  # Clear cached settings
+                current_settings = get_settings()
+
             current_api = QueryAPI(current_settings)
 
             result = current_api.execute_query(
@@ -154,6 +165,18 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
             typer.Option(
                 default=False,
                 help="Output results as JSON",
+            ),
+        )
+    )
+
+    # Add config option
+    params.append(
+        (
+            "config",
+            Path | None,
+            typer.Option(
+                default=None,
+                help="Path to configuration file (YAML, TOML, or JSON)",
             ),
         )
     )

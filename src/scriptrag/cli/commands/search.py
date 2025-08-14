@@ -1,5 +1,6 @@
 """Search command for ScriptRAG CLI."""
 
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -122,6 +123,14 @@ def search_command(
             help="Search only bible content, exclude script scenes",
         ),
     ] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
+    ] = None,
 ) -> None:
     """Search through indexed screenplays.
 
@@ -155,8 +164,20 @@ def search_command(
     Use --strict to disable this or --fuzzy to always enable it.
     """
     try:
+        from scriptrag.config import get_settings
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        # Load settings with proper precedence
+        if config:
+            settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=[config],
+            )
+        else:
+            # Use default settings
+            settings = get_settings()
+
         # Initialize search API
-        search_api = SearchAPI.from_config()
+        search_api = SearchAPI(settings=settings)
 
         # Validate conflicting options
         if fuzzy and strict:

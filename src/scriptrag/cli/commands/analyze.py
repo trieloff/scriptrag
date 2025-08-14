@@ -55,6 +55,14 @@ def analyze_command(
             help="Stop processing if any analyzer fails (default: skip failed)",
         ),
     ] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
+    ] = None,
 ) -> None:
     """Analyze Fountain files and update their metadata.
 
@@ -68,6 +76,17 @@ def analyze_command(
     """
     try:
         from scriptrag.api.analyze import AnalyzeCommand
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        # Load settings with proper precedence
+        if config:
+            settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=[config],
+            )
+            # Need to temporarily override the global settings
+            import scriptrag.config.settings as settings_module
+
+            settings_module._settings = settings
 
         # Initialize components
         analyze_cmd = AnalyzeCommand.from_config()

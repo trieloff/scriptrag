@@ -27,6 +27,7 @@ scene_app = typer.Typer(
 
 @scene_app.command(name="read")
 def read_scene(
+    ctx: typer.Context,
     project: Annotated[
         str, typer.Option("--project", "-p", help="Project/script name")
     ],
@@ -56,8 +57,11 @@ def read_scene(
         scriptrag scene read --project "inception" --bible-name "world_bible.md"
     """
     try:
-        # Initialize API
-        api = SceneManagementAPI()
+        # Initialize API with global db_path override
+        from scriptrag.cli.utils.db_path import get_settings_with_db_override
+
+        settings = get_settings_with_db_override(ctx)
+        api = SceneManagementAPI(settings=settings)
 
         # Check if reading bible content
         if bible or bible_name is not None:
@@ -169,6 +173,7 @@ def read_scene(
 
 @scene_app.command(name="add")
 def add_scene(
+    ctx: typer.Context,
     project: Annotated[
         str, typer.Option("--project", "-p", help="Project/script name")
     ],
@@ -240,7 +245,11 @@ def add_scene(
         )
 
         # Initialize API
-        api = SceneManagementAPI()
+        # Initialize API with global db_path override
+        from scriptrag.cli.utils.db_path import get_settings_with_db_override
+
+        settings = get_settings_with_db_override(ctx)
+        api = SceneManagementAPI(settings=settings)
 
         # Add scene
         result = asyncio.run(api.add_scene(scene_id, content, position))
@@ -274,6 +283,7 @@ def add_scene(
 
 @scene_app.command(name="update")
 def update_scene(
+    ctx: typer.Context,
     project: Annotated[
         str, typer.Option("--project", "-p", help="Project/script name")
     ],
@@ -353,7 +363,11 @@ def update_scene(
                 raise typer.Exit(1) from e
 
         # Initialize API
-        api = SceneManagementAPI()
+        # Initialize API with global db_path override
+        from scriptrag.cli.utils.db_path import get_settings_with_db_override
+
+        settings = get_settings_with_db_override(ctx)
+        api = SceneManagementAPI(settings=settings)
 
         # Update scene
         result = asyncio.run(
@@ -381,6 +395,7 @@ def update_scene(
 
 @scene_app.command(name="delete")
 def delete_scene(
+    ctx: typer.Context,
     project: Annotated[
         str, typer.Option("--project", "-p", help="Project/script name")
     ],
@@ -420,7 +435,11 @@ def delete_scene(
         )
 
         # Initialize API
-        api = SceneManagementAPI()
+        # Initialize API with global db_path override
+        from scriptrag.cli.utils.db_path import get_settings_with_db_override
+
+        settings = get_settings_with_db_override(ctx)
+        api = SceneManagementAPI(settings=settings)
 
         # Delete scene
         result = asyncio.run(api.delete_scene(scene_id, confirm=True))

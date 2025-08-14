@@ -11,7 +11,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from scriptrag.api.analyze import AnalyzeCommand
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.index import IndexCommand
-from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
+from scriptrag.config import get_logger
 
 logger = get_logger(__name__)
 console = Console()
@@ -21,6 +21,7 @@ app = typer.Typer()
 
 @app.command()
 def pull_command(
+    ctx: typer.Context,
     path: Annotated[
         Path | None,
         typer.Argument(
@@ -82,13 +83,10 @@ def pull_command(
         scriptrag index [path]
     """
     try:
-        # Load settings
-        if config:
-            settings = ScriptRAGSettings.from_multiple_sources(
-                config_files=[config],
-            )
-        else:
-            settings = get_settings()
+        # Load settings with global db_path override
+        from scriptrag.cli.utils.db_path import get_settings_with_db_override
+
+        settings = get_settings_with_db_override(ctx, config_path=config)
 
         # Step 1: Check and initialize database if needed
         db_ops = DatabaseOperations(settings)
@@ -141,7 +139,7 @@ def pull_command(
 
         # Step 3: Index into database
         console.print("\n[cyan]Step 2: Indexing into database...[/cyan]")
-        index_cmd = IndexCommand.from_config()
+        index_cmd = IndexCommand(settings=settings)
 
         with Progress(
             SpinnerColumn(),

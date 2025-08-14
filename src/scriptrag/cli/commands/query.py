@@ -35,7 +35,8 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
     # Build function signature dynamically
     def query_command(**kwargs: Any) -> None:
         """Execute the query."""
-        # Extract standard options
+        # Extract context and standard options
+        ctx = kwargs.pop("ctx", None)
         output_json = kwargs.pop("json", False)
         limit = kwargs.pop("limit", None)
         offset = kwargs.pop("offset", None)
@@ -44,12 +45,10 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
         params = kwargs
 
         try:
-            # Get fresh API instance with current settings at execution time
-            # Force fresh settings to pick up environment variable changes
-            import scriptrag.config.settings as settings_module
+            # Get settings with global db_path override from context
+            from scriptrag.cli.utils.db_path import get_settings_with_db_override
 
-            settings_module._settings = None  # Clear cached settings
-            current_settings = get_settings()
+            current_settings = get_settings_with_db_override(ctx)
             current_api = QueryAPI(current_settings)
 
             result = current_api.execute_query(
@@ -165,6 +164,16 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
     sig_params = []
     annotations = {}
     defaults = {}
+
+    # Add Context as first parameter
+    sig_params.append(
+        inspect.Parameter(
+            "ctx",
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            annotation=typer.Context,
+        )
+    )
+    annotations["ctx"] = typer.Context
 
     for param_name, param_type, param_default in params:
         sig_params.append(

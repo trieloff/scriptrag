@@ -7,20 +7,12 @@ import typer
 from rich.console import Console
 
 from scriptrag.api import DatabaseInitializer
-from scriptrag.config import get_settings
 
 console = Console()
 
 
 def init_command(
-    db_path: Annotated[
-        Path | None,
-        typer.Option(
-            "--db-path",
-            "-d",
-            help="Path to the SQLite database file",
-        ),
-    ] = None,
+    ctx: typer.Context,
     force: Annotated[
         bool,
         typer.Option(
@@ -43,34 +35,16 @@ def init_command(
     This command creates a new SQLite database with the ScriptRAG schema.
     If the database already exists, it will fail unless --force is specified.
     """
-    # Load settings with proper precedence
-    from scriptrag.config.settings import ScriptRAGSettings
+    # Load settings with proper precedence, including global db_path
+    from scriptrag.cli.utils.db_path import get_settings_with_db_override
 
-    # Prepare CLI args (only non-None values)
-    cli_args = {}
-    if db_path is not None:
-        cli_args["database_path"] = db_path
-
-    # Load settings from multiple sources
-    if config:
-        settings = ScriptRAGSettings.from_multiple_sources(
-            config_files=[config],
-            cli_args=cli_args,
-        )
-    else:
-        # Use default settings with CLI overrides
-        settings = get_settings()
-        if cli_args:
-            # Apply CLI overrides
-            updated_data = settings.model_dump()
-            updated_data.update(cli_args)
-            settings = ScriptRAGSettings(**updated_data)
+    settings = get_settings_with_db_override(ctx, config_path=config)
 
     initializer = DatabaseInitializer()
 
     try:
         # If force is used and database exists, confirm with user
-        resolved_path = db_path or settings.database_path
+        resolved_path = settings.database_path
         if (
             resolved_path.exists()
             and force
@@ -82,7 +56,7 @@ def init_command(
         # Initialize database using API
         console.print("[green]Initializing database...[/green]")
         db_path = initializer.initialize_database(
-            db_path=db_path,
+            db_path=settings.database_path,
             force=force,
             settings=settings,
         )

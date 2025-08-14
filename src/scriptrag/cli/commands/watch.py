@@ -14,7 +14,7 @@ from watchdog.observers import Observer
 
 from scriptrag.cli.commands.pull import pull_command
 from scriptrag.cli.utils.file_watcher import FountainFileHandler
-from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
+from scriptrag.config import get_logger
 
 logger = get_logger(__name__)
 console = Console()
@@ -43,6 +43,7 @@ def signal_handler(_signum: int, _frame: Any) -> None:
 
 @app.command()
 def watch_command(
+    ctx: typer.Context,
     path: Annotated[
         Path | None,
         typer.Argument(
@@ -104,13 +105,10 @@ def watch_command(
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
 
-        # Load settings
-        if config:
-            settings = ScriptRAGSettings.from_multiple_sources(
-                config_files=[config],
-            )
-        else:
-            settings = get_settings()
+        # Load settings with global db_path override
+        from scriptrag.cli.utils.db_path import get_settings_with_db_override
+
+        settings = get_settings_with_db_override(ctx, config_path=config)
 
         # Resolve and validate watch path
         watch_path = path or Path.cwd()

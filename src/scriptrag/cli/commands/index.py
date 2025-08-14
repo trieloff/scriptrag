@@ -26,6 +26,7 @@ app = typer.Typer()
 
 @app.command()
 def index_command(
+    ctx: typer.Context,
     path: Annotated[
         Path | None,
         typer.Argument(
@@ -81,9 +82,13 @@ def index_command(
     """
     try:
         from scriptrag.api.index import IndexCommand
+        from scriptrag.cli.utils.db_path import get_settings_with_db_override
 
-        # Initialize index command
-        index_cmd = IndexCommand.from_config()
+        # Get settings with global db_path override
+        settings = get_settings_with_db_override(ctx)
+
+        # Initialize index command with settings
+        index_cmd = IndexCommand(settings=settings)
 
         # Run with progress tracking
         with Progress(

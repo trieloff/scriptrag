@@ -15,6 +15,7 @@ console = Console()
 
 
 def search_command(
+    ctx: typer.Context,
     query: Annotated[
         str,
         typer.Argument(
@@ -156,8 +157,13 @@ def search_command(
     Use --strict to disable this or --fuzzy to always enable it.
     """
     try:
-        # Initialize search API
-        search_api = SearchAPI.from_config()
+        from scriptrag.cli.utils.db_path import get_settings_with_db_override
+
+        # Get settings with global db_path override
+        settings = get_settings_with_db_override(ctx)
+
+        # Initialize search API with settings
+        search_api = SearchAPI(settings=settings)
 
         # Validate conflicting options
         if fuzzy and strict:

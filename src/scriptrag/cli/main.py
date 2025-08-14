@@ -1,5 +1,8 @@
 """ScriptRAG Command Line Interface."""
 
+from pathlib import Path
+from typing import Annotated
+
 import typer
 
 from scriptrag.cli.commands import (
@@ -21,6 +24,27 @@ app = typer.Typer(
     pretty_exceptions_enable=False,
     add_completion=False,
 )
+
+
+@app.callback()
+def main_callback(
+    ctx: typer.Context,
+    db_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--db-path",
+            help="Path to the SQLite database file (overrides default)",
+            envvar="SCRIPTRAG_DATABASE_PATH",
+        ),
+    ] = None,
+) -> None:
+    """ScriptRAG CLI with global database path option."""
+    # Store the db_path in context for all commands to access
+    if ctx.obj is None:
+        ctx.obj = {}
+    if db_path is not None:
+        ctx.obj["db_path"] = db_path
+
 
 # Register commands
 app.command(name="init")(init_command)

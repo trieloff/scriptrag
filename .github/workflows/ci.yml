@@ -484,84 +484,12 @@ jobs:
             echo "all_passed=true" >> $GITHUB_OUTPUT
           fi
 
-  notify-terry:
-    name: Notify Terry on Failure
-    runs-on: ubuntu-latest
-    needs: [changes, lint, type-check, security, test-canary, test-matrix, docs, build, pre-commit]
-    if: |
-      failure() &&
-      github.event_name == 'pull_request' &&
-      contains(github.event.pull_request.body, 'terragonlabs.com/task') &&
-      needs.changes.outputs.python == 'true'
-    permissions:
-      pull-requests: write
-    steps:
-      - name: Extract Terry Task ID
-        id: extract-task
-        run: |
-          PR_BODY='${{ github.event.pull_request.body }}'
-          TASK_URL=$(echo "$PR_BODY" | \
-            grep -oE 'https://www\.terragonlabs\.com/task/[a-f0-9-]+' | head -1)
-          if [ -n "$TASK_URL" ]; then
-            TASK_ID=$(echo "$TASK_URL" | \
-              grep -oE '[a-f0-9-]+$')
-            echo "task_id=$TASK_ID" >> $GITHUB_OUTPUT
-            echo "task_url=$TASK_URL" >> $GITHUB_OUTPUT
-            echo "found=true" >> $GITHUB_OUTPUT
-          else
-            echo "found=false" >> $GITHUB_OUTPUT
-          fi
+  # Note: Test failure diagnostics are now handled by the intelligent
+  # test-failure-diagnostics.yml workflow which uses Claude Code to
+  # analyze failures and provide detailed diagnostic information
 
-      - name: Comment on PR with failure notification
-        if: steps.extract-task.outputs.found == 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const taskUrl = '${{ steps.extract-task.outputs.task_url }}';
-            const jobStatuses = {
-              lint: '${{ needs.lint.result }}',
-              typeCheck: '${{ needs.type-check.result }}',
-              security: '${{ needs.security.result }}',
-              testCanary: '${{ needs.test-canary.result }}',
-              testMatrix: '${{ needs.test-matrix.result }}',
-              docs: '${{ needs.docs.result }}',
-              build: '${{ needs.build.result }}',
-              preCommit: '${{ needs.pre-commit.result }}'
-            };
-
-            const failedJobs = Object.entries(jobStatuses)
-              .filter(([_, status]) => status === 'failure')
-              .map(([job, _]) => job);
-
-            // Only notify if there are actual CI failures (not external job failures)
-            if (failedJobs.length === 0) {
-              console.log('No CI jobs failed that are under Terragon Labs control');
-              return;
-            }
-
-            const runUrl = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
-
-            const comment = [
-              '@terragon-labs The CI build has failed for this PR.',
-              '',
-              `Failed checks: ${failedJobs.join(', ')}`,
-              '',
-              'Please investigate the failures and fix the issues:',
-              `- [View full CI run](${runUrl})`,
-              `- [Terry Task](${taskUrl})`,
-              '',
-              `You can use \`terry pull ${{ steps.extract-task.outputs.task_id }}\` to continue working on this task.`,
-              '',
-              '_Note: This notification only includes CI checks that are part of the core build process. External checks like Claude Code Review are excluded._'
-            ].join('\n');
-
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: comment
-            });
+  # Note: When CI fails, the test-failure-diagnostics.yml workflow will
+  # automatically trigger to provide intelligent error analysis using Claude Code
 
   # Call the reusable Claude Code Review workflow after CI passes
   claude-review-after-ci:

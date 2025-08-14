@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 
 from scriptrag.api.query import QueryAPI
+from scriptrag.config import get_settings  # noqa: F401 - Keep for test compatibility
 
 # Create query app
 query_app = typer.Typer(

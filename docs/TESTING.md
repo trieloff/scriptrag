@@ -47,6 +47,14 @@ class TestInitCommand:
 
 ## Cross-Platform Compatibility
 
+### Platform-Specific Issues Summary
+
+| Platform | Common Issues | Solutions |
+|----------|--------------|-----------|
+| Windows | Path separators (`\` vs `/`), CRLF line endings, file locking, ANSI in cmd.exe | Use `pathlib.Path`, normalize line endings, handle locks gracefully |
+| macOS | Case-insensitive filesystem (default), different temp paths | Use case-sensitive comparisons, respect temp locations |
+| Linux | File permissions, case-sensitive filesystem | Set proper permissions, exact case matching |
+
 ### 1. ANSI Code Stripping
 
 **Problem**: CLI output contains ANSI escape sequences and Unicode characters that vary across platforms, causing test failures in CI environments.
@@ -156,24 +164,297 @@ def test_new_style(cli_invoke):
 
 ```python
 from pathlib import Path
+import os
 
-# Good
+# Good - Platform-independent
 script_path = tmp_path / "scripts" / "test.fountain"
+relative_path = Path("data") / "scripts" / "test.fountain"
 
-# Bad
-script_path = f"{tmp_path}/scripts/test.fountain"
+# Good - Converting paths for display
+display_path = str(script_path)  # Automatically uses correct separator
+
+# Good - Checking path existence across platforms
+if script_path.exists() and script_path.is_file():
+    content = script_path.read_text()
+
+# Bad - Hard-coded separators
+script_path = f"{tmp_path}/scripts/test.fountain"  # Fails on Windows
+script_path = tmp_path + "\\scripts\\test.fountain"  # Fails on Unix
+
+# Testing path equality across platforms
+def test_path_operations(tmp_path):
+    # Good - Use Path.resolve() for canonical comparison
+    path1 = Path("./data/../data/file.txt").resolve()
+    path2 = (Path.cwd() / "data" / "file.txt").resolve()
+    assert path1 == path2
+
+    # Good - Case-insensitive comparison for Windows/macOS
+    import platform
+    if platform.system() in ("Windows", "Darwin"):
+        assert path1.as_posix().lower() == path2.as_posix().lower()
+```
+
+#### Windows-Specific Path Issues
+
+```python
+# Handle Windows long path limitations (260 chars)
+def safe_windows_path(path: Path) -> Path:
+    """Ensure path works on Windows with long path support."""
+    if platform.system() == "Windows":
+        # Use extended-length path prefix for long paths
+        str_path = str(path.resolve())
+        if len(str_path) > 250 and not str_path.startswith("\\\\?\\"):
+            return Path(f"\\\\?\\{str_path}")
+    return path
+
+# Handle Windows reserved filenames
+WINDOWS_RESERVED = {"CON", "PRN", "AUX", "NUL", "COM1", "LPT1"}
+def is_valid_filename(name: str) -> bool:
+    """Check if filename is valid on all platforms."""
+    base_name = Path(name).stem.upper()
+    return base_name not in WINDOWS_RESERVED
 ```
 
 ### 3. Line Endings
 
-**Problem**: Git may convert line endings, causing test failures.
+**Problem**: Git may convert line endings, causing test failures. Windows uses CRLF (`\r\n`), while Unix uses LF (`\n`).
 
 **Solution**: Configure `.gitattributes` and normalize in tests when needed:
 
 ```python
-content = file_path.read_text()
-# Normalize line endings if needed
-content = content.replace('\r\n', '\n')
+# Always normalize line endings when comparing text
+def normalize_text(text: str) -> str:
+    """Normalize line endings and whitespace for cross-platform comparison."""
+    # Convert all line endings to Unix style
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    # Strip trailing whitespace from each line
+    lines = [line.rstrip() for line in text.split('\n')]
+    return '\n'.join(lines)
+
+def test_file_content(tmp_path):
+    # Write with explicit line ending
+    content = "Line 1\nLine 2\nLine 3"
+    file_path = tmp_path / "test.txt"
+    file_path.write_text(content, encoding='utf-8', newline='\n')  # Force LF
+
+    # Read and normalize for comparison
+    read_content = file_path.read_text(encoding='utf-8')
+    assert normalize_text(read_content) == normalize_text(content)
+
+# Handle binary vs text mode
+def test_binary_files(tmp_path):
+    # Binary mode preserves exact bytes (no line ending conversion)
+    file_path = tmp_path / "data.bin"
+    data = b"Binary\r\nData"
+    file_path.write_bytes(data)
+    assert file_path.read_bytes() == data  # Exact match
+```
+
+#### Git Configuration
+
+Add to `.gitattributes`:
+
+```text
+# Force LF for Python and Fountain files
+*.py text eol=lf
+*.fountain text eol=lf
+*.md text eol=lf
+
+# Mark binary files
+*.db binary
+*.sqlite binary
+```
+
+### 4. SQLite Vector Extension Support
+
+**Problem**: SQLite vector extension availability and behavior varies across platforms.
+
+**Solution**: Test for extension availability and handle gracefully:
+
+```python
+import sqlite3
+import platform
+
+def test_sqlite_vector_support(tmp_path):
+    """Test SQLite vector extension support across platforms."""
+    db_path = tmp_path / "test.db"
+    conn = sqlite3.connect(str(db_path))
+
+    # Check if vector extension is available
+    try:
+        conn.enable_load_extension(True)
+        # Platform-specific extension paths
+        if platform.system() == "Windows":
+            extensions = ["vec0.dll", "sqlite-vec.dll"]
+        elif platform.system() == "Darwin":
+            extensions = ["vec0.dylib", "libvec0.dylib"]
+        else:  # Linux
+            extensions = ["vec0.so", "libvec0.so"]
+
+        loaded = False
+        for ext in extensions:
+            try:
+                conn.load_extension(ext)
+                loaded = True
+                break
+            except sqlite3.OperationalError:
+                continue
+
+        if not loaded:
+            pytest.skip("SQLite vector extension not available on this platform")
+
+        # Test vector operations
+        conn.execute("CREATE VIRTUAL TABLE test_vec USING vec0(a float[3])")
+        conn.execute("INSERT INTO test_vec VALUES (?)", ([1.0, 2.0, 3.0],))
+
+    except (AttributeError, sqlite3.OperationalError) as e:
+        pytest.skip(f"Vector extension not supported: {e}")
+    finally:
+        conn.close()
+```
+
+### 5. File Locking Behavior
+
+**Problem**: File locking behavior differs significantly between Windows and Unix systems.
+
+**Solution**: Handle platform-specific locking patterns:
+
+```python
+import fcntl  # Unix only
+import msvcrt  # Windows only
+import platform
+import time
+
+def test_file_locking(tmp_path):
+    """Test file locking behavior across platforms."""
+    file_path = tmp_path / "locked_file.txt"
+    file_path.write_text("test content")
+
+    if platform.system() == "Windows":
+        # Windows exclusive locking
+        import msvcrt
+        with open(file_path, 'r+b') as f:
+            try:
+                # Lock file for exclusive access
+                msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+                # File is locked, other processes can't write
+
+                # Attempt to open in another "process" (simulation)
+                try:
+                    with open(file_path, 'w') as f2:
+                        f2.write("should fail")
+                    assert False, "Should not be able to write to locked file"
+                except (IOError, OSError):
+                    pass  # Expected on Windows
+
+            finally:
+                # Unlock
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+
+    else:  # Unix/Linux/macOS
+        # Unix advisory locking
+        import fcntl
+        with open(file_path, 'r+b') as f:
+            try:
+                # Acquire exclusive lock (non-blocking)
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+                # On Unix, other processes can still open the file
+                # but should respect the advisory lock
+                with open(file_path, 'r') as f2:
+                    content = f2.read()  # Reading is typically allowed
+                    assert content == "test content"
+
+            finally:
+                # Release lock
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+# Database locking specific to SQLite
+def test_sqlite_locking(tmp_path):
+    """Test SQLite database locking across platforms."""
+    db_path = tmp_path / "test.db"
+
+    # SQLite handles locking internally, but behavior varies
+    conn1 = sqlite3.connect(str(db_path), timeout=1.0)
+    conn2 = sqlite3.connect(str(db_path), timeout=1.0)
+
+    try:
+        # Create table
+        conn1.execute("CREATE TABLE test (id INTEGER)")
+        conn1.commit()
+
+        # Start transaction on conn1
+        conn1.execute("BEGIN EXCLUSIVE")
+        conn1.execute("INSERT INTO test VALUES (1)")
+
+        # Try to write from conn2 (should timeout)
+        try:
+            conn2.execute("INSERT INTO test VALUES (2)")
+            if platform.system() == "Windows":
+                # Windows might handle this differently
+                pytest.skip("Windows SQLite locking behaves differently")
+        except sqlite3.OperationalError as e:
+            assert "locked" in str(e).lower()
+
+    finally:
+        conn1.close()
+        conn2.close()
+```
+
+### 6. Platform Detection and Conditional Testing
+
+**Solution**: Use platform detection for OS-specific test logic:
+
+```python
+import platform
+import sys
+
+def get_platform_info():
+    """Get detailed platform information for test adaptation."""
+    return {
+        "system": platform.system(),  # 'Windows', 'Linux', 'Darwin'
+        "release": platform.release(),
+        "version": platform.version(),
+        "machine": platform.machine(),  # 'x86_64', 'arm64', etc.
+        "python_version": sys.version,
+        "is_windows": platform.system() == "Windows",
+        "is_macos": platform.system() == "Darwin",
+        "is_linux": platform.system() == "Linux",
+        "is_ci": bool(os.getenv("CI") or os.getenv("GITHUB_ACTIONS")),
+    }
+
+@pytest.fixture
+def platform_info():
+    """Fixture providing platform information."""
+    return get_platform_info()
+
+def test_platform_specific_behavior(platform_info):
+    """Example of platform-specific test."""
+    if platform_info["is_windows"]:
+        # Windows-specific test
+        assert os.pathsep == ";"
+        assert os.linesep == "\r\n"
+    else:
+        # Unix-like systems
+        assert os.pathsep == ":"
+        assert os.linesep == "\n"
+
+    # Skip tests on specific platforms
+    if platform_info["is_macos"] and platform_info["machine"] == "arm64":
+        pytest.skip("Test not compatible with Apple Silicon")
+
+# Conditional test marking
+@pytest.mark.skipif(platform.system() == "Windows", reason="Unix only test")
+def test_unix_specific():
+    """Test that only runs on Unix-like systems."""
+    import pwd
+    assert pwd.getpwuid(os.getuid()).pw_name
+
+@pytest.mark.skipif(platform.system() != "Windows", reason="Windows only test")
+def test_windows_specific():
+    """Test that only runs on Windows."""
+    import winreg
+    # Windows registry operations
 ```
 
 ## CLI Testing
@@ -483,15 +764,107 @@ open htmlcov/index.html
 
 ### Common Issues and Solutions
 
-| Issue | Solution |
-|-------|----------|
-| ANSI codes in CI output | Use `strip_ansi_codes()` on all CLI output |
-| Path separator issues | Use `pathlib.Path` instead of string concatenation |
-| Fixture contamination | Copy fixtures to tmp_path before modification |
-| Database already exists | Ensure proper test isolation with tmp_path |
-| LLM rate limits | Mark with `@pytest.mark.requires_llm` and handle gracefully |
-| Mock file artifacts | Use `spec_set` parameter in mocks |
-| Slow tests | Use canary pattern, run integration tests separately |
+| Issue | Platform | Solution |
+|-------|----------|----------|
+| ANSI codes in CI output | All | Use `strip_ansi_codes()` or `CleanCliRunner` |
+| Path separator issues | Windows | Use `pathlib.Path` instead of string concatenation |
+| Fixture contamination | All | Copy fixtures to tmp_path before modification |
+| Database already exists | All | Ensure proper test isolation with tmp_path |
+| LLM rate limits | All | Mark with `@pytest.mark.requires_llm` and handle gracefully |
+| Mock file artifacts | All | Use `spec_set` parameter in mocks |
+| Slow tests | All | Use canary pattern, run integration tests separately |
+| CRLF line endings | Windows | Configure `.gitattributes`, normalize in tests |
+| File locking errors | Windows | Handle `PermissionError`, use context managers |
+| Case sensitivity | macOS | Use case-insensitive comparisons where needed |
+| Temp directory paths | Windows | Use `tmp_path` fixture, avoid hardcoded `/tmp` |
+| Unicode in paths | Windows | Use `utf-8` encoding explicitly |
+| SQLite DLL loading | Windows | Check multiple extension paths |
+| Long path names (>260) | Windows | Use extended path syntax `\\?\` |
+
+### Platform-Specific Test Failures
+
+#### Windows-Specific Issues
+
+```python
+# Issue: PermissionError when deleting files
+def test_file_operations_windows(tmp_path):
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("content")
+
+    # Close all handles before deletion
+    import gc
+    gc.collect()  # Force garbage collection
+
+    # Retry deletion with timeout
+    import time
+    for attempt in range(3):
+        try:
+            file_path.unlink()
+            break
+        except PermissionError:
+            if attempt == 2:
+                raise
+            time.sleep(0.1)
+
+# Issue: Command line argument escaping
+def test_cli_args_windows():
+    # Windows needs special escaping for quotes
+    import shlex
+    import platform
+
+    if platform.system() == "Windows":
+        # Windows escaping
+        arg = '"quoted value"'
+        escaped = arg.replace('"', '""')
+    else:
+        # Unix escaping
+        arg = "'quoted value'"
+        escaped = shlex.quote(arg)
+```
+
+#### macOS-Specific Issues
+
+```python
+# Issue: Case-insensitive filesystem
+def test_case_sensitivity_macos(tmp_path):
+    file1 = tmp_path / "Test.txt"
+    file2 = tmp_path / "test.txt"
+
+    file1.write_text("content1")
+
+    # Check if filesystem is case-sensitive
+    try:
+        file2.write_text("content2")
+        # Case-sensitive filesystem
+        assert file1.read_text() == "content1"
+        assert file2.read_text() == "content2"
+    except:
+        # Case-insensitive filesystem (default macOS)
+        assert file1.read_text() == file2.read_text()
+
+# Issue: Different temp directory location
+def test_temp_directory_macos():
+    import tempfile
+    temp_dir = Path(tempfile.gettempdir())
+    # macOS might use /var/folders/... instead of /tmp
+    assert temp_dir.exists()
+```
+
+#### Linux-Specific Issues
+
+```python
+# Issue: File permissions
+def test_file_permissions_linux(tmp_path):
+    import stat
+    file_path = tmp_path / "test.sh"
+    file_path.write_text("#!/bin/bash\necho test")
+
+    # Set executable permission
+    file_path.chmod(file_path.stat().st_mode | stat.S_IEXEC)
+
+    # Verify permission was set
+    assert file_path.stat().st_mode & stat.S_IEXEC
+```
 
 ## Best Practices Summary
 
@@ -517,6 +890,34 @@ When adding new tests:
 5. Maintain or improve code coverage
 6. Update this guide if you discover new patterns or issues
 
+### Platform-Specific CI/CD Setup
+
+For comprehensive cross-platform testing, configure your CI/CD matrix:
+
+```yaml
+# GitHub Actions example
+strategy:
+  matrix:
+    os: [ubuntu-latest, windows-latest, macos-latest]
+    python-version: ["3.11", "3.12", "3.13"]
+    exclude:
+      # Skip certain combinations if needed
+      - os: macos-latest
+        python-version: "3.11"
+```
+
+### Environment Variables for Cross-Platform Testing
+
+```bash
+# Windows
+set SCRIPTRAG_TEST_PLATFORM=windows
+set SCRIPTRAG_TEST_SKIP_SLOW=1
+
+# Unix/Linux/macOS
+export SCRIPTRAG_TEST_PLATFORM=unix
+export SCRIPTRAG_TEST_SKIP_SLOW=1
+```
+
 ---
 
-*Last updated: 2025-08-12*
+*Last updated: 2025-08-14*

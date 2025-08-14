@@ -31,13 +31,28 @@ def strip_ansi_codes(text: str) -> str:
     Returns:
         Text with all ANSI escape sequences and spinner characters removed
     """
-    # Remove ANSI escape sequences
+    # Remove ANSI escape sequences (all variations)
+    # Standard ANSI escape codes
     ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
     text = ansi_escape.sub("", text)
 
+    # Additional ANSI patterns that might appear on different platforms
+    # Cursor movement, clearing, etc.
+    ansi_extended = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+    text = ansi_extended.sub("", text)
+
+    # Windows console specific sequences
+    ansi_windows = re.compile(r"\x1b\].*?\x07")
+    text = ansi_windows.sub("", text)
+
     # Remove Unicode spinner characters (Braille patterns)
     spinner_chars = re.compile(r"[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]")
-    return spinner_chars.sub("", text)
+    text = spinner_chars.sub("", text)
+
+    # Remove other Unicode box drawing and special characters that may vary
+    # These can appear differently on Windows cmd vs PowerShell vs Unix terminals
+    unicode_special = re.compile(r"[━╭╮╰╯│├┤┬┴┼╱╲╳]")  # noqa: RUF001
+    return unicode_special.sub("", text)
 
 
 class CleanResult:

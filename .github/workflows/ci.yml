@@ -541,109 +541,242 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
 
-      - name: Run Claude Code for Diagnostic Analysis
-        id: claude-diagnostics
+      - name: Analyze Test Failures and Post Diagnostics
+        id: analyze-failures
         continue-on-error: true
-        uses: anthropics/claude-code-action@beta
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
-          mode: agent  # Use agent mode for automated diagnostics
+        run: |
+          # Create a Python script to analyze test failures using GitHub Models API
+          cat > analyze_failures.py << 'EOF'
+          #!/usr/bin/env python3
+          import json
+          import os
+          import subprocess
+          import sys
+          from typing import Dict, List, Any
 
-          # Pass context via environment variables
-          claude_env: |
-            PR_NUMBER: ${{ github.event.pull_request.number }}
-            PR_BRANCH: ${{ github.head_ref }}
-            WORKFLOW_RUN_ID: ${{ github.run_id }}
-            WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          def run_command(cmd: List[str]) -> str:
+              """Run a command and return its output."""
+              try:
+                  result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                  return result.stdout
+              except subprocess.CalledProcessError as e:
+                  print(f"Command failed: {' '.join(cmd)}")
+                  print(f"Error: {e.stderr}")
+                  return ""
 
-          # Grant Claude access to CI logs and tools
-          additional_permissions: |
-            actions: read
-            checks: read
+          def get_failed_jobs(run_id: str) -> List[Dict[str, Any]]:
+              """Get information about failed jobs in the workflow run."""
+              cmd = ["gh", "api", f"repos/${{github.repository}}/actions/runs/{run_id}/jobs"]
+              output = run_command(cmd)
+              if not output:
+                  return []
 
-          # Allow Claude to use workflow analysis tools
-          allowed_tools: |
-            Bash(gh workflow-peek)
-            Bash(gh api)
-            Bash(gh run view)
-            Bash(gh run download)
+              data = json.loads(output)
+              failed_jobs = []
 
-          # Custom diagnostic prompt
-          direct_prompt: |
-            ## Test Failure Diagnostic Analysis
+              for job in data.get("jobs", []):
+                  if job.get("conclusion") == "failure":
+                      failed_jobs.append({
+                          "name": job.get("name", "Unknown"),
+                          "id": job.get("id"),
+                          "url": job.get("html_url", ""),
+                          "steps": job.get("steps", [])
+                      })
 
-            The CI workflow has failed for PR #${{ github.event.pull_request.number }}.
-            Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              return failed_jobs
 
-            Your task is to analyze the test failures and provide a detailed diagnostic report.
+          def extract_error_patterns(job_id: str) -> str:
+              """Extract error patterns from job logs."""
+              errors = []
 
-            ### Instructions:
+              # Try to get job logs using gh workflow-peek if available
+              peek_output = run_command(["gh", "workflow-peek", "${{ github.run_id }}", "--job", str(job_id)])
+              if peek_output:
+                  # Look for common error patterns
+                  for line in peek_output.split('\n'):
+                      if any(pattern in line.upper() for pattern in ['ERROR', 'FAILED', 'FAILURE', 'ASSERTION']):
+                          errors.append(line.strip())
+                          if len(errors) >= 5:  # Limit to 5 error lines per job
+                              break
 
-            1. **Retrieve Failure Information**:
-               - Use the GitHub API or gh CLI to access the current workflow run ID: ${{ github.run_id }}
-               - Use `gh workflow-peek` extension to get detailed logs
-               - Focus on jobs that failed: lint, type-check, security, test-canary, test-matrix, etc.
+              return '\n'.join(errors) if errors else "Unable to extract specific errors"
 
-            2. **Analyze the Failures**:
-               - Identify which specific tests or checks failed
-               - Extract relevant error messages and stack traces
-               - Look for patterns in the failures (e.g., all failures in one module, timeout issues, dependency problems)
-               - Check if failures are related to:
-                 * Code syntax errors (linting)
-                 * Type checking issues (mypy)
-                 * Security violations (bandit/safety)
-                 * Test assertion failures
-                 * Platform-specific issues (Windows/macOS/Linux differences)
+          def analyze_failure_type(job_name: str, errors: str) -> Dict[str, str]:
+              """Analyze the type of failure and suggest fixes."""
+              job_lower = job_name.lower()
+              errors_lower = errors.lower()
 
-            3. **Root Cause Analysis**:
-               - Determine the most likely root cause(s) of the failures
-               - Check if the failures are related to recent code changes in the PR
-               - Consider common issues from CLAUDE.md:
-                 * ANSI escape sequences in test output
-                 * Mock file artifacts
-                 * LLM rate limits
-                 * Cross-platform compatibility
+              if "lint" in job_lower or "ruff" in errors_lower:
+                  return {
+                      "type": "Linting Error",
+                      "icon": "🔧",
+                      "fix": "Run `make lint` locally to see and fix linting issues",
+                      "quick_fix": "Run `make format` to auto-fix formatting issues"
+                  }
+              elif "type" in job_lower or "mypy" in errors_lower:
+                  return {
+                      "type": "Type Checking Error",
+                      "icon": "📝",
+                      "fix": "Run `make type-check` locally to see type errors",
+                      "quick_fix": "Check function signatures and type annotations"
+                  }
+              elif "security" in job_lower or "bandit" in errors_lower or "safety" in errors_lower:
+                  return {
+                      "type": "Security Issue",
+                      "icon": "🔒",
+                      "fix": "Run `make security` locally to see security issues",
+                      "quick_fix": "Review flagged security concerns in the code"
+                  }
+              elif "test" in job_lower or "pytest" in errors_lower:
+                  if "timeout" in errors_lower:
+                      return {
+                          "type": "Test Timeout",
+                          "icon": "⏱️",
+                          "fix": "Tests are timing out - check for infinite loops or slow operations",
+                          "quick_fix": "Run `make test PYTEST_ARGS='-x --tb=short'` to debug"
+                      }
+                  else:
+                      return {
+                          "type": "Test Failure",
+                          "icon": "❌",
+                          "fix": "Run `make test` locally to reproduce failures",
+                          "quick_fix": "Check test assertions and expected values"
+                      }
+              elif "build" in job_lower:
+                  return {
+                      "type": "Build Error",
+                      "icon": "📦",
+                      "fix": "Run `make build` locally to reproduce the build error",
+                      "quick_fix": "Check dependencies and build configuration"
+                  }
+              else:
+                  return {
+                      "type": "CI Failure",
+                      "icon": "⚠️",
+                      "fix": "Run `make check-fast` for a quick quality check",
+                      "quick_fix": "Review the job logs for specific error messages"
+                  }
 
-            4. **Provide Actionable Recommendations**:
-               - Suggest specific fixes for each identified issue
-               - Include the exact Make commands to run locally:
-                 * `make check-fast` for quick quality checks
-                 * `make lint` for linting issues
-                 * `make type-check` for type errors
-                 * `make test` for test failures
-               - Reference relevant documentation (TESTING.md, CLAUDE.md)
+          def main():
+              pr_number = "${{ github.event.pull_request.number }}"
+              run_id = "${{ github.run_id }}"
+              run_url = f"${{ github.server_url }}/${{ github.repository }}/actions/runs/{run_id}"
 
-            5. **Format Your Response**:
-               Post a clear, structured comment on the PR with:
-               - 📊 **Summary**: Brief overview of what failed
-               - 🔍 **Detailed Analysis**: Specific failures and their causes
-               - 💡 **Recommendations**: Step-by-step fixes with commands
-               - 📝 **Additional Notes**: Platform-specific issues or known gotchas
+              print(f"Analyzing failures for PR #{pr_number}")
+              print(f"Workflow run: {run_id}")
 
-            ### Important:
-            After analyzing the failures, post your diagnostic report as a comment on PR #${{ github.event.pull_request.number }} using:
-            ```bash
-            gh pr comment ${{ github.event.pull_request.number }} --body "Your formatted diagnostic report here"
-            ```
+              # Get failed jobs
+              failed_jobs = get_failed_jobs(run_id)
 
-            Focus on being helpful and actionable. Remember common issues from the project:
-            - Strip ANSI codes in CLI tests using `strip_ansi_codes()`
-            - Use `spec_set` in mocks to avoid file artifacts
-            - Handle LLM rate limits with exponential backoff
-            - Use `pathlib.Path` for cross-platform paths
+              if not failed_jobs:
+                  print("No failed jobs found or unable to fetch job information")
+                  return
 
-          # Custom instructions for diagnostic behavior
-          custom_instructions: |
-            You are a CI/CD diagnostic specialist for the ScriptRAG project. Your role is to:
-            - Quickly identify and analyze test failures specific to this codebase
-            - Reference the project's CLAUDE.md and TESTING.md documentation
-            - Provide clear, actionable diagnostic information with exact commands
-            - Be aware of common issues: ANSI codes, mock artifacts, type annotations, cross-platform issues
-            - Suggest using appropriate sub-agents when needed (ruff-house, type-veronica, test-holmes)
-            - Be encouraging and constructive in your feedback
+              # Build the diagnostic comment
+              comment_parts = [
+                  f"## 🔍 CI Failure Diagnostics",
+                  "",
+                  f"**Workflow Run:** [#{run_id}]({run_url})",
+                  f"**Failed Jobs:** {len(failed_jobs)}",
+                  "",
+                  "### 📊 Failure Summary",
+                  ""
+              ]
 
-            Remember to check for the specific patterns mentioned in CLAUDE.md's "Common Iteration Patterns" section.
+              # Analyze each failed job
+              for job in failed_jobs:
+                  job_name = job['name']
+                  job_url = job['url']
+
+                  # Extract errors if possible
+                  errors = extract_error_patterns(job['id']) if job['id'] else "No error details available"
+
+                  # Analyze failure type
+                  analysis = analyze_failure_type(job_name, errors)
+
+                  comment_parts.extend([
+                      f"#### {analysis['icon']} {job_name}",
+                      f"**Type:** {analysis['type']}",
+                      f"**[View Job Logs]({job_url})**",
+                      ""
+                  ])
+
+                  if errors != "No error details available" and errors != "Unable to extract specific errors":
+                      comment_parts.extend([
+                          "<details>",
+                          "<summary>Error Details</summary>",
+                          "",
+                          "```",
+                          errors[:500],  # Limit error output
+                          "```",
+                          "",
+                          "</details>",
+                          ""
+                      ])
+
+                  comment_parts.extend([
+                      f"**Fix:** {analysis['fix']}",
+                      f"**Quick Fix:** {analysis['quick_fix']}",
+                      "",
+                      "---",
+                      ""
+                  ])
+
+              # Add general recommendations
+              comment_parts.extend([
+                  "### 💡 Quick Debugging Steps",
+                  "",
+                  "1. **Run all quality checks locally:**",
+                  "   ```bash",
+                  "   make check-fast",
+                  "   ```",
+                  "",
+                  "2. **Fix specific issues:**",
+                  "   - Linting: `make format` then `make lint`",
+                  "   - Type errors: `make type-check`",
+                  "   - Test failures: `make test`",
+                  "   - Security: `make security`",
+                  "",
+                  "3. **Common issues to check:**",
+                  "   - ANSI codes in test output (use `strip_ansi_codes()`)",
+                  "   - Mock file artifacts (use `spec_set` in mocks)",
+                  "   - Cross-platform path issues (use `pathlib.Path`)",
+                  "   - Type annotations for async functions",
+                  "",
+                  "---",
+                  "",
+                  "_This is an automated diagnostic report. For detailed analysis, check the [workflow logs](" + run_url + ")._"
+              ])
+
+              comment = '\n'.join(comment_parts)
+
+              # Write comment to file for GitHub command
+              with open('comment.md', 'w') as f:
+                  f.write(comment)
+
+              # Post the comment
+              print("Posting diagnostic comment to PR...")
+              result = subprocess.run(
+                  ["gh", "pr", "comment", pr_number, "--body-file", "comment.md"],
+                  capture_output=True,
+                  text=True
+              )
+
+              if result.returncode == 0:
+                  print("Diagnostic comment posted successfully")
+              else:
+                  print(f"Failed to post comment: {result.stderr}")
+                  sys.exit(1)
+
+          if __name__ == "__main__":
+              main()
+          EOF
+
+          # Make the script executable and run it
+          chmod +x analyze_failures.py
+          python3 analyze_failures.py
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
 
   vibe-badge:
     name: Generate Vibe Badge

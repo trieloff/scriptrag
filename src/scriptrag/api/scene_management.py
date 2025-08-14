@@ -3,7 +3,7 @@
 import hashlib
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +11,7 @@ from scriptrag.api.bible_index import BibleAutoDetector
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.parser import FountainParser, Scene
+from scriptrag.utils import ScreenplayUtils
 
 logger = get_logger(__name__)
 
@@ -218,7 +219,7 @@ class SceneManagementAPI:
                     )
 
                 # Update last_read_at timestamp
-                last_read = datetime.utcnow()
+                last_read = datetime.now(UTC)
                 self._update_last_read(conn, scene_id, last_read)
 
                 logger.info(
@@ -509,15 +510,8 @@ class SceneManagementAPI:
             # Extract basic info from content
             lines = new_content.strip().split("\n")
             heading = lines[0] if lines else ""
-            try:
-                from scriptrag.utils import ScreenplayUtils
-
-                location = ScreenplayUtils.extract_location(heading) or ""
-                time_of_day = ScreenplayUtils.extract_time(heading) or ""
-            except ImportError:
-                # Fallback if ScreenplayUtils is not available
-                location = ""
-                time_of_day = ""
+            location = ScreenplayUtils.extract_location(heading) or ""
+            time_of_day = ScreenplayUtils.extract_time(heading) or ""
 
         # Update scene in database
         query = """
@@ -601,15 +595,8 @@ class SceneManagementAPI:
         else:
             lines = content.strip().split("\n")
             heading = lines[0] if lines else ""
-            try:
-                from scriptrag.utils import ScreenplayUtils
-
-                location = ScreenplayUtils.extract_location(heading) or ""
-                time_of_day = ScreenplayUtils.extract_time(heading) or ""
-            except ImportError:
-                # Fallback if ScreenplayUtils is not available
-                location = ""
-                time_of_day = ""
+            location = ScreenplayUtils.extract_location(heading) or ""
+            time_of_day = ScreenplayUtils.extract_time(heading) or ""
 
         # Insert new scene
         conn.execute(

@@ -47,8 +47,8 @@ def initialized_db(tmp_path, monkeypatch):
     settings = ScriptRAGSettings(database_path=db_path)
     set_settings(settings)
 
-    # Initialize database
-    result = runner.invoke(app, ["init", "--db-path", str(db_path), "--force"])
+    # Initialize database with global --db-path option
+    result = runner.invoke(app, ["--db-path", str(db_path), "init", "--force"])
     assert result.exit_code == 0
 
     return db_path

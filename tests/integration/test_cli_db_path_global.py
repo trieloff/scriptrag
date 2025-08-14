@@ -112,29 +112,19 @@ def test_global_db_path_relative_path(tmp_path: Path) -> None:
         os.chdir(original_dir)
 
 
-def test_global_db_path_not_provided_uses_default(tmp_path: Path) -> None:
+def test_global_db_path_not_provided_uses_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test that omitting --db-path uses default behavior."""
     # Change to temp directory to avoid conflicts
-    import os
+    monkeypatch.chdir(tmp_path)
 
-    original_dir = Path.cwd()
-    try:
-        os.chdir(tmp_path)
+    # No --db-path option, use --force in case db exists
+    result = runner.invoke(app, ["init", "--force"])
 
-        # No --db-path option
-        result = runner.invoke(app, ["init"])
-
-        # Debug output
-        if result.exit_code != 0:
-            print(f"Exit code: {result.exit_code}")
-            print(f"Output: {result.output}")
-            print(f"Exception: {result.exception}")
-
-        assert result.exit_code == 0
-        # Should create default scriptrag.db in current directory
-        assert (tmp_path / "scriptrag.db").exists()
-    finally:
-        os.chdir(original_dir)
+    assert result.exit_code == 0
+    # Should create default scriptrag.db in current directory
+    assert (tmp_path / "scriptrag.db").exists()
 
 
 def test_global_db_path_help_text() -> None:

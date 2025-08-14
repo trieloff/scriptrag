@@ -7,7 +7,6 @@ import typer
 from rich.console import Console
 
 from scriptrag.api.query import QueryAPI
-from scriptrag.config import get_settings
 
 # Create query app
 query_app = typer.Typer(
@@ -59,7 +58,7 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
                 )
             else:
                 # Get fresh settings - avoids caching issues
-                current_settings = get_settings()
+                current_settings = ScriptRAGSettings.from_env()
 
             current_api = QueryAPI(current_settings)
 
@@ -227,7 +226,9 @@ def register_query_commands() -> None:
     )
 
     # Get fresh settings without modifying global state
-    settings = get_settings()
+    from scriptrag.config.settings import ScriptRAGSettings
+
+    settings = ScriptRAGSettings.from_env()
     api = QueryAPI(settings)
 
     # Force reload queries from (possibly new) directory

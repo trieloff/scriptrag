@@ -48,11 +48,38 @@ class TestClaudeCodeProvider:
     @pytest.mark.asyncio
     async def test_list_models(self):
         """Test listing Claude Code models."""
-        provider = ClaudeCodeProvider()
-        models = await provider.list_models()
-        assert len(models) > 0
-        assert all(isinstance(m, Model) for m in models)
-        assert all(m.provider == LLMProvider.CLAUDE_CODE for m in models)
+        # Clear ANTHROPIC_API_KEY to prevent network calls during provider init
+        with patch.dict(os.environ, {"ANTHROPIC_API_KEY": ""}, clear=False):
+            provider = ClaudeCodeProvider()
+            # Mock the model discovery to avoid network calls
+            with patch.object(
+                provider.model_discovery, "discover_models"
+            ) as mock_discover:
+                # Return static models to avoid actual discovery
+                mock_models = [
+                    Model(
+                        id="claude-3-opus",
+                        name="Claude 3 Opus",
+                        provider=LLMProvider.CLAUDE_CODE,
+                        capabilities=["completion", "chat"],
+                        context_window=200000,
+                        max_output_tokens=4096,
+                    ),
+                    Model(
+                        id="claude-3-sonnet",
+                        name="Claude 3 Sonnet",
+                        provider=LLMProvider.CLAUDE_CODE,
+                        capabilities=["completion", "chat"],
+                        context_window=200000,
+                        max_output_tokens=4096,
+                    ),
+                ]
+                mock_discover.return_value = mock_models
+
+                models = await provider.list_models()
+                assert len(models) > 0
+                assert all(isinstance(m, Model) for m in models)
+                assert all(m.provider == LLMProvider.CLAUDE_CODE for m in models)
 
     @pytest.mark.asyncio
     async def test_is_available_with_sdk(self):
@@ -67,13 +94,22 @@ class TestClaudeCodeProvider:
     @pytest.mark.asyncio
     async def test_is_available_without_sdk(self):
         """Test availability check when SDK CLI is not available."""
-        # Remove PATH to make claude executable unavailable
-        with patch.dict(os.environ, {"PATH": "/tmp/nonexistent"}, clear=False):
+        # Remove PATH to make claude executable unavailable and clear API key
+        with patch.dict(
+            os.environ,
+            {"PATH": "/tmp/nonexistent", "ANTHROPIC_API_KEY": ""},
+            clear=False,
+        ):
             provider = ClaudeCodeProvider()
-            # SDK Python library is available, but without claude executable in PATH,
-            # sdk_available should be False
-            assert provider.sdk_available is False  # CLI not in PATH
-            assert await provider.is_available() is False  # Not usable without CLI
+            # Mock the model discovery to prevent network calls
+            with patch.object(
+                provider.model_discovery, "discover_models"
+            ) as mock_discover:
+                mock_discover.return_value = []
+                # SDK library is available, but without claude executable in PATH,
+                # sdk_available should be False
+                assert provider.sdk_available is False  # CLI not in PATH
+                assert await provider.is_available() is False  # Not usable without CLI
 
     @pytest.mark.asyncio
     async def test_complete_success(self):

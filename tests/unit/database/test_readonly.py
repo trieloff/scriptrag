@@ -200,3 +200,177 @@ class TestGetReadOnlyConnection:
             get_read_only_connection(settings),
         ):
             pass
+
+    def test_root_repo_path_allowed(self):
+        """Test that /root/repo/ paths are allowed."""
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        # Valid /root/repo path
+        repo_path = Path("/root/repo/scriptrag.db")
+        settings.database_path = repo_path
+        settings.database_timeout = 30.0
+        settings.database_cache_size = -2000
+        settings.database_temp_store = "MEMORY"
+
+        with patch("sqlite3.connect") as mock_connect:
+            mock_conn = MagicMock()
+            mock_connect.return_value = mock_conn
+
+            # This should NOT raise a ValueError for /root/repo/
+            with get_read_only_connection(settings) as conn:
+                assert conn == mock_conn
+
+            # Verify connection was opened successfully
+            expected_uri = f"file:{repo_path.resolve()}?mode=ro"
+            mock_connect.assert_called_once()
+
+    def test_root_repo_subdir_allowed(self):
+        """Test that subdirectories under /root/repo/ are allowed."""
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        # Valid /root/repo subdirectory path
+        repo_path = Path("/root/repo/data/databases/scriptrag.db")
+        settings.database_path = repo_path
+        settings.database_timeout = 30.0
+        settings.database_cache_size = -2000
+        settings.database_temp_store = "MEMORY"
+
+        with patch("sqlite3.connect") as mock_connect:
+            mock_conn = MagicMock()
+            mock_connect.return_value = mock_conn
+
+            # This should NOT raise a ValueError for /root/repo/ subdirs
+            with get_read_only_connection(settings) as conn:
+                assert conn == mock_conn
+
+    def test_root_malicious_repo_blocked(self):
+        """Test that malicious paths with 'repo' in name are blocked."""
+        from pathlib import Path
+        from unittest.mock import MagicMock
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        # Malicious path that contains 'repo' but not under /root/repo/
+        malicious_path = Path("/root/malicious-repo/database.db")
+        settings.database_path = malicious_path
+        settings.database_timeout = 30.0
+        settings.database_cache_size = -2000
+        settings.database_temp_store = "MEMORY"
+
+        # This should raise a ValueError - not the allowed /root/repo/ prefix
+        with (
+            pytest.raises(ValueError, match="Invalid database path detected"),
+            get_read_only_connection(settings),
+        ):
+            pass
+
+    def test_root_other_dirs_blocked(self):
+        """Test that other /root/ directories are blocked."""
+        from pathlib import Path
+        from unittest.mock import MagicMock
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        # Path in /root/ but not in /root/repo/
+        other_path = Path("/root/projects/database.db")
+        settings.database_path = other_path
+        settings.database_timeout = 30.0
+        settings.database_cache_size = -2000
+        settings.database_temp_store = "MEMORY"
+
+        # This should raise a ValueError
+        with (
+            pytest.raises(ValueError, match="Invalid database path detected"),
+            get_read_only_connection(settings),
+        ):
+            pass
+
+    def test_home_directory_allowed(self):
+        """Test that user home directories are allowed."""
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        home_path = Path("/home/user/projects/scriptrag.db")
+        settings.database_path = home_path
+        settings.database_timeout = 30.0
+        settings.database_cache_size = -2000
+        settings.database_temp_store = "MEMORY"
+
+        with patch("sqlite3.connect") as mock_connect:
+            mock_conn = MagicMock()
+            mock_connect.return_value = mock_conn
+
+            # Home directories should be allowed
+            with get_read_only_connection(settings) as conn:
+                assert conn == mock_conn
+
+    def test_macos_users_directory_allowed(self):
+        """Test that macOS /Users/ directories are allowed."""
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        users_path = Path("/Users/developer/projects/scriptrag.db")
+        settings.database_path = users_path
+        settings.database_timeout = 30.0
+        settings.database_cache_size = -2000
+        settings.database_temp_store = "MEMORY"
+
+        with patch("sqlite3.connect") as mock_connect:
+            mock_conn = MagicMock()
+            mock_connect.return_value = mock_conn
+
+            # macOS /Users/ directories should be allowed
+            with get_read_only_connection(settings) as conn:
+                assert conn == mock_conn
+
+    def test_windows_user_documents_allowed(self):
+        """Test that Windows user Documents directories are allowed."""
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        settings = MagicMock(spec=ScriptRAGSettings)
+        docs_path = Path("C:\\Users\\developer\\Documents\\projects\\scriptrag.db")
+        settings.database_path = docs_path
+        settings.database_timeout = 30.0
+        settings.database_cache_size = -2000
+        settings.database_temp_store = "MEMORY"
+
+        with patch("sqlite3.connect") as mock_connect:
+            mock_conn = MagicMock()
+            mock_connect.return_value = mock_conn
+
+            # Windows Documents folders should be allowed
+            with get_read_only_connection(settings) as conn:
+                assert conn == mock_conn
+
+    def test_system_directories_blocked(self):
+        """Test that various system directories are blocked."""
+        from pathlib import Path
+        from unittest.mock import MagicMock
+
+        blocked_paths = [
+            "/etc/passwd",
+            "/usr/bin/database.db",
+            "/bin/scriptrag.db",
+            "/sbin/database.db",
+            "C:\\Windows\\System32\\database.db",
+            "C:\\Program Files\\App\\database.db",
+        ]
+
+        for blocked_path in blocked_paths:
+            settings = MagicMock(spec=ScriptRAGSettings)
+            settings.database_path = Path(blocked_path)
+            settings.database_timeout = 30.0
+            settings.database_cache_size = -2000
+            settings.database_temp_store = "MEMORY"
+
+            # All system directories should be blocked
+            with (
+                pytest.raises(ValueError, match="Invalid database path detected"),
+                get_read_only_connection(settings),
+            ):
+                pass

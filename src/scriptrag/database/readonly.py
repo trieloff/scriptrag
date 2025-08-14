@@ -9,6 +9,48 @@ from scriptrag.config import ScriptRAGSettings, get_logger
 logger = get_logger(__name__)
 
 
+def _is_allowed_development_path(db_path_str: str) -> bool:
+    """Check if path is in an allowed development location.
+
+    Args:
+        db_path_str: Resolved database path as string
+
+    Returns:
+        True if path is in allowed development location
+    """
+    # Specific allowed development paths (must be exact prefixes)
+    allowed_dev_paths = [
+        "/root/repo/",  # Container development
+        "/home/",  # User home directories
+        "/Users/",  # macOS user directories
+    ]
+
+    # Check if path starts with any allowed prefix
+    for allowed_prefix in allowed_dev_paths:
+        if db_path_str.startswith(allowed_prefix):
+            return True
+
+    return False
+
+
+def _is_temp_directory(db_path_str: str, path_parts: list[str]) -> bool:
+    """Check if path is in a temporary directory.
+
+    Args:
+        db_path_str: Resolved database path as string
+        path_parts: Path components split by /
+
+    Returns:
+        True if path is in a temp directory
+    """
+    _ = path_parts  # Kept for potential future use
+    path_lower = db_path_str.lower()
+    temp_indicators = ["temp", "tmp", "pytest", ".pytest_cache"]
+
+    # Check for temp indicators in path
+    return any(indicator in path_lower for indicator in temp_indicators)
+
+
 @contextmanager
 def get_read_only_connection(
     settings: ScriptRAGSettings,
@@ -36,19 +78,22 @@ def get_read_only_connection(
 
         # Now resolve the path
         db_path_resolved = db_path_original.resolve()
-        # Check if the resolved path is within a reasonable location
-        # Prevent paths that resolve outside of typical project directories
         db_path_str = str(db_path_resolved)
-
-        # List of disallowed paths for security (cross-platform)
-        # Unix-style paths
-        disallowed_prefixes = ["/etc/", "/usr/", "/var/"]
-        # Windows-style paths
-        windows_disallowed = ["C:\\Windows", "C:\\Program Files", "C:\\System32"]
 
         # Parse path components for cross-platform checking
         path_parts = db_path_str.replace("\\", "/").split("/")
         path_components_lower = [part.lower() for part in path_parts]
+
+        # List of disallowed paths for security (cross-platform)
+        # Unix-style paths
+        disallowed_prefixes = ["/etc/", "/usr/", "/var/", "/bin/", "/sbin/"]
+        # Windows-style paths
+        windows_disallowed = [
+            "C:\\Windows",
+            "C:\\Program Files",
+            "C:\\System32",
+            "C:\\System",
+        ]
 
         # Cross-platform disallowed path components (case-insensitive)
         disallowed_components = [
@@ -58,6 +103,8 @@ def get_read_only_connection(
             "windows",
             "program files",
             "system32",
+            "bin",
+            "sbin",
         ]
 
         # Check if path is in a disallowed location (Unix-style)
@@ -77,25 +124,25 @@ def get_read_only_connection(
         for disallowed in disallowed_components:
             if disallowed in path_components_lower:
                 # Exception: Allow temp directories that contain these components
-                if any(
-                    temp_indicator in path_components_lower
-                    for temp_indicator in ["temp", "tmp", "pytest", "folders"]
-                ):
+                if _is_temp_directory(db_path_str, path_parts):
                     continue
                 raise ValueError("Invalid database path detected")
 
-        # Additional check: if in /root/ (Unix) or system dirs, must be temp/repo
-        # Allow /root/repo as it's a common development location
+        # Special handling for /root/ paths (common in containers)
+        if db_path_str.startswith("/root/") and not (
+            db_path_str.startswith("/root/repo/")
+            or _is_temp_directory(db_path_str, path_parts)
+        ):
+            raise ValueError("Invalid database path detected")
+
+        # Validate Windows user directories
         if (
-            (
-                db_path_str.startswith("/root/")
-                and "tmp" not in path_parts
-                and "repo" not in path_parts
+            ":\\Users" in db_path_str
+            and not _is_temp_directory(db_path_str, path_parts)
+            and not any(
+                dev_dir in path_parts
+                for dev_dir in ["Documents", "Desktop", "Projects", "repos"]
             )
-            or (":\\Users" in db_path_str and "Temp" not in path_parts)
-        ) and not any(
-            temp_indicator in db_path_str.lower()
-            for temp_indicator in ["temp", "tmp", "pytest", "repo"]
         ):
             raise ValueError("Invalid database path detected")
 

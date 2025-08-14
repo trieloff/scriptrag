@@ -123,6 +123,7 @@ def watch_command(
         if initial_pull:
             console.print("[cyan]Running initial pull...[/cyan]")
             pull_command(
+                ctx,
                 path=watch_path,
                 force=force,
                 dry_run=False,

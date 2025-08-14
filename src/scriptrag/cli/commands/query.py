@@ -84,7 +84,7 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
             continue
 
         # Determine parameter type
-        param_type: type[int] | type[float] | type[bool] | type[str]
+        param_type: type
         if param_spec.type == "int":
             param_type = int
         elif param_spec.type == "float":
@@ -162,7 +162,7 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
 
     # Build parameter signature
     sig_params = []
-    annotations = {}
+    annotations: dict[str, Any] = {}
     defaults = {}
 
     # Add Context as first parameter
@@ -184,7 +184,9 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
                 annotation=param_type,
             )
         )
-        annotations[param_name] = param_type
+        # Avoid overwriting ctx annotation
+        if param_name != "ctx":
+            annotations[param_name] = param_type
         if param_default is not ...:
             defaults[param_name] = param_default
 

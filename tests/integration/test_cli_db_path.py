@@ -82,23 +82,28 @@ class TestDbPathOption:
 
     def test_help_shows_db_path_option(self):
         """Test that help text shows --db-path option for all commands."""
+        from tests.cli_fixtures import strip_ansi_codes
+
         # Test init command help
         result = runner.invoke(app, ["init", "--help"])
         assert result.exit_code == 0
-        assert "--db-path" in result.output
-        assert "Path to the SQLite database file" in result.output
+        output = strip_ansi_codes(result.output)
+        assert "--db-path" in output
+        assert "Path to the SQLite database file" in output
 
         # Test index command help
         result = runner.invoke(app, ["index", "--help"])
         assert result.exit_code == 0
-        assert "--db-path" in result.output
-        assert "Path to the SQLite database file" in result.output
+        output = strip_ansi_codes(result.output)
+        assert "--db-path" in output
+        assert "Path to the SQLite database file" in output
 
         # Test search command help
         result = runner.invoke(app, ["search", "--help"])
         assert result.exit_code == 0
-        assert "--db-path" in result.output
-        assert "Path to the SQLite database file" in result.output
+        output = strip_ansi_codes(result.output)
+        assert "--db-path" in output
+        assert "Path to the SQLite database file" in output
 
     def test_multiple_databases_isolation(self, tmp_path):
         """Test that different db-path values use isolated databases."""

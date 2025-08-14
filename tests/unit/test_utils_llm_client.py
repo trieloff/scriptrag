@@ -640,7 +640,7 @@ class TestLLMClient:
 
     @pytest.mark.asyncio
     @pytest.mark.skipif(
-        os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"),
+        bool(os.environ.get("CI")) or bool(os.environ.get("GITHUB_ACTIONS")),
         reason="Skipping in CI due to timeout issues",
     )
     async def test_embed_all_providers_fail(self, client):

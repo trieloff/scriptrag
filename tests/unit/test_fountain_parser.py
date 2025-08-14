@@ -103,6 +103,8 @@ Just a scene.
 
     def test_parse_file_with_jouvence_error(self, parser, tmp_path):
         """Test parse_file when jouvence fails."""
+        from scriptrag.exceptions import ParseError
+
         file_path = tmp_path / "bad.fountain"
         file_path.write_text("Invalid content")
 
@@ -111,7 +113,7 @@ Just a scene.
                 "Parse failed"
             )
 
-            with pytest.raises(RuntimeError, match="Parse failed"):
+            with pytest.raises(ParseError, match="Failed to parse Fountain file"):
                 parser.parse_file(file_path)
 
     def test_parse_with_boneyard_metadata(self, parser):

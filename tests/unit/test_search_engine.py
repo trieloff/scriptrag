@@ -145,6 +145,8 @@ class TestSearchEngine:
 
     def test_get_read_only_connection_path_traversal(self, mock_settings, tmp_path):
         """Test path traversal prevention."""
+        from scriptrag.exceptions import DatabaseError
+
         # Set expected database path to tmp_path
         safe_path = tmp_path / "safe.db"
         mock_settings.database_path = safe_path
@@ -155,17 +157,19 @@ class TestSearchEngine:
         engine.db_path = evil_path  # Override with evil path
 
         with (
-            pytest.raises(ValueError, match="Invalid database path"),
+            pytest.raises(DatabaseError, match="Invalid database path"),
             engine.get_read_only_connection(),
         ):
             pass
 
     def test_search_database_not_found(self, mock_settings):
         """Test search when database doesn't exist."""
+        from scriptrag.exceptions import DatabaseError
+
         engine = SearchEngine(mock_settings)
         query = SearchQuery(raw_query="test")
 
-        with pytest.raises(FileNotFoundError, match="Database not found"):
+        with pytest.raises(DatabaseError, match="Database not found"):
             engine.search(query)
 
     def test_search_simple_query(self, mock_settings, mock_db):

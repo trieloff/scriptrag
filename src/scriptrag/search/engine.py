@@ -8,6 +8,7 @@ from contextlib import AbstractContextManager
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.database.readonly import get_read_only_connection
+from scriptrag.exceptions import DatabaseError
 from scriptrag.search.builder import QueryBuilder
 from scriptrag.search.models import (
     BibleSearchResult,
@@ -51,7 +52,15 @@ class SearchEngine:
         expected_parent = self.settings.database_path.parent.resolve()
 
         if not str(db_path_resolved).startswith(str(expected_parent)):
-            raise ValueError("Invalid database path detected")
+            raise DatabaseError(
+                message=f"Invalid database path: {db_path_resolved}",
+                hint="Path outside expected location. Check config.",
+                details={
+                    "resolved_path": str(db_path_resolved),
+                    "expected_parent": str(expected_parent),
+                    "config_path": str(self.settings.database_path),
+                },
+            )
 
         return get_read_only_connection(self.settings)
 
@@ -92,9 +101,24 @@ class SearchEngine:
 
         # Check if database exists
         if not self.db_path.exists():
-            raise FileNotFoundError(
-                f"Database not found at {self.db_path}. "
-                "Please run 'scriptrag init' first."
+            import os
+            from pathlib import Path
+
+            # Check for common database locations
+            hints = []
+            if Path("scriptrag.db").exists():
+                hints.append("Found scriptrag.db here. Use --database scriptrag.db")
+            else:
+                hints.append("Run 'scriptrag init' to create a new database")
+
+            raise DatabaseError(
+                message=f"Database not found at {self.db_path}",
+                hint=" ".join(hints),
+                details={
+                    "searched_path": str(self.db_path),
+                    "current_dir": str(Path.cwd()),
+                    "env_var": os.environ.get("SCRIPTRAG_DATABASE_PATH", "Not set"),
+                },
             )
 
         with self.get_read_only_connection() as conn:

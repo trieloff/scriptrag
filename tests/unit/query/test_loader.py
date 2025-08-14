@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from scriptrag.config import ScriptRAGSettings
+from scriptrag.exceptions import QueryError, ValidationError
 from scriptrag.query.loader import QueryLoader
 
 
@@ -160,7 +161,7 @@ SELECT * FROM test WHERE id = :id""")
         settings = MagicMock(spec=ScriptRAGSettings)
         loader = QueryLoader(settings)
 
-        with pytest.raises(ValueError, match="Not an SQL file"):
+        with pytest.raises(ValidationError, match="Not an SQL file"):
             loader.load_query(not_sql)
 
     def test_get_query(self, sample_queries, monkeypatch):
@@ -351,7 +352,7 @@ SELECT * FROM test WHERE id = :id""")
         settings = MagicMock(spec=ScriptRAGSettings)
         loader = QueryLoader(settings)
 
-        with pytest.raises(ValueError, match="Failed to parse query file"):
+        with pytest.raises(QueryError, match="Failed to parse query file"):
             loader.load_query(query_file)
 
     def test_validate_sql_syntax_empty(self):
@@ -359,10 +360,10 @@ SELECT * FROM test WHERE id = :id""")
         settings = MagicMock(spec=ScriptRAGSettings)
         loader = QueryLoader(settings)
 
-        with pytest.raises(ValueError, match="Empty SQL statement"):
+        with pytest.raises(ValidationError, match="Empty SQL statement"):
             loader._validate_sql_syntax("")
 
-        with pytest.raises(ValueError, match="Empty SQL statement"):
+        with pytest.raises(ValidationError, match="Empty SQL statement"):
             loader._validate_sql_syntax("   \n  ")
 
     def test_validate_sql_syntax_incomplete(self):

@@ -352,7 +352,12 @@ class FountainParser:
                     )
                 i = j
             elif element.type == TYPE_ACTION:
-                action_lines.append(element.text)
+                # Post-process action lines to extract missed characters
+                # Jouvence misses characters with apostrophes or numbers
+                processed_actions = self._extract_missed_characters(
+                    element.text, dialogue_lines
+                )
+                action_lines.extend(processed_actions)
                 i += 1
             else:
                 i += 1
@@ -457,3 +462,118 @@ class FountainParser:
             + new_scene_text
             + content[scene_start + len(scene_text) :]
         )
+
+    def _extract_missed_characters(
+        self, action_text: str, dialogue_lines: list[Dialogue]
+    ) -> list[str]:
+        """Extract character/dialogue pairs that jouvence missed.
+
+        Jouvence fails to detect characters with:
+        - Apostrophes (e.g., "CHARACTER'S VOICE")
+        - Numbers (e.g., "COP 1", "GUARD #2")
+
+        This method post-processes action text to find these patterns.
+
+        Args:
+            action_text: The action text that may contain missed characters
+            dialogue_lines: List to append found dialogue to
+
+        Returns:
+            List of actual action lines (with character/dialogue pairs removed)
+        """
+        lines = action_text.split("\n")
+        processed_actions = []
+        i = 0
+
+        while i < len(lines):
+            line = lines[i].strip()
+
+            # Check if this looks like a character name
+            # Character names are:
+            # - All uppercase (allowing apostrophes, numbers, spaces, dots, hyphens, #)
+            # - Not scene headings (INT./EXT.)
+            # - Followed by dialogue or parenthetical
+            if line and self._is_character_line(line) and i + 1 < len(lines):
+                # Look for parenthetical and/or dialogue
+                parenthetical = None
+                dialogue_text = []
+                j = i + 1
+
+                # Check for parenthetical
+                if (
+                    j < len(lines)
+                    and lines[j].strip().startswith("(")
+                    and lines[j].strip().endswith(")")
+                ):
+                    parenthetical = lines[j].strip()
+                    j += 1
+
+                # Collect dialogue lines
+                while j < len(lines):
+                    dialogue_line = lines[j].strip()
+                    if (
+                        dialogue_line
+                        and not self._is_character_line(dialogue_line)
+                        and not (
+                            dialogue_line.startswith("(")
+                            and dialogue_line.endswith(")")
+                        )
+                    ):
+                        dialogue_text.append(dialogue_line)
+                        j += 1
+                    else:
+                        break
+
+                # If we found dialogue, add it
+                if dialogue_text:
+                    dialogue_lines.append(
+                        Dialogue(
+                            character=line,
+                            text=" ".join(dialogue_text),
+                            parenthetical=parenthetical,
+                        )
+                    )
+                    i = j  # Skip past the dialogue we just processed
+                    continue
+
+            # If not a character/dialogue pair, keep as action
+            if line:  # Only add non-empty lines
+                processed_actions.append(line)
+            i += 1
+
+        # Return the action lines that weren't character/dialogue
+        return ["\n".join(processed_actions)] if processed_actions else []
+
+    def _is_character_line(self, line: str) -> bool:
+        """Check if a line looks like a character name.
+
+        Character names are:
+        - All uppercase (with some allowed punctuation)
+        - Not scene headings
+        - May contain apostrophes, numbers, spaces, dots, hyphens, #, parentheses
+
+        Args:
+            line: The line to check
+
+        Returns:
+            True if this looks like a character name
+        """
+        if not line:
+            return False
+
+        # Scene headings are not character names
+        scene_prefixes = ["INT.", "EXT.", "EST.", "INT./EXT.", "I/E."]
+        if any(line.startswith(prefix) for prefix in scene_prefixes):
+            return False
+
+        # Remove parenthetical extensions like (CONT'D), (V.O.), (O.S.)
+        # These are valid on character lines
+        base_line = re.sub(r"\s*\([^)]+\)\s*$", "", line).strip()
+
+        # Empty after removing parenthetical
+        if not base_line:
+            return False
+
+        # Check if the base line (without parenthetical) is uppercase with allowed chars
+        # Allow: letters, spaces, apostrophes, dots, hyphens, numbers, #
+        return bool(re.match(r"^[A-Z0-9\s\'\.\-#]+$", base_line))

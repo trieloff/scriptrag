@@ -180,7 +180,7 @@ class TestDatabaseOperations:
             conn.execute(
                 "INSERT INTO scripts (title, author, file_path, metadata) "
                 "VALUES (?, ?, ?, ?)",
-                ("Test", "Author", str(file_path), '{"key": "value"}'),
+                ("Test", "Author", file_path.as_posix(), '{"key": "value"}'),
             )
 
             # Now it should be found
@@ -188,7 +188,7 @@ class TestDatabaseOperations:
             assert record is not None
             assert record.title == "Test"
             assert record.author == "Author"
-            assert record.file_path == str(file_path)
+            assert record.file_path == file_path.as_posix()
             assert record.metadata == {"key": "value"}
 
     def test_upsert_script_insert(self, initialized_db, sample_script):
@@ -204,7 +204,7 @@ class TestDatabaseOperations:
             row = cursor.fetchone()
             assert row["title"] == "Test Script"
             assert row["author"] == "Test Author"
-            assert row["file_path"] == str(file_path)
+            assert row["file_path"] == file_path.as_posix()
 
             metadata = json.loads(row["metadata"])
             assert metadata["genre"] == "drama"

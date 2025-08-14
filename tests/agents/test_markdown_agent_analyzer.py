@@ -194,15 +194,23 @@ class TestMarkdownAgentAnalyzer:
 
         llm_analyzer.llm_client = mock_client
 
-        result = await llm_analyzer.analyze(sample_scene)
+        # Mock context query executor to avoid database dependency
+        with patch.object(
+            llm_analyzer.context_executor, "execute", new_callable=AsyncMock
+        ) as mock_execute:
+            mock_execute.return_value = []  # Empty query results
 
-        assert result["analysis"] == "Scene shows tension"
-        assert result["score"] == 0.8
-        assert result["analyzer"] == "llm_agent"
-        assert result["version"] == "2.0.0"
+            result = await llm_analyzer.analyze(sample_scene)
 
-        # Verify LLM was called
-        mock_client.complete.assert_called_once()
+            assert result["analysis"] == "Scene shows tension"
+            assert result["score"] == 0.8
+            assert result["analyzer"] == "llm_agent"
+            assert result["version"] == "2.0.0"
+
+            # Verify LLM was called
+            mock_client.complete.assert_called_once()
+            # Verify context query was called
+            mock_execute.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_analyze_with_llm_auto_initialize(
@@ -221,10 +229,17 @@ class TestMarkdownAgentAnalyzer:
             "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client",
             return_value=mock_client,
         ):
-            result = await llm_analyzer.analyze(sample_scene)
+            # Mock context query executor to avoid database dependency
+            with patch.object(
+                llm_analyzer.context_executor, "execute", new_callable=AsyncMock
+            ) as mock_execute:
+                mock_execute.return_value = []  # Empty query results
 
-            assert llm_analyzer.llm_client == mock_client
-            assert result["analysis"] == "Initialized and analyzed"
+                result = await llm_analyzer.analyze(sample_scene)
+
+                assert llm_analyzer.llm_client == mock_client
+                assert result["analysis"] == "Initialized and analyzed"
+                mock_execute.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_analyze_with_llm_validation_retry(
@@ -246,17 +261,25 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.side_effect = responses
         llm_analyzer.llm_client = mock_client
 
-        result = await llm_analyzer.analyze(sample_scene)
+        # Mock context query executor to avoid database dependency
+        with patch.object(
+            llm_analyzer.context_executor, "execute", new_callable=AsyncMock
+        ) as mock_execute:
+            mock_execute.return_value = []  # Empty query results
 
-        assert result["analysis"] == "Valid on retry"
-        # Should have called LLM twice
-        assert mock_client.complete.call_count == 2
+            result = await llm_analyzer.analyze(sample_scene)
 
-        # Check temperature increased on retry
-        first_call = mock_client.complete.call_args_list[0]
-        second_call = mock_client.complete.call_args_list[1]
-        assert first_call[0][0].temperature == 0.3
-        assert second_call[0][0].temperature == 0.5
+            assert result["analysis"] == "Valid on retry"
+            # Should have called LLM twice
+            assert mock_client.complete.call_count == 2
+
+            # Check temperature increased on retry
+            first_call = mock_client.complete.call_args_list[0]
+            second_call = mock_client.complete.call_args_list[1]
+            assert first_call[0][0].temperature == 0.3
+            assert second_call[0][0].temperature == 0.5
+            # Should have called context query once
+            mock_execute.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_analyze_with_llm_max_retries_exceeded(
@@ -275,19 +298,27 @@ class TestMarkdownAgentAnalyzer:
 
         llm_analyzer.llm_client = mock_client
 
-        # Should raise ValidationError after 3 attempts
-        with pytest.raises(ValidationError) as exc_info:
-            await llm_analyzer.analyze(sample_scene)
+        # Mock context query executor to avoid database dependency
+        with patch.object(
+            llm_analyzer.context_executor, "execute", new_callable=AsyncMock
+        ) as mock_execute:
+            mock_execute.return_value = []  # Empty query results
 
-        assert "3 attempts" in str(exc_info.value)
-        # Should have tried 3 times
-        assert mock_client.complete.call_count == 3
+            # Should raise ValidationError after 3 attempts
+            with pytest.raises(ValidationError) as exc_info:
+                await llm_analyzer.analyze(sample_scene)
 
-        # Check temperatures increased
-        calls = mock_client.complete.call_args_list
-        assert calls[0][0][0].temperature == 0.3
-        assert calls[1][0][0].temperature == 0.5
-        assert calls[2][0][0].temperature == 0.7
+            assert "3 attempts" in str(exc_info.value)
+            # Should have tried 3 times
+            assert mock_client.complete.call_count == 3
+
+            # Check temperatures increased
+            calls = mock_client.complete.call_args_list
+            assert calls[0][0][0].temperature == 0.3
+            assert calls[1][0][0].temperature == 0.5
+            assert calls[2][0][0].temperature == 0.7
+            # Should have called context query once
+            mock_execute.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_analyze_llm_exception(
@@ -298,25 +329,44 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.side_effect = Exception("LLM error")
         llm_analyzer.llm_client = mock_client
 
-        # When LLM call fails, it returns empty dict which fails validation
-        # This should raise ValidationError after 3 attempts
-        with pytest.raises(ValidationError) as exc_info:
-            await llm_analyzer.analyze(sample_scene)
+        # Mock context query executor to avoid database dependency
+        with patch.object(
+            llm_analyzer.context_executor, "execute", new_callable=AsyncMock
+        ) as mock_execute:
+            mock_execute.return_value = []  # Empty query results
 
-        assert "llm_agent" in str(exc_info.value)
-        assert "3 attempts" in str(exc_info.value)
-        # Should have tried 3 times
-        assert mock_client.complete.call_count == 3
+            # When LLM call fails, it returns empty dict which fails validation
+            # This should raise ValidationError after 3 attempts
+            with pytest.raises(ValidationError) as exc_info:
+                await llm_analyzer.analyze(sample_scene)
+
+            assert "llm_agent" in str(exc_info.value)
+            assert "3 attempts" in str(exc_info.value)
+            # Should have tried 3 times
+            assert mock_client.complete.call_count == 3
+            # Should have called context query once
+            mock_execute.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_execute_context_query(
         self, llm_analyzer: MarkdownAgentAnalyzer, sample_scene: dict
     ) -> None:
-        """Test context query execution (placeholder)."""
-        context = await llm_analyzer._execute_context_query(sample_scene)
+        """Test context query execution with mock."""
+        # Mock context query executor to avoid database dependency
+        with patch.object(
+            llm_analyzer.context_executor, "execute", new_callable=AsyncMock
+        ) as mock_execute:
+            mock_execute.return_value = [
+                {"id": 1, "name": "test"}
+            ]  # Mock query results
 
-        # Currently returns scene as context
-        assert context["scene_data"] == sample_scene
+            context = await llm_analyzer._execute_context_query(sample_scene)
+
+            # Should return scene data and context results
+            assert context["scene_data"] == sample_scene
+            assert "context_results" in context
+            assert "formatted_context" in context
+            mock_execute.assert_called_once()
 
     def test_format_scene_content_full(
         self, analyzer: MarkdownAgentAnalyzer, sample_scene: dict

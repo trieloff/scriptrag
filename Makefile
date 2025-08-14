@@ -217,6 +217,18 @@ coverage-combine: install ## Combine coverage data from parallel test runs
 	uv run coverage html
 	@echo "✅ Combined coverage report generated in htmlcov/"
 
+.PHONY: test-coverage
+test-coverage: test ## Run tests and print detailed coverage report
+	@echo ""
+	@echo "📊 Detailed Coverage Report"
+	@echo "==========================="
+	uv run coverage report --show-missing --skip-covered --skip-empty --sort=cover
+	@echo ""
+	@echo "📈 Coverage Summary:"
+	uv run coverage report --format=total
+	@echo ""
+	@echo "📁 HTML report available in htmlcov/index.html"
+
 # Documentation
 .PHONY: docs
 docs: install ## Build documentation

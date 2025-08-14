@@ -2,6 +2,7 @@
 
 import pytest
 
+from scriptrag.exceptions import ValidationError
 from scriptrag.query.spec import HeaderParser, ParamSpec, QuerySpec
 
 
@@ -191,7 +192,7 @@ class TestParamSpec:
         assert param.cast_value(42) == 42
         assert param.cast_value("42") == 42
 
-        with pytest.raises(ValueError, match="Cannot convert"):
+        with pytest.raises(ValidationError, match="Cannot convert"):
             param.cast_value("not_a_number")
 
     def test_cast_float(self):
@@ -202,7 +203,7 @@ class TestParamSpec:
         assert param.cast_value("3.14") == 3.14
         assert param.cast_value(3) == 3.0
 
-        with pytest.raises(ValueError, match="Cannot convert"):
+        with pytest.raises(ValidationError, match="Cannot convert"):
             param.cast_value("not_a_float")
 
     def test_cast_bool(self):
@@ -227,14 +228,14 @@ class TestParamSpec:
         assert param.cast_value("n") is False
         assert param.cast_value("off") is False
 
-        with pytest.raises(ValueError, match="Cannot convert"):
+        with pytest.raises(ValidationError, match="Cannot convert"):
             param.cast_value("maybe")
 
     def test_required_param(self):
         """Test required parameter validation."""
         param = ParamSpec(name="test", type="str", required=True)
 
-        with pytest.raises(ValueError, match="Required parameter"):
+        with pytest.raises(ValidationError, match="Required parameter"):
             param.cast_value(None)
 
     def test_optional_param_with_default(self):
@@ -253,14 +254,16 @@ class TestParamSpec:
         assert param.cast_value("a") == "a"
         assert param.cast_value("b") == "b"
 
-        with pytest.raises(ValueError, match="Invalid choice"):
+        with pytest.raises(ValidationError, match="Invalid choice"):
             param.cast_value("d")
 
     def test_cast_value_required_none_no_default(self):
         """Test casting None value for required parameter with no default."""
         param_spec = ParamSpec(name="test", type="str", required=True)
 
-        with pytest.raises(ValueError, match="Required parameter 'test' not provided"):
+        with pytest.raises(
+            ValidationError, match="Required parameter 'test' not provided"
+        ):
             param_spec.cast_value(None)
 
     def test_cast_value_float_type(self):
@@ -272,7 +275,7 @@ class TestParamSpec:
         assert param_spec.cast_value(42) == 42.0
 
         # Invalid float conversion
-        with pytest.raises(ValueError, match="Cannot convert 'not_a_float' to float"):
+        with pytest.raises(ValidationError, match="Cannot convert.*to float"):
             param_spec.cast_value("not_a_float")
 
     def test_cast_value_bool_variations(self):
@@ -298,7 +301,7 @@ class TestParamSpec:
         assert param_spec.cast_value("off") is False
 
         # Invalid bool conversion
-        with pytest.raises(ValueError, match="Cannot convert 'maybe' to bool"):
+        with pytest.raises(ValidationError, match="Cannot convert.*to bool"):
             param_spec.cast_value("maybe")
 
     def test_cast_value_unknown_type(self):
@@ -312,7 +315,7 @@ class TestParamSpec:
         param_spec.help = None
         param_spec.choices = None
 
-        with pytest.raises(ValueError, match="Unknown type: unknown"):
+        with pytest.raises(ValidationError, match="Unknown.*type"):
             param_spec.cast_value("value")
 
 

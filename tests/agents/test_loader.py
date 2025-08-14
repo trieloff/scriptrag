@@ -373,9 +373,11 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
-        # Mock context query execution to avoid database dependency
-        with patch.object(analyzer, "_execute_context_query") as mock_context:
-            mock_context.return_value = {"scene_data": {"text": "Test scene", "id": 1}}
+        # Mock context query executor to avoid database dependency
+        with patch.object(
+            analyzer.context_executor, "execute", new_callable=AsyncMock
+        ) as mock_execute:
+            mock_execute.return_value = []  # Empty query results
 
             scene = {"text": "Test scene", "id": 1}
             result = await analyzer.analyze(scene)
@@ -385,6 +387,7 @@ class TestMarkdownAgentAnalyzer:
             assert result["version"] == "2.0.0"
             assert result["property"] == "test-analyzer"  # Property is same as name
             mock_client.complete.assert_called_once()
+            mock_execute.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_analyze_without_llm(self) -> None:
@@ -425,9 +428,11 @@ class TestMarkdownAgentAnalyzer:
             mock_client.complete.return_value = mock_response
             mock_get_client.return_value = mock_client
 
-            # Mock context query execution to avoid database dependency
-            with patch.object(analyzer, "_execute_context_query") as mock_context:
-                mock_context.return_value = {"scene_data": {"text": "Test scene"}}
+            # Mock context query executor to avoid database dependency
+            with patch.object(
+                analyzer.context_executor, "execute", new_callable=AsyncMock
+            ) as mock_execute:
+                mock_execute.return_value = []  # Empty query results
 
                 scene = {"text": "Test scene"}
                 result = await analyzer.analyze(scene)
@@ -435,6 +440,7 @@ class TestMarkdownAgentAnalyzer:
                 # Should have initialized the client
                 mock_get_client.assert_called_once()
                 assert result["result"] == "test"
+                mock_execute.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_analyze_invalid_json_response(self, sample_spec: AgentSpec) -> None:
@@ -449,9 +455,11 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
-        # Mock context query execution to avoid database dependency
-        with patch.object(analyzer, "_execute_context_query") as mock_context:
-            mock_context.return_value = {"scene_data": {"text": "Test scene"}}
+        # Mock context query executor to avoid database dependency
+        with patch.object(
+            analyzer.context_executor, "execute", new_callable=AsyncMock
+        ) as mock_execute:
+            mock_execute.return_value = []  # Empty query results
 
             scene = {"text": "Test scene"}
 
@@ -463,6 +471,8 @@ class TestMarkdownAgentAnalyzer:
             assert "test-analyzer" in str(exc_info.value)
             # Should have tried 3 times
             assert mock_client.complete.call_count == 3
+            # Should have called context query once
+            mock_execute.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_analyze_schema_validation_error(
@@ -481,9 +491,11 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
-        # Mock context query execution to avoid database dependency
-        with patch.object(analyzer, "_execute_context_query") as mock_context:
-            mock_context.return_value = {"scene_data": {"text": "Test scene"}}
+        # Mock context query executor to avoid database dependency
+        with patch.object(
+            analyzer.context_executor, "execute", new_callable=AsyncMock
+        ) as mock_execute:
+            mock_execute.return_value = []  # Empty query results
 
             scene = {"text": "Test scene"}
 
@@ -495,6 +507,8 @@ class TestMarkdownAgentAnalyzer:
             assert "test-analyzer" in str(exc_info.value)
             # Should have tried 3 times
             assert mock_client.complete.call_count == 3
+            # Should have called context query once
+            mock_execute.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_analyze_prompt_formatting(self, sample_spec: AgentSpec) -> None:
@@ -507,11 +521,11 @@ class TestMarkdownAgentAnalyzer:
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
-        # Mock context query execution to avoid database dependency
-        with patch.object(analyzer, "_execute_context_query") as mock_context:
-            mock_context.return_value = {
-                "scene_data": {"heading": "Test scene content", "id": 1}
-            }
+        # Mock context query executor to avoid database dependency
+        with patch.object(
+            analyzer.context_executor, "execute", new_callable=AsyncMock
+        ) as mock_execute:
+            mock_execute.return_value = []  # Empty query results
 
             scene = {"heading": "Test scene content", "id": 1}
             await analyzer.analyze(scene)
@@ -527,6 +541,8 @@ class TestMarkdownAgentAnalyzer:
             assert messages[0]["role"] == "user"
             # The prompt should contain formatted scene content
             assert "SCENE HEADING: Test scene content" in messages[0]["content"]
+            # Should have called context query once
+            mock_execute.assert_called_once()
 
 
 class TestAgentLoader:

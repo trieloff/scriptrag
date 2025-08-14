@@ -6,6 +6,7 @@ on:
     types: [completed]
     # No branch filter - we want to catch failures on all PR branches
     # The workflow already filters by event type (pull_request) in the job condition
+    # Note: This workflow doesn't use Claude Code Action directly due to workflow_run limitations
 
 permissions:
   contents: read
@@ -101,110 +102,132 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
 
-      - name: Run Claude Code for Diagnostic Analysis
+      - name: Analyze Test Failures
         if: steps.pr-info.outputs.pr_found == 'true'
-        id: claude-diagnostics
+        id: analyze-failures
         continue-on-error: true
-        uses: anthropics/claude-code-action@beta
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
-          pr_number: ${{ steps.pr-info.outputs.pr_number }}
+        run: |
+          # Create a script to analyze test failures
+          cat > analyze_failures.sh << 'EOF'
+          #!/bin/bash
+          set -e
 
-          # Grant Claude access to CI logs and tools
-          additional_permissions: |
-            actions: read
-            checks: read
+          PR_NUMBER="${{ steps.pr-info.outputs.pr_number }}"
+          WORKFLOW_RUN_ID="${{ steps.pr-info.outputs.workflow_run_id }}"
+          WORKFLOW_RUN_URL="${{ steps.pr-info.outputs.workflow_run_url }}"
+          IS_TERRAGON="${{ steps.pr-info.outputs.is_terragon }}"
+          TASK_ID="${{ steps.pr-info.outputs.task_id }}"
+          TASK_URL="${{ steps.pr-info.outputs.task_url }}"
 
-          # Allow Claude to use workflow analysis tools
-          allowed_tools: |
-            Bash(gh workflow-peek)
-            Bash(gh api)
-            Bash(gh run view)
-            Bash(gh run download)
+          echo "Analyzing test failures for PR #$PR_NUMBER"
+          echo "Workflow Run ID: $WORKFLOW_RUN_ID"
 
-          # Custom diagnostic prompt
-          direct_prompt: |
-            ## Test Failure Diagnostic Analysis
+          # Get failed jobs information
+          echo "Fetching failed jobs..."
+          FAILED_JOBS=$(gh api "repos/${{ github.repository }}/actions/runs/$WORKFLOW_RUN_ID/jobs" --jq '.jobs[] | select(.conclusion == "failure") | {name: .name, id: .id, url: .html_url}')
 
-            The CI workflow has failed for PR #${{ steps.pr-info.outputs.pr_number }}.
-            Workflow Run: ${{ steps.pr-info.outputs.workflow_run_url }}
+          if [ -z "$FAILED_JOBS" ]; then
+            echo "No failed jobs found."
+            exit 0
+          fi
 
-            Your task is to analyze the test failures and provide a detailed diagnostic report.
+          # Start building the comment
+          COMMENT="## 🔴 CI Build Failed
 
-            ### Instructions:
+          **Workflow Run:** [$WORKFLOW_RUN_ID]($WORKFLOW_RUN_URL)
 
-            1. **Retrieve Failure Information**:
-               - Use the GitHub API or gh CLI to access the failed workflow run ID: ${{ steps.pr-info.outputs.workflow_run_id }}
-               - Use `gh workflow-peek` extension if needed to get detailed logs
-               - Download and analyze job logs for failed steps
+          ### 📊 Failed Jobs
 
-            2. **Analyze the Failures**:
-               - Identify which specific tests or checks failed
-               - Extract relevant error messages and stack traces
-               - Look for patterns in the failures (e.g., all failures in one module, timeout issues, dependency problems)
-               - Check if failures are related to:
-                 * Code syntax errors
-                 * Type checking issues
-                 * Linting violations
-                 * Test assertion failures
-                 * Environment/dependency issues
-                 * Timeout or resource constraints
+          "
 
-            3. **Root Cause Analysis**:
-               - Determine the most likely root cause(s) of the failures
-               - Check if the failures are related to recent code changes in the PR
-               - Identify if failures might be due to:
-                 * Missing test updates after code changes
-                 * Breaking changes in dependencies
-                 * Race conditions or flaky tests
-                 * Platform-specific issues (Windows/macOS/Linux)
-                 * CI environment differences
+          # Process each failed job
+          while IFS= read -r job; do
+            JOB_NAME=$(echo "$job" | jq -r '.name')
+            JOB_ID=$(echo "$job" | jq -r '.id')
+            JOB_URL=$(echo "$job" | jq -r '.url')
 
-            4. **Provide Actionable Recommendations**:
-               - Suggest specific fixes for each identified issue
-               - Include code snippets or commands where applicable
-               - Prioritize fixes by severity and impact
-               - If appropriate, suggest temporary workarounds
+            COMMENT+="#### ❌ $JOB_NAME
+          [View Job]($JOB_URL)
 
-            5. **Format Your Response**:
-               Create a clear, structured comment with:
-               - 📊 **Summary**: Brief overview of the failure
-               - 🔍 **Detailed Analysis**: Specific failures and their causes
-               - 💡 **Recommendations**: Step-by-step fixes
-               - 📝 **Additional Notes**: Any other relevant observations
+          "
 
-            ${{ steps.pr-info.outputs.is_terragon == 'true' && format('6. **Terragon Labs Integration**:
-               - Tag @terragon-labs in your response
-               - Include the Terry task ID: {0}
-               - Provide commands they can use with `terry pull {1}` to fix issues', steps.pr-info.outputs.task_url, steps.pr-info.outputs.task_id) || '' }}
+            # Try to get logs for this job
+            echo "Fetching logs for job $JOB_ID..."
 
-            ### Available Tools:
-            You have access to:
-            - GitHub API via `gh api`
-            - Workflow inspection via `gh workflow-peek`
-            - Run details via `gh run view ${{ steps.pr-info.outputs.workflow_run_id }}`
-            - Log downloads via `gh run download ${{ steps.pr-info.outputs.workflow_run_id }}`
+            # Method 1: Try gh-workflow-peek if available
+            if gh extension list | grep -q "workflow-peek"; then
+              echo "Using gh-workflow-peek to analyze job $JOB_ID..."
+              PEEK_OUTPUT=$(gh workflow-peek "$WORKFLOW_RUN_ID" --job "$JOB_ID" 2>/dev/null || echo "")
+              if [ -n "$PEEK_OUTPUT" ]; then
+                # Extract key error patterns
+                ERROR_PATTERNS=$(echo "$PEEK_OUTPUT" | grep -E "(FAILED|ERROR|FAIL|AssertionError|TypeError|SyntaxError)" | head -10 || echo "")
+                if [ -n "$ERROR_PATTERNS" ]; then
+                  COMMENT+="**Error Patterns Detected:**
+          \`\`\`
+          $ERROR_PATTERNS
+          \`\`\`
 
-            Be thorough but concise. Focus on providing actionable insights that will help the developer quickly resolve the failures.
+          "
+                fi
+              fi
+            else
+              # Method 2: Try to get annotations (error messages) from the API
+              echo "Fetching annotations for job $JOB_ID..."
+              ANNOTATIONS=$(gh api "repos/${{ github.repository }}/check-runs?check_suite_id=$JOB_ID" --jq '.check_runs[].output.annotations[]? | "\(.annotation_level): \(.message)"' 2>/dev/null || echo "")
+              if [ -n "$ANNOTATIONS" ]; then
+                COMMENT+="**Error Messages:**
+          \`\`\`
+          $(echo "$ANNOTATIONS" | head -10)
+          \`\`\`
 
-          # Custom instructions for diagnostic behavior
-          custom_instructions: |
-            You are a CI/CD diagnostic specialist. Your role is to:
-            - Quickly identify and analyze test failures
-            - Provide clear, actionable diagnostic information
-            - Help developers understand why their tests failed
-            - Suggest specific fixes with code examples when possible
-            - Be encouraging and constructive in your feedback
+          "
+              fi
+            fi
+          done <<< "$(echo "$FAILED_JOBS" | jq -c '.')"
 
-            Always structure your response for maximum clarity and actionability.
-            Use markdown formatting, code blocks, and emojis to make the report easy to scan.
+          # Add recommendations
+          COMMENT+="### 💡 Quick Debugging Commands
 
-            Focus on being helpful rather than critical. Remember that test failures are
-            opportunities to improve code quality.
+          \`\`\`bash
+          # Check all quality issues locally
+          make check-fast
+
+          # Run specific checks that commonly fail
+          make lint
+          make type-check
+          make test
+          \`\`\`
+          "
+
+          # Add Terragon Labs section if applicable
+          if [ "$IS_TERRAGON" = "true" ] && [ -n "$TASK_ID" ]; then
+            COMMENT+="
+
+          ---
+          @terragon-labs This CI failure needs investigation.
+          - [Terry Task]($TASK_URL)
+          - Use \`terry pull $TASK_ID\` to continue working on this task."
+          fi
+
+          COMMENT+="
+
+          ---
+          _This is an automated diagnostic message. For detailed logs, please check the [workflow run]($WORKFLOW_RUN_URL)._"
+
+          # Post the comment
+          echo "Posting diagnostic comment to PR #$PR_NUMBER..."
+          gh pr comment "$PR_NUMBER" --body "$COMMENT"
+
+          echo "Diagnostic comment posted successfully."
+          EOF
+
+          chmod +x analyze_failures.sh
+          ./analyze_failures.sh
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
 
       - name: Post Fallback Comment on Failure
-        if: steps.pr-info.outputs.pr_found == 'true' && steps.claude-diagnostics.outcome == 'failure'
+        if: steps.pr-info.outputs.pr_found == 'true' && steps.analyze-failures.outcome == 'failure'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
@@ -254,7 +277,7 @@ jobs:
             comment.push(
               '',
               '---',
-              '_This is an automated message. Claude diagnostic analysis failed to complete._'
+              '_This is an automated message. Diagnostic analysis failed to complete._'
             );
 
             await github.rest.issues.createComment({

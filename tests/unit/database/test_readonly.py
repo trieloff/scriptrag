@@ -378,3 +378,63 @@ class TestGetReadOnlyConnection:
                 get_read_only_connection(settings),
             ):
                 pass
+
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="Unix-specific path traversal test"
+    )
+    def test_path_traversal_attacks_blocked(self):
+        """Test that path traversal attacks are blocked."""
+        from pathlib import Path
+        from unittest.mock import MagicMock
+
+        # Test various path traversal attack vectors
+        attack_paths = [
+            "/root/repo/../../../etc/passwd",  # Escape to /etc/passwd
+            "/root/repo/../../../home/user/.ssh/id_rsa",  # Access SSH keys
+            "/root/repo/../../etc/shadow",  # Access shadow file
+            "/root/repo/../projects/secret.db",  # Escape to sibling directory
+            "/root/repo/./../../etc/hosts",  # With current directory
+            "/root/repo/subdir/../../../../../../etc/passwd",  # Deep traversal
+            "/root/repo/../repo/../../../etc/passwd",  # Complex traversal
+        ]
+
+        for attack_path in attack_paths:
+            settings = MagicMock(spec=ScriptRAGSettings)
+            settings.database_path = Path(attack_path)
+            settings.database_timeout = 30.0
+            settings.database_cache_size = -2000
+            settings.database_temp_store = "MEMORY"
+
+            # All path traversal attempts should be blocked
+            with (
+                pytest.raises(ValueError, match="Invalid database path detected"),
+                get_read_only_connection(settings),
+            ):
+                pass
+
+    def test_legitimate_repo_paths_allowed(self):
+        """Test that legitimate /root/repo paths are allowed."""
+        from pathlib import Path
+        from unittest.mock import MagicMock, patch
+
+        # Test legitimate paths within /root/repo
+        legitimate_paths = [
+            "/root/repo/scriptrag.db",
+            "/root/repo/data/database.db",
+            "/root/repo/subdir/nested/deep/file.db",
+        ]
+
+        for legit_path in legitimate_paths:
+            settings = MagicMock(spec=ScriptRAGSettings)
+            settings.database_path = Path(legit_path)
+            settings.database_timeout = 30.0
+            settings.database_cache_size = -2000
+            settings.database_temp_store = "MEMORY"
+
+            with patch("sqlite3.connect") as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                # These should be allowed
+                with get_read_only_connection(settings) as conn:
+                    assert conn == mock_conn

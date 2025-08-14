@@ -155,11 +155,29 @@ def get_read_only_connection(
                 raise ValueError("Invalid database path detected")
 
         # Special handling for /root/ paths (common in containers)
-        if db_path_str.startswith("/root/") and not (
-            db_path_str.startswith("/root/repo/")
-            or _is_temp_directory(db_path_str, path_parts)
-        ):
-            raise ValueError("Invalid database path detected")
+        # SECURITY: Prevent path traversal attacks like /root/repo/../../../etc/passwd
+        if db_path_str.startswith("/root/"):
+            from pathlib import Path
+
+            try:
+                # Get the resolved path
+                resolved_path = Path(db_path_str).resolve()
+                allowed_repo_path = Path("/root/repo").resolve()
+
+                # Check if resolved path is actually within /root/repo/
+                resolved_str = str(resolved_path)
+                allowed_str = str(allowed_repo_path)
+
+                # Path must be within /root/repo/ or be a temp directory
+                if not (
+                    resolved_str.startswith(allowed_str + "/")
+                    or resolved_str == allowed_str
+                    or _is_temp_directory(db_path_str, path_parts)
+                ):
+                    raise ValueError("Invalid database path detected")
+            except (OSError, ValueError) as e:
+                # Any resolution errors should be treated as invalid paths
+                raise ValueError("Invalid database path detected") from e
 
         # Validate Windows user directories
         if (

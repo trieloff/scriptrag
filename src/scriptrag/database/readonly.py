@@ -121,7 +121,7 @@ def get_read_only_connection(
         for prefix in disallowed_prefixes:
             if db_path_str.startswith(prefix):
                 # Exception: Allow macOS temporary directories in /private/var/folders/
-                if prefix == "/var/" and "/private/var/folders/" in db_path_str:
+                if prefix == "/var" and "/private/var/folders/" in db_path_str:
                     continue
                 # Exception: Allow temp directories and CI environments
                 if _is_temp_directory(db_path_str, path_parts):

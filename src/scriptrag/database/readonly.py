@@ -76,8 +76,13 @@ def get_read_only_connection(
         # SECURITY: Check for path traversal BEFORE resolving
         db_path_original = settings.database_path
 
+        # Early check for obviously invalid system paths
+        db_path_str_original = str(db_path_original)
+        if db_path_str_original in ["/etc/passwd", "/etc/shadow", "/etc/hosts"]:
+            raise ValueError("Invalid database path detected")
+
         # Check for path traversal components before resolution
-        path_parts_original = str(db_path_original).replace("\\", "/").split("/")
+        path_parts_original = db_path_str_original.replace("\\", "/").split("/")
         if ".." in path_parts_original:
             raise ValueError("Invalid database path detected")
 
@@ -90,8 +95,8 @@ def get_read_only_connection(
         path_components_lower = [part.lower() for part in path_parts]
 
         # List of disallowed paths for security (cross-platform)
-        # Unix-style paths
-        disallowed_prefixes = ["/etc/", "/usr/", "/var/", "/bin/", "/sbin/"]
+        # Unix-style paths (also check without trailing slash for exact matches)
+        disallowed_prefixes = ["/etc", "/usr", "/var", "/bin", "/sbin"]
         # Windows-style paths
         windows_disallowed = [
             "C:\\Windows",
@@ -114,7 +119,7 @@ def get_read_only_connection(
 
         # Check if path is in a disallowed location (Unix-style)
         for prefix in disallowed_prefixes:
-            if db_path_str.startswith(prefix) or prefix in db_path_str:
+            if db_path_str.startswith(prefix):
                 # Exception: Allow macOS temporary directories in /private/var/folders/
                 if prefix == "/var/" and "/private/var/folders/" in db_path_str:
                     continue

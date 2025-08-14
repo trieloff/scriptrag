@@ -1,5 +1,6 @@
 """Tests for read-only database connection utilities."""
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -247,6 +248,7 @@ class TestGetReadOnlyConnection:
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Unix-specific path test")
     def test_root_malicious_repo_blocked(self):
         """Test that malicious paths with 'repo' in name are blocked."""
         from pathlib import Path
@@ -267,6 +269,7 @@ class TestGetReadOnlyConnection:
         ):
             pass
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="Unix-specific path test")
     def test_root_other_dirs_blocked(self):
         """Test that other /root/ directories are blocked."""
         from pathlib import Path
@@ -307,6 +310,7 @@ class TestGetReadOnlyConnection:
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="macOS-specific path test")
     def test_macos_users_directory_allowed(self):
         """Test that macOS /Users/ directories are allowed."""
         from pathlib import Path

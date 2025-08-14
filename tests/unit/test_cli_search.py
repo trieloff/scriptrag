@@ -6,6 +6,7 @@ import pytest
 import typer
 
 from scriptrag.cli.commands.search import search_command
+from scriptrag.exceptions import DatabaseError
 from scriptrag.search.models import (
     SearchMode,
     SearchQuery,
@@ -203,24 +204,18 @@ class TestSearchCommand:
         with pytest.raises(typer.Exit) as exc_info:
             search_command("test query", fuzzy=True, strict=True)
 
-        # Verify error handling - Exit(1) gets caught by generic handler
+        # Verify error handling
         assert exc_info.value.exit_code == 1
 
-        # The first print should be the specific conflict error
-        # The second print should be the generic error handler message
-        assert mock_console.print.call_count == 2
-        mock_console.print.assert_any_call(
+        # Only one print should happen - the specific conflict error
+        assert mock_console.print.call_count == 1
+        mock_console.print.assert_called_once_with(
             "[red]Error:[/red] Cannot use both --fuzzy and --strict options",
             style="bold",
         )
-        mock_console.print.assert_any_call(
-            "[red]Error:[/red] Search operation failed. "
-            "Please check the logs for details.",
-            style="bold",
-        )
 
-        # Verify logger was called for the Exit exception
-        mock_logger.error.assert_called_once()
+        # Logger should not be called for simple validation errors
+        mock_logger.error.assert_not_called()
 
         # Verify SearchAPI.from_config WAS called (happens before validation)
         mock_search_api.from_config.assert_called_once()
@@ -421,12 +416,17 @@ class TestSearchCommand:
             )
             mock_formatter_instance.format_brief.assert_not_called()
 
-    def test_file_not_found_error(self, mock_console, mock_search_api, mock_formatter):
-        """Test handling of FileNotFoundError."""
-        # Setup mock to raise FileNotFoundError
-        mock_search_api.from_config.side_effect = FileNotFoundError(
-            "Database not found"
-        )
+    @patch("scriptrag.cli.commands.search.handle_cli_error")
+    def test_file_not_found_error(
+        self, mock_handle_error, mock_console, mock_search_api, mock_formatter
+    ):
+        """Test handling of DatabaseError (was FileNotFoundError)."""
+        # Setup mock to raise DatabaseError
+        error = DatabaseError("Database not found")
+        mock_search_api.from_config.side_effect = error
+
+        # Setup handle_cli_error to raise Exit
+        mock_handle_error.side_effect = typer.Exit(1)
 
         # Execute command and expect Exit
         with pytest.raises(typer.Exit) as exc_info:
@@ -434,20 +434,27 @@ class TestSearchCommand:
 
         # Verify error handling
         assert exc_info.value.exit_code == 1
-        mock_console.print.assert_called_once_with(
-            "[red]Error:[/red] Database not found",
-            style="bold",
-        )
+        # Verify that handle_cli_error was called with the error
+        mock_handle_error.assert_called_once()
+        args = mock_handle_error.call_args[0]
+        assert isinstance(args[0], DatabaseError)
+        assert str(args[0]) == "Error: Database not found"
 
+    @patch("scriptrag.cli.commands.search.handle_cli_error")
     def test_search_api_initialization_error(
         self,
+        mock_handle_error,
         mock_console,
         mock_search_api,
         mock_formatter,
     ):
         """Test handling of SearchAPI initialization error."""
         # Setup mock to raise generic error during initialization
-        mock_search_api.from_config.side_effect = RuntimeError("Config error")
+        error = RuntimeError("Config error")
+        mock_search_api.from_config.side_effect = error
+
+        # Setup handle_cli_error to raise Exit
+        mock_handle_error.side_effect = typer.Exit(1)
 
         # Execute command and expect Exit
         with pytest.raises(typer.Exit) as exc_info:
@@ -455,14 +462,16 @@ class TestSearchCommand:
 
         # Verify error handling
         assert exc_info.value.exit_code == 1
-        mock_console.print.assert_called_once_with(
-            "[red]Error:[/red] Search operation failed. "
-            "Please check the logs for details.",
-            style="bold",
-        )
+        # Verify that handle_cli_error was called with the error
+        mock_handle_error.assert_called_once()
+        args = mock_handle_error.call_args[0]
+        assert isinstance(args[0], RuntimeError)
+        assert str(args[0]) == "Config error"
 
+    @patch("scriptrag.cli.commands.search.handle_cli_error")
     def test_search_execution_error(
         self,
+        mock_handle_error,
         mock_console,
         mock_search_api,
         mock_formatter,
@@ -471,8 +480,12 @@ class TestSearchCommand:
         """Test handling of search execution error."""
         # Setup mocks
         mock_api_instance = Mock()
-        mock_api_instance.search.side_effect = RuntimeError("Search failed")
+        error = RuntimeError("Search failed")
+        mock_api_instance.search.side_effect = error
         mock_search_api.from_config.return_value = mock_api_instance
+
+        # Setup handle_cli_error to raise Exit
+        mock_handle_error.side_effect = typer.Exit(1)
 
         # Execute command and expect Exit
         with pytest.raises(typer.Exit) as exc_info:
@@ -480,15 +493,16 @@ class TestSearchCommand:
 
         # Verify error handling
         assert exc_info.value.exit_code == 1
-        mock_logger.error.assert_called_once_with("Search failed: %s", "Search failed")
-        mock_console.print.assert_called_once_with(
-            "[red]Error:[/red] Search operation failed. "
-            "Please check the logs for details.",
-            style="bold",
-        )
+        # Verify that handle_cli_error was called with the error
+        mock_handle_error.assert_called_once()
+        args = mock_handle_error.call_args[0]
+        assert isinstance(args[0], RuntimeError)
+        assert str(args[0]) == "Search failed"
 
+    @patch("scriptrag.cli.commands.search.handle_cli_error")
     def test_formatter_error(
         self,
+        mock_handle_error,
         mock_console,
         mock_search_api,
         mock_formatter,
@@ -502,10 +516,12 @@ class TestSearchCommand:
         mock_search_api.from_config.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
-        mock_formatter_instance.format_results.side_effect = RuntimeError(
-            "Format error"
-        )
+        error = RuntimeError("Format error")
+        mock_formatter_instance.format_results.side_effect = error
         mock_formatter.return_value = mock_formatter_instance
+
+        # Setup handle_cli_error to raise Exit
+        mock_handle_error.side_effect = typer.Exit(1)
 
         # Execute command and expect Exit
         with pytest.raises(typer.Exit) as exc_info:
@@ -513,10 +529,16 @@ class TestSearchCommand:
 
         # Verify error handling
         assert exc_info.value.exit_code == 1
-        mock_logger.error.assert_called_once_with("Search failed: %s", "Format error")
+        # Verify that handle_cli_error was called with the error
+        mock_handle_error.assert_called_once()
+        args = mock_handle_error.call_args[0]
+        assert isinstance(args[0], RuntimeError)
+        assert str(args[0]) == "Format error"
 
+    @patch("scriptrag.cli.commands.search.handle_cli_error")
     def test_brief_formatter_error(
         self,
+        mock_handle_error,
         mock_console,
         mock_search_api,
         mock_formatter,
@@ -530,10 +552,12 @@ class TestSearchCommand:
         mock_search_api.from_config.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
-        mock_formatter_instance.format_brief.side_effect = RuntimeError(
-            "Brief format error"
-        )
+        error = RuntimeError("Brief format error")
+        mock_formatter_instance.format_brief.side_effect = error
         mock_formatter.return_value = mock_formatter_instance
+
+        # Setup handle_cli_error to raise Exit
+        mock_handle_error.side_effect = typer.Exit(1)
 
         # Execute command and expect Exit
         with pytest.raises(typer.Exit) as exc_info:
@@ -541,9 +565,11 @@ class TestSearchCommand:
 
         # Verify error handling
         assert exc_info.value.exit_code == 1
-        mock_logger.error.assert_called_once_with(
-            "Search failed: %s", "Brief format error"
-        )
+        # Verify that handle_cli_error was called with the error
+        mock_handle_error.assert_called_once()
+        args = mock_handle_error.call_args[0]
+        assert isinstance(args[0], RuntimeError)
+        assert str(args[0]) == "Brief format error"
 
     def test_default_parameters(
         self,

@@ -1,7 +1,7 @@
 """Unit tests for MCP scene management tools."""
-# ruff: noqa: S105,S106
+# ruff: noqa: S105, S106
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,6 +15,12 @@ from scriptrag.api.scene_management import (
 )
 from scriptrag.mcp.tools.scene import register_scene_tools
 from scriptrag.parser import Scene
+
+# Python 3.11 compatibility for UTC
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc  # noqa: UP017
 
 
 @pytest.fixture

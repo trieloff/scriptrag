@@ -132,8 +132,11 @@ class TestClaudeCodeProvider:
     @pytest.mark.asyncio
     async def test_is_available_with_sdk(self, provider):
         """Test availability check with SDK available."""
-        with patch("scriptrag.llm.providers.claude_code.claude_code_sdk") as mock_sdk:
-            mock_sdk.ClaudeCodeOptions = MagicMock()
+        # Mock claude_code_sdk at import level since it's imported inside the method
+        mock_sdk = MagicMock()
+        mock_sdk.ClaudeCodeOptions = MagicMock()
+
+        with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
             result = await provider.is_available()
             assert result is True
 

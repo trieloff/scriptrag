@@ -1561,17 +1561,8 @@ A test scene.
         assert result.exit_code == 0
         output = strip_ansi_codes(result.stdout)
         assert "COFFEE SHOP" in output
-        assert "Session Token:" in output or "session" in output.lower()
-
-        # Extract session token from output (if present)
-        session_token = None
-        for line in output.split("\n"):
-            if "Session Token:" in line or "Token:" in line:
-                # Token is usually the last word on the line
-                parts = line.split()
-                if parts:
-                    session_token = parts[-1]
-                    break
+        # Check for timestamp instead of token (simplified scene management)
+        assert "Last read:" in output or "last read:" in output.lower()
 
         # Test 2: Read scene with JSON output
         result = runner.invoke(

@@ -2,7 +2,6 @@
 
 import sqlite3
 import tempfile
-from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -10,11 +9,8 @@ import pytest
 
 from scriptrag.api.scene_management import (
     FountainValidator,
-    ReadSession,
-    ReadTracker,
     SceneIdentifier,
     SceneManagementAPI,
-    SessionValidationResult,
     ValidationResult,
 )
 from scriptrag.parser import Scene
@@ -32,40 +28,6 @@ class TestSceneIdentifierExtended:
         """Test parsing with wrong number of parts."""
         with pytest.raises(ValueError, match="Invalid scene key format"):
             SceneIdentifier.from_string("too:many:parts:here:extra")
-
-
-class TestReadSessionDataclass:
-    """Test ReadSession dataclass functionality."""
-
-    def test_read_session_creation(self):
-        """Test ReadSession creation with defaults."""
-        now = datetime.utcnow()
-        expires = now + timedelta(minutes=10)
-        session = ReadSession(
-            scene_key="test:001",
-            content_hash="hash123",
-            read_at=now,
-            expires_at=expires,
-            reader_id="test_reader",
-        )
-        assert session.scene_key == "test:001"
-        assert session.content_hash == "hash123"
-        assert session.token is not None
-        assert len(session.token) > 0
-
-    def test_read_session_custom_token(self):
-        """Test ReadSession with custom token."""
-        now = datetime.utcnow()
-        expires = now + timedelta(minutes=10)
-        session = ReadSession(
-            scene_key="test:001",
-            content_hash="hash123",
-            read_at=now,
-            expires_at=expires,
-            reader_id="test_reader",
-            token="custom-token",  # noqa: S106
-        )
-        assert session.token == "custom-token"  # noqa: S105
 
 
 class TestValidationResultDataclass:
@@ -89,50 +51,6 @@ class TestValidationResultDataclass:
         assert result.is_valid is False
         assert len(result.errors) == 2
         assert len(result.warnings) == 1
-
-
-class TestSessionValidationResult:
-    """Test SessionValidationResult dataclass."""
-
-    def test_session_validation_success(self):
-        """Test successful session validation."""
-        result = SessionValidationResult(
-            is_valid=True,
-            error=None,
-            original_hash="hash123",
-        )
-        assert result.is_valid is True
-        assert result.error is None
-        assert result.original_hash == "hash123"
-
-
-class TestReadTrackerExtended:
-    """Extended tests for ReadTracker."""
-
-    def test_cleanup_expired_sessions(self):
-        """Test cleanup of expired sessions."""
-        tracker = ReadTracker(validation_window=1)  # 1 second window
-
-        # Register multiple sessions
-        token1 = tracker.register_read("scene1", "hash1", "reader1")
-        token2 = tracker.register_read("scene2", "hash2", "reader2")
-
-        # Wait for expiration
-        import time
-
-        time.sleep(2)
-
-        # Register new session (triggers cleanup)
-        token3 = tracker.register_read("scene3", "hash3", "reader3")
-
-        # Old sessions should be cleaned up
-        result1 = tracker.validate_session(token1, "scene1")
-        result2 = tracker.validate_session(token2, "scene2")
-        result3 = tracker.validate_session(token3, "scene3")
-
-        assert result1.is_valid is False
-        assert result2.is_valid is False
-        assert result3.is_valid is True
 
 
 class TestFountainValidatorExtended:
@@ -603,7 +521,6 @@ class TestSceneManagementAPIExtended:
             assert result.success is False
             assert "Database error" in result.error
             assert result.scene is None
-            assert result.session_token is None
 
     @pytest.mark.asyncio
     async def test_update_scene_exception(self, api):
@@ -612,18 +529,10 @@ class TestSceneManagementAPIExtended:
         content = "INT. SCENE - DAY\n\nContent"
         token = "test-token"  # noqa: S105
 
-        # Setup valid session
-        api.read_tracker.register_read(
-            scene_key=scene_id.key,
-            content_hash="hash",
-            reader_id="test",
-        )
-        token = next(iter(api.read_tracker._sessions.keys()))
-
         with patch.object(
             api.db_ops, "transaction", side_effect=Exception("Database error")
         ):
-            result = await api.update_scene(scene_id, content, token)
+            result = await api.update_scene(scene_id, content, check_conflicts=False)
 
             assert result.success is False
             assert "Database error" in result.error
@@ -635,21 +544,15 @@ class TestSceneManagementAPIExtended:
         scene_id = SceneIdentifier("test", 1)
         content = "INT. SCENE - DAY\n\nContent"
 
-        # Setup valid session
-        api.read_tracker.register_read(
-            scene_key=scene_id.key,
-            content_hash="hash",
-            reader_id="test",
-        )
-        token = next(iter(api.read_tracker._sessions.keys()))
-
         with patch.object(api.db_ops, "transaction") as mock_trans:
             mock_conn = mock_trans().__enter__()
             with patch.object(api, "_get_scene_by_id", return_value=None):
-                result = await api.update_scene(scene_id, content, token)
+                result = await api.update_scene(
+                    scene_id, content, check_conflicts=False
+                )
 
                 assert result.success is False
-                assert "no longer exists" in result.error
+                assert "Scene not found" in result.error
                 assert "SCENE_NOT_FOUND" in result.validation_errors
 
     @pytest.mark.asyncio

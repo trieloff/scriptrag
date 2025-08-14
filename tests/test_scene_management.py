@@ -1,12 +1,12 @@
 """Tests for AI-friendly scene management functionality."""
 
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
 
 from scriptrag.api.scene_management import (
     FountainValidator,
-    ReadTracker,
     SceneIdentifier,
     SceneManagementAPI,
 )
@@ -54,95 +54,6 @@ class TestSceneIdentifier:
         """Test parsing invalid scene key."""
         with pytest.raises(ValueError, match="Invalid scene key format"):
             SceneIdentifier.from_string("invalid:key:format:extra")
-
-
-class TestReadTracker:
-    """Test read session tracking."""
-
-    def test_register_read(self):
-        """Test registering a read session."""
-        tracker = ReadTracker(validation_window=600)
-        token = tracker.register_read(
-            scene_key="test:001",
-            content_hash="abc123",
-            reader_id="test_reader",
-        )
-
-        assert token is not None
-        assert len(token) > 0
-
-    def test_validate_valid_session(self):
-        """Test validating a valid session."""
-        tracker = ReadTracker(validation_window=600)
-        token = tracker.register_read(
-            scene_key="test:001",
-            content_hash="abc123",
-            reader_id="test_reader",
-        )
-
-        result = tracker.validate_session(token, "test:001")
-        assert result.is_valid is True
-        assert result.error is None
-        assert result.original_hash == "abc123"
-
-    def test_validate_expired_session(self):
-        """Test validating an expired session."""
-        tracker = ReadTracker(validation_window=1)  # 1 second window
-        token = tracker.register_read(
-            scene_key="test:001",
-            content_hash="abc123",
-            reader_id="test_reader",
-        )
-
-        # Wait for expiration
-        import time
-
-        time.sleep(2)
-
-        result = tracker.validate_session(token, "test:001")
-        assert result.is_valid is False
-        assert "expired" in result.error.lower()
-
-    def test_validate_wrong_scene(self):
-        """Test validating session for wrong scene."""
-        tracker = ReadTracker(validation_window=600)
-        token = tracker.register_read(
-            scene_key="test:001",
-            content_hash="abc123",
-            reader_id="test_reader",
-        )
-
-        result = tracker.validate_session(token, "test:002")
-        assert result.is_valid is False
-        assert "test:001" in result.error
-        assert "test:002" in result.error
-
-    def test_validate_invalid_token(self):
-        """Test validating invalid token."""
-        tracker = ReadTracker(validation_window=600)
-        result = tracker.validate_session("invalid_token", "test:001")
-        assert result.is_valid is False
-        assert "not found" in result.error.lower()
-
-    def test_invalidate_session(self):
-        """Test invalidating a session."""
-        tracker = ReadTracker(validation_window=600)
-        token = tracker.register_read(
-            scene_key="test:001",
-            content_hash="abc123",
-            reader_id="test_reader",
-        )
-
-        # Session should be valid
-        result = tracker.validate_session(token, "test:001")
-        assert result.is_valid is True
-
-        # Invalidate the session
-        tracker.invalidate_session(token)
-
-        # Session should now be invalid
-        result = tracker.validate_session(token, "test:001")
-        assert result.is_valid is False
 
 
 class TestFountainValidator:
@@ -252,8 +163,7 @@ class TestSceneManagementAPI:
         assert result.success is True
         assert result.error is None
         assert result.scene == mock_scene
-        assert result.session_token is not None
-        assert result.expires_at is not None
+        assert result.last_read is not None
 
     @pytest.mark.asyncio
     async def test_read_scene_not_found(self, api):
@@ -266,34 +176,23 @@ class TestSceneManagementAPI:
         assert result.success is False
         assert "not found" in result.error.lower()
         assert result.scene is None
-        assert result.session_token is None
+        assert result.last_read is None
 
     @pytest.mark.asyncio
     async def test_update_scene_success(self, api):
-        """Test successful scene update."""
+        """Test successful scene update without conflict checking."""
         scene_id = SceneIdentifier("test_project", 1)
         new_content = """INT. UPDATED SCENE - DAY
 
 Updated content here."""
 
-        # Setup read session with correct hash
-        import hashlib
-
-        original_content = "Original content"
-        api.read_tracker.register_read(
-            scene_key=scene_id.key,
-            content_hash=hashlib.sha256(original_content.encode()).hexdigest(),
-            reader_id="test_reader",
-        )
-        token = next(iter(api.read_tracker._sessions.keys()))
-
-        # Mock current scene (with matching hash)
+        # Mock current scene
         mock_scene = Scene(
             number=1,
             heading="INT. TEST SCENE - DAY",
-            content=original_content,
-            original_text=original_content,
-            content_hash=hashlib.sha256(original_content.encode()).hexdigest(),
+            content="Original content",
+            original_text="Original content",
+            content_hash="original_hash",
         )
 
         # Mock updated scene
@@ -307,8 +206,9 @@ Updated content here."""
 
         with patch.object(api, "_get_scene_by_id", return_value=mock_scene):
             with patch.object(api, "_update_scene_content", return_value=updated_scene):
+                # Update without conflict checking (simple mode)
                 result = await api.update_scene(
-                    scene_id, new_content, token, "test_reader"
+                    scene_id, new_content, check_conflicts=False
                 )
 
         assert result.success is True
@@ -322,65 +222,72 @@ Updated content here."""
         scene_id = SceneIdentifier("test_project", 1)
         invalid_content = "Not a valid scene"
 
-        # Setup read session
-        token = api.read_tracker.register_read(
-            scene_key=scene_id.key,
-            content_hash="original_hash",
-            reader_id="test_reader",
+        result = await api.update_scene(
+            scene_id, invalid_content, check_conflicts=False
         )
-
-        result = await api.update_scene(scene_id, invalid_content, token, "test_reader")
 
         assert result.success is False
         assert "Invalid Fountain format" in result.error
         assert len(result.validation_errors) > 0
 
     @pytest.mark.asyncio
-    async def test_update_scene_expired_session(self, api):
-        """Test updating scene with expired session."""
+    async def test_update_scene_with_safe_mode_missing_timestamp(self, api):
+        """Test updating scene with safe mode but missing timestamp."""
         scene_id = SceneIdentifier("test_project", 1)
         new_content = """INT. UPDATED SCENE - DAY
 
 Updated content."""
 
-        result = await api.update_scene(
-            scene_id, new_content, "expired_token", "test_reader"
+        # Mock that scene exists
+        mock_scene = Scene(
+            number=1,
+            heading="INT. TEST SCENE - DAY",
+            content="Original content",
+            original_text="Original content",
+            content_hash="original_hash",
         )
 
+        with patch.object(api, "_get_scene_by_id", return_value=mock_scene):
+            # Try to update with conflict checking but no last_read timestamp
+            result = await api.update_scene(
+                scene_id, new_content, check_conflicts=True, last_read=None
+            )
+
         assert result.success is False
-        assert result.error is not None
-        assert "SESSION_INVALID" in result.validation_errors
+        assert "last_read timestamp required" in result.error
+        assert "MISSING_TIMESTAMP" in result.validation_errors
 
     @pytest.mark.asyncio
     async def test_update_scene_concurrent_modification(self, api):
-        """Test concurrent modification detection."""
+        """Test concurrent modification detection with safe mode."""
         scene_id = SceneIdentifier("test_project", 1)
         new_content = """INT. UPDATED SCENE - DAY
 
 Updated content."""
 
-        # Setup read session with original hash
-        api.read_tracker.register_read(
-            scene_key=scene_id.key,
-            content_hash="original_hash",
-            reader_id="test_reader",
-        )
-        token = next(iter(api.read_tracker._sessions.keys()))
+        # Timestamp when scene was last read
+        last_read = datetime.utcnow() - timedelta(minutes=5)
 
-        # Mock scene with different hash (modified by another process)
+        # Mock scene that was modified after the read
         mock_scene = Scene(
             number=1,
             heading="INT. TEST SCENE - DAY",
             content="Modified by another process",
             original_text="Modified by another process",
-            content_hash="different_hash",  # Different from original
+            content_hash="different_hash",
         )
 
+        # Mock that scene was modified after our last read
+        last_modified = datetime.utcnow()  # Modified just now
+
         with patch.object(api, "_get_scene_by_id", return_value=mock_scene):
-            result = await api.update_scene(scene_id, new_content, token, "test_reader")
+            with patch.object(api, "_get_last_modified", return_value=last_modified):
+                result = await api.update_scene(
+                    scene_id, new_content, check_conflicts=True, last_read=last_read
+                )
 
         assert result.success is False
-        assert "modified by another process" in result.error.lower()
+        assert "modified since last read" in result.error.lower()
         assert "CONCURRENT_MODIFICATION" in result.validation_errors
 
     @pytest.mark.asyncio

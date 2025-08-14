@@ -59,9 +59,7 @@ class TestAnalyzeCommand:
 
         # Should succeed even if no updates needed
         if result.exit_code != 0:
-            print(f"STDOUT: {result.stdout}")
-            print(f"STDERR: {result.stderr}")
-            print(f"Exception: {result.exception}")
+            pass  # Debug info available in result object
         assert result.exit_code == 0
         assert "Total:" in result.stdout
 

@@ -438,3 +438,206 @@ Another action line.
         # Test case 2: Demonstrate that logic correctly prioritizes patterns
         # The ScreenplayUtils.parse_scene_heading() method checks INT./EXT. before INT.
         # ensuring proper scene type classification for combined scenes.
+
+    def test_character_extraction_with_apostrophes_and_numbers(self, parser):
+        """Test extraction of characters with apostrophes and numbers.
+
+        Jouvence fails to detect characters with apostrophes (e.g., "CHARACTER'S VOICE")
+        and numbers (e.g., "COP 1", "GUARD #2"). Our parser should handle these cases.
+        """
+        content = """Title: Test Script
+
+INT. POLICE STATION - DAY
+
+The station is busy.
+
+CHARACTER'S VOICE
+I can hear you.
+
+COP 1
+Stop right there!
+
+GUARD #2
+Move along, nothing to see here.
+
+MARY'S MOTHER
+Where is she?
+
+YOUNG BOY #3
+Can I help?
+"""
+        script = parser.parse(content)
+
+        # Extract all characters from the scene
+        all_characters = set()
+        for scene in script.scenes:
+            for dialogue in scene.dialogue_lines:
+                all_characters.add(dialogue.character)
+
+        # All these characters should be detected
+        expected_characters = {
+            "CHARACTER'S VOICE",
+            "COP 1",
+            "GUARD #2",
+            "MARY'S MOTHER",
+            "YOUNG BOY #3",
+        }
+
+        assert all_characters == expected_characters, (
+            f"Expected {expected_characters}, got {all_characters}"
+        )
+
+        # Verify dialogue is properly associated
+        scene = script.scenes[0]
+        assert len(scene.dialogue_lines) == 5
+
+        # Check specific dialogues
+        dialogue_map = {d.character: d.text for d in scene.dialogue_lines}
+        assert dialogue_map["CHARACTER'S VOICE"] == "I can hear you."
+        assert dialogue_map["COP 1"] == "Stop right there!"
+        assert dialogue_map["GUARD #2"] == "Move along, nothing to see here."
+
+    def test_character_extraction_with_extensions(self, parser):
+        """Test extraction of characters with parenthetical extensions."""
+        content = """Title: Test Script
+
+INT. ROOM - DAY
+
+CHARACTER (CONT'D)
+Continuing from before.
+
+CHARACTER (V.O.)
+Voice over dialogue.
+
+CHARACTER (O.S.)
+Off screen dialogue.
+
+CHARACTER (PRELAP)
+Prelap dialogue.
+
+CHARACTER (FILTERED)
+Filtered voice.
+"""
+        script = parser.parse(content)
+
+        # Extract all characters
+        all_characters = set()
+        for scene in script.scenes:
+            for dialogue in scene.dialogue_lines:
+                all_characters.add(dialogue.character)
+
+        # These should all be detected (jouvence handles these correctly)
+        expected_characters = {
+            "CHARACTER (CONT'D)",
+            "CHARACTER (V.O.)",
+            "CHARACTER (O.S.)",
+            "CHARACTER (PRELAP)",
+            "CHARACTER (FILTERED)",
+        }
+
+        assert all_characters == expected_characters
+
+    def test_mixed_character_formats(self, parser):
+        """Test a mix of character formats in one scene."""
+        content = """Title: Complex Character Test
+
+INT. COURTROOM - DAY
+
+The courtroom is packed.
+
+JUDGE
+Order in the court!
+
+DEFENDANT'S LAWYER
+(standing)
+Objection, your honor!
+
+PROSECUTOR #1
+(frustrated)
+This is ridiculous.
+
+JURY MEMBER #12
+(whispering)
+Did you hear that?
+
+MR. O'BRIEN
+I object to this line of questioning.
+
+DR. SMITH-JONES
+The evidence is clear.
+"""
+        script = parser.parse(content)
+        scene = script.scenes[0]
+
+        # Check all characters are extracted
+        characters = {d.character for d in scene.dialogue_lines}
+        expected = {
+            "JUDGE",
+            "DEFENDANT'S LAWYER",
+            "PROSECUTOR #1",
+            "JURY MEMBER #12",
+            "MR. O'BRIEN",
+            "DR. SMITH-JONES",
+        }
+
+        assert characters == expected, f"Expected {expected}, got {characters}"
+
+        # Check parentheticals are preserved
+        dialogue_map = {d.character: d for d in scene.dialogue_lines}
+        assert dialogue_map["DEFENDANT'S LAWYER"].parenthetical == "(standing)"
+        assert dialogue_map["PROSECUTOR #1"].parenthetical == "(frustrated)"
+        assert dialogue_map["JURY MEMBER #12"].parenthetical == "(whispering)"
+
+    def test_is_character_line_method(self, parser):
+        """Test the _is_character_line helper method."""
+        # Valid character lines
+        assert parser._is_character_line("JOHN")
+        assert parser._is_character_line("MARY JANE")
+        assert parser._is_character_line("COP 1")
+        assert parser._is_character_line("GUARD #2")
+        assert parser._is_character_line("CHARACTER'S VOICE")
+        assert parser._is_character_line("MR. SMITH")
+        assert parser._is_character_line("CHARACTER (V.O.)")
+        assert parser._is_character_line("CHARACTER (CONT'D)")
+        assert parser._is_character_line("DR. SMITH-JONES")
+
+        # Invalid character lines
+        assert not parser._is_character_line("")
+        assert not parser._is_character_line("INT. ROOM - DAY")
+        assert not parser._is_character_line("EXT. PARK - NIGHT")
+        assert not parser._is_character_line("INT./EXT. BEDROOM - NIGHT")
+        assert not parser._is_character_line("not uppercase")
+        assert not parser._is_character_line("Mixed Case")
+
+    def test_action_lines_preserved(self, parser):
+        """Test that action lines are preserved and not mistaken for characters."""
+        content = """Title: Test Script
+
+INT. ROOM - DAY
+
+JOHN enters the room.
+
+MARY'S VOICE
+(from outside)
+Are you there?
+
+The door SLAMS shut.
+
+COP 1
+Freeze!
+
+JOHN raises his hands.
+"""
+        script = parser.parse(content)
+        scene = script.scenes[0]
+
+        # Check characters
+        characters = {d.character for d in scene.dialogue_lines}
+        assert characters == {"MARY'S VOICE", "COP 1"}
+
+        # Check that action lines are preserved
+        # Note: jouvence might combine some action lines
+        action_text = " ".join(scene.action_lines)
+        assert "JOHN enters the room" in action_text
+        assert "The door SLAMS shut" in action_text
+        assert "JOHN raises his hands" in action_text

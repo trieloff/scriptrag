@@ -52,9 +52,30 @@ class TestMarkdownAgentAnalyzer:
         return MarkdownAgentAnalyzer(basic_spec)
 
     @pytest.fixture
-    def llm_analyzer(self, llm_spec: AgentSpec) -> MarkdownAgentAnalyzer:
+    def llm_analyzer(self, llm_spec: AgentSpec, tmp_path) -> MarkdownAgentAnalyzer:
         """Create analyzer with LLM spec."""
-        return MarkdownAgentAnalyzer(llm_spec)
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        # Mock get_settings to provide a safe database path during initialization
+        mock_settings = MagicMock()
+        mock_settings.database_path = tmp_path / "test_scriptrag.db"
+        mock_settings.database_timeout = 30.0
+        mock_settings.database_cache_size = -2000
+        mock_settings.database_temp_store = "MEMORY"
+
+        with patch(
+            "scriptrag.agents.context_query.get_settings", return_value=mock_settings
+        ):
+            analyzer = MarkdownAgentAnalyzer(llm_spec)
+
+            # Additionally mock the context executor to prevent any database operations
+            mock_executor = MagicMock()
+            mock_executor.execute = AsyncMock(
+                return_value=[]
+            )  # Return empty results for context queries
+            analyzer.context_executor = mock_executor
+
+        return analyzer
 
     @pytest.fixture
     def sample_scene(self) -> dict:

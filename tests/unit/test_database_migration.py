@@ -240,6 +240,9 @@ class TestDuplicateHandlerConcurrency:
 
     def test_concurrent_version_creation(self, temp_db):
         """Test concurrent version creation with isolation."""
+        import platform
+        import time
+
         from scriptrag.api.duplicate_handler import DuplicateHandler, DuplicateStrategy
 
         handler = DuplicateHandler()
@@ -254,71 +257,90 @@ class TestDuplicateHandlerConcurrency:
         conn.commit()
         conn.close()
 
-        # Two connections with immediate transactions to avoid lock issues
-        conn1 = sqlite3.connect(str(temp_db), timeout=10.0)
-        conn2 = sqlite3.connect(str(temp_db), timeout=10.0)
+        # Enhanced connection configuration for better Windows compatibility
+        # Use WAL mode and longer timeout for Windows
+        timeout_seconds = 30.0 if platform.system() == "Windows" else 10.0
 
-        # Both find the same duplicate
-        dup1 = handler.check_for_duplicate(
-            conn1, "Test Script", "Author", Path("/path2.fountain")
-        )
-        dup2 = handler.check_for_duplicate(
-            conn2, "Test Script", "Author", Path("/path3.fountain")
-        )
+        conn1 = sqlite3.connect(str(temp_db), timeout=timeout_seconds)
+        conn2 = sqlite3.connect(str(temp_db), timeout=timeout_seconds)
 
-        assert dup1 is not None
-        assert dup2 is not None
-        assert dup1["version"] == 1
-        assert dup2["version"] == 1
+        try:
+            # Set WAL mode for better concurrency (especially on Windows)
+            conn1.execute("PRAGMA journal_mode=WAL")
+            conn2.execute("PRAGMA journal_mode=WAL")
 
-        # First connection creates version 2
-        strategy1, version1 = handler.handle_duplicate(
-            conn1, dup1, DuplicateStrategy.VERSION, Path("/path2.fountain")
-        )
-        # Commit first transaction before second to prevent locks
-        conn1.commit()
+            # Set synchronous mode for better Windows compatibility
+            conn1.execute("PRAGMA synchronous=NORMAL")
+            conn2.execute("PRAGMA synchronous=NORMAL")
 
-        # Second connection re-checks for duplicates after first commit
-        # This will now find the version 2 script as the latest
-        dup2_updated = handler.check_for_duplicate(
-            conn2, "Test Script", "Author", Path("/path3.fountain")
-        )
-        assert dup2_updated is not None
+            # Both find the same duplicate
+            dup1 = handler.check_for_duplicate(
+                conn1, "Test Script", "Author", Path("/path2.fountain")
+            )
+            dup2 = handler.check_for_duplicate(
+                conn2, "Test Script", "Author", Path("/path3.fountain")
+            )
 
-        # The check_for_duplicate method returns the highest version found
-        # After first commit, there should be a version 2 in the database
-        # But the ORDER BY version DESC in check_for_duplicate should return it
-        # If it's still returning version 1, then we need to explicitly get max version
-        cursor = conn2.execute(
-            """
-            SELECT MAX(version) as max_version
-            FROM scripts
-            WHERE title = ? AND (author = ? OR (author IS NULL AND ? IS NULL))
-            """,
-            ("Test Script", "Author", "Author"),
-        )
-        result = cursor.fetchone()
-        actual_max_version = result[0] if result and result[0] else 1
+            assert dup1 is not None
+            assert dup2 is not None
+            assert dup1["version"] == 1
+            assert dup2["version"] == 1
 
-        # The duplicate handler should use the actual max version
-        # Since we just created version 2, max should be 2
-        # So next version should be 3
-        if dup2_updated["version"] < actual_max_version:
-            dup2_updated["version"] = actual_max_version
+            # First connection creates version 2
+            strategy1, version1 = handler.handle_duplicate(
+                conn1, dup1, DuplicateStrategy.VERSION, Path("/path2.fountain")
+            )
+            # Commit first transaction before second to prevent locks
+            conn1.commit()
 
-        strategy2, version2 = handler.handle_duplicate(
-            conn2, dup2_updated, DuplicateStrategy.VERSION, Path("/path3.fountain")
-        )
-        conn2.commit()
+            # Add small delay to ensure Windows sees the commit
+            if platform.system() == "Windows":
+                time.sleep(0.1)
 
-        assert strategy1 == DuplicateStrategy.VERSION
-        assert strategy2 == DuplicateStrategy.VERSION
-        assert version1 == 2
-        # Second one should create the next version after the max
-        assert version2 == actual_max_version + 1
+            # Force connection 2 to see the changes by starting a new transaction
+            conn2.execute("BEGIN IMMEDIATE")
+            conn2.rollback()
 
-        conn1.close()
-        conn2.close()
+            # Second connection re-checks for duplicates after first commit
+            # This will now find the version 2 script as the latest
+            dup2_updated = handler.check_for_duplicate(
+                conn2, "Test Script", "Author", Path("/path3.fountain")
+            )
+            assert dup2_updated is not None
+
+            # Get the actual maximum version from the database
+            # This ensures we handle the case where check_for_duplicate
+            # might not immediately see the latest changes on Windows
+            cursor = conn2.execute(
+                """
+                SELECT MAX(version) as max_version
+                FROM scripts
+                WHERE title = ? AND (author = ? OR (author IS NULL AND ? IS NULL))
+                """,
+                ("Test Script", "Author", "Author"),
+            )
+            result = cursor.fetchone()
+            actual_max_version = result[0] if result and result[0] else 1
+
+            # Update the duplicate info with actual max version
+            if dup2_updated["version"] < actual_max_version:
+                dup2_updated["version"] = actual_max_version
+
+            strategy2, version2 = handler.handle_duplicate(
+                conn2, dup2_updated, DuplicateStrategy.VERSION, Path("/path3.fountain")
+            )
+            conn2.commit()
+
+            assert strategy1 == DuplicateStrategy.VERSION
+            assert strategy2 == DuplicateStrategy.VERSION
+            assert version1 == 2
+            # Second one should create the next version after the max
+            assert version2 == actual_max_version + 1
+
+        finally:
+            # Ensure connections are properly closed even if test fails
+            conn1.close()
+            conn2.close()
 
     def test_race_condition_replace_strategy(self, temp_db):
         """Test race condition with REPLACE strategy."""

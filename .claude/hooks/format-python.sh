@@ -29,10 +29,14 @@ fi
 if [[ "$TARGET_FILE" =~ \.py$ ]]; then
     echo "🐍 Formatting Python file: $TARGET_FILE"
 
-    # Run Ruff formatter and fixer
+    # Run Ruff formatter and fixer (includes import sorting and many fixes)
     if command -v ruff >/dev/null 2>&1; then
         ruff format "$TARGET_FILE" 2>/dev/null || true
-        ruff check --fix "$TARGET_FILE" 2>/dev/null || true
+        ruff check --fix --unsafe-fixes "$TARGET_FILE" 2>/dev/null || true
+    elif command -v uv >/dev/null 2>&1; then
+        # Fallback to uv if ruff not in PATH
+        uv run ruff format "$TARGET_FILE" 2>/dev/null || true
+        uv run ruff check --fix --unsafe-fixes "$TARGET_FILE" 2>/dev/null || true
     fi
 
     echo "✅ Python file formatted: $TARGET_FILE"

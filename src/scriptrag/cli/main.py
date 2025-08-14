@@ -8,11 +8,11 @@ from scriptrag.cli.commands import (
     init_command,
     list_command,
     pull_command,
-    query_app,
     search_command,
     watch_command,
 )
 from scriptrag.cli.commands.mcp import mcp_command
+from scriptrag.cli.commands.query import get_query_app
 from scriptrag.cli.commands.scene import scene_app
 
 app = typer.Typer(
@@ -33,8 +33,8 @@ app.command(name="search")(search_command)
 app.command(name="watch")(watch_command)
 app.command(name="mcp")(mcp_command)
 
-# Register query subapp
-app.add_typer(query_app, name="query")
+# Register query subapp - use lazy loading
+app.add_typer(get_query_app(), name="query")
 
 # Register scene subapp
 app.add_typer(scene_app, name="scene")

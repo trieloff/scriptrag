@@ -6,7 +6,11 @@ import pytest
 import typer
 
 from scriptrag.api.query import QueryAPI
-from scriptrag.cli.commands.query import create_query_command, register_query_commands
+from scriptrag.cli.commands.query import (
+    create_query_command,
+    get_query_app,
+    register_query_commands,
+)
 from scriptrag.query.spec import ParamSpec, QuerySpec
 
 
@@ -214,7 +218,8 @@ class TestRegisterQueryCommands:
         mock_api.list_queries.return_value = []
 
         with patch("scriptrag.config.settings._settings", None):
-            register_query_commands()
+            # Force registration to ensure it runs
+            register_query_commands(force=True)
 
         # Should create API and reload queries
         mock_api_class.assert_called_once_with(mock_settings)
@@ -241,7 +246,8 @@ class TestRegisterQueryCommands:
         mock_create_command.return_value = mock_command
 
         with patch("scriptrag.config.settings._settings", None):
-            register_query_commands()
+            # Force registration to ensure it runs
+            register_query_commands(force=True)
 
         # Should create command for each query
         mock_create_command.assert_called_once_with(mock_api, "test-query")
@@ -266,7 +272,8 @@ class TestRegisterQueryCommands:
         mock_create_command.return_value = None
 
         with patch("scriptrag.config.settings._settings", None):
-            register_query_commands()
+            # Force registration to ensure it runs
+            register_query_commands(force=True)
 
         # Should attempt to create command but handle None gracefully
         mock_create_command.assert_called_once_with(mock_api, "test-query")
@@ -375,10 +382,63 @@ class TestRegisterQueryCommands:
             mock_api.list_queries.return_value = []
             mock_api_class.return_value = mock_api
 
-            # Since register_query_commands() is called on import, test actual code
-            # This test covers the empty query case in lines 221-229
-            from scriptrag.cli.commands.query import query_app
+            # The empty query behavior is covered by the get_query_app function
+            # We just need to verify the app is returned
+            app = get_query_app()
+            assert app is not None
 
-            # The empty query behavior is already covered by the module registration
-            # We just need to verify the app exists
-            assert query_app is not None
+
+class TestLazyLoading:
+    """Test lazy loading of query commands."""
+
+    @patch("scriptrag.cli.commands.query.register_query_commands")
+    def test_get_query_app_lazy_initialization(self, mock_register):
+        """Test that get_query_app initializes lazily."""
+        # Reset global state for this test
+        import scriptrag.cli.commands.query as query_module
+
+        query_module.query_app = None
+        query_module._commands_registered = False
+
+        # Call get_query_app
+        app = get_query_app()
+
+        # Should have created app and called register
+        assert app is not None
+        mock_register.assert_called_once()
+
+    @patch("scriptrag.cli.commands.query.register_query_commands")
+    def test_get_query_app_reuses_existing(self, mock_register):
+        """Test that get_query_app reuses existing app."""
+        # Reset and initialize
+        import scriptrag.cli.commands.query as query_module
+
+        query_module.query_app = None
+        query_module._commands_registered = False
+
+        # First call
+        app1 = get_query_app()
+        mock_register.assert_called_once()
+
+        # Second call should reuse
+        app2 = get_query_app()
+        assert app1 is app2
+        # Still only called once
+        mock_register.assert_called_once()
+
+    def test_register_query_commands_handles_exception(self):
+        """Test that register_query_commands handles exceptions gracefully."""
+        # Reset global state for this test
+        import scriptrag.cli.commands.query as query_module
+
+        query_module._commands_registered = False
+
+        with patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings:
+            # Make get_settings raise an exception
+            mock_get_settings.side_effect = Exception("Settings error")
+
+            # Should not raise, just return early
+            register_query_commands(force=True)
+
+            # The function should have attempted to get settings
+            mock_get_settings.assert_called_once()

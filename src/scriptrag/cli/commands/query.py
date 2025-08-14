@@ -1,5 +1,6 @@
 """Query command for executing SQL queries."""
 
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -8,22 +9,24 @@ from rich.console import Console
 from scriptrag.api.query import QueryAPI
 from scriptrag.config import get_settings
 
-# Create query app
-query_app = typer.Typer(
-    name="query",
-    help="Execute SQL queries from the query library",
-    no_args_is_help=True,
-)
+# Module-level app variable - will be initialized lazily
+query_app: typer.Typer | None = None
+
+# Track if commands have been registered
+_commands_registered = False
 
 console = Console()
 
 
-def create_query_command(api: QueryAPI, spec_name: str) -> Any:
+def create_query_command(
+    api: QueryAPI, spec_name: str, db_path_option: bool = True
+) -> Any:
     """Create a dynamic command for a query specification.
 
     Args:
         api: Query API instance
         spec_name: Name of the query spec
+        db_path_option: Whether to include --db-path option
 
     Returns:
         Typer command function
@@ -39,17 +42,33 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
         output_json = kwargs.pop("json", False)
         limit = kwargs.pop("limit", None)
         offset = kwargs.pop("offset", None)
+        db_path = kwargs.pop("db_path", None) if db_path_option else None
 
         # Remaining kwargs are query parameters
         params = kwargs
 
         try:
             # Get fresh API instance with current settings at execution time
-            # Force fresh settings to pick up environment variable changes
-            import scriptrag.config.settings as settings_module
+            # Apply db_path override if provided
+            if db_path:
+                # Create custom settings with db_path override
+                from scriptrag.config import get_settings as get_settings_func
 
-            settings_module._settings = None  # Clear cached settings
-            current_settings = get_settings()
+                current_settings = get_settings_func()
+                # Create a copy with the new db_path
+                import copy
+
+                current_settings = copy.deepcopy(current_settings)
+                current_settings.database_path = db_path
+            else:
+                # Force fresh settings to pick up environment variable changes
+                import scriptrag.config.settings as settings_module
+
+                settings_module._settings = None  # Clear cached settings
+                from scriptrag.config import get_settings as get_settings_func
+
+                current_settings = get_settings_func()
+
             current_api = QueryAPI(current_settings)
 
             result = current_api.execute_query(
@@ -158,6 +177,19 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
         )
     )
 
+    # Add db_path option if requested
+    if db_path_option:
+        params.append(
+            (
+                "db_path",
+                Path | None,
+                typer.Option(
+                    default=None,
+                    help="Path to the SQLite database file",
+                ),
+            )
+        )
+
     # Create wrapper with proper signature
     import inspect
 
@@ -193,28 +225,70 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
     return wrapper
 
 
-def register_query_commands() -> None:
-    """Register all discovered queries as subcommands."""
-    # Clear any existing commands to prevent stale cache issues
-    global query_app
+def get_query_app() -> typer.Typer:
+    """Get or create the query app with registered commands.
+
+    This function uses lazy initialization to avoid issues with
+    import-time registration in test environments.
+    """
+    global query_app, _commands_registered
+
+    # Initialize app if needed
+    if query_app is None:
+        query_app = typer.Typer(
+            name="query",
+            help="Execute SQL queries from the query library",
+            no_args_is_help=True,
+        )
+
+    # Register commands if not already done
+    if not _commands_registered:
+        register_query_commands()
+        _commands_registered = True
+
+    return query_app
+
+
+def register_query_commands(force: bool = False) -> None:
+    """Register all discovered queries as subcommands.
+
+    Args:
+        force: Force re-registration even if already registered
+    """
+    global query_app, _commands_registered
+
+    # Skip if already registered (unless forced)
+    if _commands_registered and not force:
+        return
+
+    # Create new app instance
     query_app = typer.Typer(
         name="query",
         help="Execute SQL queries from the query library",
         no_args_is_help=True,
     )
 
-    # Force fresh settings to pick up environment variable changes
-    import scriptrag.config.settings as settings_module
+    try:
+        # Force fresh settings to pick up environment variable changes
+        import scriptrag.config.settings as settings_module
 
-    settings_module._settings = None  # Clear cached settings
-    settings = get_settings()
-    api = QueryAPI(settings)
+        settings_module._settings = None  # Clear cached settings
+        settings = get_settings()
+        api = QueryAPI(settings)
+    except Exception:
+        # If we can't get settings/API during import, skip registration
+        # This allows tests to set up mocks before registration
+        return
 
-    # Force reload queries from (possibly new) directory
-    api.reload_queries()
+    try:
+        # Force reload queries from (possibly new) directory
+        api.reload_queries()
 
-    # Discover and register queries
-    queries = api.list_queries()
+        # Discover and register queries
+        queries = api.list_queries()
+    except Exception:
+        # If we can't list queries, create empty app
+        queries = []
 
     if not queries:
         # Add a placeholder command if no queries found
@@ -248,7 +322,5 @@ def register_query_commands() -> None:
                 console.print(f"    Parameters: {param_names}")
             console.print()
 
-
-# Register commands on module import
-# NOTE: This could be made lazy if needed for testing
-register_query_commands()
+    # Mark as registered
+    _commands_registered = True

@@ -7,6 +7,10 @@ import typer
 
 from scriptrag.api.query import QueryAPI
 from scriptrag.cli.commands.query import (
+    QueryAppManager,
+    _create_api_instance,
+    _register_list_command,
+    _register_single_query,
     create_query_command,
     get_query_app,
     register_query_commands,
@@ -391,14 +395,13 @@ class TestRegisterQueryCommands:
 class TestLazyLoading:
     """Test lazy loading of query commands."""
 
-    @patch("scriptrag.cli.commands.query.register_query_commands")
+    @patch.object(QueryAppManager, "register_commands")
     def test_get_query_app_lazy_initialization(self, mock_register):
         """Test that get_query_app initializes lazily."""
         # Reset global state for this test
         import scriptrag.cli.commands.query as query_module
 
-        query_module.query_app = None
-        query_module._commands_registered = False
+        query_module._manager = QueryAppManager()
 
         # Call get_query_app
         app = get_query_app()
@@ -407,31 +410,34 @@ class TestLazyLoading:
         assert app is not None
         mock_register.assert_called_once()
 
-    @patch("scriptrag.cli.commands.query.register_query_commands")
-    def test_get_query_app_reuses_existing(self, mock_register):
+    def test_get_query_app_reuses_existing(self):
         """Test that get_query_app reuses existing app."""
         # Reset and initialize
         import scriptrag.cli.commands.query as query_module
 
-        query_module.query_app = None
-        query_module._commands_registered = False
+        manager = QueryAppManager()
+        query_module._manager = manager
 
-        # First call
-        app1 = get_query_app()
-        mock_register.assert_called_once()
+        with patch.object(manager, "register_commands") as mock_register:
+            # First call
+            app1 = get_query_app()
+            mock_register.assert_called_once()
 
-        # Second call should reuse
-        app2 = get_query_app()
-        assert app1 is app2
-        # Still only called once
-        mock_register.assert_called_once()
+            # Mark as registered to simulate successful registration
+            manager.commands_registered = True
+
+            # Second call should reuse
+            app2 = get_query_app()
+            assert app1 is app2
+            # Still only called once (not twice)
+            mock_register.assert_called_once()
 
     def test_register_query_commands_handles_exception(self):
         """Test that register_query_commands handles exceptions gracefully."""
         # Reset global state for this test
         import scriptrag.cli.commands.query as query_module
 
-        query_module._commands_registered = False
+        query_module._manager = QueryAppManager()
 
         with patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings:
             # Make get_settings raise an exception
@@ -442,3 +448,220 @@ class TestLazyLoading:
 
             # The function should have attempted to get settings
             mock_get_settings.assert_called_once()
+
+
+class TestHelperFunctions:
+    """Test helper functions for code coverage."""
+
+    def test_create_api_instance_success(self):
+        """Test successful API instance creation."""
+        with (
+            patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings,
+            patch("scriptrag.cli.commands.query.QueryAPI") as mock_api_class,
+        ):
+            mock_settings = MagicMock()
+            mock_get_settings.return_value = mock_settings
+            mock_api = MagicMock()
+            mock_api_class.return_value = mock_api
+
+            result = _create_api_instance()
+
+            assert result is mock_api
+            mock_get_settings.assert_called_once()
+            mock_api_class.assert_called_once_with(mock_settings)
+
+    def test_create_api_instance_failure(self):
+        """Test API instance creation failure."""
+        with patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings:
+            mock_get_settings.side_effect = Exception("Settings error")
+
+            result = _create_api_instance()
+
+            assert result is None
+            mock_get_settings.assert_called_once()
+
+    def test_register_list_command_no_queries(self):
+        """Test registering list command with no queries."""
+        mock_app = MagicMock(spec=typer.Typer)
+        queries = []
+
+        _register_list_command(mock_app, queries)
+
+        # Should register a command named 'list'
+        mock_app.command.assert_called_once_with(name="list")
+
+    def test_register_list_command_with_queries(self):
+        """Test registering list command with queries."""
+        mock_app = MagicMock(spec=typer.Typer)
+        queries = [
+            QuerySpec(name="test1", description="Test 1", sql="SELECT 1"),
+            QuerySpec(name="test2", description="Test 2", sql="SELECT 2"),
+        ]
+
+        _register_list_command(mock_app, queries)
+
+        # Should register a command named 'list'
+        mock_app.command.assert_called_once_with(name="list")
+
+    def test_register_single_query_success(self):
+        """Test registering a single query successfully."""
+        mock_app = MagicMock(spec=typer.Typer)
+        mock_api = MagicMock(spec=QueryAPI)
+        spec = QuerySpec(name="test-query", description="Test", sql="SELECT 1")
+
+        with patch(
+            "scriptrag.cli.commands.query.create_query_command"
+        ) as mock_create_command:
+            mock_command = MagicMock()
+            mock_create_command.return_value = mock_command
+
+            _register_single_query(mock_app, mock_api, spec)
+
+            mock_create_command.assert_called_once_with(mock_api, "test-query")
+            mock_app.command.assert_called_once_with(name="test-query")
+
+    def test_register_single_query_none_command(self):
+        """Test registering a single query when command creation returns None."""
+        mock_app = MagicMock(spec=typer.Typer)
+        mock_api = MagicMock(spec=QueryAPI)
+        spec = QuerySpec(name="test-query", description="Test", sql="SELECT 1")
+
+        with patch(
+            "scriptrag.cli.commands.query.create_query_command"
+        ) as mock_create_command:
+            mock_create_command.return_value = None
+
+            _register_single_query(mock_app, mock_api, spec)
+
+            mock_create_command.assert_called_once_with(mock_api, "test-query")
+            # Should not register command if creation returns None
+            mock_app.command.assert_not_called()
+
+
+class TestQueryAppManager:
+    """Test QueryAppManager class."""
+
+    def test_manager_initialization(self):
+        """Test QueryAppManager initialization."""
+        manager = QueryAppManager()
+
+        assert manager.app is None
+        assert manager.commands_registered is False
+
+    def test_manager_get_app_creates_app(self):
+        """Test that get_app creates app on first call."""
+        manager = QueryAppManager()
+
+        with patch.object(manager, "register_commands") as mock_register:
+            app = manager.get_app()
+
+            assert app is not None
+            assert manager.app is app
+            mock_register.assert_called_once()
+
+    def test_manager_get_app_reuses_app(self):
+        """Test that get_app reuses existing app."""
+        manager = QueryAppManager()
+
+        # Create app first
+        with patch.object(manager, "register_commands"):
+            app1 = manager.get_app()
+
+        # Mark as registered to avoid re-registration
+        manager.commands_registered = True
+
+        # Second call should reuse
+        app2 = manager.get_app()
+        assert app1 is app2
+
+    def test_manager_register_commands_skip_if_registered(self):
+        """Test that register_commands skips if already registered."""
+        manager = QueryAppManager()
+        manager.commands_registered = True
+
+        with patch("scriptrag.cli.commands.query._create_api_instance") as mock_create:
+            manager.register_commands()
+
+            # Should not create API if already registered
+            mock_create.assert_not_called()
+
+    def test_manager_register_commands_force(self):
+        """Test that register_commands can be forced."""
+        manager = QueryAppManager()
+        manager.commands_registered = True
+
+        with (
+            patch("scriptrag.cli.commands.query._create_api_instance") as mock_create,
+            patch(
+                "scriptrag.cli.commands.query._register_list_command"
+            ) as mock_register_list,
+        ):
+            mock_api = MagicMock()
+            mock_create.return_value = mock_api
+            mock_api.list_queries.return_value = []
+
+            manager.register_commands(force=True)
+
+            # Should create API even if already registered when forced
+            mock_create.assert_called_once()
+            mock_register_list.assert_called_once()
+
+    def test_manager_register_commands_api_creation_fails(self):
+        """Test register_commands when API creation fails."""
+        manager = QueryAppManager()
+
+        with patch("scriptrag.cli.commands.query._create_api_instance") as mock_create:
+            mock_create.return_value = None
+
+            manager.register_commands()
+
+            # Should handle None API gracefully
+            assert manager.commands_registered is False
+
+    def test_manager_register_commands_query_loading_fails(self):
+        """Test register_commands when query loading fails."""
+        manager = QueryAppManager()
+
+        with (
+            patch("scriptrag.cli.commands.query._create_api_instance") as mock_create,
+            patch(
+                "scriptrag.cli.commands.query._register_list_command"
+            ) as mock_register_list,
+        ):
+            mock_api = MagicMock()
+            mock_create.return_value = mock_api
+            mock_api.reload_queries.side_effect = Exception("Load error")
+
+            manager.register_commands()
+
+            # Should handle exception and register empty list
+            mock_register_list.assert_called_once_with(manager.app, [])
+
+    def test_manager_register_commands_with_queries(self):
+        """Test register_commands with successful query loading."""
+        manager = QueryAppManager()
+
+        with (
+            patch("scriptrag.cli.commands.query._create_api_instance") as mock_create,
+            patch(
+                "scriptrag.cli.commands.query._register_list_command"
+            ) as mock_register_list,
+            patch(
+                "scriptrag.cli.commands.query._register_single_query"
+            ) as mock_register_single,
+        ):
+            mock_api = MagicMock()
+            mock_create.return_value = mock_api
+
+            spec1 = QuerySpec(name="query1", description="Query 1", sql="SELECT 1")
+            spec2 = QuerySpec(name="query2", description="Query 2", sql="SELECT 2")
+            mock_api.list_queries.return_value = [spec1, spec2]
+
+            manager.register_commands()
+
+            # Should register list command and both queries
+            mock_register_list.assert_called_once_with(manager.app, [spec1, spec2])
+            assert mock_register_single.call_count == 2
+            mock_register_single.assert_any_call(manager.app, mock_api, spec1)
+            mock_register_single.assert_any_call(manager.app, mock_api, spec2)
+            assert manager.commands_registered is True

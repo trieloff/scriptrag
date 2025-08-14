@@ -26,7 +26,6 @@ Generation) pattern.
 - **[Usage Examples](docs/usage.md)** - Common workflows and examples
 - **[Bulk Import Guide](docs/bulk_import_guide.md)** - Import multiple screenplays
 - **[MCP Usage Examples](examples/mcp_usage_examples.md)** - Using with AI assistants
-- **[Known Issues](docs/known-issues.md)** - Current limitations and workarounds
 
 ### For Developers
 

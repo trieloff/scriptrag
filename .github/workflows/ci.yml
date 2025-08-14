@@ -200,6 +200,10 @@ jobs:
           SCRIPTRAG_LOG_LEVEL=ERROR uv run pytest -x -q --tb=short --maxfail=10 --disable-warnings --junit-xml=junit.xml -o log_cli=false --capture=fd --timeout=15 --timeout-method=thread -m "not integration"
         env:
           PYTHONPATH: src
+          SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
+          SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}
+          SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
+          SCRIPTRAG_ENVIRONMENT: testing
 
       - name: Surface canary test results
         uses: pmeier/pytest-results-action@main
@@ -289,6 +293,11 @@ jobs:
           make test PYTEST_ARGS="-m 'not integration'"
           echo "Finished pytest at $(date)"
         shell: bash
+        env:
+          SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
+          SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}
+          SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
+          SCRIPTRAG_ENVIRONMENT: testing
 
       - name: Surface failing tests
         uses: pmeier/pytest-results-action@main

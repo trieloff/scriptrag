@@ -89,16 +89,16 @@ class TestCreateQueryCommand:
         assert "offset" in param_names
         assert "json" in param_names
 
-    @patch("scriptrag.cli.commands.query.get_settings")
+    @patch("scriptrag.cli.utils.config.override_database_path")
     @patch("scriptrag.cli.commands.query.QueryAPI")
     def test_query_command_execution_success(
-        self, mock_api_class, mock_get_settings, mock_api, simple_spec
+        self, mock_api_class, mock_override_db, mock_api, simple_spec
     ):
         """Test successful query command execution."""
         # Setup mocks
         mock_api.get_query.return_value = simple_spec
         mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
+        mock_override_db.return_value = mock_settings
         mock_current_api = MagicMock()
         mock_api_class.return_value = mock_current_api
         mock_current_api.execute_query.return_value = None
@@ -115,16 +115,16 @@ class TestCreateQueryCommand:
             name="simple-query", params={}, limit=None, offset=None, output_json=False
         )
 
-    @patch("scriptrag.cli.commands.query.get_settings")
+    @patch("scriptrag.cli.utils.config.override_database_path")
     @patch("scriptrag.cli.commands.query.QueryAPI")
     def test_query_command_execution_json_output(
-        self, mock_api_class, mock_get_settings, mock_api, simple_spec
+        self, mock_api_class, mock_override_db, mock_api, simple_spec
     ):
         """Test query command execution with JSON output."""
         # Setup mocks
         mock_api.get_query.return_value = simple_spec
         mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
+        mock_override_db.return_value = mock_settings
         mock_current_api = MagicMock()
         mock_api_class.return_value = mock_current_api
         mock_current_api.execute_query.return_value = '{"results": []}'
@@ -145,16 +145,16 @@ class TestCreateQueryCommand:
             name="simple-query", params={}, limit=10, offset=5, output_json=True
         )
 
-    @patch("scriptrag.cli.commands.query.get_settings")
+    @patch("scriptrag.cli.utils.config.override_database_path")
     @patch("scriptrag.cli.commands.query.QueryAPI")
     def test_query_command_execution_error(
-        self, mock_api_class, mock_get_settings, mock_api, simple_spec
+        self, mock_api_class, mock_override_db, mock_api, simple_spec
     ):
         """Test query command execution with error."""
         # Setup mocks
         mock_api.get_query.return_value = simple_spec
         mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
+        mock_override_db.return_value = mock_settings
         mock_current_api = MagicMock()
         mock_api_class.return_value = mock_current_api
         mock_current_api.execute_query.side_effect = RuntimeError("Database error")
@@ -201,14 +201,12 @@ class TestCreateQueryCommand:
 class TestRegisterQueryCommands:
     """Test query command registration."""
 
-    @patch("scriptrag.cli.commands.query.get_settings")
+    @patch("scriptrag.cli.utils.config.override_database_path")
     @patch("scriptrag.cli.commands.query.QueryAPI")
-    def test_register_query_commands_no_queries(
-        self, mock_api_class, mock_get_settings
-    ):
+    def test_register_query_commands_no_queries(self, mock_api_class, mock_override_db):
         """Test registering commands when no queries found."""
         mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
+        mock_override_db.return_value = mock_settings
         mock_api = MagicMock()
         mock_api_class.return_value = mock_api
         mock_api.list_queries.return_value = []
@@ -221,16 +219,16 @@ class TestRegisterQueryCommands:
         mock_api.reload_queries.assert_called_once()
         mock_api.list_queries.assert_called_once()
 
-    @patch("scriptrag.cli.commands.query.get_settings")
+    @patch("scriptrag.cli.utils.config.override_database_path")
     @patch("scriptrag.cli.commands.query.QueryAPI")
     @patch("scriptrag.cli.commands.query.create_query_command")
     def test_register_query_commands_with_queries(
-        self, mock_create_command, mock_api_class, mock_get_settings
+        self, mock_create_command, mock_api_class, mock_override_db
     ):
         """Test registering commands with queries."""
         # Setup mocks
         mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
+        mock_override_db.return_value = mock_settings
         mock_api = MagicMock()
         mock_api_class.return_value = mock_api
 
@@ -246,16 +244,16 @@ class TestRegisterQueryCommands:
         # Should create command for each query
         mock_create_command.assert_called_once_with(mock_api, "test-query")
 
-    @patch("scriptrag.cli.commands.query.get_settings")
+    @patch("scriptrag.cli.utils.config.override_database_path")
     @patch("scriptrag.cli.commands.query.QueryAPI")
     @patch("scriptrag.cli.commands.query.create_query_command")
     def test_register_query_commands_command_creation_fails(
-        self, mock_create_command, mock_api_class, mock_get_settings
+        self, mock_create_command, mock_api_class, mock_override_db
     ):
         """Test registering commands when command creation fails."""
         # Setup mocks
         mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
+        mock_override_db.return_value = mock_settings
         mock_api = MagicMock()
         mock_api_class.return_value = mock_api
 
@@ -282,9 +280,9 @@ class TestRegisterQueryCommands:
         assert result is None
         mock_api.get_query.assert_called_once_with("nonexistent")
 
-    @patch("scriptrag.cli.commands.query.get_settings")
+    @patch("scriptrag.cli.utils.config.override_database_path")
     @patch("scriptrag.cli.commands.query.QueryAPI")
-    def test_query_command_json_output_path(self, mock_api_class, mock_get_settings):
+    def test_query_command_json_output_path(self, mock_api_class, mock_override_db):
         """Test query command JSON output path - line 68 coverage."""
         # Setup initial mock API for command creation
         mock_initial_api = MagicMock()
@@ -301,7 +299,7 @@ class TestRegisterQueryCommands:
 
         # Setup runtime API that will succeed
         mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
+        mock_override_db.return_value = mock_settings
         mock_runtime_api = MagicMock()
         mock_api_class.return_value = mock_runtime_api
         mock_runtime_api.execute_query.return_value = '{"result": "json output"}'
@@ -320,11 +318,9 @@ class TestRegisterQueryCommands:
         # Should print JSON result
         mock_print.assert_called_once_with('{"result": "json output"}')
 
-    @patch("scriptrag.cli.commands.query.get_settings")
+    @patch("scriptrag.cli.utils.config.override_database_path")
     @patch("scriptrag.cli.commands.query.QueryAPI")
-    def test_query_command_error_handling_paths(
-        self, mock_api_class, mock_get_settings
-    ):
+    def test_query_command_error_handling_paths(self, mock_api_class, mock_override_db):
         """Test query command error handling - lines 92, 94, 101-103 coverage."""
         # Setup initial mock API for command creation
         mock_initial_api = MagicMock()
@@ -341,7 +337,7 @@ class TestRegisterQueryCommands:
 
         # Setup runtime API that will fail
         mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
+        mock_override_db.return_value = mock_settings
         mock_runtime_api = MagicMock()
         mock_api_class.return_value = mock_runtime_api
         mock_runtime_api.execute_query.side_effect = ValueError(

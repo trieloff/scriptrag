@@ -81,6 +81,18 @@ def get_read_only_connection(
         if db_path_str_original in ["/etc/passwd", "/etc/shadow", "/etc/hosts"]:
             raise ValueError("Invalid database path detected")
 
+        # Check for Windows system paths BEFORE resolution (they get mangled on Linux)
+        # On Linux, "C:\\Windows\\..." becomes a relative path under CWD
+        windows_disallowed_patterns = [
+            "C:\\Windows",
+            "C:\\Program Files",
+            "C:\\System32",
+            "C:\\System",
+        ]
+        for pattern in windows_disallowed_patterns:
+            if db_path_str_original.startswith(pattern):
+                raise ValueError("Invalid database path detected")
+
         # Check for path traversal components before resolution
         path_parts_original = db_path_str_original.replace("\\", "/").split("/")
         if ".." in path_parts_original:
@@ -128,7 +140,8 @@ def get_read_only_connection(
                     continue
                 raise ValueError("Invalid database path detected")
 
-        # Windows-specific checks
+        # Windows-specific checks (already handled before resolution)
+        # Keeping this for completeness in case of edge cases
         for prefix in windows_disallowed:
             if db_path_str.startswith(prefix):
                 raise ValueError("Invalid database path detected")

@@ -29,7 +29,8 @@ def sample_scripts(tmp_path):
 
     # Create first script with same title/author
     script1 = scripts_dir / "episode1.fountain"
-    script1.write_text("""Title: The Office
+    script1.write_text(
+        """Title: The Office
 Author: Greg Daniels
 
 INT. OFFICE - DAY
@@ -48,11 +49,14 @@ SCRIPTRAG-META-START
 }
 SCRIPTRAG-META-END
 */
-""")
+""",
+        encoding="utf-8",
+    )
 
     # Create second script with same title/author (different episode)
     script2 = scripts_dir / "episode2.fountain"
-    script2.write_text("""Title: The Office
+    script2.write_text(
+        """Title: The Office
 Author: Greg Daniels
 
 INT. CONFERENCE ROOM - DAY
@@ -71,11 +75,14 @@ SCRIPTRAG-META-START
 }
 SCRIPTRAG-META-END
 */
-""")
+""",
+        encoding="utf-8",
+    )
 
     # Create third script with different title
     script3 = scripts_dir / "parks.fountain"
-    script3.write_text("""Title: Parks and Recreation
+    script3.write_text(
+        """Title: Parks and Recreation
 Author: Greg Daniels
 
 EXT. PARK - DAY
@@ -92,7 +99,9 @@ SCRIPTRAG-META-START
 }
 SCRIPTRAG-META-END
 */
-""")
+""",
+        encoding="utf-8",
+    )
 
     return scripts_dir
 

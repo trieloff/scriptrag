@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS scenes (
     content TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_read_at TIMESTAMP,
     metadata JSON,
     FOREIGN KEY (script_id) REFERENCES scripts (id) ON DELETE CASCADE,
     UNIQUE (script_id, scene_number)
@@ -169,7 +170,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
 
 -- Insert initial schema version
 INSERT INTO schema_version (version, description)
-VALUES (1, 'Initial ScriptRAG database schema');
+VALUES (2, 'Initial ScriptRAG database schema with last_read_at column');
 
 -- Create triggers to update timestamps
 CREATE TRIGGER IF NOT EXISTS update_scripts_timestamp

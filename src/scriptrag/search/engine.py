@@ -4,7 +4,8 @@ import asyncio
 import json
 import sqlite3
 import time
-from contextlib import AbstractContextManager
+from collections.abc import Generator
+from contextlib import contextmanager
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.database.readonly import get_read_only_connection
@@ -40,18 +41,36 @@ class SearchEngine:
         self.query_builder = QueryBuilder()
         self.vector_engine = VectorSearchEngine(settings)
 
-    def get_read_only_connection(self) -> AbstractContextManager[sqlite3.Connection]:
+    @contextmanager
+    def get_read_only_connection(self) -> Generator[sqlite3.Connection, None, None]:
         """Get a read-only database connection.
 
-        Returns:
+        Yields:
             Database connection in read-only mode
+
+        Raises:
+            DatabaseError: If database path is invalid or connection fails
         """
         # The path validation is already handled in get_read_only_connection
         # which performs comprehensive security checks including:
         # - Path traversal detection
         # - Disallowed system directories
         # - Proper cross-platform validation
-        return get_read_only_connection(self.settings)
+        try:
+            with get_read_only_connection(self.settings) as conn:
+                yield conn
+        except ValueError as e:
+            # Only catch path validation errors, not other ValueErrors
+            if "Invalid database path detected" in str(e):
+                # Convert path validation errors to DatabaseError
+                raise DatabaseError(
+                    message="Invalid database path",
+                    hint="Check database path configuration",
+                    details={"error": str(e), "path": str(self.settings.database_path)},
+                ) from e
+            else:
+                # Re-raise other ValueErrors as-is
+                raise
 
     def search(self, query: SearchQuery) -> SearchResponse:
         """Execute a search query (synchronous wrapper).

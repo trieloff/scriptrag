@@ -153,8 +153,11 @@ class TestSearchEngine:
         engine = SearchEngine(mock_settings)
 
         # The validation now happens in get_read_only_connection from readonly module
+        # The search engine converts ValueError to DatabaseError
+        from scriptrag.exceptions import DatabaseError
+
         with (
-            pytest.raises(ValueError, match="Invalid database path"),
+            pytest.raises(DatabaseError, match="Invalid database path"),
             engine.get_read_only_connection(),
         ):
             pass

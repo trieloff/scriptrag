@@ -21,7 +21,7 @@ def _is_allowed_development_path(db_path_str: str) -> bool:
     # Specific allowed development paths (must be exact prefixes)
     allowed_dev_paths = [
         "/root/repo/",  # Container development
-        "/home/",  # User home directories
+        "/home/",  # User home directories (includes CI: /home/runner/work/)
         "/Users/",  # macOS user directories
     ]
 
@@ -47,8 +47,13 @@ def _is_temp_directory(db_path_str: str, path_parts: list[str]) -> bool:
     path_lower = db_path_str.lower()
     temp_indicators = ["temp", "tmp", "pytest", ".pytest_cache"]
 
+    # Check for CI-specific paths
+    ci_indicators = ["/home/runner/work/", "/github/workspace/"]
+
     # Check for temp indicators in path
-    return any(indicator in path_lower for indicator in temp_indicators)
+    return any(indicator in path_lower for indicator in temp_indicators) or any(
+        ci_path in db_path_str for ci_path in ci_indicators
+    )
 
 
 @contextmanager
@@ -112,6 +117,9 @@ def get_read_only_connection(
             if db_path_str.startswith(prefix) or prefix in db_path_str:
                 # Exception: Allow macOS temporary directories in /private/var/folders/
                 if prefix == "/var/" and "/private/var/folders/" in db_path_str:
+                    continue
+                # Exception: Allow temp directories and CI environments
+                if _is_temp_directory(db_path_str, path_parts):
                     continue
                 raise ValueError("Invalid database path detected")
 

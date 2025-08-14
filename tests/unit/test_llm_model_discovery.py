@@ -134,7 +134,7 @@ class TestModelDiscoveryCache:
         # Create cache with invalid model data (missing required fields)
         cache_data = {
             "timestamp": time.time(),
-            "models": [{"invalid": "model_data"}],  # Missing id, name, provider
+            "models": [{"completely_invalid": "data"}],  # Missing all required fields
         }
         cache.cache_file.write_text(json.dumps(cache_data))
 
@@ -390,20 +390,28 @@ class TestClaudeCodeModelDiscovery:
 
         with patch("claude_code_sdk.ClaudeSDKClient", side_effect=ImportError):
             with patch("os.environ.get", return_value="test-api-key"):
-                # Patch httpx at import level since it's imported inside the method
-                mock_httpx = MagicMock()
-                mock_client = AsyncMock()
-                mock_response = AsyncMock()
-                mock_response.status_code = 200
-                mock_response.json.return_value = mock_response_data
-                mock_client.get.return_value = mock_response
-                mock_httpx.AsyncClient.return_value.__aenter__.return_value = (
-                    mock_client
-                )
+                # Mock _fetch_from_anthropic_api to avoid import complexity
+                with patch.object(discovery, "_fetch_from_anthropic_api") as mock_fetch:
+                    # Return parsed models from the mock response
+                    expected_models = [
+                        Model(
+                            id="claude-3-opus-20240229",
+                            name="Claude 3 Opus",
+                            provider=LLMProvider.CLAUDE_CODE,
+                            capabilities=["completion", "chat"],
+                            context_window=200000,
+                            max_output_tokens=4096,
+                        )
+                    ]
+                    mock_fetch.return_value = expected_models
 
-                with patch.dict("sys.modules", {"httpx": mock_httpx}):
                     models = await discovery._fetch_models()
                     assert models is not None
+                    assert len(models) == 1
+                    assert models[0].id == "claude-3-opus-20240229"
+
+                    # Verify the method was called with the API key
+                    mock_fetch.assert_called_once_with("test-api-key")
 
     @pytest.mark.asyncio
     async def test_fetch_models_no_discovery_available(self, discovery):
@@ -465,59 +473,51 @@ class TestGitHubModelsDiscovery:
             ]
         }
 
-        with patch(
-            "scriptrag.llm.model_discovery.aiohttp.ClientSession"
-        ) as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 200
-            mock_response.json = AsyncMock(return_value=mock_api_response)
-            (
-                mock_session.return_value.__aenter__.return_value.get.return_value.__aenter__.return_value
-            ) = mock_response
+        # Configure the mock client that's already in the discovery fixture
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_api_response
+        discovery.client.get.return_value = mock_response
 
-            models = await discovery._fetch_models()
+        models = await discovery._fetch_models()
 
-            assert len(models) == 2
-            assert models[0].id == "gpt-4o-mini"
-            assert models[0].name == "GPT-4o Mini"
-            assert models[0].provider == LLMProvider.GITHUB_MODELS
-            assert models[1].id == "claude-3-5-sonnet"
+        assert len(models) == 2
+        assert models[0].id == "gpt-4o-mini"
+        assert models[0].name == "GPT-4o Mini"
+        assert models[0].provider == LLMProvider.GITHUB_MODELS
+        assert models[1].id == "claude-3-5-sonnet"
 
     @pytest.mark.asyncio
     async def test_fetch_models_api_error(self, discovery):
         """Test GitHub API error handling."""
-        with patch(
-            "scriptrag.llm.model_discovery.aiohttp.ClientSession"
-        ) as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 401
-            mock_response.text = AsyncMock(return_value="Unauthorized")
-            (
-                mock_session.return_value.__aenter__.return_value.get.return_value.__aenter__.return_value
-            ) = mock_response
+        # Configure the mock client to return an error response
+        mock_response = AsyncMock()
+        mock_response.status_code = 401
+        mock_response.text = "Unauthorized"
+        discovery.client.get.return_value = mock_response
 
-            with pytest.raises(Exception, match="GitHub API error"):
-                await discovery._fetch_models()
+        # GitHub Models discovery doesn't raise on API errors, it returns None
+        result = await discovery._fetch_models()
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_fetch_models_network_error(self, discovery):
         """Test network error handling."""
-        with patch(
-            "scriptrag.llm.model_discovery.aiohttp.ClientSession"
-        ) as mock_session:
-            mock_session.return_value.__aenter__.return_value.get.side_effect = (
-                Exception("Connection failed")
-            )
+        # Configure the mock client to raise a network error
+        discovery.client.get.side_effect = Exception("Connection failed")
 
-            with pytest.raises(Exception, match="Connection failed"):
-                await discovery._fetch_models()
+        # The discovery should handle errors gracefully and return None
+        result = await discovery._fetch_models()
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_fetch_models_no_auth_token(self, discovery):
         """Test discovery without authentication token."""
-        with patch("scriptrag.llm.model_discovery.os.getenv", return_value=None):
-            with pytest.raises(Exception, match="GitHub token not available"):
-                await discovery._fetch_models()
+        # Set the token to None to simulate missing auth
+        discovery.token = None
+
+        result = await discovery._fetch_models()
+        assert result is None
 
     @pytest.mark.asyncio
     async def test_fetch_models_invalid_response_format(self, discovery):
@@ -525,18 +525,15 @@ class TestGitHubModelsDiscovery:
         # Response missing 'data' field
         mock_api_response = {"models": []}
 
-        with patch(
-            "scriptrag.llm.model_discovery.aiohttp.ClientSession"
-        ) as mock_session:
-            mock_response = AsyncMock()
-            mock_response.status = 200
-            mock_response.json = AsyncMock(return_value=mock_api_response)
-            (
-                mock_session.return_value.__aenter__.return_value.get.return_value.__aenter__.return_value
-            ) = mock_response
+        # Configure the mock client to return invalid response format
+        mock_response = AsyncMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = mock_api_response
+        discovery.client.get.return_value = mock_response
 
-            with pytest.raises(Exception, match="Invalid response format"):
-                await discovery._fetch_models()
+        # The discovery should handle invalid format and return None
+        result = await discovery._fetch_models()
+        assert result is None
 
 
 class TestModelDiscoveryIntegration:

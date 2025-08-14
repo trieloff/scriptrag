@@ -156,19 +156,48 @@ class TestClaudeCodeProvider:
     @pytest.mark.asyncio
     async def test_is_available_sdk_import_error(self, provider):
         """Test availability check when SDK import fails."""
-        with patch(
-            "scriptrag.llm.providers.claude_code.claude_code_sdk",
-            side_effect=ImportError("SDK not available"),
-        ):
-            result = await provider.is_available()
-            assert result is False
+        # Override fixture's sdk_available for import failure test
+        provider.sdk_available = (
+            True  # SDK was detected during init but import fails later
+        )
+
+        # Make sure no environment markers are set that would bypass the SDK check
+        # Store original getenv before patching
+        import scriptrag.llm.providers.claude_code
+
+        original_getenv = scriptrag.llm.providers.claude_code.os.getenv
+
+        # Patch os.getenv in the module where it's used
+        with patch("scriptrag.llm.providers.claude_code.os.getenv") as mock_getenv:
+            # Return None for Claude env markers, delegate others
+            def getenv_side_effect(key, default=None):
+                if key in [
+                    "CLAUDECODE",
+                    "CLAUDE_CODE_SESSION",
+                    "CLAUDE_SESSION_ID",
+                    "CLAUDE_WORKSPACE",
+                ]:
+                    return None
+                # Use original getenv for other variables
+                return original_getenv(key, default)
+
+            mock_getenv.side_effect = getenv_side_effect
+            # Patch the import at the point where it's used inside the method
+            with patch(
+                "claude_code_sdk.ClaudeCodeOptions",
+                side_effect=ImportError("SDK not available"),
+            ):
+                result = await provider.is_available()
+                assert result is False
 
     @pytest.mark.asyncio
     async def test_is_available_sdk_attribute_error(self, provider):
         """Test availability check when SDK has missing attributes."""
-        with patch("scriptrag.llm.providers.claude_code.claude_code_sdk") as mock_sdk:
-            # SDK module exists but missing expected attributes
-            del mock_sdk.ClaudeCodeOptions
+        # Simulate AttributeError when accessing ClaudeCodeOptions
+        with patch(
+            "claude_code_sdk.ClaudeCodeOptions",
+            side_effect=AttributeError("ClaudeCodeOptions not found"),
+        ):
             result = await provider.is_available()
             assert result is False
 
@@ -177,7 +206,7 @@ class TestClaudeCodeProvider:
         """Test availability check with environment markers as fallback."""
         # Mock SDK check to fail but have environment markers
         with patch(
-            "scriptrag.llm.providers.claude_code.claude_code_sdk",
+            "claude_code_sdk.ClaudeCodeOptions",
             side_effect=ImportError("SDK not available"),
         ):
             with patch.dict(os.environ, {"CLAUDECODE": "1"}):

@@ -5,6 +5,8 @@ import time
 from pathlib import Path
 from typing import Any, ClassVar, TypedDict
 
+from pydantic_core import ValidationError
+
 from scriptrag.config import get_logger
 from scriptrag.llm.models import Model
 
@@ -91,7 +93,7 @@ class ModelDiscoveryCache:
             )
             return models
 
-        except (json.JSONDecodeError, KeyError, TypeError) as e:
+        except (json.JSONDecodeError, KeyError, TypeError, ValidationError) as e:
             logger.warning(f"Failed to read cache for {self.provider_name}: {e}")
             return None
 

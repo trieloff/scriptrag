@@ -84,7 +84,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -93,7 +93,7 @@ class TestSearchCommand:
         search_command("test query")
 
         # Verify API was called correctly
-        mock_search_api.from_config.assert_called_once()
+        mock_search_api.assert_called_once()
         mock_api_instance.search.assert_called_once_with(
             query="test query",
             character=None,
@@ -126,7 +126,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -175,7 +175,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter_instance.format_brief.return_value = "Brief result text"
@@ -222,11 +222,11 @@ class TestSearchCommand:
         # Verify logger was called for the Exit exception
         mock_logger.error.assert_called_once()
 
-        # Verify SearchAPI.from_config WAS called (happens before validation)
-        mock_search_api.from_config.assert_called_once()
+        # Verify SearchAPI WAS called (happens before validation)
+        mock_search_api.assert_called_once()
 
         # But search() method should NOT be called
-        mock_api_instance = mock_search_api.from_config.return_value
+        mock_api_instance = mock_search_api.return_value
         mock_api_instance.search.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -256,7 +256,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -309,7 +309,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -354,7 +354,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -399,7 +399,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter_instance.format_brief.return_value = "Brief output"
@@ -424,9 +424,7 @@ class TestSearchCommand:
     def test_file_not_found_error(self, mock_console, mock_search_api, mock_formatter):
         """Test handling of FileNotFoundError."""
         # Setup mock to raise FileNotFoundError
-        mock_search_api.from_config.side_effect = FileNotFoundError(
-            "Database not found"
-        )
+        mock_search_api.side_effect = FileNotFoundError("Database not found")
 
         # Execute command and expect Exit
         with pytest.raises(typer.Exit) as exc_info:
@@ -447,7 +445,7 @@ class TestSearchCommand:
     ):
         """Test handling of SearchAPI initialization error."""
         # Setup mock to raise generic error during initialization
-        mock_search_api.from_config.side_effect = RuntimeError("Config error")
+        mock_search_api.side_effect = RuntimeError("Config error")
 
         # Execute command and expect Exit
         with pytest.raises(typer.Exit) as exc_info:
@@ -472,7 +470,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.side_effect = RuntimeError("Search failed")
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         # Execute command and expect Exit
         with pytest.raises(typer.Exit) as exc_info:
@@ -499,7 +497,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter_instance.format_results.side_effect = RuntimeError(
@@ -527,7 +525,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter_instance.format_brief.side_effect = RuntimeError(
@@ -556,7 +554,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -596,7 +594,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -631,7 +629,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -668,7 +666,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -705,7 +703,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -740,7 +738,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance

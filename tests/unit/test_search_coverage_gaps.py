@@ -113,50 +113,63 @@ class TestCLISearchCoverage:
                 )
 
     def test_file_not_found_error(self):
-        """Test FileNotFoundError handling (lines 180-185)."""
+        """Test DatabaseError handling (lines 180-185)."""
+        from scriptrag.exceptions import DatabaseError
+
         with patch(
             "scriptrag.cli.commands.search.SearchAPI.from_config"
         ) as mock_from_config:
             mock_api = MagicMock()
             mock_from_config.return_value = mock_api
             # Use the actual error message from SearchEngine
-            mock_api.search.side_effect = FileNotFoundError(
-                "Database not found at /some/path. Please run 'scriptrag init' first."
+            mock_api.search.side_effect = DatabaseError(
+                "Database not found at /some/path",
+                hint="Run 'scriptrag init' to create a new database",
             )
 
             with (
-                patch("scriptrag.cli.commands.search.console") as mock_console,
+                patch("scriptrag.cli.commands.search.handle_cli_error") as mock_handle,
                 # Also patch the logger to avoid structlog exception rendering issues
                 patch("scriptrag.cli.commands.search.logger"),
             ):
+                # handle_cli_error should raise typer.Exit
+                mock_handle.side_effect = typer.Exit(1)
+
                 with pytest.raises(typer.Exit) as exc_info:
                     search_command(query="test")
 
                 assert exc_info.value.exit_code == 1
-                mock_console.print.assert_called()
-                # The CLI prints the full error message via f"[red]Error:[/red] {e}"
-                call_args = str(mock_console.print.call_args)
-                assert "Database not found" in call_args
+                # Verify handle_cli_error was called with the error
+                mock_handle.assert_called_once()
+                error = mock_handle.call_args[0][0]
+                assert isinstance(error, DatabaseError)
+                assert "Database not found" in str(error)
 
     def test_general_exception_handling(self):
         """Test general exception handling (lines 186-195)."""
-        with patch("scriptrag.cli.commands.search.SearchAPI") as mock_search_api:
+        with patch(
+            "scriptrag.cli.commands.search.SearchAPI.from_config"
+        ) as mock_from_config:
             mock_api = MagicMock()
-            mock_search_api.return_value = mock_api
+            mock_from_config.return_value = mock_api
             mock_api.search.side_effect = Exception("Unexpected error")
 
             with (
-                patch("scriptrag.cli.commands.search.console") as mock_console,
-                patch("scriptrag.cli.commands.search.logger") as mock_logger,
+                patch("scriptrag.cli.commands.search.handle_cli_error") as mock_handle,
+                patch("scriptrag.cli.commands.search.logger"),
             ):
+                # handle_cli_error should raise typer.Exit
+                mock_handle.side_effect = typer.Exit(1)
+
                 with pytest.raises(typer.Exit) as exc_info:
                     search_command(query="test")
 
                 assert exc_info.value.exit_code == 1
-                mock_logger.error.assert_called()
-                mock_console.print.assert_called()
-                call_args = str(mock_console.print.call_args)
-                assert "Search operation failed" in call_args
+                # Verify handle_cli_error was called with the exception
+                mock_handle.assert_called_once()
+                error = mock_handle.call_args[0][0]
+                assert isinstance(error, Exception)
+                assert str(error) == "Unexpected error"
 
 
 class TestQueryBuilderCoverage:

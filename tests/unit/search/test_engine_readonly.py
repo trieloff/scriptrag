@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from scriptrag.config import ScriptRAGSettings
+from scriptrag.exceptions import DatabaseError
 from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import SearchMode, SearchQuery
 
@@ -185,7 +186,7 @@ class TestReadOnlyAccess:
             offset=0,
         )
 
-        with pytest.raises(FileNotFoundError) as exc_info:
+        with pytest.raises(DatabaseError) as exc_info:
             search_engine.search(query)
 
         assert "Database not found" in str(exc_info.value)

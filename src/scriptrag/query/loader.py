@@ -4,6 +4,7 @@ from pathlib import Path
 
 from scriptrag.common import FileSourceResolver
 from scriptrag.config import ScriptRAGSettings, get_logger
+from scriptrag.exceptions import QueryError, ValidationError
 from scriptrag.query.spec import HeaderParser, QuerySpec
 
 logger = get_logger(__name__)
@@ -164,7 +165,15 @@ class QueryLoader:
             raise FileNotFoundError(f"Query file not found: {path}")
 
         if not path.suffix == ".sql":
-            raise ValueError(f"Not an SQL file: {path}")
+            raise ValidationError(
+                message=f"Not an SQL file: {path}",
+                hint="Query files must have a .sql extension",
+                details={
+                    "file": str(path),
+                    "extension": path.suffix,
+                    "expected": ".sql",
+                },
+            )
 
         try:
             content = path.read_text(encoding="utf-8")
@@ -181,8 +190,18 @@ class QueryLoader:
             self._validate_sql_syntax(spec.sql)
 
             return spec
+        except ValidationError:
+            raise
         except Exception as e:
-            raise ValueError(f"Failed to parse query file {path}: {e}") from e
+            raise QueryError(
+                message=f"Failed to parse query file: {path.name}",
+                hint="Check the SQL syntax and header format in the file",
+                details={
+                    "file": str(path),
+                    "error": str(e),
+                    "format": "Valid SQL with header comments required",
+                },
+            ) from e
 
     def _validate_sql_syntax(self, sql: str) -> None:
         """Validate SQL syntax without execution.
@@ -198,7 +217,14 @@ class QueryLoader:
         # Strip trailing whitespace and comments for validation
         sql_stripped = sql.strip()
         if not sql_stripped:
-            raise ValueError("Empty SQL statement")
+            raise ValidationError(
+                message="Empty SQL statement",
+                hint="The query file contains no executable SQL",
+                details={
+                    "sql_length": len(sql),
+                    "stripped_length": len(sql_stripped),
+                },
+            )
 
         # Use sqlite3.complete_statement for basic validation
         # Add semicolon if not present (sqlite3.complete_statement needs it)

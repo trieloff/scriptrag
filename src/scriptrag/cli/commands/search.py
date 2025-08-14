@@ -7,8 +7,8 @@ import typer
 from rich.console import Console
 
 from scriptrag.api.search import SearchAPI
-from scriptrag.config import get_logger, get_settings
-from scriptrag.config.settings import ScriptRAGSettings
+from scriptrag.cli.utils.config import override_database_path
+from scriptrag.config import get_logger
 from scriptrag.search.formatter import ResultFormatter
 
 logger = get_logger(__name__)
@@ -165,15 +165,8 @@ def search_command(
     """
     try:
         # Initialize search API with custom database path if provided
-        if db_path is not None:
-            settings = get_settings()
-            # Apply db_path override
-            updated_data = settings.model_dump()
-            updated_data["database_path"] = db_path
-            settings = ScriptRAGSettings(**updated_data)
-            search_api = SearchAPI(settings)
-        else:
-            search_api = SearchAPI.from_config()
+        settings = override_database_path(db_path, clear_cache=True)
+        search_api = SearchAPI(settings)
 
         # Validate conflicting options
         if fuzzy and strict:

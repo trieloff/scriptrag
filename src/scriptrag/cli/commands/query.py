@@ -7,8 +7,7 @@ import typer
 from rich.console import Console
 
 from scriptrag.api.query import QueryAPI
-from scriptrag.config import get_settings
-from scriptrag.config.settings import ScriptRAGSettings
+from scriptrag.cli.utils.config import override_database_path
 
 # Create query app
 query_app = typer.Typer(
@@ -48,18 +47,8 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
 
         try:
             # Get fresh API instance with current settings at execution time
-            # Force fresh settings to pick up environment variable changes
-            import scriptrag.config.settings as settings_module
-
-            settings_module._settings = None  # Clear cached settings
-            current_settings = get_settings()
-
-            # Apply db_path override if provided
-            if db_path is not None:
-                updated_data = current_settings.model_dump()
-                updated_data["database_path"] = db_path
-                current_settings = ScriptRAGSettings(**updated_data)
-
+            # Apply db_path override if provided with validation
+            current_settings = override_database_path(db_path, clear_cache=True)
             current_api = QueryAPI(current_settings)
 
             result = current_api.execute_query(
@@ -226,10 +215,7 @@ def register_query_commands() -> None:
     )
 
     # Force fresh settings to pick up environment variable changes
-    import scriptrag.config.settings as settings_module
-
-    settings_module._settings = None  # Clear cached settings
-    settings = get_settings()
+    settings = override_database_path(None, clear_cache=True)
     api = QueryAPI(settings)
 
     # Force reload queries from (possibly new) directory

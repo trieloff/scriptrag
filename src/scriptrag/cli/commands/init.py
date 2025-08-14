@@ -7,7 +7,7 @@ import typer
 from rich.console import Console
 
 from scriptrag.api import DatabaseInitializer
-from scriptrag.config import get_settings
+from scriptrag.cli.utils.config import override_database_path
 
 console = Console()
 
@@ -46,25 +46,19 @@ def init_command(
     # Load settings with proper precedence
     from scriptrag.config.settings import ScriptRAGSettings
 
-    # Prepare CLI args (only non-None values)
-    cli_args = {}
-    if db_path is not None:
-        cli_args["database_path"] = db_path
-
     # Load settings from multiple sources
     if config:
+        # Prepare CLI args (only non-None values)
+        cli_args = {}
+        if db_path is not None:
+            cli_args["database_path"] = db_path
         settings = ScriptRAGSettings.from_multiple_sources(
             config_files=[config],
             cli_args=cli_args,
         )
     else:
-        # Use default settings with CLI overrides
-        settings = get_settings()
-        if cli_args:
-            # Apply CLI overrides
-            updated_data = settings.model_dump()
-            updated_data.update(cli_args)
-            settings = ScriptRAGSettings(**updated_data)
+        # Use default settings with db_path override and validation
+        settings = override_database_path(db_path, clear_cache=True)
 
     initializer = DatabaseInitializer()
 

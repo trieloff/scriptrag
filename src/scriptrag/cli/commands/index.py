@@ -16,8 +16,8 @@ from rich.progress import (
 from rich.table import Table
 
 from scriptrag.api.index import IndexOperationResult
-from scriptrag.config import get_logger, get_settings
-from scriptrag.config.settings import ScriptRAGSettings
+from scriptrag.cli.utils.config import override_database_path
+from scriptrag.config import get_logger
 
 logger = get_logger(__name__)
 console = Console()
@@ -91,18 +91,11 @@ def index_command(
     try:
         from scriptrag.api.index import IndexCommand
 
-        # Handle custom database path if provided
-        if db_path is not None:
-            settings = get_settings()
-            # Apply db_path override
-            updated_data = settings.model_dump()
-            updated_data["database_path"] = db_path
-            settings = ScriptRAGSettings(**updated_data)
-            # Initialize index command with custom settings
-            index_cmd = IndexCommand(settings=settings)
-        else:
-            # Initialize index command with default config
-            index_cmd = IndexCommand.from_config()
+        # Handle custom database path if provided with validation
+        settings = override_database_path(db_path, clear_cache=True)
+
+        # Initialize index command with settings
+        index_cmd = IndexCommand(settings=settings)
 
         # Run with progress tracking
         with Progress(

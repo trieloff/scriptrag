@@ -147,11 +147,20 @@ class TestCLISearchCoverage:
 
     def test_general_exception_handling(self):
         """Test general exception handling (lines 186-195)."""
-        with patch(
-            "scriptrag.cli.commands.search.SearchAPI.from_config"
-        ) as mock_from_config:
+        with (
+            patch(
+                "scriptrag.cli.commands.search.override_database_path"
+            ) as mock_override,
+            patch("scriptrag.cli.commands.search.SearchAPI") as mock_search_api,
+        ):
+            # Mock the settings override
+            from scriptrag.config import get_settings
+
+            mock_override.return_value = get_settings()
+
+            # Mock the API instance
             mock_api = MagicMock()
-            mock_from_config.return_value = mock_api
+            mock_search_api.return_value = mock_api
             mock_api.search.side_effect = Exception("Unexpected error")
 
             with (

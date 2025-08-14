@@ -154,16 +154,7 @@ class TestInitCommand:
 
         # Check command succeeded
         if result.exit_code != 0:
-            print(f"Output: {result.stdout}")
-            print(f"Exception: {result.exception}")
-            if result.exception:
-                import traceback
-
-                traceback.print_exception(
-                    type(result.exception),
-                    result.exception,
-                    result.exception.__traceback__,
-                )
+            pass  # Debug info available in result object
         assert result.exit_code == 0
         assert "Database initialized successfully" in result.stdout
 

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from scriptrag.config import ScriptRAGSettings
+from scriptrag.exceptions import DatabaseError
 from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import SearchMode, SearchQuery
 
@@ -119,7 +120,7 @@ class TestSearchEngine:
         engine = SearchEngine(settings)
 
         with (
-            pytest.raises(ValueError, match="Invalid database path detected"),
+            pytest.raises(DatabaseError, match="Invalid database path"),
             engine.get_read_only_connection(),
         ):
             pass
@@ -131,7 +132,7 @@ class TestSearchEngine:
 
         query = SearchQuery(raw_query="test", text_query="test")
 
-        with pytest.raises(FileNotFoundError, match="Database not found"):
+        with pytest.raises(DatabaseError, match="Database not found"):
             engine.search(query)
 
     @patch("scriptrag.search.engine.get_read_only_connection")

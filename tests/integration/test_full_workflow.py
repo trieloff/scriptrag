@@ -132,9 +132,7 @@ class TestFullWorkflow:
         )
         # Debug output
         if result.exit_code != 0:
-            print(f"Analyze command failed with exit code {result.exit_code}")
-            print(f"stdout: {result.stdout}")
-            print(f"stderr: {result.stderr if hasattr(result, 'stderr') else 'N/A'}")
+            pass  # Analyze command failed
         assert result.exit_code == 0
         # The analyze command outputs "Processing" and "Updated" messages
         output = strip_ansi_codes(result.stdout)
@@ -341,7 +339,7 @@ class TestFullWorkflow:
         assert "Database initialized successfully" in strip_ansi_codes(result.stdout)
 
         # Analyze with scene_embeddings analyzer
-        print("\n=== Running scene_embeddings analyzer ===")
+        pass  # Running scene_embeddings analyzer
         result = runner.invoke(
             app,
             [
@@ -355,9 +353,7 @@ class TestFullWorkflow:
 
         # Debug output and handle rate limit failures gracefully
         if result.exit_code != 0:
-            print(f"Analyze command failed with exit code {result.exit_code}")
-            print(f"stdout: {result.stdout}")
-            print(f"stderr: {result.stderr if hasattr(result, 'stderr') else 'N/A'}")
+            pass  # Analyze command failed
 
             # Check if failure is due to LLM provider rate limits or unavailability
             stdout_str = str(result.stdout)
@@ -411,17 +407,7 @@ class TestFullWorkflow:
                                         embedding_paths.append(
                                             embedding_result["embedding_path"]
                                         )
-                                        print(
-                                            f"Found embedding path: "
-                                            f"{embedding_result['embedding_path']}"
-                                        )
-                                        print(
-                                            f"  Dimensions: "
-                                            f"{embedding_result.get('dimensions')}"
-                                        )
-                                        print(
-                                            f"  Model: {embedding_result.get('model')}"
-                                        )
+                                        pass  # Embedding info available
                             except json.JSONDecodeError:
                                 pass
                         break
@@ -442,18 +428,18 @@ class TestFullWorkflow:
             repo = git.Repo(sample_screenplay.parent, search_parent_directories=True)
             repo_root = Path(repo.working_dir)
             possible_dirs.append(repo_root / "embeddings")
-            print(f"Found git repository at: {repo_root}")
+            pass  # Found git repository
         except git.InvalidGitRepositoryError:
-            print("No git repo found from screenplay location")
+            pass  # No git repo found from screenplay location
 
         # Also check the main project repo (where test is running from)
         try:
             main_repo = git.Repo(".", search_parent_directories=True)
             main_repo_root = Path(main_repo.working_dir)
             possible_dirs.append(main_repo_root / "embeddings")
-            print(f"Found main git repository at: {main_repo_root}")
+            pass  # Found main git repository
         except git.InvalidGitRepositoryError:
-            print("No main git repo found")
+            pass  # No main git repo found
 
         # Fallback: check temp directory
         possible_dirs.append(sample_screenplay.parent / "embeddings")
@@ -463,7 +449,7 @@ class TestFullWorkflow:
         for dir_path in possible_dirs:
             if dir_path.exists():
                 embeddings_dir = dir_path
-                print(f"Found embeddings directory at: {embeddings_dir}")
+                pass  # Found embeddings directory
                 break
 
         assert embeddings_dir is not None, (
@@ -479,12 +465,12 @@ class TestFullWorkflow:
             embedding_file = embeddings_dir / embedding_filename
             if embedding_file.exists():
                 found_embeddings.append(embedding_file)
-                print(f"  Found embedding file: {embedding_file}")
+                pass  # Found embedding file
 
         assert len(found_embeddings) > 0, (
             f"No embedding files found for scene hashes in {embeddings_dir}"
         )
-        print(f"\nFound {len(found_embeddings)} embedding files for our scenes")
+        pass  # Track found embeddings count
 
         # Verify each embedding file is valid
         for npy_file in found_embeddings:
@@ -497,7 +483,7 @@ class TestFullWorkflow:
                     f"Embedding should be 1D vector, got {embedding.ndim}D"
                 )
                 assert embedding.size > 0, f"Empty embedding in {npy_file}"
-                print(f"  {npy_file.name}: {embedding.shape} dimensions")
+                pass  # Embedding shape verified
             except Exception as e:
                 pytest.fail(f"Failed to load embedding from {npy_file}: {e}")
 
@@ -546,7 +532,7 @@ class TestFullWorkflow:
         embeddings = cursor.fetchall()
 
         assert len(embeddings) > 0, "No embeddings found in database"
-        print(f"\nFound {len(embeddings)} embeddings in database")
+        pass  # Track embeddings count in database
 
         # Verify each embedding in database
         for embedding_row in embeddings:
@@ -573,10 +559,7 @@ class TestFullWorkflow:
                 f"Unexpected embedding size {embedding_array.size} "
                 f"for scene '{embedding_row['heading']}', expected 1536"
             )
-            print(
-                f"  Scene '{embedding_row['heading']}': "
-                f"{embedding_array.size} dimensions (fully stored in DB)"
-            )
+            pass  # Scene embedding dimensions tracked
 
         # Verify that each scene has metadata with embedding info
         for scene in scenes:
@@ -593,13 +576,10 @@ class TestFullWorkflow:
                     assert "content_hash" in embedding_info
                     assert "embedding_path" in embedding_info
                     assert "dimensions" in embedding_info
-                    print(f"\nScene {scene['scene_number']} embedding metadata:")
-                    print(f"  Hash: {embedding_info['content_hash'][:8]}...")
-                    print(f"  Path: {embedding_info['embedding_path']}")
-                    print(f"  Dimensions: {embedding_info['dimensions']}")
+                    pass  # Embedding metadata validated
 
         conn.close()
-        print("\n=== Embedding verification complete ===")
+        pass  # Embedding verification complete
 
     @pytest.mark.parametrize(
         "provider_scenario",
@@ -697,7 +677,7 @@ class TestFullWorkflow:
             monkeypatch.setenv("SCRIPTRAG_LLM_PROVIDER", "github_models")
 
         # Log which provider scenario is being tested
-        print(f"\n=== Testing with provider scenario: {provider_scenario} ===")
+        pass  # Testing with provider scenario
 
         # Step 1: Initialize database
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])
@@ -705,10 +685,7 @@ class TestFullWorkflow:
         assert "Database initialized successfully" in strip_ansi_codes(result.stdout)
 
         # Step 2: Analyze with props_inventory analyzer
-        print(
-            f"\n=== Running props_inventory analyzer with "
-            f"{provider_scenario} provider ==="
-        )
+        pass  # Running props_inventory analyzer
         result = runner.invoke(
             app,
             [
@@ -722,9 +699,7 @@ class TestFullWorkflow:
 
         # Debug output and handle rate limit failures gracefully
         if result.exit_code != 0:
-            print(f"Analyze command failed with exit code {result.exit_code}")
-            print(f"stdout: {result.stdout}")
-            print(f"stderr: {result.stderr if hasattr(result, 'stderr') else 'N/A'}")
+            pass  # Analyze command failed
 
             # Check if failure is due to LLM provider rate limits or unavailability
             stdout_str = str(result.stdout)
@@ -745,10 +720,7 @@ class TestFullWorkflow:
         assert result.exit_code == 0
 
         # Step 3: Display the updated fountain file contents for debugging
-        print("\n=== Fountain file contents after analysis ===")
         updated_content = props_screenplay.read_text()
-        print(updated_content)
-        print("=== End of fountain file ===\n")
 
         # Step 4: Verify metadata was added to the fountain file
         assert "SCRIPTRAG-META-START" in updated_content
@@ -798,16 +770,10 @@ class TestFullWorkflow:
                                                 ),
                                             }
                                         )
-                                        print(f"\nScene: {current_scene}")
-                                        print(f"Found {len(props_data['props'])} props")
-                                        for prop in props_data["props"]:
-                                            print(
-                                                f"  - {prop['name']} "
-                                                f"({prop['category']}): "
-                                                f"{prop['significance']}"
-                                            )
+                                        for _prop in props_data["props"]:
+                                            pass  # Props tracked in found_props
                             except json.JSONDecodeError as e:
-                                print(f"Failed to parse metadata: {e}")
+                                pass  # Failed to parse metadata
                         break
 
         # Verify we found props in the scenes
@@ -854,11 +820,7 @@ class TestFullWorkflow:
             else:
                 missing_props.append(expected)
 
-        print("\n=== Props Detection Results ===")
-        print(f"Found {len(found_props)}/{len(expected_props)} expected props")
-        print(f"Found props: {found_props}")
-        if missing_props:
-            print(f"Missing props: {missing_props}")
+        # Props detection results tracked in found_props and missing_props
 
         # We should detect at least 70% of the expected props
         detection_rate = len(found_props) / len(expected_props)
@@ -912,16 +874,12 @@ class TestFullWorkflow:
                         "props_inventory"
                     ].get("result", {})
                     if "props" in props_result:
-                        print(f"\nDB Scene {scene['scene_number']}: {scene['heading']}")
-                        print(f"  Props in database: {len(props_result['props'])}")
+                        pass  # Props in database tracked
 
         assert scenes_with_db_props > 0, (
             "No scenes with props analysis found in database"
         )
-        print(
-            f"\n{scenes_with_db_props}/{len(scenes)} scenes have props "
-            f"analysis in database"
-        )
+        # Track scenes with database props: scenes_with_db_props
 
         conn.close()
 
@@ -1018,7 +976,7 @@ class TestFullWorkflow:
         # Query is positional, must come first
         result = runner.invoke(app, ["search", "done", "--character", "SARAH"])
         if result.exit_code != 0:
-            print(f"Search failed: {strip_ansi_codes(result.stdout)}")
+            pass  # Search failed
         assert result.exit_code == 0
         # Should find SARAH's dialogue containing "done"
         output = strip_ansi_codes(result.stdout)
@@ -1592,7 +1550,7 @@ A test scene.
         # Index screenplay
         result = runner.invoke(app, ["index", str(sample_screenplay.parent)])
         if result.exit_code != 0:
-            print(f"Index failed: {result.stdout}")
+            pass  # Index failed
         assert result.exit_code == 0
 
         # Test 1: Read a scene

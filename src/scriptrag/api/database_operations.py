@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from scriptrag.config import ScriptRAGSettings, get_logger
+from scriptrag.exceptions import DatabaseError
 from scriptrag.parser import Dialogue, Scene, Script
 from scriptrag.utils import ScreenplayUtils
 
@@ -170,7 +171,15 @@ class DatabaseOperations:
         )
         script_id = cursor.lastrowid
         if script_id is None:
-            raise RuntimeError("Failed to get script ID after insert")
+            raise DatabaseError(
+                message="Failed to get script ID after database insert",
+                hint="Database constraint violation or transaction issue",
+                details={
+                    "script_title": script.title,
+                    "script_path": str(file_path),
+                    "operation": "INSERT INTO scripts",
+                },
+            )
         logger.debug(f"Inserted script {script_id}: {script.title}")
         return script_id
 
@@ -344,7 +353,15 @@ class DatabaseOperations:
             )
             lastrowid = cursor.lastrowid
             if lastrowid is None:
-                raise RuntimeError("Failed to get scene ID after insert")
+                raise DatabaseError(
+                    message="Failed to get scene ID after database insert",
+                    hint="Database constraint violation or transaction issue",
+                    details={
+                        "scene_number": getattr(scene, "scene_number", "unknown"),
+                        "script_id": script_id,
+                        "operation": "INSERT INTO scenes",
+                    },
+                )
             scene_id = lastrowid
             content_changed = True  # New scene, so content has "changed"
             logger.debug(f"Inserted scene {scene_id}: {scene.heading}")
@@ -597,7 +614,15 @@ class DatabaseOperations:
             )
             lastrowid = cursor.lastrowid
             if lastrowid is None:
-                raise RuntimeError("Failed to get embedding ID after insert")
+                raise DatabaseError(
+                    message="Failed to get embedding ID after database insert",
+                    hint="Database constraint violation or embedding storage issue",
+                    details={
+                        "entity_type": entity_type,
+                        "entity_id": entity_id,
+                        "operation": "INSERT INTO embeddings",
+                    },
+                )
             embedding_id = lastrowid
             logger.debug(
                 f"Inserted embedding {embedding_id} for {entity_type}:{entity_id}"

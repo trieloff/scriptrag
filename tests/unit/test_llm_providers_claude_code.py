@@ -119,13 +119,10 @@ class TestClaudeCodeProvider:
 
     def test_check_sdk_no_sdk(self):
         """Test SDK check when SDK is not installed."""
-        # Ensure claude_code_sdk is NOT in sys.modules to simulate import failure
-
-        if "claude_code_sdk" in sys.modules:
-            del sys.modules["claude_code_sdk"]
-
-        provider = ClaudeCodeProvider()
-        assert provider.sdk_available is False
+        # Mock the import to fail
+        with patch.dict("sys.modules", {"claude_code_sdk": None}):
+            provider = ClaudeCodeProvider()
+            assert provider.sdk_available is False
 
     @pytest.mark.asyncio
     async def test_is_available_with_sdk(self, provider):

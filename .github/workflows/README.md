@@ -28,11 +28,11 @@ The main continuous integration pipeline that runs on all pull requests and push
 Intelligent test failure analysis using Claude Code AI to provide detailed diagnostic information when CI fails.
 
 **Features:**
-- Automatically triggers when CI workflow fails on a PR
+- Automatically triggers when CI workflow fails on any PR
 - Uses Claude Code to analyze test failures and provide root cause analysis
 - Integrates with gh-workflow-peek extension for detailed log analysis
 - Provides actionable recommendations for fixing failures
-- Special handling for Terragon Labs tasks with Terry integration
+- Special handling for Terragon Labs tasks with Terry integration (when applicable)
 
 **How it works:**
 1. Monitors CI workflow runs for failures
@@ -94,11 +94,11 @@ Workflows require various GitHub permissions:
 
 ## Integration with Terragon Labs
 
-The workflows include special handling for Terragon Labs tasks:
+The test failure diagnostics workflow includes special handling for Terragon Labs tasks:
 - Detects Terry task URLs in PR descriptions
-- Tags @terragon-labs in diagnostic comments
+- Tags @terragon-labs in diagnostic comments when applicable
 - Provides Terry-specific commands for task management
-- Only triggers diagnostics for Terragon-initiated PRs
+- Runs diagnostics for ALL PRs, with enhanced features for Terragon-initiated ones
 
 ## Maintenance
 

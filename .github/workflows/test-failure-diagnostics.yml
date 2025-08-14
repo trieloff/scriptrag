@@ -54,13 +54,9 @@ jobs:
             // Check if PR is from Terragon Labs
             const isTerragonPR = pr.body && pr.body.includes('terragonlabs.com/task');
 
-            if (!isTerragonPR) {
-              console.log('PR is not from Terragon Labs, skipping diagnostics');
-              core.setOutput('pr_found', 'false');
-              return;
-            }
+            console.log(`PR #${pr.number} - Terragon Labs: ${isTerragonPR}`);
 
-            // Extract Terry task ID if present
+            // Extract Terry task ID if present (only for Terragon PRs)
             let taskId = null;
             let taskUrl = null;
             if (isTerragonPR) {
@@ -68,6 +64,7 @@ jobs:
               if (match) {
                 taskUrl = match[0];
                 taskId = match[1];
+                console.log(`Found Terry task: ${taskId}`);
               }
             }
 

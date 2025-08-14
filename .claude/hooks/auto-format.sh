@@ -185,8 +185,13 @@ for file in $MODIFIED_FILES; do
             # For Markdown: preserve exactly 2 trailing spaces (line breaks), remove others
             # This matches the behavior of pre-commit's trailing-whitespace with --markdown-linebreak-ext=md
             python3 -c "
+import sys
 import re
-with open('$file', 'r') as f: lines = f.readlines()
+
+file_path = sys.argv[1]
+with open(file_path, 'r') as f:
+    lines = f.readlines()
+
 # Mimic pre-commit trailing-whitespace --markdown-linebreak-ext=md behavior
 for i, line in enumerate(lines):
     # Remove newline for processing
@@ -200,8 +205,10 @@ for i, line in enumerate(lines):
             # If exactly 1 whitespace char, remove it
             line_content = re.sub(r'\s+$', '', line_content)
     lines[i] = line_content + '\n'
-with open('$file', 'w') as f: f.writelines(lines)
-" 2>/dev/null || true
+
+with open(file_path, 'w') as f:
+    f.writelines(lines)
+" "$file" 2>/dev/null || true
         else
             # For all other files: remove all trailing whitespace
             sed -i 's/[[:space:]]*$//' "$file" 2>/dev/null || true

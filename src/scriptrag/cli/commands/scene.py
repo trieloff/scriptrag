@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+from datetime import datetime
 from typing import Annotated
 
 import typer
@@ -47,8 +48,6 @@ def read_scene(
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Read a scene or script bible content.
-
-    The session token is valid for 10 minutes and must be used for updates.
 
     Examples:
         scriptrag scene read --project "breaking_bad" --season 1 --episode 1 --scene 3
@@ -140,9 +139,8 @@ def read_scene(
                     "scene_number": result.scene.number,
                     "heading": result.scene.heading,
                     "content": result.scene.content,
-                    "session_token": result.session_token,
-                    "expires_at": result.expires_at.isoformat()
-                    if result.expires_at
+                    "last_read": result.last_read.isoformat()
+                    if result.last_read
                     else None,
                 }
                 console.print_json(data=output)
@@ -157,16 +155,11 @@ def read_scene(
                     )
                 )
 
-            # Display session info
-            console.print(f"\n[green]Session Token:[/green] {result.session_token}")
-            if result.expires_at:
+            # Display read timestamp
+            if result.last_read:
                 console.print(
-                    f"[yellow]Expires at:[/yellow] {result.expires_at.isoformat()}"
+                    f"\n[green]Last read:[/green] {result.last_read.isoformat()}"
                 )
-            console.print(
-                "\n[dim]Use this token with 'scriptrag scene update' "
-                "within 10 minutes[/dim]"
-            )
 
     except Exception as e:
         logger.error(f"Failed to read: {e}")
@@ -285,9 +278,16 @@ def update_scene(
         str, typer.Option("--project", "-p", help="Project/script name")
     ],
     scene: Annotated[int, typer.Option("--scene", "-s", help="Scene number")],
-    token: Annotated[
-        str, typer.Option("--token", "-t", help="Session token from read command")
-    ],
+    safe: Annotated[
+        bool, typer.Option("--safe", help="Check for conflicts before updating")
+    ] = False,
+    last_read: Annotated[
+        str | None,
+        typer.Option(
+            "--last-read",
+            help="ISO timestamp of when scene was last read (for --safe mode)",
+        ),
+    ] = None,
     season: Annotated[
         int | None, typer.Option("--season", help="Season number (for TV)")
     ] = None,
@@ -299,13 +299,19 @@ def update_scene(
         typer.Option("--content", "-c", help="New scene content (or pipe from stdin)"),
     ] = None,
 ) -> None:
-    r"""Update a scene using a valid session token.
+    r"""Update a scene with optional conflict checking.
 
-    Requires a session token from a recent 'scene read' command (within 10 minutes).
+    By default, updates happen immediately without conflict checking.
+    Use --safe flag for conflict detection (requires --last-read timestamp).
     Content must be valid Fountain format.
 
     Examples:
-        scriptrag scene update --project "inception" --scene 42 --token "xyz789"
+        # Simple update (no conflict checking)
+        scriptrag scene update --project "inception" --scene 42
+
+        # Safe update (with conflict checking)
+        scriptrag scene update --safe --project "inception" --scene 42 \
+            --last-read "2024-01-15T10:30:00"
 
     Use --content flag or pipe content via stdin.
     """
@@ -328,11 +334,33 @@ def update_scene(
             episode=episode,
         )
 
+        # Parse last_read timestamp if provided
+        last_read_dt = None
+        if safe:
+            if not last_read:
+                console.print(
+                    "[red]Error: --last-read timestamp required "
+                    "when using --safe flag[/red]"
+                )
+                raise typer.Exit(1)
+            try:
+                last_read_dt = datetime.fromisoformat(last_read)
+            except ValueError as e:
+                console.print(
+                    f"[red]Error: Invalid timestamp format: {last_read}[/red]"
+                )
+                console.print("[dim]Use ISO format: YYYY-MM-DDTHH:MM:SS[/dim]")
+                raise typer.Exit(1) from e
+
         # Initialize API
         api = SceneManagementAPI()
 
         # Update scene
-        result = asyncio.run(api.update_scene(scene_id, content, token))
+        result = asyncio.run(
+            api.update_scene(
+                scene_id, content, check_conflicts=safe, last_read=last_read_dt
+            )
+        )
 
         if not result.success:
             console.print(f"[red]Error: {result.error}[/red]")

@@ -194,8 +194,7 @@ class TestSceneReadBibleCommand:
             success=True,
             error=None,
             scene=mock_scene,
-            session_token="tv-token",  # noqa: S106
-            expires_at=None,
+            last_read=None,
         )
 
         mock_api.read_scene = AsyncMock(return_value=mock_result)
@@ -219,7 +218,7 @@ class TestSceneReadBibleCommand:
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.output)
         assert "Walter works" in clean_output
-        assert "tv-token" in clean_output
+        # Token system eliminated - no longer checking for tokens
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_read_scene_exception(self, mock_api_class):
@@ -500,8 +499,9 @@ class TestSceneUpdateCommandExtended:
                 "test",
                 "--scene",
                 "5",
-                "--token",
-                "abc123",
+                "--safe",
+                "--last-read",
+                "2024-01-15T10:30:00",
             ],
         )
 
@@ -523,8 +523,7 @@ class TestSceneUpdateCommandExtended:
                     "test",
                     "--scene",
                     "5",
-                    "--token",
-                    "abc123",
+                    # No safe mode - immediate update
                 ],
                 input="",  # Provide empty input to simulate tty
             )
@@ -567,8 +566,9 @@ class TestSceneUpdateCommandExtended:
                 "3",
                 "--scene",
                 "5",
-                "--token",
-                "tv-token",
+                "--safe",
+                "--last-read",
+                "2024-01-15T10:30:00",
                 "--content",
                 "INT. LAB - NIGHT\n\nUpdated lab",
             ],
@@ -599,8 +599,9 @@ class TestSceneUpdateCommandExtended:
                 "test",
                 "--scene",
                 "5",
-                "--token",
-                "abc123",
+                "--safe",
+                "--last-read",
+                "2024-01-15T10:30:00",
                 "--content",
                 "Invalid",
             ],
@@ -628,8 +629,9 @@ class TestSceneUpdateCommandExtended:
                 "test",
                 "--scene",
                 "5",
-                "--token",
-                "abc123",
+                "--safe",
+                "--last-read",
+                "2024-01-15T10:30:00",
                 "--content",
                 "INT. SCENE - DAY\n\nContent",
             ],

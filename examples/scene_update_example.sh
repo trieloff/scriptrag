@@ -1,0 +1,45 @@
+#!/bin/bash
+# Example of using the simplified scene management with timestamps
+
+echo "======================================"
+echo "ScriptRAG Scene Management Example"
+echo "======================================"
+echo ""
+echo "This example demonstrates the simplified scene management system"
+echo "that replaces the complex token system with timestamp-based validation."
+echo ""
+
+# Simple update (no conflict checking - default behavior)
+echo "1. Simple Update (no conflict checking):"
+echo "-----------------------------------------"
+echo "uv run scriptrag scene update --project 'MyScript' --scene 5 --content 'INT. OFFICE - DAY"
+echo ""
+echo "New content for the scene.'"
+echo ""
+echo "This updates the scene immediately without any conflict checking."
+echo ""
+
+# Safe update (with conflict checking)
+echo "2. Safe Update (with conflict checking):"
+echo "-----------------------------------------"
+echo "# First, read the scene to get the timestamp"
+echo "uv run scriptrag scene read --project 'MyScript' --scene 5"
+echo "# Output will show: Last read: 2024-01-15T10:30:00"
+echo ""
+echo "# Then update with conflict checking"
+echo "uv run scriptrag scene update --safe --project 'MyScript' --scene 5 \\"
+echo "  --last-read '2024-01-15T10:30:00' \\"
+echo "  --content 'INT. OFFICE - DAY"
+echo ""
+echo "Updated content.'"
+echo ""
+echo "If the scene was modified since the last read, the update will fail"
+echo "with a conflict error, preventing accidental overwrites."
+echo ""
+
+echo "Benefits of the new system:"
+echo "- No token management complexity"
+echo "- No expiration issues"
+echo "- Simpler code"
+echo "- Better user experience"
+echo "- Optional conflict checking when needed"

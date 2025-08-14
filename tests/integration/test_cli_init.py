@@ -78,8 +78,10 @@ class TestInitCommand:
         # Check schema version
         cursor.execute("SELECT version, description FROM schema_version")
         version, description = cursor.fetchone()
-        assert version == 1
-        assert description == "Initial ScriptRAG database schema"
+        assert version == 2
+        assert (
+            description == "Initial ScriptRAG database schema with last_read_at column"
+        )
 
         conn.close()
 

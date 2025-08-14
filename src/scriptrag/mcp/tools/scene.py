@@ -74,17 +74,15 @@ def register_scene_tools(mcp: FastMCP) -> None:
                         "location": result.scene.location,
                         "time_of_day": result.scene.time_of_day,
                     },
-                    "session_token": result.session_token,
-                    "expires_at": result.expires_at.isoformat()
-                    if result.expires_at
+                    "last_read": result.last_read.isoformat()
+                    if result.last_read
                     else None,
                     "error": None,
                 }
             return {
                 "success": False,
                 "scene": None,
-                "session_token": None,
-                "expires_at": None,
+                "last_read": None,
                 "error": result.error or "Unknown error",
             }
 
@@ -93,8 +91,7 @@ def register_scene_tools(mcp: FastMCP) -> None:
             return {
                 "success": False,
                 "scene": None,
-                "session_token": None,
-                "expires_at": None,
+                "last_read": None,
                 "error": str(e),
             }
 
@@ -217,24 +214,25 @@ def register_scene_tools(mcp: FastMCP) -> None:
         project: str,
         scene_number: int,
         content: str,
-        session_token: str,
+        check_conflicts: bool = False,
+        last_read: str | None = None,
         season: int | None = None,
         episode: int | None = None,
         reader_id: str = "mcp_agent",
     ) -> dict[str, Any]:
-        r"""Update scene content with validation.
+        r"""Update scene content with optional conflict checking.
 
-        This tool updates an existing scene's content. It requires a valid
-        session token from a recent scriptrag_scene_read call (within 10 minutes).
-        The content must be valid Fountain format. If the scene has been modified
-        by another process since it was read, the update will fail to prevent
-        conflicts.
+        This tool updates an existing scene's content. By default, updates happen
+        immediately without conflict checking. Use check_conflicts=True with a
+        last_read timestamp for safe updates that prevent concurrent modifications.
 
         Args:
             project: Project/script name
             scene_number: Scene number to update
             content: New scene content in Fountain format
-            session_token: Session token from scriptrag_scene_read
+            check_conflicts: If True, check for concurrent modifications
+            last_read: ISO timestamp of when scene was last read (required if
+                check_conflicts=True)
             season: Season number (for TV shows, optional)
             episode: Episode number (for TV shows, optional)
             reader_id: Identifier for the updater (default: "mcp_agent")
@@ -247,7 +245,7 @@ def register_scene_tools(mcp: FastMCP) -> None:
             - error: Error message if operation failed
 
         Validation Errors:
-            - SESSION_INVALID: Session token expired or invalid
+            - MISSING_TIMESTAMP: check_conflicts=True but no last_read provided
             - CONCURRENT_MODIFICATION: Scene modified by another process
             - SCENE_NOT_FOUND: Scene no longer exists
             - Fountain format errors: Specific formatting issues
@@ -259,7 +257,8 @@ def register_scene_tools(mcp: FastMCP) -> None:
                 "season": 2,
                 "episode": 5,
                 "scene_number": 5,
-                "session_token": "abc-123-def",
+                "check_conflicts": true,
+                "last_read": "2024-01-15T10:30:00",
                 "content": "INT. COFFEE SHOP - DAY\\n\\nUpdated scene content."
             }
         """
@@ -271,8 +270,29 @@ def register_scene_tools(mcp: FastMCP) -> None:
                 episode=episode,
             )
 
+            # Parse last_read timestamp if provided
+            from datetime import datetime
+
+            last_read_dt = None
+            if check_conflicts and last_read:
+                try:
+                    last_read_dt = datetime.fromisoformat(last_read)
+                except ValueError:
+                    return {
+                        "success": False,
+                        "updated_scene": None,
+                        "validation_errors": ["INVALID_TIMESTAMP"],
+                        "error": f"Invalid timestamp format: {last_read}",
+                    }
+
             api = SceneManagementAPI()
-            result = await api.update_scene(scene_id, content, session_token, reader_id)
+            result = await api.update_scene(
+                scene_id,
+                content,
+                check_conflicts=check_conflicts,
+                last_read=last_read_dt,
+                reader_id=reader_id,
+            )
 
             if result.success and result.updated_scene:
                 return {

@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 
+from scriptrag.api.duplicate_handler import DuplicateStrategy
 from scriptrag.api.index import IndexCommand
 from scriptrag.api.list import FountainMetadata
 from scriptrag.config import ScriptRAGSettings
@@ -508,7 +509,9 @@ class TestIndexCommandCoverage:
 
         with patch.object(indexer.parser, "parse_file", return_value=script):
             result = await indexer._index_single_script(
-                Path("test.fountain"), dry_run=False
+                Path("test.fountain"),
+                dry_run=False,
+                duplicate_strategy=DuplicateStrategy.ERROR,
             )
 
         # Should always clear existing data when updating

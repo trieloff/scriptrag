@@ -235,10 +235,14 @@ debug = true
 
     def test_unsupported_config_format(self, tmp_path):
         """Test error for unsupported config file format."""
+        from scriptrag.exceptions import ConfigurationError
+
         config_file = tmp_path / "config.xml"
         config_file.write_text("<config>test</config>")
 
-        with pytest.raises(ValueError, match="Unsupported config file format"):
+        with pytest.raises(
+            ConfigurationError, match="Unsupported configuration file format"
+        ):
             ScriptRAGSettings.from_file(config_file)
 
     def test_database_timeout_validation(self):

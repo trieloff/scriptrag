@@ -8,6 +8,7 @@ from rich.console import Console
 
 from scriptrag.api.search import SearchAPI
 from scriptrag.cli.utils.config import override_database_path
+from scriptrag.cli.utils.error_handler import handle_cli_error
 from scriptrag.config import get_logger
 from scriptrag.search.formatter import ResultFormatter
 
@@ -210,19 +211,8 @@ def search_command(
             # Full formatted display
             formatter.format_results(response, verbose=verbose)
 
-    except FileNotFoundError as e:
-        console.print(
-            f"[red]Error:[/red] {e}",
-            style="bold",
-        )
-        raise typer.Exit(1) from e
+    except typer.Exit:
+        # Re-raise typer.Exit without handling it
+        raise
     except Exception as e:
-        # Log full error details for debugging
-        logger.error("Search failed: %s", str(e))
-        # Show sanitized error message to user
-        console.print(
-            "[red]Error:[/red] Search operation failed. "
-            "Please check the logs for details.",
-            style="bold",
-        )
-        raise typer.Exit(1) from e
+        handle_cli_error(e, verbose=verbose)

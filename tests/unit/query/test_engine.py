@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from scriptrag.config import ScriptRAGSettings
+from scriptrag.exceptions import ValidationError
 from scriptrag.query.engine import QueryEngine
 from scriptrag.query.spec import ParamSpec, QuerySpec
 
@@ -131,7 +132,7 @@ class TestQueryEngine:
             sql="SELECT * FROM orders WHERE user_id = :user_id",
         )
 
-        with pytest.raises(ValueError, match="Required parameter"):
+        with pytest.raises(ValidationError, match="Required parameter"):
             engine.execute(spec, params={})
 
     def test_validate_param_types(self, engine):
@@ -148,7 +149,7 @@ class TestQueryEngine:
         assert len(rows) == 2
 
         # Invalid int
-        with pytest.raises(ValueError, match="Cannot convert"):
+        with pytest.raises(ValidationError, match="Cannot convert"):
             engine.execute(spec, params={"user_id": "not_a_number"})
 
     def test_validate_param_choices(self, engine):
@@ -175,7 +176,7 @@ class TestQueryEngine:
         assert len(rows) == 2
 
         # Invalid choice
-        with pytest.raises(ValueError, match="Invalid choice"):
+        with pytest.raises(ValidationError, match="Invalid choice"):
             engine.execute(spec, params={"status": "pending"})
 
     def test_execute_with_defaults(self, engine):

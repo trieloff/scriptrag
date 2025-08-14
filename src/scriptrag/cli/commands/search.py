@@ -1,12 +1,14 @@
 """Search command for ScriptRAG CLI."""
 
+from pathlib import Path
 from typing import Annotated
 
 import typer
 from rich.console import Console
 
 from scriptrag.api.search import SearchAPI
-from scriptrag.config import get_logger
+from scriptrag.config import get_logger, get_settings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.search.formatter import ResultFormatter
 
 logger = get_logger(__name__)
@@ -23,6 +25,13 @@ def search_command(
             )
         ),
     ],
+    db_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--db-path",
+            help="Path to the SQLite database file",
+        ),
+    ] = None,
     character: Annotated[
         str | None,
         typer.Option(
@@ -155,8 +164,16 @@ def search_command(
     Use --strict to disable this or --fuzzy to always enable it.
     """
     try:
-        # Initialize search API
-        search_api = SearchAPI.from_config()
+        # Initialize search API with custom database path if provided
+        if db_path is not None:
+            settings = get_settings()
+            # Apply db_path override
+            updated_data = settings.model_dump()
+            updated_data["database_path"] = db_path
+            settings = ScriptRAGSettings(**updated_data)
+            search_api = SearchAPI(settings)
+        else:
+            search_api = SearchAPI.from_config()
 
         # Validate conflicting options
         if fuzzy and strict:

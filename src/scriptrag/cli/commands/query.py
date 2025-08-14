@@ -1,5 +1,6 @@
 """Query command for executing SQL queries."""
 
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -7,6 +8,7 @@ from rich.console import Console
 
 from scriptrag.api.query import QueryAPI
 from scriptrag.config import get_settings
+from scriptrag.config.settings import ScriptRAGSettings
 
 # Create query app
 query_app = typer.Typer(
@@ -39,6 +41,7 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
         output_json = kwargs.pop("json", False)
         limit = kwargs.pop("limit", None)
         offset = kwargs.pop("offset", None)
+        db_path = kwargs.pop("db_path", None)
 
         # Remaining kwargs are query parameters
         params = kwargs
@@ -50,6 +53,13 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
 
             settings_module._settings = None  # Clear cached settings
             current_settings = get_settings()
+
+            # Apply db_path override if provided
+            if db_path is not None:
+                updated_data = current_settings.model_dump()
+                updated_data["database_path"] = db_path
+                current_settings = ScriptRAGSettings(**updated_data)
+
             current_api = QueryAPI(current_settings)
 
             result = current_api.execute_query(
@@ -154,6 +164,18 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
             typer.Option(
                 default=False,
                 help="Output results as JSON",
+            ),
+        )
+    )
+
+    # Add db_path option
+    params.append(
+        (
+            "db_path",
+            Path | None,
+            typer.Option(
+                default=None,
+                help="Path to the SQLite database file",
             ),
         )
     )

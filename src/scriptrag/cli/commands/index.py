@@ -16,7 +16,8 @@ from rich.progress import (
 from rich.table import Table
 
 from scriptrag.api.index import IndexOperationResult
-from scriptrag.config import get_logger
+from scriptrag.config import get_logger, get_settings
+from scriptrag.config.settings import ScriptRAGSettings
 
 logger = get_logger(__name__)
 console = Console()
@@ -33,6 +34,14 @@ def index_command(
                 "Path to search for analyzed Fountain files "
                 "(default: current directory)"
             )
+        ),
+    ] = None,
+    db_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--db-path",
+            "-d",
+            help="Path to the SQLite database file",
         ),
     ] = None,
     dry_run: Annotated[
@@ -82,8 +91,18 @@ def index_command(
     try:
         from scriptrag.api.index import IndexCommand
 
-        # Initialize index command
-        index_cmd = IndexCommand.from_config()
+        # Handle custom database path if provided
+        if db_path is not None:
+            settings = get_settings()
+            # Apply db_path override
+            updated_data = settings.model_dump()
+            updated_data["database_path"] = db_path
+            settings = ScriptRAGSettings(**updated_data)
+            # Initialize index command with custom settings
+            index_cmd = IndexCommand(settings=settings)
+        else:
+            # Initialize index command with default config
+            index_cmd = IndexCommand.from_config()
 
         # Run with progress tracking
         with Progress(

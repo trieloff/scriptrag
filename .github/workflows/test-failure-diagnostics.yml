@@ -1,0 +1,267 @@
+name: Test Failure Diagnostics
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  actions: read  # Required to read CI logs
+  checks: read   # Required to read check results
+  models: read   # Enable GitHub Models for AI inference
+
+jobs:
+  analyze-failure:
+    name: Analyze Test Failures with Claude
+    runs-on: ubuntu-latest
+    # Only run when the CI workflow failed and it's from a PR
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.event == 'pull_request'
+
+    steps:
+      - name: Get PR Information from Workflow Run
+        id: pr-info
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
+          script: |
+            // Get the PR associated with this workflow run
+            const workflowRun = context.payload.workflow_run;
+
+            // Find associated pull requests
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              head: `${context.repo.owner}:${workflowRun.head_branch}`
+            });
+
+            if (prs.length === 0) {
+              console.log('No open PR found for branch:', workflowRun.head_branch);
+              core.setOutput('pr_found', 'false');
+              return;
+            }
+
+            const pr = prs[0];
+            console.log(`Found PR #${pr.number} for workflow run ${workflowRun.id}`);
+
+            // Check if PR is from Terragon Labs
+            const isTerragonPR = pr.body && pr.body.includes('terragonlabs.com/task');
+
+            if (!isTerragonPR) {
+              console.log('PR is not from Terragon Labs, skipping diagnostics');
+              core.setOutput('pr_found', 'false');
+              return;
+            }
+
+            // Extract Terry task ID if present
+            let taskId = null;
+            let taskUrl = null;
+            if (isTerragonPR) {
+              const match = pr.body.match(/https:\/\/www\.terragonlabs\.com\/task\/([a-f0-9-]+)/);
+              if (match) {
+                taskUrl = match[0];
+                taskId = match[1];
+              }
+            }
+
+            core.setOutput('pr_found', 'true');
+            core.setOutput('pr_number', pr.number.toString());
+            core.setOutput('pr_branch', pr.head.ref);
+            core.setOutput('is_terragon', isTerragonPR.toString());
+            core.setOutput('task_id', taskId || '');
+            core.setOutput('task_url', taskUrl || '');
+            core.setOutput('workflow_run_id', workflowRun.id.toString());
+            core.setOutput('workflow_run_url', workflowRun.html_url);
+
+      - name: Checkout repository
+        if: steps.pr-info.outputs.pr_found == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
+          ref: ${{ steps.pr-info.outputs.pr_branch }}
+
+      - name: Install gh-workflow-peek extension
+        if: steps.pr-info.outputs.pr_found == 'true'
+        run: |
+          # Check if gh-workflow-peek is already installed
+          if ! gh extension list | grep -q "trieloff/gh-workflow-peek"; then
+            echo "Installing gh-workflow-peek extension..."
+            gh extension install trieloff/gh-workflow-peek
+          else
+            echo "gh-workflow-peek extension already installed"
+          fi
+
+          # Verify installation
+          gh extension list
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
+
+      - name: Run Claude Code for Diagnostic Analysis
+        if: steps.pr-info.outputs.pr_found == 'true'
+        id: claude-diagnostics
+        continue-on-error: true
+        uses: anthropics/claude-code-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
+          pr_number: ${{ steps.pr-info.outputs.pr_number }}
+
+          # Grant Claude access to CI logs and tools
+          additional_permissions: |
+            actions: read
+            checks: read
+
+          # Allow Claude to use workflow analysis tools
+          allowed_tools: |
+            Bash(gh workflow-peek)
+            Bash(gh api)
+            Bash(gh run view)
+            Bash(gh run download)
+
+          # Custom diagnostic prompt
+          direct_prompt: |
+            ## Test Failure Diagnostic Analysis
+
+            The CI workflow has failed for PR #${{ steps.pr-info.outputs.pr_number }}.
+            Workflow Run: ${{ steps.pr-info.outputs.workflow_run_url }}
+
+            Your task is to analyze the test failures and provide a detailed diagnostic report.
+
+            ### Instructions:
+
+            1. **Retrieve Failure Information**:
+               - Use the GitHub API or gh CLI to access the failed workflow run ID: ${{ steps.pr-info.outputs.workflow_run_id }}
+               - Use `gh workflow-peek` extension if needed to get detailed logs
+               - Download and analyze job logs for failed steps
+
+            2. **Analyze the Failures**:
+               - Identify which specific tests or checks failed
+               - Extract relevant error messages and stack traces
+               - Look for patterns in the failures (e.g., all failures in one module, timeout issues, dependency problems)
+               - Check if failures are related to:
+                 * Code syntax errors
+                 * Type checking issues
+                 * Linting violations
+                 * Test assertion failures
+                 * Environment/dependency issues
+                 * Timeout or resource constraints
+
+            3. **Root Cause Analysis**:
+               - Determine the most likely root cause(s) of the failures
+               - Check if the failures are related to recent code changes in the PR
+               - Identify if failures might be due to:
+                 * Missing test updates after code changes
+                 * Breaking changes in dependencies
+                 * Race conditions or flaky tests
+                 * Platform-specific issues (Windows/macOS/Linux)
+                 * CI environment differences
+
+            4. **Provide Actionable Recommendations**:
+               - Suggest specific fixes for each identified issue
+               - Include code snippets or commands where applicable
+               - Prioritize fixes by severity and impact
+               - If appropriate, suggest temporary workarounds
+
+            5. **Format Your Response**:
+               Create a clear, structured comment with:
+               - 📊 **Summary**: Brief overview of the failure
+               - 🔍 **Detailed Analysis**: Specific failures and their causes
+               - 💡 **Recommendations**: Step-by-step fixes
+               - 📝 **Additional Notes**: Any other relevant observations
+
+            ${{ steps.pr-info.outputs.is_terragon == 'true' && format('6. **Terragon Labs Integration**:
+               - Tag @terragon-labs in your response
+               - Include the Terry task ID: {0}
+               - Provide commands they can use with `terry pull {1}` to fix issues', steps.pr-info.outputs.task_url, steps.pr-info.outputs.task_id) || '' }}
+
+            ### Available Tools:
+            You have access to:
+            - GitHub API via `gh api`
+            - Workflow inspection via `gh workflow-peek`
+            - Run details via `gh run view ${{ steps.pr-info.outputs.workflow_run_id }}`
+            - Log downloads via `gh run download ${{ steps.pr-info.outputs.workflow_run_id }}`
+
+            Be thorough but concise. Focus on providing actionable insights that will help the developer quickly resolve the failures.
+
+          # Custom instructions for diagnostic behavior
+          custom_instructions: |
+            You are a CI/CD diagnostic specialist. Your role is to:
+            - Quickly identify and analyze test failures
+            - Provide clear, actionable diagnostic information
+            - Help developers understand why their tests failed
+            - Suggest specific fixes with code examples when possible
+            - Be encouraging and constructive in your feedback
+
+            Always structure your response for maximum clarity and actionability.
+            Use markdown formatting, code blocks, and emojis to make the report easy to scan.
+
+            Focus on being helpful rather than critical. Remember that test failures are
+            opportunities to improve code quality.
+
+      - name: Post Fallback Comment on Failure
+        if: steps.pr-info.outputs.pr_found == 'true' && steps.claude-diagnostics.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
+          script: |
+            const prNumber = parseInt('${{ steps.pr-info.outputs.pr_number }}');
+            const workflowUrl = '${{ steps.pr-info.outputs.workflow_run_url }}';
+            const isTerragon = '${{ steps.pr-info.outputs.is_terragon }}' === 'true';
+            const taskId = '${{ steps.pr-info.outputs.task_id }}';
+            const taskUrl = '${{ steps.pr-info.outputs.task_url }}';
+
+            let comment = [
+              '## 🔴 CI Build Failed',
+              '',
+              '**Automated diagnostic analysis was attempted but could not complete.**',
+              '',
+              `Please check the [failed workflow run](${workflowUrl}) for details.`,
+              '',
+              '### Common failure causes to check:',
+              '- [ ] Linting errors (`make lint`)',
+              '- [ ] Type checking failures (`make type-check`)',
+              '- [ ] Test failures (`make test`)',
+              '- [ ] Security issues (`make security`)',
+              '- [ ] Missing dependencies or environment setup',
+              '',
+              '### Quick debugging commands:',
+              '```bash',
+              '# Check all quality issues',
+              'make check-fast',
+              '',
+              '# Run specific checks',
+              'make lint',
+              'make type-check',
+              'make test',
+              '```'
+            ];
+
+            if (isTerragon) {
+              comment.push(
+                '',
+                '---',
+                `@terragon-labs This CI failure needs investigation.`,
+                `- [Terry Task](${taskUrl})`,
+                `- Use \`terry pull ${taskId}\` to continue working on this task.`
+              );
+            }
+
+            comment.push(
+              '',
+              '---',
+              '_This is an automated message. Claude diagnostic analysis failed to complete._'
+            );
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: comment.join('\n')
+            });

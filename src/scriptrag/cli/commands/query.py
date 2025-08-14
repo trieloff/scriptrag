@@ -204,59 +204,89 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
     return wrapper
 
 
+# Track if commands have been registered to avoid duplicate registration
+_commands_registered = False
+
+
 def register_query_commands() -> None:
     """Register all discovered queries as subcommands."""
+    global _commands_registered, query_app
+
+    if _commands_registered:
+        return
+
     # Clear any existing commands to prevent stale cache issues
-    global query_app
     query_app = typer.Typer(
         name="query",
         help="Execute SQL queries from the query library",
         no_args_is_help=True,
     )
 
-    # Force fresh settings to pick up environment variable changes
-    settings = override_database_path(None, clear_cache=True)
-    api = QueryAPI(settings)
+    try:
+        # Force fresh settings to pick up environment variable changes
+        settings = override_database_path(None, clear_cache=True)
+        api = QueryAPI(settings)
 
-    # Force reload queries from (possibly new) directory
-    api.reload_queries()
+        # Force reload queries from (possibly new) directory
+        api.reload_queries()
 
-    # Discover and register queries
-    queries = api.list_queries()
+        # Discover and register queries
+        queries = api.list_queries()
 
-    if not queries:
-        # Add a placeholder command if no queries found
-        @query_app.command(name="list")
-        def list_no_queries() -> None:
-            """List available queries (none found)."""
-            console.print("[yellow]No queries found in query directory.[/yellow]")
-            console.print(
-                "Add .sql files to the query directory to make them available."
-            )
+        if not queries:
+            # Add a placeholder command if no queries found
+            @query_app.command(name="list")
+            def list_no_queries() -> None:
+                """List available queries (none found)."""
+                console.print("[yellow]No queries found in query directory.[/yellow]")
+                console.print(
+                    "Add .sql files to the query directory to make them available."
+                )
 
-        return
+            _commands_registered = True
+            return
 
-    # Register each query as a subcommand
-    for spec in queries:
-        command_func = create_query_command(api, spec.name)
-        if command_func:
-            query_app.command(name=spec.name)(command_func)
-
-    # Add list command to show available queries
-    @query_app.command(name="list")
-    def list_all_queries() -> None:
-        """List all available queries."""
-        console.print("[bold]Available queries:[/bold]\n")
+        # Register each query as a subcommand
         for spec in queries:
-            console.print(f"  [cyan]{spec.name}[/cyan]")
-            if spec.description:
-                console.print(f"    {spec.description}")
-            if spec.params:
-                param_names = ", ".join(p.name for p in spec.params)
-                console.print(f"    Parameters: {param_names}")
-            console.print()
+            command_func = create_query_command(api, spec.name)
+            if command_func:
+                query_app.command(name=spec.name)(command_func)
+
+        # Add list command to show available queries
+        @query_app.command(name="list")
+        def list_all_queries() -> None:
+            """List all available queries."""
+            console.print("[bold]Available queries:[/bold]\n")
+            for spec in queries:
+                console.print(f"  [cyan]{spec.name}[/cyan]")
+                if spec.description:
+                    console.print(f"    {spec.description}")
+                if spec.params:
+                    param_names = ", ".join(p.name for p in spec.params)
+                    console.print(f"    Parameters: {param_names}")
+                console.print()
+
+        _commands_registered = True
+
+    except Exception:
+        # If registration fails during import (e.g., in CI), create minimal app
+        # Commands will be registered lazily when actually needed
+        @query_app.command(name="list")
+        def list_no_queries_fallback() -> None:
+            """List available queries (registration failed)."""
+            console.print("[yellow]Query registration failed during import.[/yellow]")
+            console.print("Commands will be registered when first accessed.")
+
+        _commands_registered = False  # Allow retry later
 
 
-# Register commands on module import
-# NOTE: This could be made lazy if needed for testing
+def ensure_commands_registered() -> None:
+    """Ensure query commands are registered, registering lazily if needed."""
+    global _commands_registered
+    if not _commands_registered:
+        register_query_commands()
+
+
+# Register commands on module import with fallback for CI environments
+# Commands will be re-registered lazily if this fails
 register_query_commands()

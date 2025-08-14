@@ -42,6 +42,11 @@ app.add_typer(scene_app, name="scene")
 
 def main() -> None:
     """Main entry point for CLI."""
+    # Ensure query commands are registered before running CLI
+    from scriptrag.cli.commands.query import ensure_commands_registered
+
+    ensure_commands_registered()
+
     app()
 
 

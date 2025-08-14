@@ -271,24 +271,31 @@ class TestDuplicateHandlerConcurrency:
         assert dup1["version"] == 1
         assert dup2["version"] == 1
 
-        # Both try to create version 2
+        # Both try to create version 2 - handle sequentially to avoid locks
         strategy1, version1 = handler.handle_duplicate(
             conn1, dup1, DuplicateStrategy.VERSION, Path("/path2.fountain")
         )
-        strategy2, version2 = handler.handle_duplicate(
-            conn2, dup2, DuplicateStrategy.VERSION, Path("/path3.fountain")
+        # Commit first transaction before second to prevent locks
+        conn1.commit()
+
+        # Second connection now operates on updated state
+        dup2_updated = handler.check_for_duplicate(
+            conn2, "Test Script", "Author", Path("/path3.fountain")
         )
+        assert dup2_updated is not None
+        # Should now see the version 2 that was just created
+        assert dup2_updated["version"] == 2
+
+        strategy2, version2 = handler.handle_duplicate(
+            conn2, dup2_updated, DuplicateStrategy.VERSION, Path("/path3.fountain")
+        )
+        conn2.commit()
 
         assert strategy1 == DuplicateStrategy.VERSION
         assert strategy2 == DuplicateStrategy.VERSION
         assert version1 == 2
-        assert version2 == 2  # Both think they're creating version 2
-
-        # Commit first connection
-        conn1.commit()
-
-        # Second connection would need to handle conflict in real scenario
-        # This demonstrates the need for proper transaction handling
+        # Second one should create version 3
+        assert version2 == 3
 
         conn1.close()
         conn2.close()

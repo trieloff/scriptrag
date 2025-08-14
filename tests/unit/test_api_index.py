@@ -757,7 +757,9 @@ class TestIndexCommandMissingCoverage:
         indexer._index_single_script = AsyncMock(side_effect=Exception("Test error"))
 
         # Process batch - should catch exception and add to errors
-        results = await indexer._process_scripts_batch(scripts, dry_run=False)
+        results = await indexer._process_scripts_batch(
+            scripts, dry_run=False, duplicate_strategy=DuplicateStrategy.ERROR
+        )
         assert len(results) == 1
         assert results[0].error == "Test error"
 

@@ -6,6 +6,17 @@ ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph da
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
 Generation) pattern.
 
+## ✨ Features
+
+- **📝 Fountain Format Support**: Parse and analyze industry-standard screenplay files
+- **🔍 Intelligent Search**: Search by character, dialogue, scene descriptions, or semantic similarity
+- **📊 Script Analysis**: Automatic extraction of characters, scenes, dialogue, and metadata
+- **📺 TV Series Support**: Handle multi-episode series with season/episode organization
+- **🤖 AI Integration**: MCP server for integration with Claude Desktop and other AI assistants
+- **⚡ Real-time Monitoring**: Watch directories for changes and auto-index new scripts
+- **🎭 Scene Management**: Read, add, update, and delete scenes with automatic renumbering
+- **📈 Analytics**: Character statistics, dialogue analysis, and scene queries
+
 ## 📚 Documentation
 
 ### For Users
@@ -15,6 +26,7 @@ Generation) pattern.
 - **[Usage Examples](docs/usage.md)** - Common workflows and examples
 - **[Bulk Import Guide](docs/bulk_import_guide.md)** - Import multiple screenplays
 - **[MCP Usage Examples](examples/mcp_usage_examples.md)** - Using with AI assistants
+- **[Known Issues](docs/known-issues.md)** - Current limitations and workarounds
 
 ### For Developers
 
@@ -31,9 +43,12 @@ Generation) pattern.
 ### Prerequisites
 
 - Python 3.11+
-- uv package manager
+- uv package manager (will be installed if not present)
 - SQLite 3.38+ (for vector support)
-- LMStudio running at <http://localhost:1234>
+- Optional: LLM provider for advanced analysis features
+  - LMStudio running at <http://localhost:1234>
+  - Or GitHub Models API token
+  - Or OpenAI-compatible endpoint
 
 ### Installation
 
@@ -58,17 +73,122 @@ source .venv/bin/activate
 ### Basic Usage
 
 ```bash
-# Parse a screenplay
-scriptrag script import path/to/screenplay.fountain
+# Initialize the database (first time only)
+uv run scriptrag init
+
+# Quick start - Pull screenplay files into database (analyze + index)
+# This is the recommended workflow for importing screenplays
+uv run scriptrag pull path/to/screenplay.fountain
+
+# List available Fountain files
+uv run scriptrag list
 
 # Search for scenes
-scriptrag scene search "coffee shop"
+uv run scriptrag search "coffee shop"
 
-# Start the MCP server
-scriptrag mcp start
+# Search with character filter
+uv run scriptrag search --character SARAH "important dialogue"
+
+# Read specific scenes
+uv run scriptrag scene read --project "Script Title" --scene 1
+
+# Watch for changes and auto-import
+uv run scriptrag watch path/to/screenplays/
+
+# Start the MCP server for AI integration
+uv run scriptrag mcp
 ```
 
+#### Configuration
+
+Create a `scriptrag.yaml` configuration file:
+
+```yaml
+database_path: /path/to/your/scriptrag.db
+log_level: INFO
+```
+
+Then use it with commands that support configuration:
+
+```bash
+uv run scriptrag pull --config scriptrag.yaml path/to/screenplay.fountain
+```
+
+Or use environment variables:
+
+```bash
+export SCRIPTRAG_DATABASE_PATH=/path/to/your/scriptrag.db
+uv run scriptrag scene read --project "My Script" --scene 1
+```
+
+**Note**: Currently, the `search` and `query` commands have a known issue with database path validation. See [issue #240](https://github.com/trieloff/scriptrag/issues/240) for details.
+
 See the [User Guide](docs/user-guide.md) for complete documentation.
+
+### Complete Workflow Example
+
+Here's a full example of importing and working with a screenplay:
+
+```bash
+# 1. Create a Fountain screenplay file
+cat > my_script.fountain << 'EOF'
+Title: My Amazing Script
+Author: Your Name
+
+INT. COFFEE SHOP - DAY
+
+JANE (30s) sits alone at a corner table, laptop open.
+
+JANE
+(to herself)
+This is where the magic happens.
+
+A WAITER approaches.
+
+WAITER
+Your usual?
+
+JANE
+(smiling)
+You know it.
+
+EOF
+
+# 2. Initialize database and import the screenplay
+uv run scriptrag init
+uv run scriptrag pull my_script.fountain
+
+# 3. Read specific scenes
+uv run scriptrag scene read --project "My Amazing Script" --scene 1
+
+# 4. View available queries
+uv run scriptrag query list
+
+# 5. List all scenes (Note: query commands have bug #240)
+# uv run scriptrag query simple_scene_list
+
+# 6. Scene management (requires session tokens)
+# Read a scene and get a session token
+uv run scriptrag scene read --project "My Amazing Script" --scene 1
+# Use the token to update the scene (within 10 minutes)
+# uv run scriptrag scene update --token <session-token> "Updated scene content"
+```
+
+### Command Reference
+
+| Command | Description | Working Status |
+|---------|-------------|----------------|
+| `init` | Initialize database | ✅ Working |
+| `list` | List Fountain files | ✅ Working |
+| `analyze` | Add metadata to scripts | ✅ Working |
+| `index` | Import scripts to database | ✅ Working |
+| `pull` | Complete import workflow | ✅ Working |
+| `scene read` | Read scenes from database | ✅ Working |
+| `scene add/update/delete` | Manage scenes | ✅ Working |
+| `watch` | Auto-import on changes | ✅ Working |
+| `mcp` | Start MCP server | ✅ Working |
+| `search` | Search scripts | ❌ [Bug #240](https://github.com/trieloff/scriptrag/issues/240) |
+| `query` | Run SQL queries | ❌ [Bug #240](https://github.com/trieloff/scriptrag/issues/240) |
 
 ## Tech Stack
 

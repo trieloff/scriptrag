@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
+from scriptrag.api.duplicate_handler import DuplicateStrategy
 from scriptrag.api.index import IndexCommand, IndexOperationResult, IndexResult
 from scriptrag.api.list import FountainMetadata
 from scriptrag.config import ScriptRAGSettings
@@ -211,7 +212,9 @@ class TestIndexCommand:
 
         with patch.object(cmd.parser, "parse_file", return_value=sample_script):
             result = await cmd._index_single_script(
-                Path("/test/script.fountain"), dry_run=True
+                Path("/test/script.fountain"),
+                dry_run=True,
+                duplicate_strategy=DuplicateStrategy.ERROR,
             )
 
         assert result.indexed
@@ -233,7 +236,9 @@ class TestIndexCommand:
 
         with patch.object(cmd.parser, "parse_file", return_value=sample_script):
             result = await cmd._index_single_script(
-                Path("/test/script.fountain"), dry_run=False
+                Path("/test/script.fountain"),
+                dry_run=False,
+                duplicate_strategy=DuplicateStrategy.ERROR,
             )
 
         assert result.indexed
@@ -301,7 +306,9 @@ class TestIndexCommand:
 
         with patch.object(cmd.parser, "parse_file", return_value=sample_script):
             results = await cmd._process_scripts_batch(
-                sample_script_metadata, dry_run=False
+                sample_script_metadata,
+                dry_run=False,
+                duplicate_strategy=DuplicateStrategy.ERROR,
             )
 
         assert len(results) == 2
@@ -320,7 +327,9 @@ class TestIndexCommand:
             cmd.parser, "parse_file", side_effect=Exception("Parse error")
         ):
             results = await cmd._process_scripts_batch(
-                sample_script_metadata[:1], dry_run=False
+                sample_script_metadata[:1],
+                dry_run=False,
+                duplicate_strategy=DuplicateStrategy.ERROR,
             )
 
         assert len(results) == 1
@@ -336,7 +345,9 @@ class TestIndexCommand:
         file_path = Path("/test/script.fountain")
 
         with patch.object(cmd.parser, "parse_file", return_value=sample_script):
-            result = await cmd._index_single_script(file_path, dry_run=False)
+            result = await cmd._index_single_script(
+                file_path, dry_run=False, duplicate_strategy=DuplicateStrategy.ERROR
+            )
 
         assert result.indexed
         assert result.path == file_path
@@ -364,7 +375,9 @@ class TestIndexCommand:
             ),
             pytest.raises(Exception, match="Parse failed"),
         ):
-            await cmd._index_single_script(file_path, dry_run=False)
+            await cmd._index_single_script(
+                file_path, dry_run=False, duplicate_strategy=DuplicateStrategy.ERROR
+            )
 
     @pytest.mark.asyncio
     async def test_dry_run_analysis(self, settings, mock_db_ops, sample_script):
@@ -541,7 +554,9 @@ class TestIndexResult:
         }
 
         with patch.object(cmd.parser, "parse_file", return_value=action_only_script):
-            result = await cmd._index_single_script(file_path, dry_run=False)
+            result = await cmd._index_single_script(
+                file_path, dry_run=False, duplicate_strategy=DuplicateStrategy.ERROR
+            )
 
         assert result.indexed
         assert result.scenes_indexed == 1
@@ -562,7 +577,9 @@ class TestIndexResult:
         mock_db_ops.upsert_scene.return_value = (1, False)  # content_changed=False
 
         with patch.object(cmd.parser, "parse_file", return_value=sample_script):
-            result = await cmd._index_single_script(file_path, dry_run=False)
+            result = await cmd._index_single_script(
+                file_path, dry_run=False, duplicate_strategy=DuplicateStrategy.ERROR
+            )
 
         assert result.indexed
         assert result.updated  # Script was updated
@@ -763,7 +780,11 @@ class TestIndexCommandMissingCoverage:
 
         # Test indexing - should raise exception
         with pytest.raises(Exception, match="Parse error"):
-            await indexer._index_single_script(script_metadata.file_path, dry_run=False)
+            await indexer._index_single_script(
+                script_metadata.file_path,
+                dry_run=False,
+                duplicate_strategy=DuplicateStrategy.ERROR,
+            )
 
     @pytest.mark.asyncio
     async def test_index_single_script_database_error(self):
@@ -790,7 +811,11 @@ class TestIndexCommandMissingCoverage:
 
         # Test indexing - should raise database error
         with pytest.raises(Exception, match="Database error"):
-            await indexer._index_single_script(script_metadata.file_path, dry_run=False)
+            await indexer._index_single_script(
+                script_metadata.file_path,
+                dry_run=False,
+                duplicate_strategy=DuplicateStrategy.ERROR,
+            )
 
     @pytest.mark.asyncio
     async def test_index_single_script_update_case(self):
@@ -837,7 +862,9 @@ class TestIndexCommandMissingCoverage:
 
         # Test updating
         result = await indexer._index_single_script(
-            script_metadata.file_path, dry_run=False
+            script_metadata.file_path,
+            dry_run=False,
+            duplicate_strategy=DuplicateStrategy.ERROR,
         )
         assert result.indexed is True
         assert result.updated is True

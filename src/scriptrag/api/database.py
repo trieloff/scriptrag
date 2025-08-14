@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Protocol
 
 from scriptrag.config import ScriptRAGSettings, get_logger
+from scriptrag.database.migration import DatabaseMigrator
 
 logger = get_logger(__name__)
 
@@ -128,6 +129,16 @@ class DatabaseInitializer:
                 self._initialize_with_connection(connection)
 
             logger.info("Database initialized successfully", path=str(db_path))
+
+            # Run any pending migrations
+            try:
+                migrator = DatabaseMigrator(settings)
+                num_migrations = migrator.migrate()
+                if num_migrations > 0:
+                    logger.info(f"Applied {num_migrations} migration(s) to database")
+            except Exception as e:
+                logger.warning(f"Failed to run migrations: {e}")
+
             return db_path
 
         except Exception as e:

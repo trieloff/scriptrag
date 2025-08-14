@@ -18,11 +18,18 @@ CREATE TABLE IF NOT EXISTS scripts (
     file_path TEXT UNIQUE,
     format TEXT DEFAULT 'fountain',
     metadata JSON,
-    UNIQUE (title, author)
+    version INTEGER DEFAULT 1,
+    is_current BOOLEAN DEFAULT TRUE,
+    CHECK (is_current IN (0, 1))
 );
 
--- Create index on title for faster searches
+-- Create indexes for script queries
 CREATE INDEX IF NOT EXISTS idx_scripts_title ON scripts (title);
+CREATE INDEX IF NOT EXISTS idx_scripts_title_author ON scripts (title, author);
+CREATE INDEX IF NOT EXISTS idx_scripts_version ON scripts (
+    title, author, version
+);
+CREATE INDEX IF NOT EXISTS idx_scripts_current ON scripts (is_current);
 
 -- Scenes table: stores individual scenes
 CREATE TABLE IF NOT EXISTS scenes (
@@ -169,7 +176,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
 
 -- Insert initial schema version
 INSERT INTO schema_version (version, description)
-VALUES (1, 'Initial ScriptRAG database schema');
+VALUES (2, 'Initial ScriptRAG database schema with duplicate script support');
 
 -- Create triggers to update timestamps
 CREATE TRIGGER IF NOT EXISTS update_scripts_timestamp

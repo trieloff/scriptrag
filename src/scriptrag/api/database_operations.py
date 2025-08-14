@@ -174,6 +174,72 @@ class DatabaseOperations:
         logger.debug(f"Inserted script {script_id}: {script.title}")
         return script_id
 
+    def upsert_script_with_version(
+        self,
+        conn: sqlite3.Connection,
+        script: Script,
+        file_path: Path,
+        metadata: dict[str, Any],
+    ) -> int:
+        """Insert or update script record with version information.
+
+        Args:
+            conn: Database connection
+            script: Script object to store
+            file_path: Path to the script file
+            metadata: Metadata including version info
+
+        Returns:
+            ID of the inserted or updated script
+        """
+        metadata["last_indexed"] = datetime.now().isoformat()
+        version = metadata.get("version", 1)
+
+        # Check if script exists at this path
+        existing = self.get_existing_script(conn, file_path)
+
+        if existing and existing.id is not None:
+            # Update existing script
+            conn.execute(
+                """
+                UPDATE scripts
+                SET title = ?, author = ?, metadata = ?, version = ?,
+                    is_current = 1, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    script.title,
+                    script.author,
+                    json.dumps(metadata),
+                    version,
+                    existing.id,
+                ),
+            )
+            logger.debug(f"Updated script {existing.id}: {script.title} (v{version})")
+            return existing.id
+
+        # Insert new script with version
+        cursor = conn.execute(
+            """
+            INSERT INTO scripts (
+                title, author, file_path, metadata, version, is_current
+            )
+            VALUES (?, ?, ?, ?, ?, 1)
+            """,
+            (
+                script.title,
+                script.author,
+                str(file_path),
+                json.dumps(metadata),
+                version,
+            ),
+        )
+        script_id = cursor.lastrowid
+        if script_id is None:
+            raise RuntimeError("Failed to get script ID after insert")
+        logger.debug(f"Inserted script {script_id}: {script.title} (v{version})")
+        return script_id
+
     def clear_script_data(self, conn: sqlite3.Connection, script_id: int) -> None:
         """Clear all existing data for a script before re-indexing.
 

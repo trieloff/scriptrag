@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from scriptrag.api.database_operations import DatabaseOperations
+from scriptrag.api.duplicate_handler import DuplicateHandler, DuplicateStrategy
 from scriptrag.api.list import FountainMetadata, ScriptLister
 from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 from scriptrag.parser import FountainParser, Scene, Script
@@ -84,6 +85,7 @@ class IndexCommand:
         self.db_ops = db_ops or DatabaseOperations(self.settings)
         self.parser = FountainParser()
         self.lister = ScriptLister()
+        self.duplicate_handler = DuplicateHandler()
 
     @classmethod
     def from_config(cls) -> "IndexCommand":
@@ -101,6 +103,7 @@ class IndexCommand:
         recursive: bool = True,
         dry_run: bool = False,
         batch_size: int = 10,
+        duplicate_strategy: DuplicateStrategy = DuplicateStrategy.ERROR,
         progress_callback: Callable[[float, str], None] | None = None,
     ) -> IndexOperationResult:
         """Execute index operation.
@@ -110,6 +113,7 @@ class IndexCommand:
             recursive: Whether to search recursively
             dry_run: Preview changes without applying them
             batch_size: Number of scripts to process in each batch
+            duplicate_strategy: How to handle duplicate scripts
             progress_callback: Optional callback for progress updates
 
         Returns:
@@ -161,7 +165,9 @@ class IndexCommand:
                         progress, f"Processing batch {batch_num}/{total_batches}..."
                     )
 
-                batch_results = await self._process_scripts_batch(batch, dry_run)
+                batch_results = await self._process_scripts_batch(
+                    batch, dry_run, duplicate_strategy
+                )
                 result.scripts.extend(batch_results)
 
                 # Collect errors from batch
@@ -268,13 +274,17 @@ class IndexCommand:
         return scripts_to_index
 
     async def _process_scripts_batch(
-        self, scripts: list[FountainMetadata], dry_run: bool
+        self,
+        scripts: list[FountainMetadata],
+        dry_run: bool,
+        duplicate_strategy: DuplicateStrategy,
     ) -> list[IndexResult]:
         """Process a batch of scripts.
 
         Args:
             scripts: List of script metadata to process
             dry_run: Preview mode
+            duplicate_strategy: How to handle duplicates
 
         Returns:
             List of index results
@@ -283,7 +293,9 @@ class IndexCommand:
 
         for script_meta in scripts:
             try:
-                result = await self._index_single_script(script_meta.file_path, dry_run)
+                result = await self._index_single_script(
+                    script_meta.file_path, dry_run, duplicate_strategy
+                )
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to index {script_meta.file_path}: {e}")
@@ -297,12 +309,15 @@ class IndexCommand:
 
         return results
 
-    async def _index_single_script(self, file_path: Path, dry_run: bool) -> IndexResult:
+    async def _index_single_script(
+        self, file_path: Path, dry_run: bool, duplicate_strategy: DuplicateStrategy
+    ) -> IndexResult:
         """Index a single script.
 
         Args:
             file_path: Path to the script file
             dry_run: Preview mode
+            duplicate_strategy: How to handle duplicates
 
         Returns:
             IndexResult for this script
@@ -319,16 +334,47 @@ class IndexCommand:
 
             # Process with transaction
             with self.db_ops.transaction() as conn:
-                # Check if script exists
+                # Check if script exists at this file path
                 existing = self.db_ops.get_existing_script(conn, file_path)
                 is_update = existing is not None
+
+                # Check for duplicates (same title/author, different path)
+                duplicate_info = self.duplicate_handler.check_for_duplicate(
+                    conn, script.title, script.author, file_path
+                )
+
+                # Handle duplicate if found
+                if duplicate_info and not is_update:
+                    (
+                        strategy_applied,
+                        version_or_id,
+                    ) = self.duplicate_handler.handle_duplicate(
+                        conn, duplicate_info, duplicate_strategy, file_path
+                    )
+
+                    if strategy_applied == DuplicateStrategy.SKIP:
+                        return IndexResult(
+                            path=file_path,
+                            indexed=False,
+                            error=f"Skipped duplicate: {script.title} already exists",
+                        )
 
                 # Always clear existing data when updating to ensure consistency
                 if existing and existing.id is not None:
                     self.db_ops.clear_script_data(conn, existing.id)
 
-                # Upsert script
-                script_id = self.db_ops.upsert_script(conn, script, file_path)
+                # Upsert script with version info if needed
+                metadata = script.metadata.copy() if script.metadata else {}
+                if duplicate_info and duplicate_strategy == DuplicateStrategy.VERSION:
+                    metadata["version"] = version_or_id
+
+                script_id = (
+                    self.db_ops.upsert_script_with_version(
+                        conn, script, file_path, metadata
+                    )
+                    if duplicate_strategy == DuplicateStrategy.VERSION
+                    else self.db_ops.upsert_script(conn, script, file_path)
+                )
 
                 # Extract all unique characters from all scenes
                 all_characters = set()

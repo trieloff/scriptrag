@@ -15,6 +15,7 @@ from rich.progress import (
 )
 from rich.table import Table
 
+from scriptrag.api.duplicate_handler import DuplicateStrategy
 from scriptrag.api.index import IndexOperationResult
 from scriptrag.config import get_logger
 
@@ -63,6 +64,27 @@ def index_command(
             "--verbose", "-v", help="Show detailed information for each script"
         ),
     ] = False,
+    replace: Annotated[
+        bool,
+        typer.Option(
+            "--replace",
+            help="Replace existing scripts with same title/author",
+        ),
+    ] = False,
+    skip_duplicates: Annotated[
+        bool,
+        typer.Option(
+            "--skip-duplicates",
+            help="Skip scripts with same title/author that already exist",
+        ),
+    ] = False,
+    version_duplicates: Annotated[
+        bool,
+        typer.Option(
+            "--version-duplicates",
+            help="Create new versions for scripts with same title/author",
+        ),
+    ] = False,
 ) -> None:
     """Index analyzed Fountain files into the database.
 
@@ -75,12 +97,35 @@ def index_command(
 
     The database must be initialized first with 'scriptrag init'.
 
+    Duplicate Handling:
+    - By default, scripts with the same title/author will cause an error
+    - Use --replace to replace existing scripts
+    - Use --skip-duplicates to skip duplicates
+    - Use --version-duplicates to keep multiple versions
+
     Note: Scripts are always re-indexed to ensure the database reflects the current
     state of the files.
     Scripts should be analyzed first with 'scriptrag analyze' to add metadata.
     """
     try:
         from scriptrag.api.index import IndexCommand
+
+        # Determine duplicate strategy from flags
+        duplicate_strategy = DuplicateStrategy.ERROR  # default
+        strategy_count = sum([replace, skip_duplicates, version_duplicates])
+
+        if strategy_count > 1:
+            console.print(
+                "[red]Error: Only one duplicate handling option can be specified[/red]"
+            )
+            raise typer.Exit(1)
+
+        if replace:
+            duplicate_strategy = DuplicateStrategy.REPLACE
+        elif skip_duplicates:
+            duplicate_strategy = DuplicateStrategy.SKIP
+        elif version_duplicates:
+            duplicate_strategy = DuplicateStrategy.VERSION
 
         # Initialize index command
         index_cmd = IndexCommand.from_config()
@@ -104,6 +149,7 @@ def index_command(
                     recursive=not no_recursive,
                     dry_run=dry_run,
                     batch_size=batch_size,
+                    duplicate_strategy=duplicate_strategy,
                     progress_callback=update_progress,
                 )
             )

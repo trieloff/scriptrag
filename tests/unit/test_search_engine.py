@@ -161,10 +161,12 @@ class TestSearchEngine:
 
     def test_search_database_not_found(self, mock_settings):
         """Test search when database doesn't exist."""
+        from scriptrag.exceptions import DatabaseError
+
         engine = SearchEngine(mock_settings)
         query = SearchQuery(raw_query="test")
 
-        with pytest.raises(FileNotFoundError, match="Database not found"):
+        with pytest.raises(DatabaseError, match="Database not found"):
             engine.search(query)
 
     def test_search_simple_query(self, mock_settings, mock_db):

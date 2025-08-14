@@ -3,7 +3,9 @@
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any
+
+from scriptrag.exceptions import ValidationError
 
 
 @dataclass
@@ -11,7 +13,7 @@ class ParamSpec:
     """Parameter specification for a query."""
 
     name: str
-    type: Literal["str", "int", "float", "bool"]
+    type: str  # "str", "int", "float", or "bool"
     required: bool = True
     default: Any | None = None
     help: str | None = None
@@ -31,14 +33,27 @@ class ParamSpec:
         """
         if value is None:
             if self.required and self.default is None:
-                raise ValueError(f"Required parameter '{self.name}' not provided")
+                raise ValidationError(
+                    message=f"Required parameter '{self.name}' not provided",
+                    hint=f"Provide a value for the '{self.name}' parameter",
+                    details={
+                        "parameter": self.name,
+                        "type": self.type,
+                        "required": True,
+                    },
+                )
             return self.default
 
         # Validate choices if specified
         if self.choices and str(value) not in self.choices:
-            raise ValueError(
-                f"Invalid choice for '{self.name}': {value}. "
-                f"Must be one of: {', '.join(self.choices)}"
+            raise ValidationError(
+                message=f"Invalid choice for parameter '{self.name}': {value}",
+                hint=f"Choose one of: {', '.join(self.choices)}",
+                details={
+                    "parameter": self.name,
+                    "provided_value": str(value),
+                    "valid_choices": self.choices,
+                },
             )
 
         # Cast to appropriate type
@@ -48,15 +63,27 @@ class ParamSpec:
             try:
                 return int(value)
             except (ValueError, TypeError) as e:
-                raise ValueError(
-                    f"Cannot convert '{value}' to int for '{self.name}'"
+                raise ValidationError(
+                    message=f"Cannot convert '{value}' to int for '{self.name}'",
+                    hint="Provide a valid integer value",
+                    details={
+                        "parameter": self.name,
+                        "provided_value": str(value),
+                        "expected_type": "int",
+                    },
                 ) from e
         elif self.type == "float":
             try:
                 return float(value)
             except (ValueError, TypeError) as e:
-                raise ValueError(
-                    f"Cannot convert '{value}' to float for '{self.name}'"
+                raise ValidationError(
+                    message=f"Cannot convert '{value}' to float for '{self.name}'",
+                    hint="Provide a valid decimal number",
+                    details={
+                        "parameter": self.name,
+                        "provided_value": str(value),
+                        "expected_type": "float",
+                    },
                 ) from e
         elif self.type == "bool":
             if isinstance(value, bool):
@@ -67,12 +94,26 @@ class ParamSpec:
                     return True
                 if lower in ("false", "0", "no", "n", "off"):
                     return False
-            raise ValueError(
-                f"Cannot convert '{value}' to bool for '{self.name}'. "
-                "Use true/false, yes/no, 1/0"
+            raise ValidationError(
+                message=f"Cannot convert '{value}' to bool for '{self.name}'",
+                hint="Use true/false, yes/no, 1/0, on/off",
+                details={
+                    "parameter": self.name,
+                    "provided_value": str(value),
+                    "expected_type": "bool",
+                    "valid_values": ["true", "false", "yes", "no", "1", "0"],
+                },
             )
         else:
-            raise ValueError(f"Unknown type: {self.type}")
+            raise ValidationError(
+                message=f"Unknown parameter type: {self.type}",
+                hint="Valid types are: str, int, float, bool",
+                details={
+                    "parameter": self.name,
+                    "invalid_type": self.type,
+                    "valid_types": ["str", "int", "float", "bool"],
+                },
+            )
 
 
 @dataclass
@@ -196,8 +237,7 @@ class HeaderParser:
         if param_type not in ("str", "int", "float", "bool"):
             return None
 
-        # Type narrowing for mypy - use a cast since we validated above
-        param_type = cast(Literal["str", "int", "float", "bool"], param_type)
+        # Type is validated above, no need for cast
 
         # Parse options (default, help, choices)
         default: Any = None

@@ -31,6 +31,15 @@ class TestSearchCommand:
             yield mock
 
     @pytest.fixture
+    def mock_override_database_path(self):
+        """Mock the override_database_path function."""
+        with patch("scriptrag.cli.commands.search.override_database_path") as mock:
+            from scriptrag.config import get_settings
+
+            mock.return_value = get_settings()
+            yield mock
+
+    @pytest.fixture
     def mock_formatter(self):
         """Mock the ResultFormatter class."""
         with patch("scriptrag.cli.commands.search.ResultFormatter") as mock:
@@ -79,13 +88,18 @@ class TestSearchCommand:
         )
 
     def test_basic_search_success(
-        self, mock_console, mock_search_api, mock_formatter, sample_search_response
+        self,
+        mock_console,
+        mock_search_api,
+        mock_formatter,
+        mock_override_database_path,
+        sample_search_response,
     ):
         """Test basic search command with successful results."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -94,7 +108,8 @@ class TestSearchCommand:
         search_command("test query")
 
         # Verify API was called correctly
-        mock_search_api.from_config.assert_called_once()
+        mock_override_database_path.assert_called_once_with(None, clear_cache=True)
+        mock_search_api.assert_called_once()
         mock_api_instance.search.assert_called_once_with(
             query="test query",
             character=None,
@@ -127,7 +142,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -176,7 +191,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter_instance.format_brief.return_value = "Brief result text"
@@ -217,11 +232,11 @@ class TestSearchCommand:
         # Logger should not be called for simple validation errors
         mock_logger.error.assert_not_called()
 
-        # Verify SearchAPI.from_config WAS called (happens before validation)
-        mock_search_api.from_config.assert_called_once()
+        # Verify SearchAPI constructor WAS called (happens before validation)
+        mock_search_api.assert_called_once()
 
         # But search() method should NOT be called
-        mock_api_instance = mock_search_api.from_config.return_value
+        mock_api_instance = mock_search_api.return_value
         mock_api_instance.search.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -251,7 +266,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -304,7 +319,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -349,7 +364,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -394,7 +409,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter_instance.format_brief.return_value = "Brief output"
@@ -423,7 +438,7 @@ class TestSearchCommand:
         """Test handling of DatabaseError (was FileNotFoundError)."""
         # Setup mock to raise DatabaseError
         error = DatabaseError("Database not found")
-        mock_search_api.from_config.side_effect = error
+        mock_search_api.side_effect = error
 
         # Setup handle_cli_error to raise Exit
         mock_handle_error.side_effect = typer.Exit(1)
@@ -451,7 +466,7 @@ class TestSearchCommand:
         """Test handling of SearchAPI initialization error."""
         # Setup mock to raise generic error during initialization
         error = RuntimeError("Config error")
-        mock_search_api.from_config.side_effect = error
+        mock_search_api.side_effect = error
 
         # Setup handle_cli_error to raise Exit
         mock_handle_error.side_effect = typer.Exit(1)
@@ -482,7 +497,7 @@ class TestSearchCommand:
         mock_api_instance = Mock()
         error = RuntimeError("Search failed")
         mock_api_instance.search.side_effect = error
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         # Setup handle_cli_error to raise Exit
         mock_handle_error.side_effect = typer.Exit(1)
@@ -513,7 +528,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         error = RuntimeError("Format error")
@@ -549,7 +564,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         error = RuntimeError("Brief format error")
@@ -582,7 +597,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -622,7 +637,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -657,7 +672,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -694,7 +709,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -731,7 +746,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -766,7 +781,7 @@ class TestSearchCommand:
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance

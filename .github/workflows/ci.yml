@@ -484,13 +484,6 @@ jobs:
             echo "all_passed=true" >> $GITHUB_OUTPUT
           fi
 
-  # Note: Test failure diagnostics are now handled by the intelligent
-  # test-failure-diagnostics.yml workflow which uses Claude Code to
-  # analyze failures and provide detailed diagnostic information
-
-  # Note: When CI fails, the test-failure-diagnostics.yml workflow will
-  # automatically trigger to provide intelligent error analysis using Claude Code
-
   # Call the reusable Claude Code Review workflow after CI passes
   claude-review-after-ci:
     name: Claude Code Review (Post-CI)
@@ -510,6 +503,147 @@ jobs:
     secrets:
       GH_TOKEN_FOR_CLAUDE: ${{ secrets.GH_TOKEN_FOR_CLAUDE }}
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+  # Analyze test failures when CI fails
+  test-failure-diagnostics:
+    name: Test Failure Diagnostics
+    runs-on: ubuntu-latest
+    needs: [all-checks]
+    if: |
+      always() &&
+      github.event_name == 'pull_request' &&
+      needs.all-checks.outputs.all_passed == 'false'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      actions: read
+      checks: read
+      models: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install gh-workflow-peek extension
+        run: |
+          # Check if gh-workflow-peek is already installed
+          if ! gh extension list | grep -q "trieloff/gh-workflow-peek"; then
+            echo "Installing gh-workflow-peek extension..."
+            gh extension install trieloff/gh-workflow-peek
+          else
+            echo "gh-workflow-peek extension already installed"
+          fi
+
+          # Verify installation
+          gh extension list
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
+
+      - name: Run Claude Code for Diagnostic Analysis
+        id: claude-diagnostics
+        continue-on-error: true
+        uses: anthropics/claude-code-action@beta
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
+          mode: agent  # Use agent mode for automated diagnostics
+
+          # Pass context via environment variables
+          claude_env: |
+            PR_NUMBER: ${{ github.event.pull_request.number }}
+            PR_BRANCH: ${{ github.head_ref }}
+            WORKFLOW_RUN_ID: ${{ github.run_id }}
+            WORKFLOW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          # Grant Claude access to CI logs and tools
+          additional_permissions: |
+            actions: read
+            checks: read
+
+          # Allow Claude to use workflow analysis tools
+          allowed_tools: |
+            Bash(gh workflow-peek)
+            Bash(gh api)
+            Bash(gh run view)
+            Bash(gh run download)
+
+          # Custom diagnostic prompt
+          direct_prompt: |
+            ## Test Failure Diagnostic Analysis
+
+            The CI workflow has failed for PR #${{ github.event.pull_request.number }}.
+            Workflow Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Your task is to analyze the test failures and provide a detailed diagnostic report.
+
+            ### Instructions:
+
+            1. **Retrieve Failure Information**:
+               - Use the GitHub API or gh CLI to access the current workflow run ID: ${{ github.run_id }}
+               - Use `gh workflow-peek` extension to get detailed logs
+               - Focus on jobs that failed: lint, type-check, security, test-canary, test-matrix, etc.
+
+            2. **Analyze the Failures**:
+               - Identify which specific tests or checks failed
+               - Extract relevant error messages and stack traces
+               - Look for patterns in the failures (e.g., all failures in one module, timeout issues, dependency problems)
+               - Check if failures are related to:
+                 * Code syntax errors (linting)
+                 * Type checking issues (mypy)
+                 * Security violations (bandit/safety)
+                 * Test assertion failures
+                 * Platform-specific issues (Windows/macOS/Linux differences)
+
+            3. **Root Cause Analysis**:
+               - Determine the most likely root cause(s) of the failures
+               - Check if the failures are related to recent code changes in the PR
+               - Consider common issues from CLAUDE.md:
+                 * ANSI escape sequences in test output
+                 * Mock file artifacts
+                 * LLM rate limits
+                 * Cross-platform compatibility
+
+            4. **Provide Actionable Recommendations**:
+               - Suggest specific fixes for each identified issue
+               - Include the exact Make commands to run locally:
+                 * `make check-fast` for quick quality checks
+                 * `make lint` for linting issues
+                 * `make type-check` for type errors
+                 * `make test` for test failures
+               - Reference relevant documentation (TESTING.md, CLAUDE.md)
+
+            5. **Format Your Response**:
+               Post a clear, structured comment on the PR with:
+               - 📊 **Summary**: Brief overview of what failed
+               - 🔍 **Detailed Analysis**: Specific failures and their causes
+               - 💡 **Recommendations**: Step-by-step fixes with commands
+               - 📝 **Additional Notes**: Platform-specific issues or known gotchas
+
+            ### Important:
+            After analyzing the failures, post your diagnostic report as a comment on PR #${{ github.event.pull_request.number }} using:
+            ```bash
+            gh pr comment ${{ github.event.pull_request.number }} --body "Your formatted diagnostic report here"
+            ```
+
+            Focus on being helpful and actionable. Remember common issues from the project:
+            - Strip ANSI codes in CLI tests using `strip_ansi_codes()`
+            - Use `spec_set` in mocks to avoid file artifacts
+            - Handle LLM rate limits with exponential backoff
+            - Use `pathlib.Path` for cross-platform paths
+
+          # Custom instructions for diagnostic behavior
+          custom_instructions: |
+            You are a CI/CD diagnostic specialist for the ScriptRAG project. Your role is to:
+            - Quickly identify and analyze test failures specific to this codebase
+            - Reference the project's CLAUDE.md and TESTING.md documentation
+            - Provide clear, actionable diagnostic information with exact commands
+            - Be aware of common issues: ANSI codes, mock artifacts, type annotations, cross-platform issues
+            - Suggest using appropriate sub-agents when needed (ruff-house, type-veronica, test-holmes)
+            - Be encouraging and constructive in your feedback
+
+            Remember to check for the specific patterns mentioned in CLAUDE.md's "Common Iteration Patterns" section.
 
   vibe-badge:
     name: Generate Vibe Badge

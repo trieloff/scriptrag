@@ -27,17 +27,23 @@ def clean_settings():
 
 
 @pytest.fixture
-def multi_scene_screenplay():
-    """Load the multi-scene screenplay fixture with proper prop capitalization."""
-    # Use the screenplay from fixtures directory with correct capitalization
-    # (only CHARACTER names are capitalized, not props)
-    return (
+def multi_scene_screenplay(tmp_path):
+    """Copy the multi-scene screenplay fixture to temp directory."""
+    import shutil
+
+    # Source file from fixtures directory
+    source_file = (
         Path(__file__).parent.parent
         / "fixtures"
         / "fountain"
         / "test_data"
         / "props_context_multi_scene.fountain"
     )
+
+    # Copy to temp directory to avoid contaminating fixtures
+    dest_file = tmp_path / "props_context_multi_scene.fountain"
+    shutil.copy2(source_file, dest_file)
+    return dest_file
 
 
 @pytest.mark.requires_llm

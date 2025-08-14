@@ -118,6 +118,7 @@ class TestCLICommandsModule:
                 "mcp",
                 "pull",
                 "query",
+                "scene",  # Scene module imported as side effect from main.py
                 "search",
                 "watch",
             ]

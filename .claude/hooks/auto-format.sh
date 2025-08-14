@@ -1,6 +1,7 @@
 #!/bin/bash
 # Auto-formatting hook for ScriptRAG project
 # This script runs after Write/Edit/MultiEdit tools to ensure consistent formatting
+# Applies all available auto-fixes from linting tools to minimize manual corrections
 
 set -e
 
@@ -45,6 +46,7 @@ PYTHON_FILES=$(echo "$MODIFIED_FILES" | grep -E '\.(py)$' || true)
 MARKDOWN_FILES=$(echo "$MODIFIED_FILES" | grep -E '\.(md)$' || true)
 YAML_FILES=$(echo "$MODIFIED_FILES" | grep -E '\.(ya?ml)$' || true)
 JSON_FILES=$(echo "$MODIFIED_FILES" | grep -E '\.(json)$' || true)
+SQL_FILES=$(echo "$MODIFIED_FILES" | grep -E '\.(sql)$' || true)
 
 # Format Python files
 if [ -n "$PYTHON_FILES" ]; then
@@ -59,11 +61,17 @@ if [ -n "$PYTHON_FILES" ]; then
     done
 
     if [ -n "$EXISTING_PYTHON_FILES" ]; then
-        # Run Ruff formatter and fixer
+        # Run Ruff formatter and fixer (includes import sorting and many fixes)
         if command -v ruff >/dev/null 2>&1; then
-            echo "  Running Ruff..."
+            echo "  Running Ruff format..."
             ruff format $EXISTING_PYTHON_FILES || echo "  ⚠️  Ruff formatting failed"
-            ruff check --fix $EXISTING_PYTHON_FILES || echo "  ⚠️  Ruff fixing failed"
+            echo "  Running Ruff check with auto-fix..."
+            ruff check --fix --unsafe-fixes $EXISTING_PYTHON_FILES || echo "  ⚠️  Ruff fixing failed"
+        elif command -v uv >/dev/null 2>&1; then
+            # Fallback to uv if ruff not in PATH
+            echo "  Running Ruff via uv..."
+            uv run ruff format $EXISTING_PYTHON_FILES || echo "  ⚠️  Ruff formatting failed"
+            uv run ruff check --fix --unsafe-fixes $EXISTING_PYTHON_FILES || echo "  ⚠️  Ruff fixing failed"
         fi
 
         echo "  ✅ Python files formatted"
@@ -132,9 +140,37 @@ if [ -n "$YAML_FILES" ]; then
         if command -v yamllint >/dev/null 2>&1; then
             echo "  Running yamllint..."
             yamllint -c .yamllint.yaml $EXISTING_YAML_FILES || echo "  ⚠️  YAML linting failed"
+        elif command -v uv >/dev/null 2>&1; then
+            echo "  Running yamllint via uv..."
+            uv run yamllint -c .yamllint.yaml $EXISTING_YAML_FILES || echo "  ⚠️  YAML linting failed"
         fi
 
         echo "  ✅ YAML files checked"
+    fi
+fi
+
+# Format SQL files
+if [ -n "$SQL_FILES" ]; then
+    echo "🗄️ Formatting SQL files..."
+
+    EXISTING_SQL_FILES=""
+    for file in $SQL_FILES; do
+        if [ -f "$file" ]; then
+            EXISTING_SQL_FILES="$EXISTING_SQL_FILES $file"
+        fi
+    done
+
+    if [ -n "$EXISTING_SQL_FILES" ]; then
+        # Run SQLFluff with auto-fix
+        if command -v sqlfluff >/dev/null 2>&1; then
+            echo "  Running SQLFluff fix..."
+            sqlfluff fix --dialect sqlite $EXISTING_SQL_FILES || echo "  ⚠️  SQLFluff formatting failed"
+        elif command -v uv >/dev/null 2>&1; then
+            echo "  Running SQLFluff via uv..."
+            uv run sqlfluff fix --dialect sqlite $EXISTING_SQL_FILES || echo "  ⚠️  SQLFluff formatting failed"
+        fi
+
+        echo "  ✅ SQL files formatted"
     fi
 fi
 
@@ -149,8 +185,13 @@ for file in $MODIFIED_FILES; do
             # For Markdown: preserve exactly 2 trailing spaces (line breaks), remove others
             # This matches the behavior of pre-commit's trailing-whitespace with --markdown-linebreak-ext=md
             python3 -c "
+import sys
 import re
-with open('$file', 'r') as f: lines = f.readlines()
+
+file_path = sys.argv[1]
+with open(file_path, 'r') as f:
+    lines = f.readlines()
+
 # Mimic pre-commit trailing-whitespace --markdown-linebreak-ext=md behavior
 for i, line in enumerate(lines):
     # Remove newline for processing
@@ -164,8 +205,10 @@ for i, line in enumerate(lines):
             # If exactly 1 whitespace char, remove it
             line_content = re.sub(r'\s+$', '', line_content)
     lines[i] = line_content + '\n'
-with open('$file', 'w') as f: f.writelines(lines)
-" 2>/dev/null || true
+
+with open(file_path, 'w') as f:
+    f.writelines(lines)
+" "$file" 2>/dev/null || true
         else
             # For all other files: remove all trailing whitespace
             sed -i 's/[[:space:]]*$//' "$file" 2>/dev/null || true

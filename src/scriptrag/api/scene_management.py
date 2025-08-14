@@ -2,9 +2,8 @@
 
 import hashlib
 import sqlite3
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -60,18 +59,6 @@ class SceneIdentifier:
 
 
 @dataclass
-class ReadSession:
-    """Tracks a scene read session for validation window."""
-
-    scene_key: str
-    content_hash: str
-    read_at: datetime
-    expires_at: datetime
-    reader_id: str
-    token: str = field(default_factory=lambda: str(uuid.uuid4()))
-
-
-@dataclass
 class ValidationResult:
     """Result of scene content validation."""
 
@@ -82,23 +69,13 @@ class ValidationResult:
 
 
 @dataclass
-class SessionValidationResult:
-    """Result of session validation."""
-
-    is_valid: bool
-    error: str | None = None
-    original_hash: str | None = None
-
-
-@dataclass
 class ReadSceneResult:
     """Result of reading a scene."""
 
     success: bool
     error: str | None
     scene: Scene | None
-    session_token: str | None
-    expires_at: datetime | None = None
+    last_read: datetime | None = None
 
 
 @dataclass
@@ -138,95 +115,6 @@ class BibleReadResult:
     error: str | None
     bible_files: list[dict[str, Any]] = field(default_factory=list)
     content: str | None = None
-
-
-class ReadTracker:
-    """Manages read sessions with 10-minute validation windows."""
-
-    def __init__(self, validation_window: int = 600):
-        """Initialize the read tracker.
-
-        Args:
-            validation_window: Validation window in seconds (default: 10 minutes)
-        """
-        self._sessions: dict[str, ReadSession] = {}
-        self._validation_window = validation_window
-
-    def register_read(self, scene_key: str, content_hash: str, reader_id: str) -> str:
-        """Register scene read, return session token."""
-        # Clean up expired sessions
-        self._cleanup_expired()
-
-        session = ReadSession(
-            scene_key=scene_key,
-            content_hash=content_hash,
-            read_at=datetime.utcnow(),
-            expires_at=datetime.utcnow() + timedelta(seconds=self._validation_window),
-            reader_id=reader_id,
-        )
-
-        self._sessions[session.token] = session
-        logger.debug(
-            f"Registered read session for {scene_key}",
-            token=session.token,
-            expires_at=session.expires_at.isoformat(),
-        )
-        return session.token
-
-    def validate_session(self, token: str, scene_key: str) -> SessionValidationResult:
-        """Validate session for updates."""
-        # Clean up expired sessions
-        self._cleanup_expired()
-
-        if token not in self._sessions:
-            return SessionValidationResult(
-                is_valid=False,
-                error="Session token not found or expired",
-            )
-
-        session = self._sessions[token]
-
-        # Check if session is expired
-        if datetime.utcnow() > session.expires_at:
-            del self._sessions[token]
-            return SessionValidationResult(
-                is_valid=False,
-                error="Session has expired. Please read the scene again.",
-            )
-
-        # Check if scene key matches
-        if session.scene_key != scene_key:
-            return SessionValidationResult(
-                is_valid=False,
-                error=(
-                    f"Session token is for scene {session.scene_key}, not {scene_key}"
-                ),
-            )
-
-        return SessionValidationResult(
-            is_valid=True,
-            error=None,
-            original_hash=session.content_hash,
-        )
-
-    def invalidate_session(self, token: str) -> None:
-        """Invalidate a session after successful update."""
-        if token in self._sessions:
-            del self._sessions[token]
-            logger.debug(f"Invalidated session {token}")
-
-    def _cleanup_expired(self) -> None:
-        """Remove expired sessions from memory."""
-        now = datetime.utcnow()
-        expired_tokens = [
-            token
-            for token, session in self._sessions.items()
-            if session.expires_at < now
-        ]
-        for token in expired_tokens:
-            del self._sessions[token]
-        if expired_tokens:
-            logger.debug(f"Cleaned up {len(expired_tokens)} expired sessions")
 
 
 class FountainValidator:
@@ -310,14 +198,13 @@ class SceneManagementAPI:
 
         self.settings = settings or get_settings()
         self.db_ops = DatabaseOperations(self.settings)
-        self.read_tracker = ReadTracker()
         self.validator = FountainValidator()
         self.parser = FountainParser()
 
     async def read_scene(
         self, scene_id: SceneIdentifier, reader_id: str = "ai_agent"
     ) -> ReadSceneResult:
-        """Read a scene and establish tracking session."""
+        """Read a scene and update last_read timestamp."""
         try:
             with self.db_ops.transaction() as conn:
                 # Get scene from database
@@ -327,35 +214,24 @@ class SceneManagementAPI:
                         success=False,
                         error=f"Scene not found: {scene_id.key}",
                         scene=None,
-                        session_token=None,
+                        last_read=None,
                     )
 
-                # Calculate content hash
-                content_hash = hashlib.sha256(scene.content.encode()).hexdigest()
-
-                # Register read session
-                session_token = self.read_tracker.register_read(
-                    scene_key=scene_id.key,
-                    content_hash=content_hash,
-                    reader_id=reader_id,
-                )
-
-                expires_at = datetime.utcnow() + timedelta(
-                    seconds=self.read_tracker._validation_window
-                )
+                # Update last_read_at timestamp
+                last_read = datetime.utcnow()
+                self._update_last_read(conn, scene_id, last_read)
 
                 logger.info(
                     f"Scene read: {scene_id.key}",
                     reader_id=reader_id,
-                    session_token=session_token,
+                    last_read=last_read.isoformat(),
                 )
 
                 return ReadSceneResult(
                     success=True,
                     error=None,
                     scene=scene,
-                    session_token=session_token,
-                    expires_at=expires_at,
+                    last_read=last_read,
                 )
 
         except Exception as e:
@@ -364,17 +240,27 @@ class SceneManagementAPI:
                 success=False,
                 error=str(e),
                 scene=None,
-                session_token=None,
+                last_read=None,
             )
 
     async def update_scene(
         self,
         scene_id: SceneIdentifier,
         new_content: str,
-        session_token: str,
+        check_conflicts: bool = False,
+        last_read: datetime | None = None,
         reader_id: str = "ai_agent",
     ) -> UpdateSceneResult:
-        """Update scene with validation window enforcement."""
+        """Update scene with optional conflict checking.
+
+        Args:
+            scene_id: Scene identifier
+            new_content: New scene content
+            check_conflicts: If True, verify scene hasn't changed since last_read
+            last_read: Timestamp of when scene was last read (required if
+                check_conflicts=True)
+            reader_id: ID of the reader/agent
+        """
         # Validate Fountain content first
         validation = self.validator.validate_scene_content(new_content)
         if not validation.is_valid:
@@ -384,54 +270,49 @@ class SceneManagementAPI:
                 validation_errors=validation.errors,
             )
 
-        # Check read session
-        session_validation = self.read_tracker.validate_session(
-            session_token, scene_id.key
-        )
-
-        if not session_validation.is_valid:
-            return UpdateSceneResult(
-                success=False,
-                error=session_validation.error,
-                validation_errors=["SESSION_INVALID"],
-            )
-
         try:
             with self.db_ops.transaction() as conn:
-                # Get current scene for conflict detection
+                # Get current scene
                 current_scene = self._get_scene_by_id(conn, scene_id)
                 if not current_scene:
                     return UpdateSceneResult(
                         success=False,
-                        error="Scene no longer exists",
+                        error="Scene not found",
                         validation_errors=["SCENE_NOT_FOUND"],
                     )
 
-                # Check if scene changed since read (optimistic locking)
-                current_content_hash = hashlib.sha256(
-                    current_scene.content.encode()
-                ).hexdigest()
-                if current_content_hash != session_validation.original_hash:
-                    return UpdateSceneResult(
-                        success=False,
-                        error=(
-                            "Scene was modified by another process. "
-                            "Please re-read and try again."
-                        ),
-                        validation_errors=["CONCURRENT_MODIFICATION"],
-                    )
+                # Check for conflicts if requested
+                if check_conflicts:
+                    if last_read is None:
+                        return UpdateSceneResult(
+                            success=False,
+                            error=(
+                                "last_read timestamp required when check_conflicts=True"
+                            ),
+                            validation_errors=["MISSING_TIMESTAMP"],
+                        )
+
+                    # Get last modified time
+                    last_modified = self._get_last_modified(conn, scene_id)
+                    if last_modified and last_modified > last_read:
+                        return UpdateSceneResult(
+                            success=False,
+                            error=(
+                                "Scene was modified since last read. "
+                                "Please re-read and try again."
+                            ),
+                            validation_errors=["CONCURRENT_MODIFICATION"],
+                        )
 
                 # Update scene content
                 updated_scene = self._update_scene_content(
                     conn, scene_id, new_content, validation.parsed_scene
                 )
 
-                # Invalidate read session
-                self.read_tracker.invalidate_session(session_token)
-
                 logger.info(
                     f"Scene updated: {scene_id.key}",
                     reader_id=reader_id,
+                    check_conflicts=check_conflicts,
                 )
 
                 return UpdateSceneResult(
@@ -999,3 +880,64 @@ class SceneManagementAPI:
         except Exception as e:
             logger.error(f"Failed to read bible for project '{project}': {e}")
             return BibleReadResult(success=False, error=str(e))
+
+    def _update_last_read(
+        self, conn: sqlite3.Connection, scene_id: SceneIdentifier, timestamp: datetime
+    ) -> None:
+        """Update the last_read_at timestamp for a scene."""
+        query = """
+            UPDATE scenes
+            SET last_read_at = ?
+            WHERE scene_number = ?
+                AND script_id = (
+                    SELECT id FROM scripts
+                    WHERE title = ?
+        """
+        # Convert datetime to string for SQLite
+        timestamp_str = timestamp.isoformat()
+        params: list[Any] = [timestamp_str, scene_id.scene_number, scene_id.project]
+
+        # Add season/episode conditions
+        if scene_id.season is not None:
+            query += " AND json_extract(metadata, '$.season') = ?"
+            params.append(scene_id.season)
+
+        if scene_id.episode is not None:
+            query += " AND json_extract(metadata, '$.episode') = ?"
+            params.append(scene_id.episode)
+
+        query += ")"
+        conn.execute(query, params)
+
+    def _get_last_modified(
+        self, conn: sqlite3.Connection, scene_id: SceneIdentifier
+    ) -> datetime | None:
+        """Get the last modification time for a scene."""
+        query = """
+            SELECT updated_at
+            FROM scenes
+            WHERE scene_number = ?
+                AND script_id = (
+                    SELECT id FROM scripts
+                    WHERE title = ?
+        """
+        params: list[Any] = [scene_id.scene_number, scene_id.project]
+
+        # Add season/episode conditions
+        if scene_id.season is not None:
+            query += " AND json_extract(metadata, '$.season') = ?"
+            params.append(scene_id.season)
+
+        if scene_id.episode is not None:
+            query += " AND json_extract(metadata, '$.episode') = ?"
+            params.append(scene_id.episode)
+
+        query += ")"
+
+        cursor = conn.execute(query, params)
+        row = cursor.fetchone()
+
+        if row and row["updated_at"]:
+            # Parse timestamp string to datetime
+            return datetime.fromisoformat(row["updated_at"].replace(" ", "T"))
+        return None

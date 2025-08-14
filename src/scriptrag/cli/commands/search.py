@@ -25,6 +25,14 @@ def search_command(
             )
         ),
     ],
+    db_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--db-path",
+            "-d",
+            help="Path to the SQLite database file",
+        ),
+    ] = None,
     character: Annotated[
         str | None,
         typer.Option(
@@ -37,7 +45,6 @@ def search_command(
         str | None,
         typer.Option(
             "--dialogue",
-            "-d",
             help="Search for specific dialogue",
         ),
     ] = None,
@@ -164,6 +171,8 @@ def search_command(
     Use --strict to disable this or --fuzzy to always enable it.
     """
     try:
+        import copy
+
         from scriptrag.config import get_settings
         from scriptrag.config.settings import ScriptRAGSettings
 
@@ -179,6 +188,12 @@ def search_command(
         else:
             # Use default settings
             settings = get_settings()
+
+        # Apply db_path override if provided
+        if db_path:
+            # Create a copy with the new db_path
+            settings = copy.deepcopy(settings)
+            settings.database_path = db_path
 
         # Initialize search API
         search_api = SearchAPI(settings=settings)

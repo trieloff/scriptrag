@@ -340,7 +340,9 @@ class SceneManagementAPI:
                     reader_id=reader_id,
                 )
 
-                expires_at = datetime.utcnow() + timedelta(seconds=600)
+                expires_at = datetime.utcnow() + timedelta(
+                    seconds=self.read_tracker._validation_window
+                )
 
                 logger.info(
                     f"Scene read: {scene_id.key}",
@@ -626,10 +628,15 @@ class SceneManagementAPI:
             # Extract basic info from content
             lines = new_content.strip().split("\n")
             heading = lines[0] if lines else ""
-            from scriptrag.utils import ScreenplayUtils
+            try:
+                from scriptrag.utils import ScreenplayUtils
 
-            location = ScreenplayUtils.extract_location(heading) or ""
-            time_of_day = ScreenplayUtils.extract_time(heading) or ""
+                location = ScreenplayUtils.extract_location(heading) or ""
+                time_of_day = ScreenplayUtils.extract_time(heading) or ""
+            except ImportError:
+                # Fallback if ScreenplayUtils is not available
+                location = ""
+                time_of_day = ""
 
         # Update scene in database
         query = """
@@ -713,10 +720,15 @@ class SceneManagementAPI:
         else:
             lines = content.strip().split("\n")
             heading = lines[0] if lines else ""
-            from scriptrag.utils import ScreenplayUtils
+            try:
+                from scriptrag.utils import ScreenplayUtils
 
-            location = ScreenplayUtils.extract_location(heading) or ""
-            time_of_day = ScreenplayUtils.extract_time(heading) or ""
+                location = ScreenplayUtils.extract_location(heading) or ""
+                time_of_day = ScreenplayUtils.extract_time(heading) or ""
+            except ImportError:
+                # Fallback if ScreenplayUtils is not available
+                location = ""
+                time_of_day = ""
 
         # Insert new scene
         conn.execute(

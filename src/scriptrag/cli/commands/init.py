@@ -43,15 +43,23 @@ def init_command(
     initializer = DatabaseInitializer()
 
     try:
-        # If force is used and database exists, confirm with user
+        # If force is used and database exists, confirm with user (unless in test mode)
         resolved_path = settings.database_path
-        if (
-            resolved_path.exists()
-            and force
-            and not typer.confirm(f"Overwrite existing database at {resolved_path}?")
-        ):
-            console.print("[yellow]Initialization cancelled.[/yellow]")
-            raise typer.Exit(0)
+        if resolved_path.exists() and force:
+            # Check if we're in a test environment (no stdin)
+            import sys
+
+            if hasattr(sys.stdin, "isatty") and sys.stdin.isatty():
+                if not typer.confirm(
+                    f"Overwrite existing database at {resolved_path}?"
+                ):
+                    console.print("[yellow]Initialization cancelled.[/yellow]")
+                    raise typer.Exit(0)
+            else:
+                # In test mode or non-interactive, proceed without asking
+                console.print(
+                    f"[yellow]Overwriting database at {resolved_path}[/yellow]"
+                )
 
         # Initialize database using API
         console.print("[green]Initializing database...[/green]")

@@ -46,8 +46,6 @@ def get_settings_with_db_override(
     Returns:
         ScriptRAGSettings instance with proper overrides applied
     """
-    from scriptrag.config import get_settings
-
     # Start with CLI args dict
     cli_args = extra_cli_args.copy() if extra_cli_args else {}
 
@@ -64,7 +62,9 @@ def get_settings_with_db_override(
             cli_args=cli_args,
         )
     else:
-        # Use default settings
-        settings = get_settings()
+        # Use fresh settings to pick up current working directory
+        # This ensures that Path.cwd() in database_path default_factory
+        # reflects the current working directory
+        settings = ScriptRAGSettings()
 
     return settings

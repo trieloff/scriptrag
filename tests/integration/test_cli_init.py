@@ -36,7 +36,7 @@ class TestInitCommand:
     def test_init_creates_database(self, runner, temp_db_path):
         """Test that init command creates a new database."""
         # Run init command
-        result = runner.invoke(app, ["init", "--db-path", str(temp_db_path)])
+        result = runner.invoke(app, ["--db-path", str(temp_db_path), "init"])
 
         # Check command succeeded
         assert result.exit_code == 0
@@ -91,7 +91,7 @@ class TestInitCommand:
         temp_db_path.touch()
 
         # Run init command
-        result = runner.invoke(app, ["init", "--db-path", str(temp_db_path)])
+        result = runner.invoke(app, ["--db-path", str(temp_db_path), "init"])
 
         # Check command failed
         assert result.exit_code == 1
@@ -111,7 +111,7 @@ class TestInitCommand:
 
         # Run init command with force, auto-confirm
         result = runner.invoke(
-            app, ["init", "--db-path", str(temp_db_path), "--force"], input="y\n"
+            app, ["--db-path", str(temp_db_path), "init", "--force"], input="y\n"
         )
 
         # Check command succeeded
@@ -139,7 +139,7 @@ class TestInitCommand:
 
         # Run init command with force, but cancel
         result = runner.invoke(
-            app, ["init", "--db-path", str(temp_db_path), "--force"], input="n\n"
+            app, ["--db-path", str(temp_db_path), "init", "--force"], input="n\n"
         )
 
         # Check command was cancelled
@@ -170,7 +170,7 @@ class TestInitCommand:
         nested_path = tmp_path / "nested" / "dir" / "scriptrag.db"
 
         # Run init command
-        result = runner.invoke(app, ["init", "--db-path", str(nested_path)])
+        result = runner.invoke(app, ["--db-path", str(nested_path), "init"])
 
         # Check command succeeded
         assert result.exit_code == 0
@@ -191,7 +191,7 @@ class TestInitCommand:
         monkeypatch.setattr(DatabaseInitializer, "_read_sql_file", mock_read_sql)
 
         # Run init command
-        result = runner.invoke(app, ["init", "--db-path", str(temp_db_path)])
+        result = runner.invoke(app, ["--db-path", str(temp_db_path), "init"])
 
         # Check command failed
         assert result.exit_code == 1
@@ -211,7 +211,7 @@ class TestInitCommand:
         monkeypatch.setattr(DatabaseInitializer, "__init__", mock_init)
 
         # Run init command
-        result = runner.invoke(app, ["init", "--db-path", str(temp_db_path)])
+        result = runner.invoke(app, ["--db-path", str(temp_db_path), "init"])
 
         # Check command failed
         assert result.exit_code == 1

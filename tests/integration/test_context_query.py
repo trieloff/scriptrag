@@ -92,7 +92,7 @@ class TestContextQuerySystem:
         assert result.exit_code == 0
 
         # Step 2: First analysis pass - analyze all scenes
-        print("\n=== First analysis pass - establishing props ===")
+        pass  # First analysis pass - establishing props
         result = runner.invoke(
             app,
             [
@@ -106,7 +106,7 @@ class TestContextQuerySystem:
 
         if result.exit_code != 0:
             output = strip_ansi_codes(result.stdout)
-            print(f"Analyze failed: {output}")
+            pass  # Analyze failed
             # Check for rate limiting
             if "Rate limit" in output or "All LLM providers failed" in output:
                 pytest.skip("LLM provider rate limited - skipping test")
@@ -169,14 +169,11 @@ class TestContextQuerySystem:
                     "heading": scene["heading"],
                     "props": props,
                 }
-                print(f"\nScene {scene['scene_number']}: {scene['heading']}")
-                print(f"  Found {len(props)} props")
-                for prop in props[:5]:  # Show first 5 props
-                    print(f"    - {prop['name']} ({prop['category']})")
+                pass  # Scene props info tracked
 
         # Step 5: Analyze second time to test context queries
         # Clear the boneyard from the second scene to force re-analysis
-        print("\n=== Second analysis pass - testing context queries ===")
+        pass  # Second analysis pass - testing context queries
 
         # Modify the fountain file to remove metadata from scene 2 only
         _ = multi_scene_screenplay.read_text()
@@ -195,7 +192,7 @@ class TestContextQuerySystem:
 
         if result.exit_code != 0:
             output = strip_ansi_codes(result.stdout)
-            print(f"Second analyze failed: {output}")
+            pass  # Second analyze failed
             if "Rate limit" in output:
                 pytest.skip("LLM provider rate limited - skipping test")
         assert result.exit_code == 0
@@ -210,12 +207,11 @@ class TestContextQuerySystem:
         ]
 
         # Check that these props maintain consistent naming
-        for scene_num, scene_data in all_props_by_scene.items():
+        for _scene_num, scene_data in all_props_by_scene.items():
             props = scene_data["props"]
             prop_names = [p["name"].lower() for p in props]
 
-            print(f"\n=== Scene {scene_num} prop analysis ===")
-            print(f"Props found: {', '.join(prop_names[:10])}")
+            pass  # Scene prop analysis
 
         # Verify specific props are detected consistently
         revolver_found = False
@@ -240,9 +236,7 @@ class TestContextQuerySystem:
         # We can check logs or add specific verification
         # For now, the fact that props are consistent is evidence the system works
 
-        print("\n=== Context query test completed successfully ===")
-        print(f"Found {len(all_props_by_scene)} scenes with props")
-        print("Props maintained consistency across scenes")
+        # Context query test completed successfully
 
         conn.close()
 
@@ -320,10 +314,10 @@ class TestContextQuerySystem:
             # Verify context executor is created
             assert analyzer.context_executor is not None
 
-            print("✓ Context query infrastructure working correctly")
+            pass  # Context query infrastructure working correctly
 
         except Exception as e:
-            print(f"Infrastructure test failed: {e}")
+            pass  # Infrastructure test failed
             # This is OK - we're just testing the infrastructure
 
     def test_context_parameters_extraction(self):
@@ -375,4 +369,4 @@ class TestContextQuerySystem:
         assert "episode" in params_dict
         assert params_dict["episode"] == 3
 
-        print("✓ ContextParameters extraction working correctly")
+        pass  # ContextParameters extraction working correctly

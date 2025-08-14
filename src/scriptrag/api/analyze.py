@@ -47,7 +47,7 @@ class AnalyzeResult:
 class SceneAnalyzer(Protocol):
     """Protocol for scene analysis callbacks."""
 
-    async def analyze(self, scene: dict) -> dict:
+    async def analyze(self, scene: dict[str, Any]) -> dict[str, Any]:
         """Analyze a scene and return metadata."""
         ...
 
@@ -103,7 +103,7 @@ class AnalyzeCommand:
         if name not in self._analyzer_registry:
             # Try to load from built-in analyzers
             try:
-                from scriptrag.analyzers import BUILTIN_ANALYZERS
+                from scriptrag.analyzers.builtin import BUILTIN_ANALYZERS
 
                 if name in BUILTIN_ANALYZERS:
                     analyzer_class = BUILTIN_ANALYZERS[name]
@@ -111,6 +111,18 @@ class AnalyzeCommand:
                     logger.info(f"Loaded built-in analyzer: {name}")
                     return
             except ImportError:
+                pass
+
+            # Try to load as markdown-based agent
+            try:
+                from scriptrag.agents import AgentLoader
+
+                loader = AgentLoader()
+                agent_analyzer = loader.load_agent(name)
+                self.analyzers.append(agent_analyzer)
+                logger.info(f"Loaded markdown agent: {name}")
+                return
+            except (ImportError, ValueError):
                 pass
 
             raise ValueError(f"Unknown analyzer: {name}")
@@ -124,6 +136,7 @@ class AnalyzeCommand:
         recursive: bool = True,
         force: bool = False,
         dry_run: bool = False,
+        brittle: bool = False,
         progress_callback: Callable[[float, str], None] | None = None,
     ) -> AnalyzeResult:
         """Execute analyze operation.
@@ -133,6 +146,7 @@ class AnalyzeCommand:
             recursive: Whether to search recursively
             force: Force re-processing of all scenes
             dry_run: Preview changes without applying them
+            brittle: Stop processing if any analyzer fails
             progress_callback: Optional callback for progress updates
 
         Returns:
@@ -164,9 +178,16 @@ class AnalyzeCommand:
                         script_meta.file_path,
                         force=force,
                         dry_run=dry_run,
+                        brittle=brittle,
                     )
                     result.files.append(file_result)
                 except Exception as e:
+                    if brittle:
+                        logger.error(
+                            f"Failed to process {script_meta.file_path}: {e!s} "
+                            "(brittle mode - stopping)"
+                        )
+                        raise
                     logger.error(f"Failed to process {script_meta.file_path}: {e!s}")
                     result.files.append(
                         FileResult(
@@ -178,6 +199,9 @@ class AnalyzeCommand:
                     result.errors.append(f"{script_meta.file_path}: {e}")
 
         except Exception as e:
+            if brittle:
+                logger.error(f"Analyze operation failed: {e!s} (brittle mode)")
+                raise
             logger.error(f"Analyze operation failed: {e!s}")
             result.errors.append(f"Analyze failed: {e!s}")
 
@@ -188,6 +212,7 @@ class AnalyzeCommand:
         file_path: Path,
         force: bool,
         dry_run: bool,
+        brittle: bool = False,
     ) -> FileResult:
         """Process a single file.
 
@@ -195,6 +220,7 @@ class AnalyzeCommand:
             file_path: Path to the Fountain file
             force: Force re-processing
             dry_run: Preview mode
+            brittle: Stop processing if any analyzer fails
 
         Returns:
             FileResult with processing details
@@ -210,6 +236,12 @@ class AnalyzeCommand:
             if not force and not self._file_needs_update(file_path, script):
                 return FileResult(path=file_path, updated=False)
 
+            # Pass script context to analyzers that support it
+            for analyzer in self.analyzers:
+                # Set script context for MarkdownAgentAnalyzer
+                if hasattr(analyzer, "script"):
+                    analyzer.script = script
+
             # Initialize analyzers
             for analyzer in self.analyzers:
                 if hasattr(analyzer, "initialize"):  # pragma: no cover
@@ -217,11 +249,30 @@ class AnalyzeCommand:
 
             # Process each scene
             updated_scenes = []
+
+            # In dry run mode, skip all processing entirely
+            if dry_run:
+                for scene in script.scenes:
+                    if force or self._scene_needs_update(scene):
+                        updated_scenes.append(scene)
+                # Clean up and return early
+                for analyzer in self.analyzers:
+                    if hasattr(analyzer, "cleanup"):  # pragma: no cover
+                        await analyzer.cleanup()
+                logger.debug(f"Dry run mode - not writing to {file_path}")
+                return FileResult(
+                    path=file_path,
+                    updated=len(updated_scenes) > 0,
+                    scenes_updated=len(updated_scenes),
+                )
+
+            # Normal processing (not dry run)
             for scene in script.scenes:
                 if force or self._scene_needs_update(scene):
-                    # Build scene data for analyzers
+                    # Build scene data for analyzers (only if not dry run)
                     scene_data = {
                         "content": scene.content,
+                        "original_text": scene.original_text,  # For hashing/embedding
                         "heading": scene.heading,
                         "dialogue": [
                             {"character": d.character, "text": d.text}
@@ -231,7 +282,7 @@ class AnalyzeCommand:
                         "characters": list({d.character for d in scene.dialogue_lines}),
                     }
 
-                    # Run analyzers
+                    # Process metadata and run analyzers
                     metadata: dict[str, Any] = {
                         "content_hash": scene.content_hash,
                         "analyzed_at": datetime.now().isoformat(),
@@ -248,9 +299,15 @@ class AnalyzeCommand:
                                 analyzer_result["version"] = analyzer.version
                             metadata["analyzers"][analyzer.name] = analyzer_result
                         except Exception as e:  # pragma: no cover
-                            logger.error(
-                                f"Analyzer {analyzer.name} failed on "
-                                f"scene {scene.number}: {e}"
+                            if brittle:
+                                logger.error(
+                                    f"Analyzer {analyzer.name} failed on scene "
+                                    f"{scene.number}: {e} (brittle mode - stopping)"
+                                )
+                                raise
+                            logger.warning(
+                                f"Analyzer {analyzer.name} failed on scene "
+                                f"{scene.number}: {e} (skipping)"
                             )
 
                     # Update scene metadata
@@ -262,17 +319,18 @@ class AnalyzeCommand:
                 if hasattr(analyzer, "cleanup"):  # pragma: no cover
                     await analyzer.cleanup()
 
-            # In dry run mode, just report what would happen
-            if dry_run:
-                return FileResult(
-                    path=file_path,
-                    updated=len(updated_scenes) > 0,
-                    scenes_updated=len(updated_scenes),
-                )
-
             # Write back to file if there are updates
-            if updated_scenes:  # pragma: no cover
-                parser.write_with_updated_scenes(file_path, script, updated_scenes)
+            # Only write if scenes actually have new metadata
+            scenes_with_metadata = [
+                s for s in updated_scenes if getattr(s, "has_new_metadata", False)
+            ]
+            if scenes_with_metadata:  # pragma: no cover
+                logger.debug(
+                    f"Writing {len(scenes_with_metadata)} scenes to {file_path}"
+                )
+                parser.write_with_updated_scenes(
+                    file_path, script, scenes_with_metadata, dry_run=False
+                )
 
             return FileResult(
                 path=file_path,

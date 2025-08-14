@@ -3,8 +3,10 @@
 import contextlib
 import os
 
-from scriptrag.config import get_settings
-from scriptrag.utils.llm_client import LLMClient, LLMProvider
+from scriptrag.config import get_logger, get_settings
+from scriptrag.llm import LLMClient, LLMProvider
+
+logger = get_logger(__name__)
 
 
 def create_llm_client(
@@ -62,6 +64,19 @@ def create_llm_client(
             except ValueError:
                 # Skip invalid provider names
                 continue
+
+    # Log the configuration being used
+    logger.info(
+        "Creating LLM client",
+        preferred_provider=provider_enum.value if provider_enum else "auto",
+        fallback_order=[p.value for p in fallback_enums]
+        if fallback_enums
+        else "default",
+        has_github_token=bool(github_token),
+        openai_endpoint=openai_endpoint if openai_endpoint else "not configured",
+        has_openai_api_key=bool(openai_api_key),
+        timeout=timeout,
+    )
 
     # Create client with credentials passed directly
     return LLMClient(

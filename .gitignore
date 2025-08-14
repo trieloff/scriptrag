@@ -43,6 +43,7 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
+coverage.json
 junit.xml
 *.cover
 *.py,cover
@@ -134,6 +135,7 @@ venv.bak/
 .mypy_cache/
 .dmypy.json
 dmypy.json
+mypy-coverage/
 
 # Pyre type checker
 .pyre/

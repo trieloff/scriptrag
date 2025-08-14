@@ -1,5 +1,6 @@
 """Script index API module for ScriptRAG."""
 
+import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -7,7 +8,7 @@ from pathlib import Path
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.list import FountainMetadata, ScriptLister
 from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
-from scriptrag.parser import FountainParser, Script
+from scriptrag.parser import FountainParser, Scene, Script
 
 logger = get_logger(__name__)
 
@@ -98,7 +99,6 @@ class IndexCommand:
         self,
         path: Path | None = None,
         recursive: bool = True,
-        force: bool = False,
         dry_run: bool = False,
         batch_size: int = 10,
         progress_callback: Callable[[float, str], None] | None = None,
@@ -108,7 +108,6 @@ class IndexCommand:
         Args:
             path: Path to search for analyzed Fountain files
             recursive: Whether to search recursively
-            force: Force re-indexing of all scripts
             dry_run: Preview changes without applying them
             batch_size: Number of scripts to process in each batch
             progress_callback: Optional callback for progress updates
@@ -140,11 +139,8 @@ class IndexCommand:
 
             logger.info(f"Found {len(scripts)} Fountain files")
 
-            # Step 2: Filter scripts that need indexing
-            if not force:
-                scripts_to_index = await self._filter_scripts_for_indexing(scripts)
-            else:
-                scripts_to_index = scripts
+            # Step 2: Process all scripts (always re-index to ensure data consistency)
+            scripts_to_index = scripts
 
             if not scripts_to_index:
                 logger.info("No scripts need indexing")
@@ -165,7 +161,7 @@ class IndexCommand:
                         progress, f"Processing batch {batch_num}/{total_batches}..."
                     )
 
-                batch_results = await self._process_scripts_batch(batch, force, dry_run)
+                batch_results = await self._process_scripts_batch(batch, dry_run)
                 result.scripts.extend(batch_results)
 
                 # Collect errors from batch
@@ -272,13 +268,12 @@ class IndexCommand:
         return scripts_to_index
 
     async def _process_scripts_batch(
-        self, scripts: list[FountainMetadata], force: bool, dry_run: bool
+        self, scripts: list[FountainMetadata], dry_run: bool
     ) -> list[IndexResult]:
         """Process a batch of scripts.
 
         Args:
             scripts: List of script metadata to process
-            force: Force re-indexing
             dry_run: Preview mode
 
         Returns:
@@ -288,9 +283,7 @@ class IndexCommand:
 
         for script_meta in scripts:
             try:
-                result = await self._index_single_script(
-                    script_meta.file_path, force, dry_run
-                )
+                result = await self._index_single_script(script_meta.file_path, dry_run)
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to index {script_meta.file_path}: {e}")
@@ -304,14 +297,11 @@ class IndexCommand:
 
         return results
 
-    async def _index_single_script(
-        self, file_path: Path, force: bool, dry_run: bool
-    ) -> IndexResult:
+    async def _index_single_script(self, file_path: Path, dry_run: bool) -> IndexResult:
         """Index a single script.
 
         Args:
             file_path: Path to the script file
-            force: Force re-indexing
             dry_run: Preview mode
 
         Returns:
@@ -333,8 +323,8 @@ class IndexCommand:
                 existing = self.db_ops.get_existing_script(conn, file_path)
                 is_update = existing is not None
 
-                # Clear existing data if forcing or updating
-                if force and existing and existing.id is not None:
+                # Always clear existing data when updating to ensure consistency
+                if existing and existing.id is not None:
                     self.db_ops.clear_script_data(conn, existing.id)
 
                 # Upsert script
@@ -364,8 +354,8 @@ class IndexCommand:
                         conn, scene, script_id
                     )
 
-                    # Only clear and re-insert content if it has changed or if forced
-                    if content_changed or force:
+                    # Clear and re-insert content if it has changed
+                    if content_changed:
                         self.db_ops.clear_scene_content(conn, scene_id)
 
                         # Insert dialogues
@@ -379,6 +369,9 @@ class IndexCommand:
                             conn, scene_id, scene.action_lines
                         )
                         total_actions += action_count
+
+                    # Process embeddings from boneyard metadata
+                    await self._process_scene_embeddings(conn, scene, scene_id)
 
                 # Get final stats
                 stats = self.db_ops.get_script_stats(conn, script_id)
@@ -397,6 +390,84 @@ class IndexCommand:
         except Exception as e:
             logger.error(f"Error indexing {file_path}: {e}")
             raise
+
+    async def _process_scene_embeddings(
+        self, conn: sqlite3.Connection, scene: Scene, scene_id: int
+    ) -> None:
+        """Process and store embeddings for a scene from boneyard metadata.
+
+        Args:
+            conn: Database connection
+            scene: Scene object with potential embedding metadata
+            scene_id: Database ID of the scene
+        """
+        if not scene.boneyard_metadata:
+            return
+
+        # Check for embedding analyzer results
+        analyzers = scene.boneyard_metadata.get("analyzers", {})
+        embedding_data = analyzers.get("scene_embeddings", {})
+
+        if not embedding_data or "result" not in embedding_data:
+            return
+
+        result = embedding_data.get("result", {})
+        if "error" in result:
+            logger.warning(f"Scene {scene_id} has embedding error: {result['error']}")
+            return
+
+        # Extract embedding information
+        embedding_path = result.get("embedding_path")
+        model = result.get("model", "unknown")
+
+        if not embedding_path:
+            return
+
+        # Check if embedding file exists and load it
+        try:
+            import git
+            import numpy as np
+
+            # Get the repository root
+            repo = git.Repo(
+                scene.file_path.parent if hasattr(scene, "file_path") else ".",
+                search_parent_directories=True,
+            )
+            repo_root = Path(repo.working_dir)
+            full_embedding_path = repo_root / embedding_path
+
+            if full_embedding_path.exists():
+                # Load embedding from file
+                embedding_array = np.load(full_embedding_path)
+                # Convert to bytes for database storage
+                embedding_bytes = embedding_array.tobytes()
+
+                # Store in database
+                self.db_ops.upsert_embedding(
+                    conn,
+                    entity_type="scene",
+                    entity_id=scene_id,
+                    embedding_model=model,
+                    embedding_data=embedding_bytes,
+                    embedding_path=embedding_path,
+                )
+                logger.info(
+                    f"Stored embedding for scene {scene_id} from {embedding_path}"
+                )
+            else:
+                # Store reference path - downloaded from LFS when needed
+                self.db_ops.upsert_embedding(
+                    conn,
+                    entity_type="scene",
+                    entity_id=scene_id,
+                    embedding_model=model,
+                    embedding_path=embedding_path,
+                )
+                logger.info(
+                    f"Stored embedding reference for scene {scene_id}: {embedding_path}"
+                )
+        except Exception as e:
+            logger.error(f"Failed to process embedding for scene {scene_id}: {e}")
 
     async def _dry_run_analysis(self, script: Script, file_path: Path) -> IndexResult:
         """Analyze what would be indexed without making changes.

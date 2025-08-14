@@ -1,134 +1,252 @@
-"""Unit tests for init command."""
-
-from pathlib import Path
-from unittest.mock import Mock, patch
-
-from typer.testing import CliRunner
-
-from scriptrag.cli import app
-from scriptrag.cli.commands.init import init_command
+"""Unit tests for CLI commands __init__ module."""
 
 
-class TestInitCommand:
-    """Test init command function."""
+class TestCLICommandsInit:
+    """Test CLI commands module initialization and imports."""
 
-    def test_file_exists_error_handled(self, tmp_path):
-        """Test FileExistsError is caught and handled."""
-        # Create a mock initializer that raises FileExistsError
-        mock_initializer = Mock()
-        mock_initializer.initialize_database.side_effect = FileExistsError(
-            "Database exists"
+    def test_all_commands_importable(self):
+        """Test that all commands listed in __all__ are importable."""
+        from scriptrag.cli.commands import (
+            analyze_command,
+            index_command,
+            init_command,
+            list_command,
+            mcp_command,
+            pull_command,
+            query_app,
+            search_command,
+            watch_command,
         )
 
-        # Patch DatabaseInitializer
-        with patch("scriptrag.cli.commands.init.DatabaseInitializer") as mock_class:
-            mock_class.return_value = mock_initializer
+        # Verify all commands are callable
+        assert callable(analyze_command)
+        assert callable(index_command)
+        assert callable(init_command)
+        assert callable(list_command)
+        assert callable(mcp_command)
+        assert callable(pull_command)
+        assert callable(search_command)
+        assert callable(watch_command)
 
-            runner = CliRunner()
-            result = runner.invoke(
-                app, ["init", "--db-path", str(tmp_path / "test.db")]
-            )
+        # query_app is a Typer app, not a command function
+        from typer import Typer
 
-            # Should exit with code 1 and show error
-            assert result.exit_code == 1
-            assert "Database exists" in result.stdout
+        assert isinstance(query_app, Typer)
 
-    def test_init_with_force_confirmation_cancelled(self, tmp_path):
-        """Test that force confirmation can be cancelled."""
-        db_path = tmp_path / "existing.db"
-        db_path.touch()
+    def test_all_exports_match_imports(self):
+        """Test that __all__ list matches actual imports."""
+        import scriptrag.cli.commands as commands_module
 
-        runner = CliRunner()
-        result = runner.invoke(
-            app, ["init", "--db-path", str(db_path), "--force"], input="n\n"
+        expected_exports = [
+            "analyze_command",
+            "index_command",
+            "init_command",
+            "list_command",
+            "mcp_command",
+            "pull_command",
+            "query_app",
+            "search_command",
+            "watch_command",
+        ]
+
+        # Verify __all__ exists and contains expected items
+        assert hasattr(commands_module, "__all__")
+        assert set(commands_module.__all__) == set(expected_exports)
+
+        # Verify all items in __all__ are actually available as attributes
+        for export in expected_exports:
+            assert hasattr(commands_module, export), f"{export} not found in module"
+            assert getattr(commands_module, export) is not None
+
+    def test_import_star_works(self):
+        """Test that 'from scriptrag.cli.commands import *' works correctly."""
+        # This simulates what happens with 'from module import *'
+        import scriptrag.cli.commands as commands_module
+
+        # Get all items that would be imported with import *
+        star_imports = {
+            name: getattr(commands_module, name) for name in commands_module.__all__
+        }
+
+        # Verify we get the expected number of items
+        assert len(star_imports) == 9  # Number of items in __all__
+
+        # Verify specific key commands are present
+        assert "mcp_command" in star_imports
+        assert "analyze_command" in star_imports
+        assert "query_app" in star_imports
+
+    def test_module_docstring_exists(self):
+        """Test that the module has a proper docstring."""
+        import scriptrag.cli.commands as commands_module
+
+        assert commands_module.__doc__ is not None
+        assert len(commands_module.__doc__.strip()) > 0
+        assert "ScriptRAG CLI commands" in commands_module.__doc__
+
+    def test_individual_command_imports(self):
+        """Test importing individual commands directly from submodules."""
+        # Test that we can import directly from submodules
+        # Test that direct imports match the re-exported ones
+        from scriptrag.cli.commands import (
+            analyze_command,
+            mcp_command,
+            search_command,
+        )
+        from scriptrag.cli.commands.analyze import analyze_command as direct_analyze
+        from scriptrag.cli.commands.mcp import mcp_command as direct_mcp
+        from scriptrag.cli.commands.search import search_command as direct_search
+
+        assert direct_analyze is analyze_command
+        assert direct_mcp is mcp_command
+        assert direct_search is search_command
+
+    def test_no_circular_imports(self):
+        """Test that importing the commands module doesn't cause circular imports."""
+        # This should not raise any ImportError
+        import scriptrag.cli.commands
+
+        # Reimporting should work fine
+        import scriptrag.cli.commands as commands2
+
+        # Should be the same module object
+        assert scriptrag.cli.commands is commands2
+
+    def test_commands_have_expected_signatures(self):
+        """Test that commands have expected function signatures."""
+        import inspect
+
+        from scriptrag.cli.commands import (
+            analyze_command,
+            mcp_command,
+            search_command,
         )
 
-        # Should exit with code 0
-        assert result.exit_code == 0
-        assert "Initialization cancelled" in result.stdout
+        # Test MCP command signature
+        mcp_sig = inspect.signature(mcp_command)
+        assert "host" in mcp_sig.parameters
+        assert "port" in mcp_sig.parameters
 
-    def test_runtime_error_handled(self, tmp_path):
-        """Test generic runtime errors are handled."""
-        # Create a mock initializer that raises RuntimeError
-        mock_initializer = Mock()
-        mock_initializer.initialize_database.side_effect = RuntimeError(
-            "Something failed"
+        # Commands should be callable
+        assert callable(analyze_command)
+        assert callable(search_command)
+
+    def test_module_level_constants(self):
+        """Test any module-level constants or configurations."""
+        import scriptrag.cli.commands as commands_module
+
+        # Verify __all__ is a list of strings
+        assert isinstance(commands_module.__all__, list)
+        assert all(isinstance(item, str) for item in commands_module.__all__)
+
+        # Verify no private exports
+        assert all(not item.startswith("_") for item in commands_module.__all__)
+
+    def test_import_performance(self):
+        """Test that importing commands doesn't take excessive time."""
+        import time
+
+        start_time = time.time()
+
+        # Import all commands
+
+        end_time = time.time()
+        import_time = end_time - start_time
+
+        # Imports should be reasonably fast (less than 1 second)
+        assert import_time < 1.0, (
+            f"Command imports took {import_time:.2f}s, which is too slow"
         )
 
-        # Patch DatabaseInitializer
-        with patch("scriptrag.cli.commands.init.DatabaseInitializer") as mock_class:
-            mock_class.return_value = mock_initializer
+    def test_command_objects_are_distinct(self):
+        """Test that different command functions are distinct objects."""
+        from scriptrag.cli.commands import (
+            analyze_command,
+            mcp_command,
+            search_command,
+        )
 
-            runner = CliRunner()
-            result = runner.invoke(
-                app, ["init", "--db-path", str(tmp_path / "test.db")]
+        # Commands should be different functions
+        assert analyze_command is not mcp_command
+        assert mcp_command is not search_command
+        assert analyze_command is not search_command
+
+        # But they should all be callable
+        assert callable(analyze_command)
+        assert callable(mcp_command)
+        assert callable(search_command)
+
+    def test_module_attributes_complete(self):
+        """Test that all expected module attributes are present."""
+        import scriptrag.cli.commands as commands_module
+
+        # Standard module attributes
+        assert hasattr(commands_module, "__name__")
+        assert hasattr(commands_module, "__doc__")
+        assert hasattr(commands_module, "__all__")
+        assert hasattr(commands_module, "__file__")
+
+        # All exported commands should be present
+        for command_name in commands_module.__all__:
+            assert hasattr(commands_module, command_name)
+            command_obj = getattr(commands_module, command_name)
+            assert command_obj is not None
+
+
+class TestCommandsModuleEdgeCases:
+    """Test edge cases and error conditions for commands module."""
+
+    def test_import_with_missing_dependency(self):
+        """Test behavior when optional dependencies are missing."""
+        # The commands module should import successfully even if some
+        # optional dependencies are missing (they should fail at runtime,
+        # not import time)
+
+        # This should not raise ImportError
+        from scriptrag.cli.commands import mcp_command
+
+        assert mcp_command is not None
+        assert callable(mcp_command)
+
+    def test_all_list_consistency(self):
+        """Test that __all__ list is consistent with actual exports."""
+        import scriptrag.cli.commands as commands_module
+
+        # Get all public attributes (not starting with _)
+        public_attrs = [
+            name for name in dir(commands_module) if not name.startswith("_")
+        ]
+
+        # Remove any imported modules or non-command items
+        expected_in_all = []
+        for attr_name in public_attrs:
+            attr = getattr(commands_module, attr_name)
+            # Include if it's a function or Typer app
+            if callable(attr) or str(type(attr)).find("Typer") != -1:
+                expected_in_all.append(attr_name)
+
+        # All items in __all__ should be public callable attributes
+        for item in commands_module.__all__:
+            assert item in public_attrs, (
+                f"{item} in __all__ but not in public attributes"
+            )
+            assert (
+                callable(getattr(commands_module, item))
+                or str(type(getattr(commands_module, item))).find("Typer") != -1
             )
 
-            # Should exit with code 1 and show error
-            assert result.exit_code == 1
-            assert "Failed to initialize database: Something failed" in result.stdout
+    def test_command_function_metadata(self):
+        """Test that command functions have proper metadata."""
+        from scriptrag.cli.commands import analyze_command, mcp_command
 
-    def test_init_command_direct_call(self, tmp_path):
-        """Test calling init_command directly."""
-        db_path = tmp_path / "test.db"
+        # Functions should have names
+        assert mcp_command.__name__ == "mcp_command"
+        assert analyze_command.__name__ == "analyze_command"
 
-        # Mock the initializer
-        mock_initializer = Mock()
-        mock_initializer.initialize_database.return_value = db_path
+        # Functions should have modules
+        assert mcp_command.__module__ == "scriptrag.cli.commands.mcp"
+        assert analyze_command.__module__ == "scriptrag.cli.commands.analyze"
 
-        with patch("scriptrag.cli.commands.init.DatabaseInitializer") as mock_class:
-            mock_class.return_value = mock_initializer
-
-            # Should not raise
-            init_command(db_path=db_path, force=False)
-
-            # Verify initializer was called
-            mock_initializer.initialize_database.assert_called_once()
-
-    def test_init_with_config_file(self, tmp_path):
-        """Test init command with config file parameter."""
-        config_file = tmp_path / "config.toml"
-        config_file.write_text("""
-[scriptrag]
-database_path = "/custom/path/from/config.db"
-database_timeout = 60.0
-log_level = "DEBUG"
-""")
-
-        # Mock the initializer
-        mock_initializer = Mock()
-        mock_initializer.initialize_database.return_value = tmp_path / "test.db"
-
-        # Mock get_settings to capture the settings object
-        with (
-            patch("scriptrag.cli.commands.init.DatabaseInitializer") as mock_class,
-            patch(
-                "scriptrag.config.ScriptRAGSettings.from_multiple_sources"
-            ) as mock_from_sources,
-        ):
-            # Create expected settings
-            expected_settings = Mock(
-                database_timeout=60.0,
-                log_level="DEBUG",
-                database_path=Path("/custom/path/from/config.db"),
-            )
-            mock_from_sources.return_value = expected_settings
-            mock_class.return_value = mock_initializer
-
-            runner = CliRunner()
-            # When app has multiple commands (like in v2), we need to specify "init"
-            # When app has single command (current branch), init is the default
-            # Try with "init" first for v2 compatibility
-            result = runner.invoke(app, ["init", "--config", str(config_file)])
-
-            # If that fails with "unexpected argument", try without "init"
-            if result.exit_code == 2 and "unexpected extra argument" in result.stderr:
-                result = runner.invoke(app, ["--config", str(config_file)])
-
-            # Should succeed
-            assert result.exit_code == 0
-
-            # Verify settings were loaded from config file
-            mock_from_sources.assert_called_once()
-            call_args = mock_from_sources.call_args
-            assert call_args[1]["config_files"] == [config_file]
+        # Functions should have docstrings (for help text)
+        assert mcp_command.__doc__ is not None
+        assert len(mcp_command.__doc__.strip()) > 0

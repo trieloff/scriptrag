@@ -57,6 +57,9 @@ class TestInitCommand:
 
         expected_tables = [
             "actions",
+            "bible_chunks",
+            "bible_embeddings",
+            "bible_references",
             "character_relationships",
             "characters",
             "dialogues",
@@ -64,6 +67,7 @@ class TestInitCommand:
             "scene_graph_edges",
             "scenes",
             "schema_version",
+            "script_bibles",
             "scripts",
         ]
 
@@ -208,7 +212,7 @@ class TestInitCommand:
         # Mock DatabaseInitializer with non-existent SQL directory
         from scriptrag.api.database import DatabaseInitializer
 
-        def mock_init(self, sql_dir=None):  # noqa: ARG001
+        def mock_init(self, sql_dir=None):
             self.sql_dir = Path("/nonexistent")
 
         monkeypatch.setattr(DatabaseInitializer, "__init__", mock_init)

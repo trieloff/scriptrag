@@ -45,10 +45,13 @@ dependencies = [
     "pyyaml>=6.0.1",
     "structlog>=23.2.0",
     "tenacity>=8.2.0",
+    "python-frontmatter>=1.0.0", # For parsing agent markdown files
+    "jsonschema>=4.25.0", # For validating agent output schemas
     # MCP server
-    "mcp>=0.1.0",
+    "mcp[cli]>=0.1.0",
     # LLM integration
-    "openai>=1.0.0",
+    "openai>=1.99.7",
+    "claude-code-sdk>=0.0.20",
     # Fountain parsing - will need to add specific library later
     # "fountain-parser>=0.1.0",  # placeholder
     "jouvence>=0.4.2",
@@ -56,6 +59,9 @@ dependencies = [
     "gitpython>=3.1.0",
     # HTTP requests (used in CLI)
     "requests>=2.31.0",
+    "markdown-it-py>=3.0.0",
+    # File system monitoring
+    "watchdog>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -71,15 +77,15 @@ dev = [
     # Code quality
     "ruff>=0.1.0",
     "isort>=5.13.0",
-    "mypy>=1.8.0",
-    "types-PyYAML>=6.0.0",
+    "mypy>=1.17.1",
+    "types-PyYAML>=6.0.12.20250809",
     "types-requests>=2.31.0",
     "pre-commit>=3.6.0",
     "bandit[toml]>=1.7.5",  # Security linting
     "interrogate>=1.5.0",   # Docstring coverage
     "safety>=3.0.0",        # Dependency vulnerability scanner
     "vulture>=2.10",        # Dead code detection
-    "pylint>=3.0.0",        # Additional linting (optional with ruff)
+    "pylint>=3.3.8",        # Additional linting (optional with ruff)
     "sqlfluff>=3.0.0",      # SQL linting
 
     # Documentation
@@ -91,7 +97,7 @@ dev = [
     "ipython>=8.18.0",
     "jupyter>=1.0.0",
     "notebook>=7.0.0",
-    "build>=1.0.0",  # Package building
+    "build>=1.3.0",  # Package building
     "twine>=5.0.0",  # Package validation and upload
 
     # Additional testing tools
@@ -125,8 +131,7 @@ Repository = "https://github.com/trieloff/scriptrag"
 Issues = "https://github.com/trieloff/scriptrag/issues"
 
 [project.scripts]
-scriptrag = "scriptrag.cli:app"
-scriptrag-mcp = "scriptrag.mcp_server:main"
+scriptrag = "scriptrag.cli.main:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -208,7 +213,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "S101", "S110"]
+"tests/*" = ["D", "S101", "S110", "S108", "ARG001", "ARG002", "F841", "SIM117"]
 "src/scriptrag/config/settings.py" = ["N805"]  # Pydantic field validators use cls, not self
 
 [tool.ruff.lint.pydocstyle]

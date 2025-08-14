@@ -1,6 +1,6 @@
 """ScriptRAG utilities module."""
 
-from scriptrag.utils.llm_client import (
+from scriptrag.llm import (
     CompletionRequest,
     CompletionResponse,
     EmbeddingRequest,

@@ -8,6 +8,7 @@ from rich.console import Console
 from rich.table import Table
 
 from scriptrag.api import ScriptLister
+from scriptrag.api.list import FountainMetadata
 
 console = Console()
 
@@ -55,7 +56,7 @@ def list_command(
             return
 
         # Group scripts by title for series detection
-        series_map: dict[str, list] = {}
+        series_map: dict[str, list[FountainMetadata]] = {}
         standalone_scripts = []
 
         for script in scripts:

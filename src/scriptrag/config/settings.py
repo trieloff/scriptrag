@@ -110,6 +110,30 @@ class ScriptRAGSettings(BaseSettings):
         description="Log file retention period",
     )
 
+    # Search settings
+    search_vector_threshold: int = Field(
+        default=10,
+        description="Word count threshold for automatic vector search",
+        ge=1,
+    )
+    search_vector_similarity_threshold: float = Field(
+        default=0.3,
+        description="Minimum similarity score for vector search results",
+        ge=0.0,
+        le=1.0,
+    )
+    search_vector_result_limit_factor: float = Field(
+        default=0.5,
+        description="Factor of query limit to use for vector results",
+        ge=0.1,
+        le=1.0,
+    )
+    search_vector_min_results: int = Field(
+        default=5,
+        description="Minimum number of vector results to fetch",
+        ge=1,
+    )
+
     # LLM settings
     llm_provider: str | None = Field(
         default=None,
@@ -131,6 +155,10 @@ class ScriptRAGSettings(BaseSettings):
         default=None,
         description="Default model to use for embeddings",
     )
+    llm_embedding_dimensions: int | None = Field(
+        default=None,
+        description="Dimensions for embedding vectors (e.g., 1536)",
+    )
     llm_temperature: float = Field(
         default=0.7,
         description="Default temperature for completions",
@@ -140,6 +168,26 @@ class ScriptRAGSettings(BaseSettings):
     llm_max_tokens: int | None = Field(
         default=None,
         description="Default max tokens for completions",
+    )
+    llm_force_static_models: bool = Field(
+        default=False,
+        description="Force use of static model lists instead of dynamic discovery",
+    )
+    llm_model_cache_ttl: int = Field(
+        default=3600,
+        description="TTL in seconds for cached model lists (0 to disable caching)",
+        ge=0,
+    )
+
+    # Bible-specific settings
+    bible_embeddings_path: str = Field(
+        default="embeddings/bible",
+        description="Path for storing bible chunk embeddings in Git LFS",
+    )
+    bible_max_file_size: int = Field(
+        default=10 * 1024 * 1024,  # 10 MB
+        description="Maximum size for bible files in bytes",
+        gt=0,
     )
 
     @field_validator("database_path", "log_file", mode="before")

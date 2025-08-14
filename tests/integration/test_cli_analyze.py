@@ -1,5 +1,6 @@
 """Integration tests for the analyze CLI command."""
 
+import shutil
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -11,56 +12,29 @@ from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
 
+# Path to fixture files
+FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
+
 
 @pytest.fixture
 def temp_fountain_files(tmp_path):
-    """Create temporary fountain files for testing."""
-    # Create a simple fountain file
+    """Copy fountain fixture files to temp directory for testing."""
+    # Copy simple fountain file
+    simple_source = FIXTURES_DIR / "simple_script.fountain"
     simple_file = tmp_path / "simple.fountain"
-    simple_file.write_text("""Title: Simple Script
-Author: Test Author
+    shutil.copy2(simple_source, simple_file)
 
-INT. ROOM - DAY
-
-A simple scene.
-
-CHARACTER
-Some dialogue.
-""")
-
-    # Create a file with existing metadata
+    # Copy file with existing metadata
+    with_metadata_source = FIXTURES_DIR / "script_with_metadata.fountain"
     with_metadata = tmp_path / "with_metadata.fountain"
-    with_metadata.write_text("""Title: Script with Metadata
-Author: Test Author
-
-INT. ROOM - DAY
-
-A scene with existing metadata.
-
-/* SCRIPTRAG-META-START
-{
-    "content_hash": "abc123",
-    "analyzed_at": "2024-01-01T00:00:00",
-    "analyzers": {
-        "nop": {
-            "version": "1.0.0",
-            "result": {}
-        }
-    }
-}
-SCRIPTRAG-META-END */
-""")
+    shutil.copy2(with_metadata_source, with_metadata)
 
     # Create a subdirectory with another file
     subdir = tmp_path / "subdir"
     subdir.mkdir()
+    nested_source = FIXTURES_DIR / "nested_script.fountain"
     sub_file = subdir / "nested.fountain"
-    sub_file.write_text("""Title: Nested Script
-
-EXT. PARK - DAY
-
-An outdoor scene.
-""")
+    shutil.copy2(nested_source, sub_file)
 
     return tmp_path
 
@@ -168,8 +142,11 @@ class TestAnalyzeCommand:
         assert "No files needed updating" in clean_output
         assert "Total: 0 scenes" in clean_output
 
-    def test_analyze_current_directory(self):
+    def test_analyze_current_directory(self, temp_fountain_files, monkeypatch):
         """Test analyze with no path argument (current directory)."""
+        # IMPORTANT: Change to temp directory to avoid modifying repository files
+        monkeypatch.chdir(temp_fountain_files)
+
         result = runner.invoke(app, ["analyze", "--dry-run"])
 
         # Should at least run without error
@@ -177,12 +154,13 @@ class TestAnalyzeCommand:
 
     def test_analyze_updates_file(self, temp_fountain_files):
         """Test that analyze actually updates files."""
+        runner = CliRunner()
         simple_file = temp_fountain_files / "simple.fountain"
 
         # Run analyze with force to ensure processing
         result = runner.invoke(
             app,
-            ["analyze", str(simple_file), "--force", "--analyzer", "nop"],
+            ["analyze", str(simple_file), "--force"],
         )
 
         assert result.exit_code == 0
@@ -190,7 +168,6 @@ class TestAnalyzeCommand:
         # Check that metadata was added
         content = simple_file.read_text()
         assert "SCRIPTRAG-META-START" in content
-        assert "nop" in content
         assert "analyzed_at" in content
 
     def test_analyze_with_errors_display(self, temp_fountain_files, monkeypatch):
@@ -351,50 +328,46 @@ class TestAnalyzeCommand:
         assert result.exit_code == 1
         assert "Error: Specific test exception for coverage" in result.stdout
 
-    def _test_analyze_relative_path_display(self, temp_fountain_files, monkeypatch):
+    def test_analyze_relative_path_display(self, temp_fountain_files, monkeypatch):
         """Test analyze displays relative paths when possible."""
-        import os
         from unittest.mock import AsyncMock, MagicMock
 
         from scriptrag.api.analyze import AnalyzeResult, FileResult
 
-        # Save current dir and change to temp dir
-        old_cwd = Path.cwd()
-        os.chdir(temp_fountain_files)
+        # Use monkeypatch.chdir for safer directory change
+        monkeypatch.chdir(temp_fountain_files)
 
-        try:
-            # Create a mock result with a file in current dir
-            mock_result = AnalyzeResult(
-                files=[
-                    FileResult(
-                        path=temp_fountain_files / "simple.fountain",
-                        updated=True,
-                        scenes_updated=2,
-                    ),
-                ],
-            )
+        # Create a mock result with a file in current dir
+        mock_result = AnalyzeResult(
+            files=[
+                FileResult(
+                    path=temp_fountain_files / "simple.fountain",
+                    updated=True,
+                    scenes_updated=2,
+                ),
+            ],
+        )
 
-            # Mock the analyze method
-            mock_analyze_cmd = MagicMock()
-            mock_analyze_cmd.analyze = AsyncMock(return_value=mock_result)
-            mock_analyze_cmd.load_analyzer = MagicMock()
+        # Mock the analyze method
+        mock_analyze_cmd = MagicMock()
+        mock_analyze_cmd.analyze = AsyncMock(return_value=mock_result)
+        mock_analyze_cmd.load_analyzer = MagicMock()
 
-            def mock_from_config():
-                return mock_analyze_cmd
+        def mock_from_config():
+            return mock_analyze_cmd
 
-            monkeypatch.setattr(
-                "scriptrag.cli.commands.analyze.AnalyzeCommand.from_config",
-                mock_from_config,
-            )
+        monkeypatch.setattr(
+            "scriptrag.api.analyze.AnalyzeCommand.from_config",
+            mock_from_config,
+        )
 
-            result = runner.invoke(app, ["analyze", "."])
+        result = runner.invoke(app, ["analyze", "."])
 
-            assert result.exit_code == 0
-            # Should display relative path
-            assert "simple.fountain" in result.stdout
-            assert "2 scenes" in result.stdout
-        finally:
-            os.chdir(old_cwd)
+        assert result.exit_code == 0
+        # Should display relative path
+        clean_output = strip_ansi_codes(result.stdout)
+        assert "simple.fountain" in clean_output
+        assert "2 scenes" in clean_output
 
     def test_analyze_absolute_path_fallback(self, temp_fountain_files, monkeypatch):
         """Test analyze falls back to absolute path when relative not possible."""

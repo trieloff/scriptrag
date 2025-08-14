@@ -1,6 +1,6 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-[![42% Vibe_Coded](https://img.shields.io/badge/42%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
+[![96% Vibe_Coded](https://img.shields.io/badge/96%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
 
 ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
@@ -19,6 +19,7 @@ Generation) pattern.
 ### For Developers
 
 - **[Developer Guide](docs/developer-guide.md)** - Contributing to ScriptRAG
+- **[Testing Best Practices](docs/TESTING.md)** - Comprehensive testing guidelines for cross-platform reliability
 - **[Architecture Overview](docs/architecture.md)** - System design and patterns
 - **[API Reference](docs/api-reference.md)** - Complete API documentation
 - **[MCP Server Documentation](docs/mcp_server.md)** - Model Context Protocol integration

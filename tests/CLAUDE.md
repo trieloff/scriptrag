@@ -1,4 +1,8 @@
-# Testing Guidelines for Claude
+# Testing Guidelines for Claude - ScriptRAG Test Suite
+
+**Current Scale**: 86+ tests, 2230+ lines of test code covering all major components
+
+> **For comprehensive testing guidelines**, see the main **[Testing Best Practices Guide](../docs/TESTING.md)**. This document focuses on specific issues encountered during recent development iterations.
 
 ## ANSI Escape Codes in CI Environment
 
@@ -61,3 +65,177 @@ def test_analyze_help(self):
 - Always strip ANSI codes when checking CLI output content
 - The utility is already imported in most integration test files
 - This is not a bug - it's a difference in terminal environments
+
+## Mock File Artifacts Prevention
+
+### The Issue
+Python's mock objects can create unexpected file-like artifacts in the filesystem when not properly configured, polluting the codebase.
+
+### The Solution
+The Makefile includes sophisticated validation to detect and prevent mock artifacts:
+
+```makefile
+# Check for mock object artifacts (sophisticated validation)
+find . -type f -name "<*>" -o -name "*MagicMock*" | grep -v .git
+```
+
+### Best Practices
+- Always use proper mock configuration with `spec` or `spec_set`
+- Clean up mocks in tearDown methods
+- Use context managers for file mocks
+
+## LLM Provider Testing
+
+### Rate Limiting Issues
+LLM tests are **disabled by default in CI** due to rate limiting:
+
+```python
+# Tests require ENABLE_LLM_TESTS=1 environment variable
+@pytest.mark.skipif(
+    not os.getenv("ENABLE_LLM_TESTS"),
+    reason="LLM tests disabled by default (set ENABLE_LLM_TESTS=1)"
+)
+def test_llm_provider():
+    pass
+```
+
+### Common LLM Test Patterns
+
+```python
+# ✅ GOOD - Mock LLM responses for unit tests
+def test_scene_analysis():
+    with patch("scriptrag.llm.client.LLMClient.complete") as mock:
+        mock.return_value = {"scene_type": "action"}
+        result = analyzer.analyze_scene(scene)
+        assert result.scene_type == "action"
+
+# ✅ GOOD - Test rate limiting handling
+@retry(stop=stop_after_attempt(3), wait=wait_exponential())
+def test_with_retry():
+    # Test exponential backoff for rate limits
+    pass
+```
+
+## Cross-Platform Compatibility
+
+### Path Handling
+```python
+# ✅ GOOD - Use pathlib for cross-platform paths
+from pathlib import Path
+script_path = Path("tests/data/script.fountain")
+
+# ❌ BAD - Hardcoded path separators
+script_path = "tests/data/script.fountain"  # Fails on Windows
+```
+
+### Line Endings
+```python
+# ✅ GOOD - Handle both Unix and Windows line endings
+output = result.stdout.replace("\r\n", "\n")
+assert expected in output
+```
+
+## Test Organization Best Practices
+
+### File Size Limits
+- Keep test files under 500 lines for maintainability
+- Split large test suites by functionality
+- Use test fixtures for shared setup
+
+### Test Naming
+```python
+# ✅ GOOD - Descriptive test names
+def test_fountain_parser_handles_malformed_metadata():
+    pass
+
+def test_llm_provider_retries_on_rate_limit():
+    pass
+
+# ❌ BAD - Vague test names
+def test_parser():
+    pass
+```
+
+### Common Test Fixtures
+
+```python
+@pytest.fixture
+def sample_fountain_script():
+    """Provide a standard test script."""
+    return Path("tests/data/casablanca.fountain")
+
+@pytest.fixture
+def mock_llm_client():
+    """Mock LLM client with preset responses."""
+    with patch("scriptrag.llm.client.LLMClient") as mock:
+        mock.complete.return_value = {"result": "test"}
+        yield mock
+```
+
+## Areas Requiring Extra Testing Care
+
+Based on recent development iterations:
+
+1. **ANSI Escape Sequences**: Always strip from CLI output
+2. **Mock Configuration**: Prevent filesystem artifacts  
+3. **LLM Rate Limiting**: Mock in unit tests, careful integration testing
+4. **Type Checking**: Mock types can confuse mypy
+5. **Async Operations**: Use pytest-asyncio properly
+6. **Git Operations**: Mock Git commands to avoid repository state changes
+7. **Database Transactions**: Proper rollback in test teardown
+8. **Fountain Parsing**: Test malformed scripts and edge cases
+9. **Cross-platform Paths**: Use pathlib consistently
+10. **Character Encoding**: UTF-8 handling for international scripts
+
+## Common Test Iteration Patterns
+
+### Frequency of Test-Related Fixes
+Based on commit analysis:
+- **30%** of all fix commits are test-related
+- **ANSI escape codes**: Required 3-5 iterations per test file
+- **Mock artifacts**: Led to Makefile validation additions
+- **CI environment differences**: Ongoing discovery of edge cases
+
+### Most Common Test Failures in CI
+
+| Issue | Local Pass | CI Fail | Solution |
+|-------|------------|---------|----------|
+| ANSI codes | ✓ | ✗ | Use `strip_ansi_codes()` |
+| File paths | ✓ | ✗ | Use `pathlib.Path` |
+| Line endings | ✓ | ✗ | Normalize to `\n` |
+| Timeouts | ✓ | ✗ | Increase CI timeouts |
+| Mock artifacts | ✓ | ✗ | Use `spec_set` |
+| LLM rate limits | ✓ | ✗ | Mock or skip in CI |
+
+### Test Development Workflow
+
+1. **Write test locally** - Ensure it passes
+2. **Check for ANSI codes** - Add stripping preemptively
+3. **Review mock usage** - Ensure `spec` or `spec_set`
+4. **Consider CI environment** - Different paths, timeouts
+5. **Run with CI settings** - `CI=1 pytest` locally
+6. **Document special requirements** - In test docstrings
+
+### Debugging CI Test Failures
+
+When a test passes locally but fails in CI:
+
+```python
+# Add debug output to understand CI environment
+def test_problematic():
+    if os.getenv("CI"):
+        print(f"CI Environment: {os.environ}")
+        print(f"Working Dir: {os.getcwd()}")
+        print(f"Python Version: {sys.version}")
+
+    # Your test code here
+```
+
+### Test File Organization
+
+To avoid iteration:
+- Keep test files under 500 lines
+- Group related tests in classes
+- Use fixtures for common setup
+- Separate unit and integration tests
+- Document environment requirements

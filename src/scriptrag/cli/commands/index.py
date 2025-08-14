@@ -35,10 +35,6 @@ def index_command(
             )
         ),
     ] = None,
-    force: Annotated[
-        bool,
-        typer.Option("--force", "-f", help="Force re-indexing of all scripts"),
-    ] = False,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -73,10 +69,14 @@ def index_command(
     This command:
     1. Finds all Fountain files with boneyard metadata
     2. Parses the scripts and extracts structured data
-    3. Stores scripts, scenes, characters, dialogues, and actions in the database
-    4. Creates relationships between entities for graph-based queries
+    3. Re-indexes all scripts to ensure data consistency
+    4. Stores scripts, scenes, characters, dialogues, and actions in the database
+    5. Creates relationships between entities for graph-based queries
 
     The database must be initialized first with 'scriptrag init'.
+
+    Note: Scripts are always re-indexed to ensure the database reflects the current
+    state of the files.
     Scripts should be analyzed first with 'scriptrag analyze' to add metadata.
     """
     try:
@@ -102,7 +102,6 @@ def index_command(
                 index_cmd.index(
                     path=path,
                     recursive=not no_recursive,
-                    force=force,
                     dry_run=dry_run,
                     batch_size=batch_size,
                     progress_callback=update_progress,
@@ -159,7 +158,7 @@ def _display_results(
     if verbose and result.scripts:
         console.print("\n[bold]Script Details:[/bold]")
         for script_result in result.scripts:
-            if script_result.indexed:
+            if script_result.indexed or script_result.error:
                 # Try to make path relative for display
                 try:
                     display_path = script_result.path.relative_to(Path.cwd())
@@ -193,7 +192,9 @@ def _display_results(
             console.print(f"  ... and {len(result.errors) - 10} more errors")
 
     # Show helpful next steps
-    if not dry_run and result.total_scripts_indexed > 0:
+    if not dry_run and (
+        result.total_scripts_indexed > 0 or result.total_scripts_updated > 0
+    ):
         console.print("\n[dim]Next steps:[/dim]")
         console.print("  • Use 'scriptrag query' to search the indexed data")
         console.print("  • Use 'scriptrag stats' to view database statistics")

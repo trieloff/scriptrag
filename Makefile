@@ -145,6 +145,14 @@ test: install ## Run all tests in parallel with coverage
 		find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null; \
 		exit 1; \
 	fi'
+	@echo "🔍 Checking fixture files are clean..."
+	@bash -c 'for f in tests/fixtures/fountain/test_data/{coffee_shop,simple_script,test_script,nested_script,parser_test}.fountain; do \
+		if grep -q "SCRIPTRAG-META-START" "$$f" 2>/dev/null; then \
+			echo "❌ ERROR: Fixture file $$f is contaminated with metadata!"; \
+			echo "Run '\''git checkout $$f'\'' to restore it."; \
+			exit 1; \
+		fi; \
+	done'
 	uv run pytest tests/ -v -n auto --cov=scriptrag --cov-report= --junit-xml=junit.xml $(PYTEST_ARGS)
 	uv run coverage combine || true  # May already be combined by pytest-xdist
 	uv run coverage xml
@@ -171,6 +179,14 @@ test-fast: install ## Run tests without coverage (faster)
 		echo "Run '\''make clean-mock-files'\'' to remove them."; \
 		exit 1; \
 	fi'
+	@echo "🔍 Checking fixture files are clean..."
+	@bash -c 'for f in tests/fixtures/fountain/test_data/{coffee_shop,simple_script,test_script,nested_script,parser_test}.fountain; do \
+		if grep -q "SCRIPTRAG-META-START" "$$f" 2>/dev/null; then \
+			echo "❌ ERROR: Fixture file $$f is contaminated with metadata!"; \
+			echo "Run '\''git checkout $$f'\'' to restore it."; \
+			exit 1; \
+		fi; \
+	done'
 	uv run pytest tests/ -v -n auto
 	@echo "🔍 Checking for mock files after tests..."
 	@bash -c 'if find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null | head -1 | grep -q .; then \
@@ -200,6 +216,18 @@ coverage-combine: install ## Combine coverage data from parallel test runs
 	uv run coverage report
 	uv run coverage html
 	@echo "✅ Combined coverage report generated in htmlcov/"
+
+.PHONY: test-coverage
+test-coverage: test ## Run tests and print detailed coverage report
+	@echo ""
+	@echo "📊 Detailed Coverage Report"
+	@echo "==========================="
+	uv run coverage report --show-missing --skip-covered --skip-empty --sort=cover
+	@echo ""
+	@echo "📈 Coverage Summary:"
+	uv run coverage report --format=total
+	@echo ""
+	@echo "📁 HTML report available in htmlcov/index.html"
 
 # Documentation
 .PHONY: docs

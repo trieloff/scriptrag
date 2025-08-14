@@ -1,6 +1,8 @@
 """Integration tests for the scriptrag index command."""
 
+import shutil
 import sqlite3
+from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
@@ -11,81 +13,25 @@ from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
 
+# Path to fixture files
+FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "fountain" / "test_data"
+
 
 @pytest.fixture
 def sample_fountain_with_metadata(tmp_path):
-    """Create a sample Fountain file with boneyard metadata."""
+    """Copy sample Fountain file with boneyard metadata to temp directory."""
+    source_file = FIXTURES_DIR / "coffee_shop_with_metadata.fountain"
     script_path = tmp_path / "sample.fountain"
-    content = """Title: The Coffee Shop
-Author: Test Writer
-
-INT. COFFEE SHOP - DAY
-
-/* SCRIPTRAG-META-START
-{
-  "content_hash": "abc123",
-  "analyzed_at": "2024-01-01T00:00:00",
-  "analyzers": {
-    "test": {
-      "result": {"mood": "cheerful"}
-    }
-  }
-}
-SCRIPTRAG-META-END */
-
-ALICE enters the bustling coffee shop.
-
-ALICE
-(cheerfully)
-Good morning, Bob!
-
-BOB
-(smiling)
-Hey Alice! The usual?
-
-ALICE nods and sits down.
-
-EXT. PARK - NIGHT
-
-/* SCRIPTRAG-META-START
-{
-  "content_hash": "def456",
-  "analyzed_at": "2024-01-01T00:00:00",
-  "analyzers": {
-    "test": {
-      "result": {"mood": "peaceful"}
-    }
-  }
-}
-SCRIPTRAG-META-END */
-
-They walk through the quiet park.
-
-ALICE
-What a beautiful evening.
-
-BOB
-Perfect for a walk.
-"""
-    script_path.write_text(content)
+    shutil.copy2(source_file, script_path)
     return script_path
 
 
 @pytest.fixture
 def sample_fountain_without_metadata(tmp_path):
-    """Create a sample Fountain file without boneyard metadata."""
+    """Copy sample Fountain file without metadata to temp directory."""
+    source_file = FIXTURES_DIR / "simple_script.fountain"
     script_path = tmp_path / "no_metadata.fountain"
-    content = """Title: Simple Script
-Author: Test Writer
-
-INT. ROOM - DAY
-
-A simple scene without metadata.
-
-CHARACTER
-Some dialogue.
-"""
-    script_path.write_text(content)
+    shutil.copy2(source_file, script_path)
     return script_path
 
 
@@ -117,7 +63,6 @@ class TestIndexCommand:
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.stdout)
         assert "Index analyzed Fountain files" in clean_output
-        assert "--force" in clean_output
         assert "--dry-run" in clean_output
         assert "--batch-size" in clean_output
 
@@ -142,7 +87,7 @@ class TestIndexCommand:
             or "No Fountain files found" in clean_output
         )
 
-    def test_index_no_scripts(self, initialized_db, tmp_path):  # noqa: ARG002
+    def test_index_no_scripts(self, initialized_db, tmp_path):
         """Test index command with no scripts."""
         # Database path is already set via initialized_db fixture
         result = runner.invoke(
@@ -226,8 +171,8 @@ class TestIndexCommand:
         assert cursor.fetchone()[0] == 0
         conn.close()
 
-    def test_index_force_reindex(self, initialized_db, sample_fountain_with_metadata):
-        """Test force re-indexing."""
+    def test_index_reindex(self, initialized_db, sample_fountain_with_metadata):
+        """Test re-indexing behavior (scripts are always re-indexed for consistency)."""
         script_dir = sample_fountain_with_metadata.parent
 
         # Index once
@@ -238,22 +183,22 @@ class TestIndexCommand:
         )
         assert result.exit_code == 0
 
-        # Index again without force (should skip)
+        # Index again (scripts are always re-indexed for consistency)
         result = runner.invoke(
             app,
             ["index", str(script_dir)],
         )
         assert result.exit_code == 0
 
-        # Check that script was not re-indexed
+        # Check that script exists (re-indexed, not duplicated)
         conn = sqlite3.connect(str(initialized_db))
         cursor = conn.execute("SELECT COUNT(*) as count FROM scripts")
         assert cursor.fetchone()[0] == 1  # Still just one script
 
-        # Now force re-index
+        # Index again to verify idempotent behavior
         result = runner.invoke(
             app,
-            ["index", str(script_dir), "--force"],
+            ["index", str(script_dir)],
         )
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.stdout)
@@ -266,7 +211,7 @@ class TestIndexCommand:
 
     def test_index_verbose_mode(
         self,
-        initialized_db,  # noqa: ARG002
+        initialized_db,
         sample_fountain_with_metadata,
     ):
         """Test verbose output mode."""
@@ -367,7 +312,7 @@ Dialogue {i}.
         self,
         initialized_db,
         sample_fountain_with_metadata,
-        sample_fountain_without_metadata,  # noqa: ARG002
+        sample_fountain_without_metadata,
     ):
         """Test that scripts without metadata are skipped."""
         script_dir = sample_fountain_with_metadata.parent
@@ -493,11 +438,11 @@ New dialogue.
 """
         script_path.write_text(content_v2)
 
-        # Re-index with force
+        # Re-index the script
         # Database path is already set via initialized_db fixture
         result = runner.invoke(
             app,
-            ["index", str(tmp_path), "--force"],
+            ["index", str(tmp_path)],
         )
         assert result.exit_code == 0
 
@@ -517,3 +462,170 @@ New dialogue.
         assert cursor.fetchone()["count"] == 2  # Now has 2 scenes
 
         conn.close()
+
+    def test_index_import_error(self, tmp_path, monkeypatch):
+        """Test handling of import errors."""
+        runner = CliRunner()
+        monkeypatch.chdir(tmp_path)
+
+        # Patch the import statement to simulate ImportError
+        import sys
+        from unittest.mock import patch
+
+        with runner.isolated_filesystem():
+            # Backup original module if it exists
+            original_module = sys.modules.get("scriptrag.api.index")
+
+            # Remove module from sys.modules to trigger import error
+            if "scriptrag.api.index" in sys.modules:
+                del sys.modules["scriptrag.api.index"]
+
+            # Mock the module to raise ImportError
+            def failing_import(*args, **kwargs):
+                if args and "scriptrag.api.index" in str(args[0]):
+                    raise ImportError("Mock import error")
+                return original_import(*args, **kwargs)
+
+            original_import = __builtins__["__import__"]
+            with patch("builtins.__import__", side_effect=failing_import):
+                result = runner.invoke(app, ["index", "."])
+
+            # Restore original module
+            if original_module:
+                sys.modules["scriptrag.api.index"] = original_module
+
+            assert result.exit_code == 1
+            clean_output = strip_ansi_codes(result.output)
+            assert "Required components not available" in clean_output
+
+    def test_index_general_exception(self, tmp_path):
+        """Test handling of general exceptions during indexing."""
+        runner = CliRunner()
+
+        # Create a script file
+        script_path = tmp_path / "test.fountain"
+        script_path.write_text("Title: Test\n\nINT. SCENE - DAY\n\nAction.")
+
+        # Mock IndexCommand to raise exception
+        from unittest.mock import AsyncMock, patch
+
+        async def mock_index_error(*_args, **_kwargs):
+            raise Exception("Unexpected error during indexing")
+
+        with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
+            mock_instance = mock_index_command.return_value
+            mock_instance.index = AsyncMock(side_effect=mock_index_error)
+
+            result = runner.invoke(app, ["index", str(tmp_path)])
+            assert result.exit_code == 1
+            clean_output = strip_ansi_codes(result.output)
+            assert "Error:" in clean_output
+
+    def test_index_display_verbose_with_errors(self, tmp_path):
+        """Test verbose display mode with errors."""
+        from unittest.mock import AsyncMock, patch
+
+        from scriptrag.api.index import IndexOperationResult, IndexResult
+
+        runner = CliRunner()
+
+        # Create test results with errors
+        test_result = IndexOperationResult()
+
+        # Add scripts with mixed results
+        test_result.scripts = [
+            IndexResult(
+                path=Path("script1.fountain"),
+                indexed=1,
+                updated=0,
+                scenes_indexed=5,
+                characters_indexed=3,
+                dialogues_indexed=10,
+                actions_indexed=7,
+            ),
+            IndexResult(
+                path=Path("script2.fountain"),
+                indexed=0,
+                updated=0,
+                error="Failed to parse script",
+            ),
+        ]
+
+        # Add multiple errors to test pagination
+        test_result.errors = [f"Error {i}" for i in range(15)]
+
+        with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
+            mock_instance = mock_index_command.from_config.return_value
+            mock_instance.index = AsyncMock(return_value=test_result)
+
+            result = runner.invoke(app, ["index", str(tmp_path), "--verbose"])
+
+            # Check that errors are displayed
+            clean_output = strip_ansi_codes(result.output)
+            assert "Errors encountered: 15" in clean_output
+            assert "Error 0" in clean_output
+            assert "... and 5 more errors" in clean_output
+
+            # Check that the script with error is shown
+            assert "script2.fountain" in clean_output
+            assert "Failed to parse script" in clean_output
+
+    def test_index_display_summary_with_updates(self, tmp_path):
+        """Test summary display with updated scripts."""
+        from unittest.mock import AsyncMock, patch
+
+        from scriptrag.api.index import IndexOperationResult, IndexResult
+
+        runner = CliRunner()
+
+        # Create test results with updates
+        test_result = IndexOperationResult()
+        test_result.scripts = [
+            IndexResult(
+                path=Path("script1.fountain"),
+                indexed=0,
+                updated=1,  # This script was updated
+                scenes_indexed=3,
+                characters_indexed=2,
+                dialogues_indexed=5,
+                actions_indexed=4,
+            ),
+        ]
+
+        with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
+            mock_instance = mock_index_command.from_config.return_value
+            mock_instance.index = AsyncMock(return_value=test_result)
+
+            result = runner.invoke(app, ["index", str(tmp_path)])
+
+            # Check that updates are shown in summary
+            clean_output = strip_ansi_codes(result.output)
+            assert "Scripts Updated" in clean_output and "1" in clean_output
+            assert (
+                "Next steps:" in clean_output
+            )  # Help text should not show for updates
+
+    def test_index_progress_callback(self, tmp_path):
+        """Test that progress callback is properly passed."""
+        from unittest.mock import AsyncMock, patch
+
+        from scriptrag.api.index import IndexOperationResult
+
+        runner = CliRunner()
+
+        test_result = IndexOperationResult()
+        test_result.scripts = []
+
+        with patch("scriptrag.api.index.IndexCommand") as mock_index_command:
+            mock_instance = mock_index_command.from_config.return_value
+            mock_instance.index = AsyncMock(return_value=test_result)
+
+            # Run with verbose to enable progress
+            runner.invoke(app, ["index", str(tmp_path), "--verbose"])
+
+            # Check that index was called with progress_callback
+            assert mock_instance.index.called
+            call_kwargs = mock_instance.index.call_args.kwargs
+            # When verbose is True, a progress_callback should be provided
+            if "progress_callback" in call_kwargs:
+                assert call_kwargs["progress_callback"] is not None

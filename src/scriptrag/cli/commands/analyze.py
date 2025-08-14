@@ -48,6 +48,13 @@ def analyze_command(
             help="Additional analyzers to run (can be specified multiple times)",
         ),
     ] = None,
+    brittle: Annotated[
+        bool,
+        typer.Option(
+            "--brittle",
+            help="Stop processing if any analyzer fails (default: skip failed)",
+        ),
+    ] = False,
 ) -> None:
     """Analyze Fountain files and update their metadata.
 
@@ -94,6 +101,7 @@ def analyze_command(
                     recursive=not no_recursive,
                     force=force,
                     dry_run=dry_run,
+                    brittle=brittle,
                     progress_callback=update_progress,
                 )
             )

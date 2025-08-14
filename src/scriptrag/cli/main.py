@@ -7,7 +7,12 @@ from scriptrag.cli.commands import (
     index_command,
     init_command,
     list_command,
+    pull_command,
+    query_app,
+    search_command,
+    watch_command,
 )
+from scriptrag.cli.commands.mcp import mcp_command
 
 app = typer.Typer(
     name="scriptrag",
@@ -22,6 +27,13 @@ app.command(name="list")(list_command)
 app.command(name="ls", hidden=True)(list_command)  # Alias for list
 app.command(name="analyze")(analyze_command)
 app.command(name="index")(index_command)
+app.command(name="pull")(pull_command)
+app.command(name="search")(search_command)
+app.command(name="watch")(watch_command)
+app.command(name="mcp")(mcp_command)
+
+# Register query subapp
+app.add_typer(query_app, name="query")
 
 
 def main() -> None:

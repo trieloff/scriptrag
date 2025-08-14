@@ -1,6 +1,7 @@
 """Base classes for scene analyzers."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 
 class BaseSceneAnalyzer(ABC):
@@ -10,7 +11,7 @@ class BaseSceneAnalyzer(ABC):
     additional metadata from scenes beyond the basic extraction.
     """
 
-    def __init__(self, config: dict | None = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initialize analyzer.
 
         Args:
@@ -19,7 +20,7 @@ class BaseSceneAnalyzer(ABC):
         self.config = config or {}
 
     @abstractmethod
-    async def analyze(self, scene: dict) -> dict:
+    async def analyze(self, scene: dict[str, Any]) -> dict[str, Any]:
         """Analyze a scene and return metadata.
 
         Args:
@@ -65,7 +66,10 @@ class BaseSceneAnalyzer(ABC):
 
         Called once before processing begins.
         Override if you need to set up connections, load models, etc.
+
+        Base implementation does nothing - subclasses should override if needed.
         """
+        # Intentionally empty - subclasses override as needed
         pass  # pragma: no cover
 
     async def cleanup(self) -> None:  # noqa: B027
@@ -73,5 +77,8 @@ class BaseSceneAnalyzer(ABC):
 
         Called once after processing completes.
         Override if you need to close connections, free memory, etc.
+
+        Base implementation does nothing - subclasses should override if needed.
         """
+        # Intentionally empty - subclasses override as needed
         pass  # pragma: no cover

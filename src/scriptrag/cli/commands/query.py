@@ -1,29 +1,112 @@
 """Query command for executing SQL queries."""
 
+import copy
+import inspect
+from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import typer
+from click import Choice
 from rich.console import Console
 
+import scriptrag.config.settings as settings_module
 from scriptrag.api.query import QueryAPI
 from scriptrag.config import get_settings
-
-# Create query app
-query_app = typer.Typer(
-    name="query",
-    help="Execute SQL queries from the query library",
-    no_args_is_help=True,
-)
 
 console = Console()
 
 
-def create_query_command(api: QueryAPI, spec_name: str) -> Any:
+class QueryAppManager:
+    """Manages the query Typer app and command registration state."""
+
+    def __init__(self) -> None:
+        """Initialize the query app manager."""
+        self.app: typer.Typer | None = None
+        self.commands_registered: bool = False
+
+    def get_app(self) -> typer.Typer:
+        """Get or create the query app with registered commands.
+
+        This method uses lazy initialization to avoid issues with
+        import-time registration in test environments.
+
+        Returns:
+            Typer app with registered query commands
+        """
+        # Initialize app if needed
+        if self.app is None:
+            self.app = typer.Typer(
+                name="query",
+                help="Execute SQL queries from the query library",
+                no_args_is_help=True,
+            )
+
+        # Register commands if not already done
+        if not self.commands_registered:
+            self.register_commands()
+
+        return self.app
+
+    def register_commands(self, force: bool = False) -> None:
+        """Register all discovered queries as subcommands.
+
+        Args:
+            force: Force re-registration even if already registered
+        """
+        # Skip if already registered (unless forced)
+        if self.commands_registered and not force:
+            return
+
+        # Create new app instance
+        self.app = typer.Typer(
+            name="query",
+            help="Execute SQL queries from the query library",
+            no_args_is_help=True,
+        )
+
+        # Create API instance
+        api = _create_api_instance()
+        if api is None:
+            return
+
+        # Load queries
+        try:
+            # Force reload queries from (possibly new) directory
+            api.reload_queries()
+            # Discover and register queries
+            queries = api.list_queries()
+        except Exception:
+            # If we can't list queries, create empty app
+            queries = []
+
+        # Register list command
+        _register_list_command(self.app, queries)
+
+        if not queries:
+            return
+
+        # Register each query as a subcommand
+        for spec in queries:
+            _register_single_query(self.app, api, spec)
+
+        # Mark as registered
+        self.commands_registered = True
+
+
+# Create singleton instance
+_manager = QueryAppManager()
+
+
+def create_query_command(
+    api: QueryAPI, spec_name: str, db_path_option: bool = True
+) -> Callable[..., None] | None:
     """Create a dynamic command for a query specification.
 
     Args:
         api: Query API instance
         spec_name: Name of the query spec
+        db_path_option: Whether to include --db-path option
 
     Returns:
         Typer command function
@@ -39,17 +122,29 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
         output_json = kwargs.pop("json", False)
         limit = kwargs.pop("limit", None)
         offset = kwargs.pop("offset", None)
+        db_path = kwargs.pop("db_path", None) if db_path_option else None
 
         # Remaining kwargs are query parameters
         params = kwargs
 
         try:
             # Get fresh API instance with current settings at execution time
-            # Force fresh settings to pick up environment variable changes
-            import scriptrag.config.settings as settings_module
+            # Apply db_path override if provided
+            if db_path:
+                # Create custom settings with db_path override
+                from scriptrag.config import get_settings as get_settings_func
 
-            settings_module._settings = None  # Clear cached settings
-            current_settings = get_settings()
+                current_settings = get_settings_func()
+                # Create a copy with the new db_path
+                current_settings = copy.deepcopy(current_settings)
+                current_settings.database_path = db_path
+            else:
+                # Force fresh settings to pick up environment variable changes
+                settings_module._settings = None  # Clear cached settings
+                from scriptrag.config import get_settings as get_settings_func
+
+                current_settings = get_settings_func()
+
             current_api = QueryAPI(current_settings)
 
             result = current_api.execute_query(
@@ -98,8 +193,6 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
         # Create Typer parameter
         if param_spec.choices:
             # Use Choice for enumerated options
-            from click import Choice
-
             param = typer.Option(
                 default=param_spec.default if not param_spec.required else ...,
                 help=param_spec.help,
@@ -158,9 +251,20 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
         )
     )
 
-    # Create wrapper with proper signature
-    import inspect
+    # Add db_path option if requested
+    if db_path_option:
+        params.append(
+            (
+                "db_path",
+                Path | None,
+                typer.Option(
+                    default=None,
+                    help="Path to the SQLite database file",
+                ),
+            )
+        )
 
+    # Create wrapper with proper signature
     # Build parameter signature
     sig_params = []
     annotations = {}
@@ -193,29 +297,42 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
     return wrapper
 
 
-def register_query_commands() -> None:
-    """Register all discovered queries as subcommands."""
-    # Clear any existing commands to prevent stale cache issues
-    global query_app
-    query_app = typer.Typer(
-        name="query",
-        help="Execute SQL queries from the query library",
-        no_args_is_help=True,
-    )
+def get_query_app() -> typer.Typer:
+    """Get or create the query app with registered commands.
 
-    # Force fresh settings to pick up environment variable changes
-    import scriptrag.config.settings as settings_module
+    This function uses lazy initialization to avoid issues with
+    import-time registration in test environments.
 
-    settings_module._settings = None  # Clear cached settings
-    settings = get_settings()
-    api = QueryAPI(settings)
+    Returns:
+        Typer app with registered query commands
+    """
+    return _manager.get_app()
 
-    # Force reload queries from (possibly new) directory
-    api.reload_queries()
 
-    # Discover and register queries
-    queries = api.list_queries()
+def _create_api_instance() -> QueryAPI | None:
+    """Create API instance with error handling.
 
+    Returns:
+        QueryAPI instance or None if creation fails
+    """
+    try:
+        # Force fresh settings to pick up environment variable changes
+        settings_module._settings = None  # Clear cached settings
+        settings = get_settings()
+        return QueryAPI(settings)
+    except Exception:
+        # If we can't get settings/API during import, skip registration
+        # This allows tests to set up mocks before registration
+        return None
+
+
+def _register_list_command(query_app: typer.Typer, queries: list[Any]) -> None:
+    """Register the list command based on available queries.
+
+    Args:
+        query_app: Typer app to register command on
+        queries: List of available query specifications
+    """
     if not queries:
         # Add a placeholder command if no queries found
         @query_app.command(name="list")
@@ -225,30 +342,41 @@ def register_query_commands() -> None:
             console.print(
                 "Add .sql files to the query directory to make them available."
             )
-
-        return
-
-    # Register each query as a subcommand
-    for spec in queries:
-        command_func = create_query_command(api, spec.name)
-        if command_func:
-            query_app.command(name=spec.name)(command_func)
-
-    # Add list command to show available queries
-    @query_app.command(name="list")
-    def list_all_queries() -> None:
-        """List all available queries."""
-        console.print("[bold]Available queries:[/bold]\n")
-        for spec in queries:
-            console.print(f"  [cyan]{spec.name}[/cyan]")
-            if spec.description:
-                console.print(f"    {spec.description}")
-            if spec.params:
-                param_names = ", ".join(p.name for p in spec.params)
-                console.print(f"    Parameters: {param_names}")
-            console.print()
+    else:
+        # Add list command to show available queries
+        @query_app.command(name="list")
+        def list_all_queries() -> None:
+            """List all available queries."""
+            console.print("[bold]Available queries:[/bold]\n")
+            for spec in queries:
+                console.print(f"  [cyan]{spec.name}[/cyan]")
+                if spec.description:
+                    console.print(f"    {spec.description}")
+                if spec.params:
+                    param_names = ", ".join(p.name for p in spec.params)
+                    console.print(f"    Parameters: {param_names}")
+                console.print()
 
 
-# Register commands on module import
-# NOTE: This could be made lazy if needed for testing
-register_query_commands()
+def _register_single_query(query_app: typer.Typer, api: QueryAPI, spec: Any) -> None:
+    """Register a single query as a command.
+
+    Args:
+        query_app: Typer app to register command on
+        api: Query API instance
+        spec: Query specification
+    """
+    command_func = create_query_command(api, spec.name)
+    if command_func:
+        query_app.command(name=spec.name)(command_func)
+
+
+def register_query_commands(force: bool = False) -> None:
+    """Register all discovered queries as subcommands.
+
+    This is a convenience function that delegates to the manager.
+
+    Args:
+        force: Force re-registration even if already registered
+    """
+    _manager.register_commands(force=force)

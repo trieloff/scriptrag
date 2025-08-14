@@ -35,6 +35,14 @@ def index_command(
             )
         ),
     ] = None,
+    db_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--db-path",
+            "-d",
+            help="Path to the SQLite database file",
+        ),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -80,10 +88,22 @@ def index_command(
     Scripts should be analyzed first with 'scriptrag analyze' to add metadata.
     """
     try:
-        from scriptrag.api.index import IndexCommand
+        import copy
 
-        # Initialize index command
-        index_cmd = IndexCommand.from_config()
+        from scriptrag.api.index import IndexCommand
+        from scriptrag.config import get_settings
+
+        # Get settings with db_path override if provided
+        if db_path:
+            settings = get_settings()
+            # Create a copy with the new db_path
+            settings = copy.deepcopy(settings)
+            settings.database_path = db_path
+        else:
+            settings = None
+
+        # Initialize index command with custom settings if provided
+        index_cmd = IndexCommand(settings) if settings else IndexCommand.from_config()
 
         # Run with progress tracking
         with Progress(

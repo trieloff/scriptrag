@@ -388,6 +388,12 @@ class TestConfigOptionIndexCommand:
             mock_command = MagicMock()
             mock_result = MagicMock()
             mock_result.scripts_indexed = 5
+            mock_result.total_scripts_indexed = 5
+            mock_result.total_scripts_updated = 0
+            mock_result.total_scenes_indexed = 25
+            mock_result.total_characters_indexed = 10
+            mock_result.total_dialogues_indexed = 30
+            mock_result.total_actions_indexed = 20
             mock_result.scripts = []
             mock_result.errors = []
 
@@ -395,7 +401,7 @@ class TestConfigOptionIndexCommand:
                 return mock_result
 
             mock_command.index.side_effect = mock_index
-            mock_command_class.from_config.return_value = mock_command
+            mock_command_class.return_value = mock_command
 
             # Run command with config
             result = runner.invoke(
@@ -433,6 +439,8 @@ class TestConfigOptionQueryCommand:
             mock_result = MagicMock()
             mock_result.answer = "Test answer"
             mock_result.sources = []
+            mock_result.context = []
+            mock_result.error = None
 
             async def mock_query(*args, **kwargs):
                 return mock_result
@@ -443,7 +451,7 @@ class TestConfigOptionQueryCommand:
             # Run command with config
             result = runner.invoke(
                 app,
-                ["query", "test question", "--config", config_path],
+                ["query", "--config", config_path, "test question"],
             )
 
             assert result.exit_code == 0
@@ -474,6 +482,8 @@ class TestConfigOptionSearchCommand:
             mock_result = MagicMock()
             mock_result.results = []
             mock_result.total_found = 0
+            mock_result.query = "test query"
+            mock_result.mode = "semantic"
 
             async def mock_search(*args, **kwargs):
                 return mock_result
@@ -484,7 +494,7 @@ class TestConfigOptionSearchCommand:
             # Run command with config
             result = runner.invoke(
                 app,
-                ["search", "test query", "--config", config_path],
+                ["search", "--config", config_path, "test query"],
             )
 
             assert result.exit_code == 0

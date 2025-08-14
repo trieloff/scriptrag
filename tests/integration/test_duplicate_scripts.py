@@ -1,4 +1,5 @@
 """Integration tests for duplicate script handling."""
+# -*- coding: utf-8 -*-
 
 import sqlite3
 from pathlib import Path

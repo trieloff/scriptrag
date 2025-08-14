@@ -1,4 +1,5 @@
 """Unit tests for search API module."""
+# -*- coding: utf-8 -*-
 
 from unittest.mock import MagicMock, Mock, patch
 

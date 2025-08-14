@@ -1,4 +1,5 @@
 """Enhanced CLI test fixtures and utilities for automatic ANSI stripping.
+# -*- coding: utf-8 -*-
 
 This module provides pytest fixtures and helpers that automatically handle
 ANSI escape sequences in CLI output, reducing boilerplate in tests while

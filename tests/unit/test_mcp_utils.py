@@ -1,4 +1,5 @@
 """Comprehensive unit tests for MCP utils."""
+# -*- coding: utf-8 -*-
 
 from unittest.mock import MagicMock, patch
 

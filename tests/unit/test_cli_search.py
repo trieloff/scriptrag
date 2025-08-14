@@ -1,4 +1,5 @@
 """Unit tests for scriptrag search CLI command."""
+# -*- coding: utf-8 -*-
 
 from unittest.mock import Mock, patch
 

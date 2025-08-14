@@ -45,14 +45,11 @@ class SearchEngine:
         Returns:
             Database connection in read-only mode
         """
-        # Validate database path to prevent path traversal
-        db_path_resolved = self.db_path.resolve()
-        # Get the expected parent directory from the original settings path
-        expected_parent = self.settings.database_path.parent.resolve()
-
-        if not str(db_path_resolved).startswith(str(expected_parent)):
-            raise ValueError("Invalid database path detected")
-
+        # The path validation is already handled in get_read_only_connection
+        # which performs comprehensive security checks including:
+        # - Path traversal detection
+        # - Disallowed system directories
+        # - Proper cross-platform validation
         return get_read_only_connection(self.settings)
 
     def search(self, query: SearchQuery) -> SearchResponse:

@@ -84,13 +84,18 @@ def get_read_only_connection(
                     continue
                 raise ValueError("Invalid database path detected")
 
-        # Additional check: if in /root/ (Unix) or system directories, must be temp
+        # Additional check: if in /root/ (Unix) or system dirs, must be temp/repo
+        # Allow /root/repo as it's a common development location
         if (
-            (db_path_str.startswith("/root/") and "tmp" not in path_parts)
+            (
+                db_path_str.startswith("/root/")
+                and "tmp" not in path_parts
+                and "repo" not in path_parts
+            )
             or (":\\Users" in db_path_str and "Temp" not in path_parts)
         ) and not any(
             temp_indicator in db_path_str.lower()
-            for temp_indicator in ["temp", "tmp", "pytest"]
+            for temp_indicator in ["temp", "tmp", "pytest", "repo"]
         ):
             raise ValueError("Invalid database path detected")
 

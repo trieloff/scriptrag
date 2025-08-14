@@ -38,8 +38,7 @@ class TestSceneReadCommand:
             success=True,
             error=None,
             scene=mock_scene,
-            session_token="test-token-123",  # noqa: S106 - Test token
-            expires_at=None,
+            last_read=None,
         )
 
         # Make read_scene async
@@ -54,7 +53,7 @@ class TestSceneReadCommand:
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.output)
         assert "Walter enters" in clean_output
-        assert "test-token-123" in clean_output
+        # Token system eliminated - no longer checking for tokens
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_read_scene_json_output(self, mock_api_class):
@@ -73,8 +72,7 @@ class TestSceneReadCommand:
             success=True,
             error=None,
             scene=mock_scene,
-            session_token="test-token-123",  # noqa: S106 - Test token
-            expires_at=None,
+            last_read=None,
         )
 
         mock_api.read_scene = AsyncMock(return_value=mock_result)
@@ -95,7 +93,7 @@ class TestSceneReadCommand:
         assert json_output["success"] is True
         assert json_output["scene_number"] == 3
         assert json_output["heading"] == "INT. COFFEE SHOP - DAY"
-        assert json_output["session_token"] == "test-token-123"  # noqa: S105
+        # Token system eliminated - no longer checking for session_token
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_read_scene_not_found(self, mock_api_class):
@@ -106,7 +104,7 @@ class TestSceneReadCommand:
             success=False,
             error="Scene not found",
             scene=None,
-            session_token=None,
+            last_read=None,
         )
 
         mock_api.read_scene = AsyncMock(return_value=mock_result)
@@ -138,8 +136,7 @@ class TestSceneReadCommand:
             success=True,
             error=None,
             scene=mock_scene,
-            session_token="tv-token-456",  # noqa: S106 - Test token
-            expires_at=None,
+            last_read=None,
         )
 
         mock_api.read_scene = AsyncMock(return_value=mock_result)
@@ -164,7 +161,7 @@ class TestSceneReadCommand:
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.output)
         assert "The RV sits alone" in clean_output
-        assert "tv-token-456" in clean_output
+        # Token system eliminated - no longer checking for tokens
 
 
 class TestSceneAddCommand:
@@ -360,8 +357,9 @@ class TestSceneUpdateCommand:
                 "test",
                 "--scene",
                 "5",
-                "--token",
-                "valid-token",
+                "--safe",
+                "--last-read",
+                "2024-01-15T10:30:00",
                 "--content",
                 "INT. UPDATED - DAY\n\nUpdated content",
             ],
@@ -373,13 +371,13 @@ class TestSceneUpdateCommand:
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_update_scene_invalid_token(self, mock_api_class):
-        """Test update with invalid token."""
+        """Test update with invalid content validation."""
         # Setup mock
         mock_api = mock_api_class.return_value
         mock_result = UpdateSceneResult(
             success=False,
-            error="Session token not found or expired",
-            validation_errors=["SESSION_INVALID"],
+            error="Scene validation failed",
+            validation_errors=["INVALID_FORMAT"],
         )
 
         mock_api.update_scene = AsyncMock(return_value=mock_result)
@@ -394,8 +392,9 @@ class TestSceneUpdateCommand:
                 "test",
                 "--scene",
                 "5",
-                "--token",
-                "invalid-token",
+                "--safe",
+                "--last-read",
+                "2024-01-15T10:30:00",
                 "--content",
                 "INT. SCENE - DAY\n\nContent",
             ],
@@ -403,12 +402,12 @@ class TestSceneUpdateCommand:
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Session token not found or expired" in clean_output
-        assert "SESSION_INVALID" in clean_output
+        assert "Scene validation failed" in clean_output
+        assert "INVALID_FORMAT" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_update_scene_concurrent_modification(self, mock_api_class):
-        """Test update with concurrent modification."""
+        """Test update with content modification detection."""
         # Setup mock
         mock_api = mock_api_class.return_value
         mock_result = UpdateSceneResult(
@@ -429,8 +428,9 @@ class TestSceneUpdateCommand:
                 "test",
                 "--scene",
                 "5",
-                "--token",
-                "valid-token",
+                "--safe",
+                "--last-read",
+                "2024-01-15T10:30:00",
                 "--content",
                 "INT. SCENE - DAY\n\nContent",
             ],
@@ -456,8 +456,7 @@ class TestSceneUpdateCommand:
                 "test",
                 "--scene",
                 "5",
-                "--token",
-                "token",
+                # No safe mode - immediate update
             ],
         )
 

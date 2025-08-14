@@ -15,6 +15,7 @@ from jouvence.document import (
 from jouvence.parser import JouvenceParser
 
 from scriptrag.config import get_logger
+from scriptrag.exceptions import ParseError
 from scriptrag.utils.screenplay import ScreenplayUtils
 
 logger = get_logger(__name__)
@@ -194,7 +195,15 @@ class FountainParser:
             doc = parser.parseString(cleaned_content)
         except Exception as e:
             logger.error(f"Jouvence parser failed: {e}")
-            raise
+            raise ParseError(
+                message=f"Failed to parse Fountain file: {file_path}",
+                hint="Check Fountain syntax and format.",
+                details={
+                    "file": str(file_path),
+                    "parser_error": str(e),
+                    "issues": "Unclosed notes, invalid headings, bad title",
+                },
+            ) from e
 
         # Extract title and author from metadata
         title = doc.title_values.get("title") if doc.title_values else None

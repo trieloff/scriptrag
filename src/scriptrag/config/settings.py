@@ -10,6 +10,8 @@ import yaml
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from scriptrag.exceptions import ConfigurationError, check_config_keys
+
 
 class ScriptRAGSettings(BaseSettings):
     """ScriptRAG configuration settings.
@@ -244,10 +246,18 @@ class ScriptRAGSettings(BaseSettings):
             with config_path.open(encoding="utf-8") as f:
                 data = json.load(f)
         else:
-            raise ValueError(
-                f"Unsupported config file format: {suffix}. "
-                "Supported formats: .yml, .yaml, .toml, .json"
+            raise ConfigurationError(
+                message=f"Unsupported configuration file format: {suffix}",
+                hint="Use one of the supported formats: .yml, .yaml, .toml, or .json",
+                details={
+                    "file": str(config_path),
+                    "detected_format": suffix,
+                    "supported_formats": [".yml", ".yaml", ".toml", ".json"],
+                },
             )
+
+        # Check for common configuration mistakes
+        check_config_keys(data)
 
         return cls(**data)
 

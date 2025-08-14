@@ -201,5 +201,8 @@ def search_command(
             # Full formatted display
             formatter.format_results(response, verbose=verbose)
 
+    except typer.Exit:
+        # Re-raise typer.Exit without handling it
+        raise
     except Exception as e:
         handle_cli_error(e, verbose=verbose)

@@ -67,6 +67,6 @@ def handle_cli_error(
             console.print("[dim]Run with --verbose for full error details[/dim]")
 
         # Log full error details
-        logger.exception("Unexpected error occurred")
+        logger.error("Unexpected error occurred", error=str(error), exc_info=True)
 
     raise typer.Exit(exit_code)

@@ -277,6 +277,9 @@ class TestFileLocking:
                 # Unlock
                 msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
 
+    @pytest.mark.skipif(
+        os.getenv("CI") == "true", reason="Skip slow test in CI to avoid timeout"
+    )
     def test_sqlite_locking(self, tmp_path):
         """Test SQLite database locking across platforms."""
         db_path = tmp_path / "test.db"

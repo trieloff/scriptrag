@@ -128,7 +128,6 @@ def search_command(
         Path | None,
         typer.Option(
             "--config",
-            "-c",
             help="Path to configuration file (YAML, TOML, or JSON)",
         ),
     ] = None,
@@ -170,6 +169,10 @@ def search_command(
 
         # Load settings with proper precedence
         if config:
+            if not config.exists():
+                console.print(f"[red]Error: Config file not found: {config}[/red]")
+                raise typer.Exit(1)
+
             settings = ScriptRAGSettings.from_multiple_sources(
                 config_files=[config],
             )

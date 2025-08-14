@@ -469,7 +469,9 @@ class TestConfigOptionSearchCommand:
 
     @patch("scriptrag.api.search.SearchAPI")
     @patch("scriptrag.config.settings.ScriptRAGSettings")
-    @pytest.mark.skip(reason="Search command has conflicting -c parameter, needs fix")
+    @pytest.mark.skip(
+        reason="Search command needs database init, requires different mocking"
+    )
     def test_search_with_config(self, mock_settings_class, mock_command_class):
         """Test search command with custom config file."""
         with tempfile.NamedTemporaryFile(
@@ -479,8 +481,14 @@ class TestConfigOptionSearchCommand:
             config_path = config_file.name
 
         try:
+            # Create a temporary database file
+            with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as db_file:
+                db_path = Path(db_file.name)
+
             # Setup mocks
             mock_settings = MagicMock()
+            # Need to mock database_path properly for search command
+            mock_settings.database_path = db_path
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_command = MagicMock()
@@ -502,7 +510,13 @@ class TestConfigOptionSearchCommand:
                 ["search", "--config", config_path, "test query"],
             )
 
+            # Debug output if test fails
+            if result.exit_code != 0:
+                print("Output:", result.output)
+                print("Exception:", result.exception)
+
             assert result.exit_code == 0
             mock_settings_class.from_multiple_sources.assert_called_once()
         finally:
             Path(config_path).unlink(missing_ok=True)
+            db_path.unlink(missing_ok=True)

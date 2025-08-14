@@ -52,15 +52,17 @@ def list_command(
     """
     from scriptrag.config.settings import ScriptRAGSettings
 
-    # Load settings with proper precedence
+    # Load settings with proper precedence if config provided
     if config:
-        settings = ScriptRAGSettings.from_multiple_sources(
+        if not config.exists():
+            console.print(f"[red]Error: Config file not found: {config}[/red]")
+            raise typer.Exit(1)
+
+        ScriptRAGSettings.from_multiple_sources(
             config_files=[config],
         )
-        # Need to temporarily override the global settings
-        import scriptrag.config.settings as settings_module
-
-        settings_module._settings = settings
+        # Note: ScriptLister doesn't currently use settings,
+        # but loaded for validation purposes
 
     lister = ScriptLister()
 

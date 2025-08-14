@@ -50,15 +50,15 @@ def create_query_command(api: QueryAPI, spec_name: str) -> Any:
 
             # Load settings with proper precedence
             if config:
+                if not config.exists():
+                    console.print(f"[red]Error: Config file not found: {config}[/red]")
+                    raise typer.Exit(1)
+
                 current_settings = ScriptRAGSettings.from_multiple_sources(
                     config_files=[config],
                 )
             else:
-                # Get fresh API instance with current settings at execution time
-                # Force fresh settings to pick up environment variable changes
-                import scriptrag.config.settings as settings_module
-
-                settings_module._settings = None  # Clear cached settings
+                # Get fresh settings - avoids caching issues
                 current_settings = get_settings()
 
             current_api = QueryAPI(current_settings)
@@ -226,10 +226,7 @@ def register_query_commands() -> None:
         no_args_is_help=True,
     )
 
-    # Force fresh settings to pick up environment variable changes
-    import scriptrag.config.settings as settings_module
-
-    settings_module._settings = None  # Clear cached settings
+    # Get fresh settings without modifying global state
     settings = get_settings()
     api = QueryAPI(settings)
 

@@ -27,7 +27,10 @@ def temp_db():
             file_path TEXT UNIQUE NOT NULL,
             metadata JSON,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            version INTEGER DEFAULT 1,
+            is_current BOOLEAN DEFAULT TRUE,
+            CHECK (is_current IN (0, 1))
         );
 
         CREATE TABLE IF NOT EXISTS scenes (

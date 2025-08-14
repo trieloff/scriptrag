@@ -41,7 +41,9 @@ class TestSearchEngineAsync:
                 id INTEGER PRIMARY KEY,
                 title TEXT,
                 author TEXT,
-                metadata TEXT
+                metadata TEXT,
+                version INTEGER DEFAULT 1,
+                is_current BOOLEAN DEFAULT TRUE
             )
         """)
 

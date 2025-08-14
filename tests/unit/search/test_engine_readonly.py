@@ -29,7 +29,9 @@ class TestReadOnlyAccess:
                 id INTEGER PRIMARY KEY,
                 title TEXT NOT NULL,
                 author TEXT,
-                metadata TEXT
+                metadata TEXT,
+                version INTEGER DEFAULT 1,
+                is_current BOOLEAN DEFAULT TRUE
             );
 
             CREATE TABLE scenes (

@@ -153,7 +153,8 @@ class DatabaseOperations:
             conn.execute(
                 """
                 UPDATE scripts
-                SET title = ?, author = ?, metadata = ?, updated_at = CURRENT_TIMESTAMP
+                SET title = ?, author = ?, metadata = ?, version = 1, is_current = 1,
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
                 """,
                 (script.title, script.author, json.dumps(metadata), existing.id),
@@ -164,8 +165,10 @@ class DatabaseOperations:
         # Insert new script
         cursor = conn.execute(
             """
-            INSERT INTO scripts (title, author, file_path, metadata)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO scripts (
+                title, author, file_path, metadata, version, is_current
+            )
+            VALUES (?, ?, ?, ?, 1, 1)
             """,
             (script.title, script.author, str(file_path), json.dumps(metadata)),
         )

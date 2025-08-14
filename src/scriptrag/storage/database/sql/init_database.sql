@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
 
 -- Insert initial schema version
 INSERT INTO schema_version (version, description)
-VALUES (2, 'Initial ScriptRAG database schema with duplicate script support');
+VALUES (1, 'Initial ScriptRAG database schema');
 
 -- Create triggers to update timestamps
 CREATE TRIGGER IF NOT EXISTS update_scripts_timestamp

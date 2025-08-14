@@ -35,7 +35,9 @@ class TestAPISearchCoverage:
             CREATE TABLE IF NOT EXISTS scripts (
                 id INTEGER PRIMARY KEY,
                 title TEXT,
-                author TEXT
+                author TEXT,
+                version INTEGER DEFAULT 1,
+                is_current BOOLEAN DEFAULT TRUE
             )
         """)
         conn.execute("""

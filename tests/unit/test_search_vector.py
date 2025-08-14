@@ -167,7 +167,9 @@ class TestVectorSearchEngine:
                 id INTEGER PRIMARY KEY,
                 title TEXT,
                 author TEXT,
-                metadata TEXT
+                metadata TEXT,
+                version INTEGER DEFAULT 1,
+                is_current BOOLEAN DEFAULT TRUE
             )
         """)
 
@@ -253,7 +255,8 @@ class TestVectorSearchEngine:
         # Create minimal schema
         conn.execute(
             """CREATE TABLE scripts (
-                id INTEGER PRIMARY KEY, title TEXT, author TEXT, metadata TEXT
+                id INTEGER PRIMARY KEY, title TEXT, author TEXT, metadata TEXT,
+                version INTEGER DEFAULT 1, is_current BOOLEAN DEFAULT TRUE
             )"""
         )
         conn.execute(

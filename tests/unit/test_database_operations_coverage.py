@@ -361,3 +361,124 @@ class TestDatabaseOperationsCoverage:
                 row = cursor.fetchone()
                 assert row["location"] is None
                 assert row["time_of_day"] is None
+
+    def test_upsert_script_with_metadata_fields(self, initialized_db_ops):
+        """Test upsert script with new metadata fields (series, project, etc)."""
+        import json
+        from pathlib import Path
+
+        from scriptrag.parser import Script
+
+        script = Script(
+            title="Test Episode",
+            author="Writer Name",
+            metadata={
+                "season": 2,
+                "episode": 5,
+                "series_title": "Great Show",
+                "project_title": "Season 2 Project",
+            },
+        )
+
+        file_path = Path("/test/path.fountain")
+
+        with initialized_db_ops.transaction() as conn:
+            # Test insert with new metadata fields
+            script_id = initialized_db_ops.upsert_script(conn, script, file_path)
+            assert script_id is not None
+
+            # Verify all fields were saved correctly
+            cursor = conn.execute(
+                """SELECT title, author, project_title, series_title,
+                   season, episode, metadata FROM scripts WHERE id = ?""",
+                (script_id,),
+            )
+            result = cursor.fetchone()
+            assert result is not None
+            assert result["title"] == "Test Episode"
+            assert result["author"] == "Writer Name"
+            assert result["project_title"] == "Season 2 Project"
+            assert result["series_title"] == "Great Show"
+            assert result["season"] == 2
+            assert result["episode"] == 5
+
+            # Verify metadata JSON
+            metadata = json.loads(result["metadata"])
+            assert "last_indexed" in metadata
+            assert metadata["season"] == 2
+            assert metadata["episode"] == 5
+
+    def test_upsert_script_update_with_new_fields(self, initialized_db_ops):
+        """Test updating existing script with new metadata structure."""
+        from pathlib import Path
+
+        from scriptrag.parser import Script
+
+        file_path = Path("/test/path.fountain")
+
+        # First script (minimal metadata)
+        script1 = Script(title="Original Title", author="Original Author")
+
+        with initialized_db_ops.transaction() as conn:
+            # Insert original script
+            script_id1 = initialized_db_ops.upsert_script(conn, script1, file_path)
+
+            # Updated script with full metadata
+            script2 = Script(
+                title="Updated Title",
+                author="Updated Author",
+                metadata={
+                    "series_title": "TV Series",
+                    "project_title": "Project Name",
+                    "season": 3,
+                    "episode": 7,
+                },
+            )
+
+            # Update the same file path
+            script_id2 = initialized_db_ops.upsert_script(conn, script2, file_path)
+
+            # Should be same script ID (update, not insert)
+            assert script_id1 == script_id2
+
+            # Verify all fields were updated
+            cursor = conn.execute(
+                """SELECT title, author, project_title, series_title,
+                   season, episode FROM scripts WHERE id = ?""",
+                (script_id2,),
+            )
+            result = cursor.fetchone()
+            assert result is not None
+            assert result["title"] == "Updated Title"
+            assert result["author"] == "Updated Author"
+            assert result["project_title"] == "Project Name"
+            assert result["series_title"] == "TV Series"
+            assert result["season"] == 3
+            assert result["episode"] == 7
+
+    def test_upsert_script_defaults_for_none_values(self, initialized_db_ops):
+        """Test upsert script handles None values with safe defaults."""
+        from pathlib import Path
+
+        from scriptrag.parser import Script
+
+        script = Script(title=None, author=None, metadata=None)
+        file_path = Path("/test/path.fountain")
+
+        with initialized_db_ops.transaction() as conn:
+            # Test insert with None values
+            script_id = initialized_db_ops.upsert_script(conn, script, file_path)
+            assert script_id is not None
+
+            # Verify defaults were applied
+            cursor = conn.execute(
+                "SELECT title, author, project_title FROM scripts WHERE id = ?",
+                (script_id,),
+            )
+            result = cursor.fetchone()
+            assert result is not None
+            assert result["title"] == "Untitled"  # Default title
+            assert result["author"] == "Unknown"  # Default author
+            assert (
+                result["project_title"] == "Untitled"
+            )  # project_title defaults to title

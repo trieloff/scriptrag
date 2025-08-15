@@ -643,3 +643,176 @@ JOHN raises his hands.
         assert "JOHN enters the room" in action_text
         assert "The door SLAMS shut" in action_text
         assert "JOHN raises his hands" in action_text
+
+    def test_parse_with_series_title_fields(self, parser):
+        """Test parsing with various series title field variations."""
+        variations = [
+            ("Series: Breaking Bad", "Breaking Bad"),
+            ("Series_Title: Better Call Saul", "Better Call Saul"),
+            ("Show: The Office", "The Office"),
+        ]
+
+        for field, expected in variations:
+            content = f"""Title: Test Episode
+{field}
+Episode: 5
+Season: 2
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+            script = parser.parse(content)
+            assert script.metadata.get("series_title") == expected, (
+                f"Failed for field: {field}"
+            )
+
+    def test_parse_with_project_title_fields(self, parser):
+        """Test parsing with various project title field variations."""
+        variations = [
+            ("Project: Season 2 Scripts", "Season 2 Scripts"),
+            ("Project_Title: Final Draft", "Final Draft"),
+        ]
+
+        for field, expected in variations:
+            content = f"""Title: Test Episode
+{field}
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+            script = parser.parse(content)
+            assert script.metadata.get("project_title") == expected, (
+                f"Failed for field: {field}"
+            )
+
+    def test_parse_file_with_series_and_project_metadata(self, parser, tmp_path):
+        """Test parsing file with comprehensive series and project metadata."""
+        content = """Title: The Pilot
+Author: Creator Name
+Series: Amazing Show
+Project: Season 1 Production
+Season: 1
+Episode: 1
+
+INT. COFFEE SHOP - DAY
+
+The beginning of something great.
+
+PROTAGONIST
+Here we go!
+"""
+        file_path = tmp_path / "pilot.fountain"
+        file_path.write_text(content)
+
+        script = parser.parse_file(file_path)
+
+        assert script.title == "The Pilot"
+        assert script.author == "Creator Name"
+        assert script.metadata["series_title"] == "Amazing Show"
+        assert script.metadata["project_title"] == "Season 1 Production"
+        assert script.metadata["season"] == 1
+        assert script.metadata["episode"] == 1
+        assert script.metadata["source_file"] == str(file_path)
+
+    def test_parse_complex_character_dialogue_combinations(self, parser):
+        """Test complex combinations that might miss character detection."""
+        content = """Title: Edge Cases
+
+INT. COURTROOM - DAY
+
+Complex dialogue scenarios.
+
+LAWYER #1'S VOICE
+(over intercom)
+We need more time.
+
+DR. SMITH-JONES (V.O.)
+The evidence suggests otherwise.
+
+OFFICER O'MALLEY
+(entering)
+Everyone freeze!
+
+CHARACTER'S ASSISTANT
+(whispering)
+This is bad.
+
+PROSECUTOR #2 (CONT'D)
+(standing)
+I object!
+"""
+        script = parser.parse(content)
+        scene = script.scenes[0]
+
+        # Extract all character names that were detected
+        detected_characters = {d.character for d in scene.dialogue_lines}
+
+        expected_characters = {
+            "LAWYER #1'S VOICE",
+            "DR. SMITH-JONES (V.O.)",
+            "OFFICER O'MALLEY",
+            "CHARACTER'S ASSISTANT",
+            "PROSECUTOR #2 (CONT'D)",
+        }
+
+        assert detected_characters == expected_characters, (
+            f"Expected {expected_characters}, got {detected_characters}"
+        )
+
+        # Test parentheticals are preserved
+        dialogue_map = {d.character: d for d in scene.dialogue_lines}
+        assert dialogue_map["LAWYER #1'S VOICE"].parenthetical == "(over intercom)"
+        assert dialogue_map["OFFICER O'MALLEY"].parenthetical == "(entering)"
+        assert dialogue_map["CHARACTER'S ASSISTANT"].parenthetical == "(whispering)"
+        assert dialogue_map["PROSECUTOR #2 (CONT'D)"].parenthetical == "(standing)"
+
+    def test_fountain_parser_character_line_regex_comprehensive(self, parser):
+        """Test _is_character_line method with comprehensive edge cases."""
+        # Test cases that should be valid characters
+        valid_characters = [
+            "JOHN",
+            "MARY JANE",
+            "DR. SMITH",
+            "MR. O'BRIEN",
+            "CHARACTER'S VOICE",
+            "COP 1",
+            "GUARD #2",
+            "OFFICER #1A",
+            "CHARACTER (V.O.)",
+            "CHARACTER (CONT'D)",
+            "CHARACTER (O.S.)",
+            "CHARACTER (PRELAP)",
+            "CHARACTER (FILTERED)",
+            "LAWYER #1'S VOICE",
+            "DR. SMITH-JONES",
+            "MARY'S MOTHER",
+            "YOUNG BOY #3",
+        ]
+
+        for char in valid_characters:
+            assert parser._is_character_line(char), f"Should be valid character: {char}"
+
+        # Test cases that should NOT be valid characters
+        invalid_characters = [
+            "",
+            "INT. ROOM - DAY",
+            "EXT. PARK - NIGHT",
+            "I/E. VEHICLE - DAY",
+            "FADE IN:",
+            "FADE OUT.",
+            "CUT TO:",
+            "lowercase text",
+            "Mixed Case Text",
+            "MONTAGE - VARIOUS",
+            "INTERCUT - PHONE CALL",
+            "   ",  # Just whitespace
+            "123",  # Just numbers
+            ".",  # Just punctuation
+        ]
+
+        for char in invalid_characters:
+            assert not parser._is_character_line(char), (
+                f"Should NOT be valid character: {char}"
+            )

@@ -546,3 +546,205 @@ class TestIndexCommandCoverage:
 
         # Script should be included since it has no last_indexed
         assert len(result) == 1
+
+    def test_index_script_result_semantics_new_script(self, tmp_path):
+        """Test IndexResult semantics for new scripts."""
+        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        mock_db_ops = Mock()
+
+        # Setup transaction context
+        mock_conn = Mock()
+        mock_context = Mock()
+        mock_context.__enter__ = Mock(return_value=mock_conn)
+        mock_context.__exit__ = Mock(return_value=None)
+        mock_db_ops.transaction.return_value = mock_context
+
+        # Mock no existing script (new script)
+        mock_db_ops.get_existing_script.return_value = None
+        mock_db_ops.upsert_script.return_value = 1
+        mock_db_ops.upsert_scene.return_value = (1, True)
+        mock_db_ops.upsert_characters.return_value = {"ALICE": 1}
+        mock_db_ops.insert_dialogues.return_value = 1
+        mock_db_ops.insert_actions.return_value = 1
+        mock_db_ops.get_script_stats.return_value = {
+            "scenes": 1,
+            "characters": 1,
+            "dialogues": 1,
+            "actions": 1,
+        }
+
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        # Create test script
+        script_path = tmp_path / "new_script.fountain"
+        script_path.write_text("""Title: New Script
+Author: New Author
+
+INT. NEW ROOM - DAY
+
+This is a new script.
+
+CHARACTER
+Hello world!
+""")
+
+        result = indexer.index_script(script_path)
+
+        # For new scripts: indexed=True, updated=False
+        assert result.indexed is True  # Successfully processed
+        assert result.updated is False  # Not an update (new script)
+        assert result.script_id is not None
+
+    def test_index_script_result_semantics_existing_script(self, tmp_path):
+        """Test IndexResult semantics for existing scripts."""
+        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        mock_db_ops = Mock()
+
+        # Setup transaction context
+        mock_conn = Mock()
+        mock_context = Mock()
+        mock_context.__enter__ = Mock(return_value=mock_conn)
+        mock_context.__exit__ = Mock(return_value=None)
+        mock_db_ops.transaction.return_value = mock_context
+
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        # Create test script
+        script_path = tmp_path / "existing_script.fountain"
+        script_path.write_text("""Title: Existing Script
+Author: Existing Author
+
+INT. EXISTING ROOM - DAY
+
+This is an existing script.
+
+CHARACTER
+Hello again!
+""")
+
+        # First index - new script
+        mock_db_ops.get_existing_script.return_value = None  # No existing script
+        mock_db_ops.upsert_script.return_value = 1
+        mock_db_ops.upsert_scene.return_value = (1, True)
+        mock_db_ops.upsert_characters.return_value = {"CHARACTER": 1}
+        mock_db_ops.insert_dialogues.return_value = 1
+        mock_db_ops.insert_actions.return_value = 1
+        mock_db_ops.get_script_stats.return_value = {
+            "scenes": 1,
+            "characters": 1,
+            "dialogues": 1,
+            "actions": 1,
+        }
+
+        result1 = indexer.index_script(script_path)
+        assert result1.indexed is True
+        assert result1.updated is False  # First time = new
+
+        # Second index - existing script
+        existing_script = Mock()
+        existing_script.id = 1
+        mock_db_ops.get_existing_script.return_value = (
+            existing_script  # Existing script
+        )
+        mock_db_ops.upsert_script.return_value = 1  # Same ID
+
+        result2 = indexer.index_script(script_path)
+        assert result2.indexed is True  # Successfully processed
+        assert result2.updated is True  # This time it's an update
+        assert result2.script_id == result1.script_id  # Same script
+
+    def test_dry_run_index_semantics(self, tmp_path):
+        """Test dry run semantics for IndexResult flags."""
+        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        mock_db_ops = Mock()
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        # Create test script
+        script_path = tmp_path / "dry_run_script.fountain"
+        script_path.write_text("""Title: Dry Run Script
+Author: Test Author
+
+INT. ROOM - DAY
+
+This is a dry run test.
+
+CHARACTER
+Testing!
+""")
+
+        # Test dry run
+        result = indexer.index_script(script_path, dry_run=True)
+
+        # Dry run always reports: indexed=True, updated=False
+        # Because it "would be indexed" and dry run doesn't check existing state
+        assert result.indexed is True  # Would be successfully processed
+        assert result.updated is False  # Dry run doesn't track update state
+        assert result.script_id is None  # No actual database operation
+
+    def test_index_script_comments_behavior(self, tmp_path):
+        """Test IndexResult behavior consistency with comments in code."""
+        # Based on the comments in the modified code:
+        # indexed=True means "Successfully processed regardless of new/update"
+        # updated=True means "Only updated if it existed"
+
+        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        mock_db_ops = Mock()
+
+        # Setup transaction context
+        mock_conn = Mock()
+        mock_context = Mock()
+        mock_context.__enter__ = Mock(return_value=mock_conn)
+        mock_context.__exit__ = Mock(return_value=None)
+        mock_db_ops.transaction.return_value = mock_context
+
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        script_path = tmp_path / "comment_test.fountain"
+        script_path.write_text("""Title: Comment Test Script
+
+INT. ROOM - DAY
+
+Testing comment semantics.
+
+CHARACTER
+This validates the comment behavior.
+""")
+
+        # Test new script scenario
+        mock_db_ops.get_existing_script.return_value = None  # New script
+        mock_db_ops.upsert_script.return_value = 1
+        mock_db_ops.upsert_scene.return_value = (1, True)
+        mock_db_ops.upsert_characters.return_value = {"CHARACTER": 1}
+        mock_db_ops.insert_dialogues.return_value = 1
+        mock_db_ops.insert_actions.return_value = 1
+        mock_db_ops.get_script_stats.return_value = {
+            "scenes": 1,
+            "characters": 1,
+            "dialogues": 1,
+            "actions": 1,
+        }
+
+        result_new = indexer.index_script(script_path)
+
+        # For new scripts: Successfully processed (indexed=True),
+        # not an update (updated=False)
+        assert (
+            result_new.indexed is True
+        )  # Successfully processed regardless of new/update
+        assert result_new.updated is False  # Only updated if it existed (it didn't)
+
+        # Test existing script scenario
+        existing_script = Mock()
+        existing_script.id = 1
+        mock_db_ops.get_existing_script.return_value = (
+            existing_script  # Existing script
+        )
+
+        result_existing = indexer.index_script(script_path)
+
+        # For existing scripts: Successfully processed (indexed=True),
+        # is an update (updated=True)
+        assert (
+            result_existing.indexed is True
+        )  # Successfully processed regardless of new/update
+        assert result_existing.updated is True  # Only updated if it existed (it did)

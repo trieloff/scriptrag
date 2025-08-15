@@ -1165,3 +1165,112 @@ class TestGitHubModelsDiscovery:
         # Should fall back to static models when no regex match
         assert len(models) == 1
         assert models[0].id == "gpt-4o"
+
+    @pytest.mark.asyncio
+    async def test_model_discovery_fallback_when_fewer_discovered(
+        self, static_models, mock_client, tmp_path, monkeypatch
+    ):
+        """Test fallback logic when discovery returns fewer models than static list."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Create static models list with 3 models
+        static_models_extended = [
+            *static_models,
+            Model(
+                id="claude-3-opus",
+                name="Claude 3 Opus",
+                provider=LLMProvider.GITHUB_MODELS,
+                capabilities=["chat"],
+            ),
+            Model(
+                id="llama-2-70b",
+                name="Llama 2 70B",
+                provider=LLMProvider.GITHUB_MODELS,
+                capabilities=["chat"],
+            ),
+        ]
+
+        # Mock API response with only 1 model (fewer than static)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "data": [
+                {
+                    "id": "gpt-4o",
+                    "name": "GPT-4o Updated",  # Different name than static
+                },
+            ]
+        }
+        mock_client.get.return_value = mock_response
+
+        discovery = GitHubModelsDiscovery(
+            provider_name="github_models",
+            static_models=static_models_extended,
+            client=mock_client,
+            token="test-token",  # noqa: S106
+            base_url="https://api.test.com",
+            use_cache=False,
+        )
+
+        models = await discovery.discover_models()
+
+        # Should have all 3 static models in original order
+        assert len(models) == 3
+        model_ids = [m.id for m in models]
+        assert model_ids == ["gpt-4o", "claude-3-opus", "llama-2-70b"]
+
+        # The discovered gpt-4o should replace static one
+        gpt_model = next(m for m in models if m.id == "gpt-4o")
+        assert gpt_model.name == "GPT-4o Updated"  # Uses discovered version
+
+    @pytest.mark.asyncio
+    async def test_github_models_discovery_with_model_id_map(
+        self, static_models, mock_client, tmp_path, monkeypatch
+    ):
+        """Test GitHub Models discovery with model ID mapping."""
+        monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+
+        # Mock API response with Azure registry IDs
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = [
+            {
+                "id": "azureml://registries/azure-openai/models/gpt-4o-mini/versions/1",
+                "name": "GPT-4o Mini",
+            },
+            {
+                "id": "azureml://registries/meta/models/llama-2-70b/versions/1",
+                "name": "Llama 2 70B",
+            },
+        ]
+        mock_client.get.return_value = mock_response
+
+        # Model ID mapping
+        model_id_map = {
+            "azureml://registries/azure-openai/models/gpt-4o-mini/versions/1": (
+                "gpt-4o-mini"
+            ),
+            "azureml://registries/meta/models/llama-2-70b/versions/1": "llama-2-70b",
+        }
+
+        discovery = GitHubModelsDiscovery(
+            provider_name="github_models",
+            static_models=static_models,
+            client=mock_client,
+            token="test-token",  # noqa: S106
+            base_url="https://api.test.com",
+            model_id_map=model_id_map,
+            use_cache=False,
+        )
+
+        models = await discovery.discover_models()
+
+        # Should map Azure registry IDs to simple IDs
+        assert len(models) == 2
+        model_ids = [m.id for m in models]
+        assert "gpt-4o-mini" in model_ids
+        assert "llama-2-70b" in model_ids
+
+        # Ensure no Azure registry paths in final IDs
+        for model_id in model_ids:
+            assert not model_id.startswith("azureml://")

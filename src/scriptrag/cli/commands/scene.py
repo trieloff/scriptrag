@@ -11,7 +11,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 
-from scriptrag.api.scene_management import SceneIdentifier, SceneManagementAPI
+from scriptrag.api.scene_management import SceneManagementAPI
+from scriptrag.api.scene_models import SceneIdentifier
 from scriptrag.config import get_logger
 
 logger = get_logger(__name__)

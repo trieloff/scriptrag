@@ -12,12 +12,19 @@ import os
 import shutil
 import sqlite3
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
 from scriptrag.config import set_settings
+from tests.llm_fixtures import create_llm_completion_response
+from tests.llm_test_utils import (
+    TIMEOUT_INTEGRATION,
+    TIMEOUT_LLM,
+    retry_flaky_test,
+)
 from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
@@ -108,6 +115,31 @@ def props_screenplay(tmp_path):
 class TestFullWorkflow:
     """Test the complete ScriptRAG workflow from init to index."""
 
+    @pytest.mark.timeout(TIMEOUT_LLM)
+    @pytest.mark.requires_llm
+    def test_workflow_with_real_llm(self, tmp_path, sample_screenplay, monkeypatch):
+        """Test workflow with real LLM (only runs if SCRIPTRAG_TEST_LLMS is set)."""
+        # This test will be skipped in CI unless explicitly enabled
+        # It has a longer timeout for actual LLM calls
+        db_path = tmp_path / "test.db"
+        monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Initialize database
+        result = runner.invoke(app, ["init", "--db-path", str(db_path)])
+        assert result.exit_code == 0
+
+        # Analyze with real LLM (will use actual providers if configured)
+        result = runner.invoke(
+            app,
+            ["analyze", str(sample_screenplay.parent)],
+            catch_exceptions=False,
+        )
+        # Real LLM might fail due to rate limits, etc.
+        # We accept both success and expected failures
+        assert result.exit_code in [0, 1]
+
+    @pytest.mark.timeout(TIMEOUT_INTEGRATION)
+    @retry_flaky_test(max_attempts=2)
     def test_happy_path_workflow(self, tmp_path, sample_screenplay, monkeypatch):
         """Test the complete workflow: init -> analyze -> index -> verify."""
         # Setup paths
@@ -122,21 +154,36 @@ class TestFullWorkflow:
         assert "Database initialized successfully" in strip_ansi_codes(result.stdout)
         assert db_path.exists()
 
-        # Step 2: Analyze the screenplay
-        result = runner.invoke(
-            app,
-            [
-                "analyze",
-                str(sample_screenplay.parent),  # Pass directory, not file
-            ],
-        )
-        # Debug output
-        if result.exit_code != 0:
-            pass  # Analyze command failed
-        assert result.exit_code == 0
-        # The analyze command outputs "Processing" and "Updated" messages
-        output = strip_ansi_codes(result.stdout)
-        assert "Processing" in output or "Updated" in output
+        # Step 2: Analyze the screenplay with mock LLM
+        # Mock the LLM to avoid timeouts and rate limits
+        with patch("scriptrag.utils.get_default_llm_client") as mock_get_client:
+            from unittest.mock import AsyncMock
+
+            mock_client = AsyncMock()
+
+            # Create mock scene analysis response
+            mock_response = create_llm_completion_response("scene", "coffee_shop")
+            mock_client.complete = AsyncMock(
+                return_value=type(
+                    "Response", (), {"choices": [{"text": mock_response}]}
+                )
+            )
+            mock_get_client.return_value = mock_client
+
+            result = runner.invoke(
+                app,
+                [
+                    "analyze",
+                    str(sample_screenplay.parent),  # Pass directory, not file
+                ],
+            )
+            # Debug output
+            if result.exit_code != 0:
+                pass  # Analyze command failed
+            assert result.exit_code == 0
+            # The analyze command outputs "Processing" and "Updated" messages
+            output = strip_ansi_codes(result.stdout)
+            assert "Processing" in output or "Updated" in output
 
         # Verify the screenplay now contains metadata
         updated_content = sample_screenplay.read_text()

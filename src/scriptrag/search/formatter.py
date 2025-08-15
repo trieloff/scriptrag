@@ -5,7 +5,10 @@ import json
 from rich.console import Console
 from rich.panel import Panel
 
+from scriptrag.config import get_logger
 from scriptrag.search.models import SearchResponse, SearchResult
+
+logger = get_logger(__name__)
 
 
 class ResultFormatter:
@@ -27,11 +30,24 @@ class ResultFormatter:
             verbose: Show detailed information
         """
         if not response.results:
+            logger.debug(
+                "No search results found",
+                query=response.query.raw_query,
+                total_count=0,
+            )
             self.console.print(
                 "[yellow]No results found for your search.[/yellow]",
                 style="bold",
             )
             return
+
+        logger.debug(
+            "Formatting search results",
+            total_count=response.total_count,
+            result_count=len(response.results),
+            verbose=verbose,
+            execution_time_ms=response.execution_time_ms,
+        )
 
         # Display search info
         self._display_search_info(response)
@@ -49,6 +65,14 @@ class ResultFormatter:
         Args:
             response: Search response
         """
+        logger.debug(
+            "Displaying search info",
+            project=response.query.project,
+            characters=response.query.characters,
+            dialogue=bool(response.query.dialogue),
+            text_query=bool(response.query.text_query),
+            search_methods=response.search_methods,
+        )
         query_parts = []
 
         if response.query.project:
@@ -180,7 +204,14 @@ class ResultFormatter:
             Brief text summary
         """
         if not response.results:
+            logger.debug("Formatting brief summary: no results")
             return "No results found."
+
+        logger.debug(
+            "Formatting brief summary",
+            result_count=len(response.results),
+            has_more=response.has_more,
+        )
 
         lines = []
         for i, result in enumerate(response.results, 1):
@@ -209,6 +240,11 @@ class ResultFormatter:
         Returns:
             JSON string representation of results
         """
+        logger.debug(
+            "Formatting results as JSON",
+            result_count=len(response.results),
+            total_count=response.total_count,
+        )
         data = {
             "results": [
                 {

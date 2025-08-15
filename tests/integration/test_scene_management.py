@@ -109,6 +109,11 @@ class TestSceneManagement:
         db_path = tmp_path / "test.db"
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
 
+        # Create a config file for scene commands to use
+        config_path = tmp_path / "config.toml"
+        config_content = f'database_path = "{db_path}"'
+        config_path.write_text(config_content)
+
         # Initialize, analyze, and index
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])
         assert result.exit_code == 0
@@ -124,7 +129,16 @@ class TestSceneManagement:
         # Test 1: Read a scene
         result = runner.invoke(
             app,
-            ["scene", "read", "--project", "Integration Test Script", "--scene", "1"],
+            [
+                "scene",
+                "read",
+                "--project",
+                "Integration Test Script",
+                "--scene",
+                "1",
+                "--config",
+                str(config_path),
+            ],
         )
         assert result.exit_code == 0
         output = strip_ansi_codes(result.stdout)
@@ -143,6 +157,8 @@ class TestSceneManagement:
                 "--scene",
                 "2",
                 "--json",
+                "--config",
+                str(config_path),
             ],
         )
         assert result.exit_code == 0
@@ -169,6 +185,8 @@ SARAH enters the new location."""
                 "1",
                 "--content",
                 new_scene_content,
+                "--config",
+                str(config_path),
             ],
         )
         assert result.exit_code == 0
@@ -178,7 +196,16 @@ SARAH enters the new location."""
         # Verify the new scene exists by reading scene 2 (which should be the new one)
         result = runner.invoke(
             app,
-            ["scene", "read", "--project", "Integration Test Script", "--scene", "2"],
+            [
+                "scene",
+                "read",
+                "--project",
+                "Integration Test Script",
+                "--scene",
+                "2",
+                "--config",
+                str(config_path),
+            ],
         )
         assert result.exit_code == 0
         output = strip_ansi_codes(result.stdout)
@@ -202,6 +229,8 @@ JAMES walks in."""
                 "2",
                 "--content",
                 updated_content,
+                "--config",
+                str(config_path),
             ],
         )
         assert result.exit_code == 0
@@ -211,7 +240,16 @@ JAMES walks in."""
         # Verify the update worked
         result = runner.invoke(
             app,
-            ["scene", "read", "--project", "Integration Test Script", "--scene", "2"],
+            [
+                "scene",
+                "read",
+                "--project",
+                "Integration Test Script",
+                "--scene",
+                "2",
+                "--config",
+                str(config_path),
+            ],
         )
         assert result.exit_code == 0
         output = strip_ansi_codes(result.stdout)
@@ -229,6 +267,8 @@ JAMES walks in."""
                 "--scene",
                 "2",
                 "--confirm",
+                "--config",
+                str(config_path),
             ],
         )
         assert result.exit_code == 0
@@ -238,7 +278,16 @@ JAMES walks in."""
         # Verify the scene was deleted (scene 2 should now be the original scene 2)
         result = runner.invoke(
             app,
-            ["scene", "read", "--project", "Integration Test Script", "--scene", "2"],
+            [
+                "scene",
+                "read",
+                "--project",
+                "Integration Test Script",
+                "--scene",
+                "2",
+                "--config",
+                str(config_path),
+            ],
         )
         assert result.exit_code == 0
         output = strip_ansi_codes(result.stdout)
@@ -250,6 +299,11 @@ JAMES walks in."""
         """Test scene management for TV series format."""
         db_path = tmp_path / "test.db"
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Create a config file for scene commands to use
+        config_path = tmp_path / "config.toml"
+        config_content = f'database_path = "{db_path}"'
+        config_path.write_text(config_content)
 
         # Initialize, analyze, and index
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])
@@ -277,6 +331,8 @@ JAMES walks in."""
                 "1",
                 "--scene",
                 "1",
+                "--config",
+                str(config_path),
             ],
         )
         assert result.exit_code == 0
@@ -297,11 +353,13 @@ JAMES walks in."""
                 "1",
                 "--scene",
                 "2",
+                "--config",
+                str(config_path),
             ],
         )
         assert result.exit_code == 0
         output = strip_ansi_codes(result.stdout)
-        assert "HIGH SCHOOL" in output or "CHEMISTRY" in output
+        assert "DESERT" in output or "RV" in output
 
     def test_scene_management_error_cases(
         self, tmp_path, sample_screenplay, monkeypatch
@@ -309,6 +367,11 @@ JAMES walks in."""
         """Test error handling for scene management commands."""
         db_path = tmp_path / "test.db"
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(db_path))
+
+        # Create a config file for scene commands to use
+        config_path = tmp_path / "config.toml"
+        config_content = f'database_path = "{db_path}"'
+        config_path.write_text(config_content)
 
         # Initialize, analyze, and index
         result = runner.invoke(app, ["init", "--db-path", str(db_path)])
@@ -332,6 +395,8 @@ JAMES walks in."""
                 "Integration Test Script",
                 "--scene",
                 "999",
+                "--config",
+                str(config_path),
             ],
         )
         # Check if command returns error
@@ -359,6 +424,8 @@ JAMES walks in."""
                 "999",
                 "--content",
                 "This should fail",
+                "--config",
+                str(config_path),
             ],
         )
         assert result.exit_code != 0
@@ -368,7 +435,16 @@ JAMES walks in."""
         # Test 3: Delete without confirmation (should warn but not delete)
         result = runner.invoke(
             app,
-            ["scene", "delete", "--project", "Integration Test Script", "--scene", "1"],
+            [
+                "scene",
+                "delete",
+                "--project",
+                "Integration Test Script",
+                "--scene",
+                "1",
+                "--config",
+                str(config_path),
+            ],
         )
         # Command may return 0 with a warning message
         output = strip_ansi_codes(result.stdout)
@@ -377,7 +453,16 @@ JAMES walks in."""
         # Test 4: Read from non-existent project
         result = runner.invoke(
             app,
-            ["scene", "read", "--project", "Non-Existent Project", "--scene", "1"],
+            [
+                "scene",
+                "read",
+                "--project",
+                "Non-Existent Project",
+                "--scene",
+                "1",
+                "--config",
+                str(config_path),
+            ],
         )
         assert result.exit_code != 0
         output = strip_ansi_codes(result.stdout)
@@ -395,6 +480,8 @@ JAMES walks in."""
                 "999",
                 "--content",
                 "INT. INVALID - DAY\n\nThis should fail",
+                "--config",
+                str(config_path),
             ],
         )
         assert result.exit_code != 0
@@ -413,6 +500,8 @@ JAMES walks in."""
                 "1",
                 "--content",
                 "This is not valid Fountain format - no scene heading",
+                "--config",
+                str(config_path),
             ],
         )
         assert result.exit_code != 0
@@ -429,6 +518,8 @@ JAMES walks in."""
                 "Integration Test Script",
                 "--bible-name",
                 "non_existent.md",
+                "--config",
+                str(config_path),
             ],
         )
         assert result.exit_code != 0

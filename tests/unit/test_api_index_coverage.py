@@ -671,6 +671,9 @@ Hello again!
         # Also setup get_connection for dry run analysis
         mock_db_ops.get_connection.return_value = mock_context
 
+        # Mock get_existing_script to return None (new script)
+        mock_db_ops.get_existing_script.return_value = None
+
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Create test script

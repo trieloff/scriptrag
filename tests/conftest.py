@@ -21,6 +21,18 @@ def pytest_configure(config):
         "markers",
         "integration: mark test as integration test",
     )
+    config.addinivalue_line(
+        "markers",
+        "slow: mark test as slow running (may need extended timeout)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "unit: mark test as unit test",
+    )
+    config.addinivalue_line(
+        "markers",
+        "timeout(seconds): override timeout for specific test",
+    )
 
 
 def pytest_collection_modifyitems(config, items):

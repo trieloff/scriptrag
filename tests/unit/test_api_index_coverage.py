@@ -668,6 +668,9 @@ Hello again!
         mock_context.__exit__ = Mock(return_value=None)
         mock_db_ops.transaction.return_value = mock_context
 
+        # Also setup get_connection for dry run analysis
+        mock_db_ops.get_connection.return_value = mock_context
+
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Create test script

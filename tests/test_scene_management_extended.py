@@ -137,7 +137,7 @@ class TestSceneManagementAPIExtended:
             "time_of_day": "DAY",
         }
 
-        scene = api._get_scene_by_id(mock_conn, scene_id)
+        scene = api.scene_db.get_scene_by_id(mock_conn, scene_id)
 
         assert scene is not None
         assert scene.number == 10
@@ -160,7 +160,7 @@ class TestSceneManagementAPIExtended:
 
         mock_conn.execute().fetchone.return_value = None
 
-        scene = api._get_scene_by_id(mock_conn, scene_id)
+        scene = api.scene_db.get_scene_by_id(mock_conn, scene_id)
         assert scene is None
 
     def test_update_scene_content_with_parsed_scene(self, api, mock_conn):
@@ -177,7 +177,7 @@ class TestSceneManagementAPIExtended:
             time_of_day="DAY",
         )
 
-        updated = api._update_scene_content(
+        updated = api.scene_db.update_scene_content(
             mock_conn, scene_id, new_content, parsed_scene
         )
 
@@ -195,7 +195,9 @@ class TestSceneManagementAPIExtended:
             mock_utils.extract_location.return_value = "NEW SCENE"
             mock_utils.extract_time.return_value = "DAY"
 
-            updated = api._update_scene_content(mock_conn, scene_id, new_content, None)
+            updated = api.scene_db.update_scene_content(
+                mock_conn, scene_id, new_content, None
+            )
 
             assert updated.heading == "INT. NEW SCENE - DAY"
             assert updated.location == "NEW SCENE"
@@ -211,7 +213,9 @@ class TestSceneManagementAPIExtended:
         )
         new_content = "INT. NEW SCENE - DAY\n\nNew content"
 
-        updated = api._update_scene_content(mock_conn, scene_id, new_content, None)
+        updated = api.scene_db.update_scene_content(
+            mock_conn, scene_id, new_content, None
+        )
 
         # Check SQL query included season/episode conditions
         call_args = mock_conn.execute.call_args[0]
@@ -239,7 +243,7 @@ class TestSceneManagementAPIExtended:
         # Mock script ID query
         mock_conn.execute().fetchone.return_value = [123]  # script_id
 
-        created = api._create_scene(mock_conn, scene_id, content, parsed_scene)
+        created = api.scene_db.create_scene(mock_conn, scene_id, content, parsed_scene)
 
         assert created.number == 5
         assert created.heading == "INT. NEW SCENE - DAY"
@@ -258,7 +262,7 @@ class TestSceneManagementAPIExtended:
             mock_utils.extract_location.return_value = "NEW SCENE"
             mock_utils.extract_time.return_value = "DAY"
 
-            created = api._create_scene(mock_conn, scene_id, content, None)
+            created = api.scene_db.create_scene(mock_conn, scene_id, content, None)
 
             assert created.number == 5
             assert created.heading == "INT. NEW SCENE - DAY"
@@ -272,7 +276,7 @@ class TestSceneManagementAPIExtended:
         mock_conn.execute().fetchone.return_value = None
 
         with pytest.raises(ValueError, match="Script not found"):
-            api._create_scene(mock_conn, scene_id, content, None)
+            api.scene_db.create_scene(mock_conn, scene_id, content, None)
 
     def test_create_scene_with_season_episode(self, api, mock_conn):
         """Test _create_scene with TV show parameters."""
@@ -287,7 +291,7 @@ class TestSceneManagementAPIExtended:
         # Mock script ID query
         mock_conn.execute().fetchone.return_value = [123]  # script_id
 
-        created = api._create_scene(mock_conn, scene_id, content, None)
+        created = api.scene_db.create_scene(mock_conn, scene_id, content, None)
 
         # Check SQL query for script lookup included season/episode
         if mock_conn.execute.call_args_list:
@@ -306,7 +310,7 @@ class TestSceneManagementAPIExtended:
         """Test _delete_scene."""
         scene_id = SceneIdentifier(project="test", scene_number=5)
 
-        api._delete_scene(mock_conn, scene_id)
+        api.scene_db.delete_scene(mock_conn, scene_id)
 
         # Check DELETE query was executed
         call_args = mock_conn.execute.call_args[0]
@@ -326,7 +330,7 @@ class TestSceneManagementAPIExtended:
             scene_number=5,
         )
 
-        api._delete_scene(mock_conn, scene_id)
+        api.scene_db.delete_scene(mock_conn, scene_id)
 
         # Check SQL query included season/episode conditions
         call_args = mock_conn.execute.call_args[0]
@@ -341,7 +345,7 @@ class TestSceneManagementAPIExtended:
         """Test _shift_scenes_after."""
         scene_id = SceneIdentifier(project="test", scene_number=5)
 
-        api._shift_scenes_after(mock_conn, scene_id, 1)
+        api.scene_db.shift_scenes_after(mock_conn, scene_id, 1)
 
         # Check UPDATE query was executed
         call_args = mock_conn.execute.call_args[0]
@@ -363,7 +367,7 @@ class TestSceneManagementAPIExtended:
             scene_number=5,
         )
 
-        api._shift_scenes_after(mock_conn, scene_id, 2)
+        api.scene_db.shift_scenes_after(mock_conn, scene_id, 2)
 
         # Check SQL query included season/episode conditions
         call_args = mock_conn.execute.call_args[0]
@@ -378,7 +382,7 @@ class TestSceneManagementAPIExtended:
         """Test _shift_scenes_from."""
         scene_id = SceneIdentifier(project="test", scene_number=5)
 
-        api._shift_scenes_from(mock_conn, scene_id, 1)
+        api.scene_db.shift_scenes_from(mock_conn, scene_id, 1)
 
         # Check UPDATE query was executed
         call_args = mock_conn.execute.call_args[0]
@@ -400,7 +404,7 @@ class TestSceneManagementAPIExtended:
             scene_number=10,
         )
 
-        api._shift_scenes_from(mock_conn, scene_id, -1)
+        api.scene_db.shift_scenes_from(mock_conn, scene_id, -1)
 
         # Check SQL query included season/episode conditions
         call_args = mock_conn.execute.call_args[0]
@@ -418,8 +422,8 @@ class TestSceneManagementAPIExtended:
         # Mock scenes after deleted scene
         mock_conn.execute().fetchall.return_value = [(6,), (7,), (8,)]
 
-        with patch.object(api, "_shift_scenes_after") as mock_shift:
-            renumbered = api._compact_scene_numbers(mock_conn, scene_id)
+        with patch.object(api.scene_db, "shift_scenes_after") as mock_shift:
+            renumbered = api.scene_db.compact_scene_numbers(mock_conn, scene_id)
 
             assert renumbered == [6, 7, 8]
             mock_shift.assert_called_once_with(mock_conn, scene_id, -1)
@@ -431,8 +435,8 @@ class TestSceneManagementAPIExtended:
         # Mock no scenes after
         mock_conn.execute().fetchall.return_value = []
 
-        with patch.object(api, "_shift_scenes_after") as mock_shift:
-            renumbered = api._compact_scene_numbers(mock_conn, scene_id)
+        with patch.object(api.scene_db, "shift_scenes_after") as mock_shift:
+            renumbered = api.scene_db.compact_scene_numbers(mock_conn, scene_id)
 
             assert renumbered == []
             mock_shift.assert_not_called()
@@ -449,7 +453,7 @@ class TestSceneManagementAPIExtended:
         # Mock scenes after deleted scene
         mock_conn.execute().fetchall.return_value = [(6,), (7,)]
 
-        renumbered = api._compact_scene_numbers(mock_conn, scene_id)
+        renumbered = api.scene_db.compact_scene_numbers(mock_conn, scene_id)
 
         # Check SQL query included season/episode conditions
         call_args = mock_conn.execute.call_args[0]
@@ -467,7 +471,7 @@ class TestSceneManagementAPIExtended:
         # Mock scenes after reference
         mock_conn.execute().fetchall.return_value = [(6,), (7,), (8,)]
 
-        renumbered = api._get_renumbered_scenes(mock_conn, scene_id)
+        renumbered = api.scene_db.get_renumbered_scenes(mock_conn, scene_id)
 
         assert renumbered == [6, 7, 8]
 
@@ -492,7 +496,7 @@ class TestSceneManagementAPIExtended:
         # Mock scenes after reference
         mock_conn.execute().fetchall.return_value = [(11,), (12,)]
 
-        renumbered = api._get_renumbered_scenes(mock_conn, scene_id)
+        renumbered = api.scene_db.get_renumbered_scenes(mock_conn, scene_id)
 
         assert renumbered == [11, 12]
 
@@ -543,7 +547,7 @@ class TestSceneManagementAPIExtended:
 
         with patch.object(api.db_ops, "transaction") as mock_trans:
             mock_conn = mock_trans().__enter__()
-            with patch.object(api, "_get_scene_by_id", return_value=None):
+            with patch.object(api.scene_db, "get_scene_by_id", return_value=None):
                 result = await api.update_scene(
                     scene_id, content, check_conflicts=False
                 )
@@ -560,7 +564,7 @@ class TestSceneManagementAPIExtended:
 
         with patch.object(api.db_ops, "transaction") as mock_trans:
             mock_conn = mock_trans().__enter__()
-            with patch.object(api, "_get_scene_by_id", return_value=None):
+            with patch.object(api.scene_db, "get_scene_by_id", return_value=None):
                 result = await api.add_scene(scene_id, content, "after")
 
                 assert result.success is False
@@ -583,7 +587,7 @@ class TestSceneManagementAPIExtended:
 
         with patch.object(api.db_ops, "transaction") as mock_trans:
             mock_conn = mock_trans().__enter__()
-            with patch.object(api, "_get_scene_by_id", return_value=mock_scene):
+            with patch.object(api.scene_db, "get_scene_by_id", return_value=mock_scene):
                 result = await api.add_scene(scene_id, content, "invalid")
 
                 assert result.success is False

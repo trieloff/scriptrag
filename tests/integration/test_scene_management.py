@@ -164,7 +164,9 @@ class TestSceneManagement:
             ],
         )
         assert result.exit_code == 0
-        data = json.loads(result.stdout)
+        # Strip ANSI codes before parsing JSON (Windows compatibility)
+        clean_output = strip_ansi_codes(result.stdout)
+        data = json.loads(clean_output)
         assert data["success"] is True
         assert "content" in data
         assert "CITY STREET" in data["content"]

@@ -345,23 +345,20 @@ class TestSceneManagementAPIExtended:
         """Test _shift_scenes_after."""
         scene_id = SceneIdentifier(project="test", scene_number=5)
 
-        # Mock the SELECT query to return scenes to shift
-        mock_cursor = MagicMock()
-        mock_cursor.fetchall.return_value = [(6,), (7,), (8,)]
-        mock_conn.execute.return_value = mock_cursor
-
         api.scene_db.shift_scenes_after(mock_conn, scene_id, 1)
 
-        # Should have 1 SELECT + 3 UPDATEs = 4 calls
-        assert mock_conn.execute.call_count == 4
+        # Should have 1 bulk UPDATE call
+        assert mock_conn.execute.call_count == 1
 
-        # Check SELECT query was executed first
-        first_call = mock_conn.execute.call_args_list[0]
-        query = first_call[0][0]
-        params = first_call[0][1]
+        # Check UPDATE query was executed
+        call_args = mock_conn.execute.call_args[0]
+        query = call_args[0]
+        params = call_args[1]
 
-        assert "SELECT scene_number FROM scenes" in query
+        assert "UPDATE scenes" in query
+        assert "SET scene_number = scene_number + ?" in query
         assert "scene_number > ?" in query
+        assert 1 in params  # shift
         assert 5 in params  # scene_number
         assert "test" in params  # project
 
@@ -389,23 +386,20 @@ class TestSceneManagementAPIExtended:
         """Test _shift_scenes_from."""
         scene_id = SceneIdentifier(project="test", scene_number=5)
 
-        # Mock the SELECT query to return scenes to shift
-        mock_cursor = MagicMock()
-        mock_cursor.fetchall.return_value = [(5,), (6,), (7,)]
-        mock_conn.execute.return_value = mock_cursor
-
         api.scene_db.shift_scenes_from(mock_conn, scene_id, 1)
 
-        # Should have 1 SELECT + 3 UPDATEs = 4 calls
-        assert mock_conn.execute.call_count == 4
+        # Should have 1 bulk UPDATE call
+        assert mock_conn.execute.call_count == 1
 
-        # Check SELECT query was executed first
-        first_call = mock_conn.execute.call_args_list[0]
-        query = first_call[0][0]
-        params = first_call[0][1]
+        # Check UPDATE query was executed
+        call_args = mock_conn.execute.call_args[0]
+        query = call_args[0]
+        params = call_args[1]
 
-        assert "SELECT scene_number FROM scenes" in query
+        assert "UPDATE scenes" in query
+        assert "SET scene_number = scene_number + ?" in query
         assert "scene_number >= ?" in query
+        assert 1 in params  # shift
         assert 5 in params  # scene_number
         assert "test" in params  # project
 

@@ -655,15 +655,15 @@ class SceneManagementAPI:
         self, conn: sqlite3.Connection, scene_id: SceneIdentifier, shift: int
     ) -> None:
         """Shift scene numbers after a given scene."""
+        # First get all scenes that need shifting
         query = """
-            UPDATE scenes
-            SET scene_number = scene_number + ?
+            SELECT scene_number FROM scenes
             WHERE scene_number > ?
                 AND script_id = (
                     SELECT id FROM scripts
                     WHERE title = ?
         """
-        params: list[Any] = [shift, scene_id.scene_number, scene_id.project]
+        params: list[Any] = [scene_id.scene_number, scene_id.project]
 
         if scene_id.season is not None:
             query += " AND json_extract(metadata, '$.season') = ?"
@@ -673,23 +673,54 @@ class SceneManagementAPI:
             query += " AND json_extract(metadata, '$.episode') = ?"
             params.append(scene_id.episode)
 
-        query += ")"
+        # Order by scene_number DESC if shifting up, ASC if shifting down
+        if shift > 0:
+            query += ") ORDER BY scene_number DESC"
+        else:
+            query += ") ORDER BY scene_number ASC"
 
-        conn.execute(query, params)
+        cursor = conn.execute(query, params)
+        scenes_to_shift = [row[0] for row in cursor.fetchall()]
+
+        # Now update each scene individually in the correct order
+        update_query = """
+            UPDATE scenes
+            SET scene_number = scene_number + ?
+            WHERE scene_number = ?
+                AND script_id = (
+                    SELECT id FROM scripts
+                    WHERE title = ?
+        """
+
+        for scene_num in scenes_to_shift:
+            update_params: list[Any] = [shift, scene_num, scene_id.project]
+
+            update_query_full = update_query
+            if scene_id.season is not None:
+                update_query_full += " AND json_extract(metadata, '$.season') = ?"
+                update_params.append(scene_id.season)
+
+            if scene_id.episode is not None:
+                update_query_full += " AND json_extract(metadata, '$.episode') = ?"
+                update_params.append(scene_id.episode)
+
+            update_query_full += ")"
+
+            conn.execute(update_query_full, update_params)
 
     def _shift_scenes_from(
         self, conn: sqlite3.Connection, scene_id: SceneIdentifier, shift: int
     ) -> None:
         """Shift scene numbers from a given scene."""
+        # First get all scenes that need shifting
         query = """
-            UPDATE scenes
-            SET scene_number = scene_number + ?
+            SELECT scene_number FROM scenes
             WHERE scene_number >= ?
                 AND script_id = (
                     SELECT id FROM scripts
                     WHERE title = ?
         """
-        params: list[Any] = [shift, scene_id.scene_number, scene_id.project]
+        params: list[Any] = [scene_id.scene_number, scene_id.project]
 
         if scene_id.season is not None:
             query += " AND json_extract(metadata, '$.season') = ?"
@@ -699,9 +730,40 @@ class SceneManagementAPI:
             query += " AND json_extract(metadata, '$.episode') = ?"
             params.append(scene_id.episode)
 
-        query += ")"
+        # Order by scene_number DESC if shifting up, ASC if shifting down
+        if shift > 0:
+            query += ") ORDER BY scene_number DESC"
+        else:
+            query += ") ORDER BY scene_number ASC"
 
-        conn.execute(query, params)
+        cursor = conn.execute(query, params)
+        scenes_to_shift = [row[0] for row in cursor.fetchall()]
+
+        # Now update each scene individually in the correct order
+        update_query = """
+            UPDATE scenes
+            SET scene_number = scene_number + ?
+            WHERE scene_number = ?
+                AND script_id = (
+                    SELECT id FROM scripts
+                    WHERE title = ?
+        """
+
+        for scene_num in scenes_to_shift:
+            update_params: list[Any] = [shift, scene_num, scene_id.project]
+
+            update_query_full = update_query
+            if scene_id.season is not None:
+                update_query_full += " AND json_extract(metadata, '$.season') = ?"
+                update_params.append(scene_id.season)
+
+            if scene_id.episode is not None:
+                update_query_full += " AND json_extract(metadata, '$.episode') = ?"
+                update_params.append(scene_id.episode)
+
+            update_query_full += ")"
+
+            conn.execute(update_query_full, update_params)
 
     def _compact_scene_numbers(
         self, conn: sqlite3.Connection, scene_id: SceneIdentifier

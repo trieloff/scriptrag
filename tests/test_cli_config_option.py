@@ -456,7 +456,7 @@ class TestConfigOptionSearchCommand:
     """Test --config option for search command."""
 
     @patch("scriptrag.cli.commands.search.SearchAPI")
-    @patch("scriptrag.cli.commands.search.get_settings")
+    @patch("scriptrag.config.get_settings")
     @patch("scriptrag.config.settings.ScriptRAGSettings")
     def test_search_with_config(
         self, mock_settings_class, mock_get_settings, mock_search_api
@@ -490,7 +490,7 @@ class TestConfigOptionSearchCommand:
             mock_result.query = "test query"
             mock_result.mode = "semantic"
 
-            async def mock_search(*args, **kwargs):
+            def mock_search(*args, **kwargs):
                 return mock_result
 
             mock_search_instance.search = MagicMock(side_effect=mock_search)

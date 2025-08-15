@@ -766,7 +766,9 @@ class TestPullCommand:
         # The error message might have formatting/newlines from Rich console
         # Check for both parts separately as they may be on different lines
         assert "Error: Config file not found:" in result.output
-        assert "nonexistent.yaml" in result.output
+        # Check for filename in output (may be wrapped across lines)
+        # Remove all whitespace to handle potential line wrapping
+        assert "nonexistent.yaml" in result.output.replace("\n", "").replace(" ", "")
 
     def test_pull_config_loading_exception(
         self, runner, mock_db_ops, mock_analyze_cmd, mock_index_cmd, tmp_path

@@ -624,3 +624,48 @@ class TestResultFormatter:
         assert result_data["season"] == 1
         assert result_data["episode"] == 1
         assert result_data["match_type"] == "complete"
+
+    def test_get_query_attr_with_object(self):
+        """Test _get_query_attr with SearchQuery object."""
+        formatter = ResultFormatter()
+        query = SearchQuery(raw_query="test", text_query="test query")
+
+        # Test getting existing attribute
+        assert formatter._get_query_attr(query, "raw_query") == "test"
+        assert formatter._get_query_attr(query, "text_query") == "test query"
+
+        # Test getting non-existent attribute with default
+        assert formatter._get_query_attr(query, "nonexistent", "default") == "default"
+        assert formatter._get_query_attr(query, "nonexistent") is None
+
+    def test_get_query_attr_with_string(self):
+        """Test _get_query_attr with string query (defensive handling)."""
+        formatter = ResultFormatter()
+        query = "string query"
+
+        # String should always return default since it has no custom attributes
+        assert formatter._get_query_attr(query, "raw_query", "default") == "default"
+        assert formatter._get_query_attr(query, "any_attr") is None
+
+    def test_format_results_with_string_query(self):
+        """Test format_results handles string query gracefully."""
+        console = MagicMock(spec=Console)
+        formatter = ResultFormatter(console=console)
+
+        # Create response with string query (edge case)
+        response = SearchResponse(
+            query="string query",  # String instead of SearchQuery
+            results=[],
+            total_count=0,
+            has_more=False,
+            execution_time_ms=10.5,
+        )
+
+        # Should not crash
+        formatter.format_results(response)
+
+        # Should still print no results message
+        console.print.assert_any_call(
+            "[yellow]No results found for your search.[/yellow]",
+            style="bold",
+        )

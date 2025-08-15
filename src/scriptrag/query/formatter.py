@@ -47,10 +47,21 @@ class QueryFormatter:
         Returns:
             JSON string if output_json is True, None otherwise
         """
+        logger.debug(
+            "Formatting query results",
+            query_name=query_name,
+            row_count=len(rows),
+            execution_time_ms=execution_time_ms,
+            output_json=output_json,
+            limit=limit,
+            offset=offset,
+        )
+
         if output_json:
             return self._format_json(rows, query_name, execution_time_ms)
 
         if not rows:
+            logger.debug(f"No results found for query '{query_name}'")
             self.console.print(
                 f"[yellow]No results found for query '{query_name}'.[/yellow]",
                 style="bold",
@@ -89,7 +100,16 @@ class QueryFormatter:
 
         # Must have at least 3 of the 4 key scene columns
         matching = len(scene_columns & row_columns)
-        return matching >= 3
+        is_scene = matching >= 3
+
+        logger.debug(
+            "Checking if results are scene-like",
+            is_scene=is_scene,
+            matching_columns=matching,
+            total_columns=len(row_columns),
+        )
+
+        return is_scene
 
     def _format_as_scenes(
         self,
@@ -108,6 +128,12 @@ class QueryFormatter:
             limit: Query limit
             offset: Query offset
         """
+        logger.debug(
+            "Formatting query results as scenes",
+            query_name=query_name,
+            row_count=len(rows),
+        )
+
         # Convert rows to SearchResult objects
         results = []
         for row in rows:
@@ -163,6 +189,13 @@ class QueryFormatter:
             query_name: Query name
             execution_time_ms: Execution time
         """
+        logger.debug(
+            "Formatting query results as table",
+            query_name=query_name,
+            row_count=len(rows),
+            column_count=len(rows[0]) if rows else 0,
+        )
+
         # Display query info
         self.console.print(
             f"[bold]Query:[/bold] [cyan]{query_name}[/cyan] - "
@@ -204,6 +237,12 @@ class QueryFormatter:
         Returns:
             JSON string
         """
+        logger.debug(
+            "Formatting query results as JSON",
+            query_name=query_name,
+            row_count=len(rows),
+        )
+
         data = {
             "query": query_name,
             "results": rows,

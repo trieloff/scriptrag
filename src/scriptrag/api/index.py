@@ -379,7 +379,7 @@ class IndexCommand:
                 return IndexResult(
                     path=file_path,
                     script_id=script_id,
-                    indexed=not is_update,  # Only indexed if it's new
+                    indexed=True,  # Successfully processed regardless of new/update
                     updated=is_update,  # Only updated if it existed
                     scenes_indexed=stats["scenes"],
                     characters_indexed=stats["characters"],
@@ -498,7 +498,7 @@ class IndexCommand:
 
         return IndexResult(
             path=file_path,
-            indexed=not is_update,  # Only indexed if it's new
+            indexed=True,  # Successfully processed regardless of new/update
             updated=is_update,  # Only updated if it existed
             scenes_indexed=len(script.scenes),
             characters_indexed=len(characters),

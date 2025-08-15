@@ -7,12 +7,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scriptrag.api.scene_management import (
-    FountainValidator,
-    SceneIdentifier,
-    SceneManagementAPI,
-    ValidationResult,
-)
+from scriptrag.api.scene_management import SceneManagementAPI
+from scriptrag.api.scene_models import SceneIdentifier, ValidationResult
+from scriptrag.api.scene_validator import FountainValidator
 from scriptrag.parser import Scene
 
 

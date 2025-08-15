@@ -5,11 +5,9 @@ from unittest.mock import patch
 
 import pytest
 
-from scriptrag.api.scene_management import (
-    FountainValidator,
-    SceneIdentifier,
-    SceneManagementAPI,
-)
+from scriptrag.api.scene_management import SceneManagementAPI
+from scriptrag.api.scene_models import SceneIdentifier
+from scriptrag.api.scene_validator import FountainValidator
 from scriptrag.parser import Scene
 
 
@@ -157,7 +155,10 @@ class TestSceneManagementAPI:
             content_hash="hash123",
         )
 
-        with patch.object(api, "_get_scene_by_id", return_value=mock_scene):
+        with (
+            patch.object(api.scene_db, "get_scene_by_id", return_value=mock_scene),
+            patch.object(api.scene_db, "update_last_read"),
+        ):
             result = await api.read_scene(scene_id, "test_reader")
 
         assert result.success is True
@@ -170,7 +171,7 @@ class TestSceneManagementAPI:
         """Test reading non-existent scene."""
         scene_id = SceneIdentifier("test_project", 999)
 
-        with patch.object(api, "_get_scene_by_id", return_value=None):
+        with patch.object(api.scene_db, "get_scene_by_id", return_value=None):
             result = await api.read_scene(scene_id, "test_reader")
 
         assert result.success is False
@@ -204,12 +205,16 @@ Updated content here."""
             content_hash="new_hash",
         )
 
-        with patch.object(api, "_get_scene_by_id", return_value=mock_scene):
-            with patch.object(api, "_update_scene_content", return_value=updated_scene):
-                # Update without conflict checking (simple mode)
-                result = await api.update_scene(
-                    scene_id, new_content, check_conflicts=False
-                )
+        with (
+            patch.object(api.scene_db, "get_scene_by_id", return_value=mock_scene),
+            patch.object(
+                api.scene_db, "update_scene_content", return_value=updated_scene
+            ),
+        ):
+            # Update without conflict checking (simple mode)
+            result = await api.update_scene(
+                scene_id, new_content, check_conflicts=False
+            )
 
         assert result.success is True
         assert result.error is None
@@ -247,7 +252,10 @@ Updated content."""
             content_hash="original_hash",
         )
 
-        with patch.object(api, "_get_scene_by_id", return_value=mock_scene):
+        with (
+            patch.object(api.scene_db, "get_scene_by_id", return_value=mock_scene),
+            patch.object(api.scene_db, "update_last_read"),
+        ):
             # Try to update with conflict checking but no last_read timestamp
             result = await api.update_scene(
                 scene_id, new_content, check_conflicts=True, last_read=None
@@ -280,11 +288,13 @@ Updated content."""
         # Mock that scene was modified after our last read
         last_modified = datetime.utcnow()  # Modified just now
 
-        with patch.object(api, "_get_scene_by_id", return_value=mock_scene):
-            with patch.object(api, "_get_last_modified", return_value=last_modified):
-                result = await api.update_scene(
-                    scene_id, new_content, check_conflicts=True, last_read=last_read
-                )
+        with (
+            patch.object(api.scene_db, "get_scene_by_id", return_value=mock_scene),
+            patch.object(api.scene_db, "get_last_modified", return_value=last_modified),
+        ):
+            result = await api.update_scene(
+                scene_id, new_content, check_conflicts=True, last_read=last_read
+            )
 
         assert result.success is False
         assert "modified since last read" in result.error.lower()
@@ -316,13 +326,13 @@ New scene content."""
             content_hash="new_hash",
         )
 
-        with patch.object(api, "_get_scene_by_id", return_value=mock_reference):
-            with patch.object(api, "_shift_scenes_after") as mock_shift:
-                with patch.object(api, "_create_scene", return_value=created_scene):
-                    with patch.object(
-                        api, "_get_renumbered_scenes", return_value=[7, 8, 9]
-                    ):
-                        result = await api.add_scene(reference_id, content, "after")
+        with (
+            patch.object(api.scene_db, "get_scene_by_id", return_value=mock_reference),
+            patch.object(api.scene_db, "shift_scenes_after") as mock_shift,
+            patch.object(api.scene_db, "create_scene", return_value=created_scene),
+            patch.object(api.scene_db, "get_renumbered_scenes", return_value=[7, 8, 9]),
+        ):
+            result = await api.add_scene(reference_id, content, "after")
 
         assert result.success is True
         assert result.error is None
@@ -356,13 +366,13 @@ New scene content."""
             content_hash="new_hash",
         )
 
-        with patch.object(api, "_get_scene_by_id", return_value=mock_reference):
-            with patch.object(api, "_shift_scenes_from") as mock_shift:
-                with patch.object(api, "_create_scene", return_value=created_scene):
-                    with patch.object(
-                        api, "_get_renumbered_scenes", return_value=[6, 7, 8]
-                    ):
-                        result = await api.add_scene(reference_id, content, "before")
+        with (
+            patch.object(api.scene_db, "get_scene_by_id", return_value=mock_reference),
+            patch.object(api.scene_db, "shift_scenes_from") as mock_shift,
+            patch.object(api.scene_db, "create_scene", return_value=created_scene),
+            patch.object(api.scene_db, "get_renumbered_scenes", return_value=[6, 7, 8]),
+        ):
+            result = await api.add_scene(reference_id, content, "before")
 
         assert result.success is True
         assert result.error is None
@@ -405,12 +415,12 @@ New scene content."""
             content_hash="del_hash",
         )
 
-        with patch.object(api, "_get_scene_by_id", return_value=mock_scene):
-            with patch.object(api, "_delete_scene") as mock_delete:
-                with patch.object(
-                    api, "_compact_scene_numbers", return_value=[6, 7, 8]
-                ):
-                    result = await api.delete_scene(scene_id, confirm=True)
+        with (
+            patch.object(api.scene_db, "get_scene_by_id", return_value=mock_scene),
+            patch.object(api.scene_db, "delete_scene") as mock_delete,
+            patch.object(api.scene_db, "compact_scene_numbers", return_value=[6, 7, 8]),
+        ):
+            result = await api.delete_scene(scene_id, confirm=True)
 
         assert result.success is True
         assert result.error is None
@@ -422,7 +432,7 @@ New scene content."""
         """Test deleting non-existent scene."""
         scene_id = SceneIdentifier("test_project", 999)
 
-        with patch.object(api, "_get_scene_by_id", return_value=None):
+        with patch.object(api.scene_db, "get_scene_by_id", return_value=None):
             result = await api.delete_scene(scene_id, confirm=True)
 
         assert result.success is False

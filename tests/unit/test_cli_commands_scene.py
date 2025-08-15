@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 import pytest
 from typer.testing import CliRunner
 
-from scriptrag.api.scene_management import (
+from scriptrag.api.scene_models import (
     AddSceneResult,
     BibleReadResult,
     DeleteSceneResult,

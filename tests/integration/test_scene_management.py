@@ -111,7 +111,9 @@ class TestSceneManagement:
 
         # Create a config file for scene commands to use
         config_path = tmp_path / "config.toml"
-        config_content = f'database_path = "{db_path}"'
+        # Use forward slashes for cross-platform compatibility in TOML
+        db_path_str = str(db_path).replace("\\", "/")
+        config_content = f'database_path = "{db_path_str}"'
         config_path.write_text(config_content)
 
         # Initialize, analyze, and index
@@ -302,7 +304,9 @@ JAMES walks in."""
 
         # Create a config file for scene commands to use
         config_path = tmp_path / "config.toml"
-        config_content = f'database_path = "{db_path}"'
+        # Use forward slashes for cross-platform compatibility in TOML
+        db_path_str = str(db_path).replace("\\", "/")
+        config_content = f'database_path = "{db_path_str}"'
         config_path.write_text(config_content)
 
         # Initialize, analyze, and index
@@ -370,7 +374,9 @@ JAMES walks in."""
 
         # Create a config file for scene commands to use
         config_path = tmp_path / "config.toml"
-        config_content = f'database_path = "{db_path}"'
+        # Use forward slashes for cross-platform compatibility in TOML
+        db_path_str = str(db_path).replace("\\", "/")
+        config_content = f'database_path = "{db_path_str}"'
         config_path.write_text(config_content)
 
         # Initialize, analyze, and index

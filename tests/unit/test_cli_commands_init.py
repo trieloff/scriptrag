@@ -8,18 +8,19 @@ class TestCLICommandsInit:
         """Test that all commands listed in __all__ are importable."""
         from scriptrag.cli.commands import (
             analyze_command,
+            get_query_app,
             index_command,
             init_command,
             list_command,
             mcp_command,
             pull_command,
-            query_app,
             search_command,
             watch_command,
         )
 
         # Verify all commands are callable
         assert callable(analyze_command)
+        assert callable(get_query_app)
         assert callable(index_command)
         assert callable(init_command)
         assert callable(list_command)
@@ -28,10 +29,10 @@ class TestCLICommandsInit:
         assert callable(search_command)
         assert callable(watch_command)
 
-        # query_app is a Typer app, not a command function
+        # get_query_app returns a Typer app
         from typer import Typer
 
-        assert isinstance(query_app, Typer)
+        assert isinstance(get_query_app(), Typer)
 
     def test_all_exports_match_imports(self):
         """Test that __all__ list matches actual imports."""
@@ -39,12 +40,12 @@ class TestCLICommandsInit:
 
         expected_exports = [
             "analyze_command",
+            "get_query_app",
             "index_command",
             "init_command",
             "list_command",
             "mcp_command",
             "pull_command",
-            "query_app",
             "search_command",
             "watch_command",
         ]
@@ -74,7 +75,7 @@ class TestCLICommandsInit:
         # Verify specific key commands are present
         assert "mcp_command" in star_imports
         assert "analyze_command" in star_imports
-        assert "query_app" in star_imports
+        assert "get_query_app" in star_imports
 
     def test_module_docstring_exists(self):
         """Test that the module has a proper docstring."""

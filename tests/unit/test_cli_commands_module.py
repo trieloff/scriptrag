@@ -34,12 +34,12 @@ class TestCLICommandsModule:
         # Check __all__ contains expected commands
         expected_commands = [
             "analyze_command",
+            "get_query_app",
             "index_command",
             "init_command",
             "list_command",
             "mcp_command",
             "pull_command",
-            "query_app",
             "search_command",
             "watch_command",
         ]
@@ -190,12 +190,12 @@ class TestCLICommandsModule:
         # Check that all expected commands are exported
         expected_commands = [
             "analyze_command",
+            "get_query_app",
             "index_command",
             "init_command",
             "list_command",
             "mcp_command",
             "pull_command",
-            "query_app",
             "search_command",
             "watch_command",
         ]

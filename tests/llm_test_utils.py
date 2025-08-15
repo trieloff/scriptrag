@@ -9,11 +9,14 @@ This module provides:
 
 import asyncio
 import functools
+import os
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from scriptrag.exceptions import LLMProviderError, RateLimitError
 from scriptrag.llm import (
     CompletionRequest,
     CompletionResponse,
@@ -24,11 +27,15 @@ from scriptrag.llm import (
 )
 from scriptrag.llm.base import BaseLLMProvider
 
-# Test timeout configurations
-TIMEOUT_UNIT = 10  # 10 seconds for unit tests
-TIMEOUT_INTEGRATION = 30  # 30 seconds for integration tests
-TIMEOUT_LLM = 60  # 60 seconds for actual LLM tests
-TIMEOUT_LLM_LONG = 120  # 120 seconds for long-running LLM tests
+# Test timeout configurations (configurable via environment variables)
+# Default: 10 seconds for unit tests
+TIMEOUT_UNIT = int(os.getenv("SCRIPTRAG_TEST_TIMEOUT_UNIT", "10"))
+# Default: 30 seconds for integration tests
+TIMEOUT_INTEGRATION = int(os.getenv("SCRIPTRAG_TEST_TIMEOUT_INTEGRATION", "30"))
+# Default: 60 seconds for actual LLM tests
+TIMEOUT_LLM = int(os.getenv("SCRIPTRAG_TEST_TIMEOUT_LLM", "60"))
+# Default: 120 seconds for long-running LLM tests
+TIMEOUT_LLM_LONG = int(os.getenv("SCRIPTRAG_TEST_TIMEOUT_LLM_LONG", "120"))
 
 
 def timeout_for_test_type(test_type: str = "unit") -> int:
@@ -97,7 +104,7 @@ class MockLLMProvider(BaseLLMProvider):
         response_delay: float = 0.0,
         fail_after_n_calls: int | None = None,
         rate_limit_after_n_calls: int | None = None,
-    ):
+    ) -> None:
         """Initialize mock provider.
 
         Args:
@@ -144,14 +151,25 @@ class MockLLMProvider(BaseLLMProvider):
 
         # Simulate failures
         if self.fail_after_n_calls and self.call_count > self.fail_after_n_calls:
-            raise Exception("Mock provider error")
+            raise LLMProviderError(
+                message="Mock provider error",
+                hint="This is a simulated failure for testing",
+                details={
+                    "call_count": self.call_count,
+                    "fail_threshold": self.fail_after_n_calls,
+                },
+            )
 
         # Simulate rate limiting
         if (
             self.rate_limit_after_n_calls
             and self.call_count > self.rate_limit_after_n_calls
         ):
-            raise Exception("Rate limit exceeded. Please wait 10 seconds.")
+            raise RateLimitError(
+                message="Rate limit exceeded",
+                retry_after=10.0,
+                provider=self.provider_type,
+            )
 
         # Extract user message content for mock response
         user_content = ""
@@ -182,14 +200,25 @@ class MockLLMProvider(BaseLLMProvider):
 
         # Simulate failures
         if self.fail_after_n_calls and self.call_count > self.fail_after_n_calls:
-            raise Exception("Mock provider error")
+            raise LLMProviderError(
+                message="Mock provider error",
+                hint="This is a simulated failure for testing",
+                details={
+                    "call_count": self.call_count,
+                    "fail_threshold": self.fail_after_n_calls,
+                },
+            )
 
         # Simulate rate limiting
         if (
             self.rate_limit_after_n_calls
             and self.call_count > self.rate_limit_after_n_calls
         ):
-            raise Exception("Rate limit exceeded. Please wait 10 seconds.")
+            raise RateLimitError(
+                message="Rate limit exceeded",
+                retry_after=10.0,
+                provider=self.provider_type,
+            )
 
         # Generate mock embeddings
         embeddings = []
@@ -209,18 +238,18 @@ class MockLLMProvider(BaseLLMProvider):
         """Check if provider is available."""
         return self._available
 
-    async def _simulate_delay(self):
+    async def _simulate_delay(self) -> None:
         """Simulate network delay."""
         if self.response_delay > 0:
             await asyncio.sleep(self.response_delay)
 
-    def set_available(self, available: bool):
+    def set_available(self, available: bool) -> None:
         """Set provider availability."""
         self._available = available
 
 
 # Common test responses
-MOCK_SCENE_ANALYSIS = {
+MOCK_SCENE_ANALYSIS: dict[str, Any] = {
     "characters": ["SARAH", "JAMES"],
     "locations": ["COFFEE SHOP"],
     "props": ["laptop", "coffee"],
@@ -228,7 +257,7 @@ MOCK_SCENE_ANALYSIS = {
     "mood": "energetic",
 }
 
-MOCK_CHARACTER_ANALYSIS = {
+MOCK_CHARACTER_ANALYSIS: dict[str, dict[str, str]] = {
     "SARAH": {
         "age": "30s",
         "occupation": "writer",
@@ -243,7 +272,7 @@ MOCK_CHARACTER_ANALYSIS = {
     },
 }
 
-MOCK_EMBEDDINGS = {
+MOCK_EMBEDDINGS: dict[str, list[float]] = {
     "scene_1": [0.1, 0.2, 0.3, 0.4, 0.5],
     "scene_2": [0.2, 0.3, 0.4, 0.5, 0.6],
     "scene_3": [0.3, 0.4, 0.5, 0.6, 0.7],
@@ -253,31 +282,31 @@ MOCK_EMBEDDINGS = {
 
 
 @pytest.fixture
-def mock_llm_provider():
+def mock_llm_provider() -> MockLLMProvider:
     """Create a mock LLM provider."""
     return MockLLMProvider()
 
 
 @pytest.fixture
-def mock_llm_provider_with_delay():
+def mock_llm_provider_with_delay() -> MockLLMProvider:
     """Create a mock LLM provider with simulated network delay."""
     return MockLLMProvider(response_delay=0.5)
 
 
 @pytest.fixture
-def mock_llm_provider_with_failures():
+def mock_llm_provider_with_failures() -> MockLLMProvider:
     """Create a mock LLM provider that fails after 2 calls."""
     return MockLLMProvider(fail_after_n_calls=2)
 
 
 @pytest.fixture
-def mock_llm_provider_with_rate_limit():
+def mock_llm_provider_with_rate_limit() -> MockLLMProvider:
     """Create a mock LLM provider that rate limits after 3 calls."""
     return MockLLMProvider(rate_limit_after_n_calls=3)
 
 
 @pytest.fixture
-async def mock_llm_client(mock_llm_provider):
+async def mock_llm_client(mock_llm_provider: MockLLMProvider) -> LLMClient:
     """Create a mock LLM client with the mock provider."""
     client = LLMClient()
     await client.add_provider(mock_llm_provider)
@@ -285,7 +314,7 @@ async def mock_llm_client(mock_llm_provider):
 
 
 @pytest.fixture
-def mock_completion_response():
+def mock_completion_response() -> CompletionResponse:
     """Create a mock completion response."""
     from scriptrag.llm import LLMProvider
 

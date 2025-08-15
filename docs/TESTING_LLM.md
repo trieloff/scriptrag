@@ -51,14 +51,27 @@ pytest -m integration
 
 ### Full Test Suite (Including LLM Tests)
 
+⚠️ **SECURITY WARNING**: Never use real API keys in test environments!
+
+- Use test/dummy API keys for local testing
+- Store production credentials securely (e.g., using a secrets manager)
+- Never commit credentials to version control
+- Consider using tools like `direnv` or `dotenv` for local development
+
 ```bash
 # Enable LLM tests locally
 export SCRIPTRAG_TEST_LLMS=1
 
-# Configure your LLM providers
-export GITHUB_TOKEN="your-token"  # pragma: allowlist secret
-export SCRIPTRAG_LLM_API_KEY="your-api-key"  # pragma: allowlist secret
+# Configure your LLM providers with TEST credentials only
+# NEVER use production API keys here!
+export GITHUB_TOKEN="test-token-only"  # pragma: allowlist secret
+export SCRIPTRAG_LLM_API_KEY="test-key-only"  # pragma: allowlist secret
 export SCRIPTRAG_LLM_ENDPOINT="https://api.openai.com/v1"
+
+# For production/real API testing, use secure credential management:
+# - Environment-specific config files (not in git)
+# - CI/CD secret management
+# - Cloud provider secret managers (AWS Secrets Manager, Azure Key Vault, etc.)
 
 # Run all tests including LLM tests
 pytest
@@ -106,17 +119,27 @@ The test suite automatically detects CI environments by checking:
 
 ### Per-Test Type Timeouts
 
+Timeout values can be configured via environment variables for different CI/test environments:
+
+```bash
+# Custom timeout configuration (optional)
+export SCRIPTRAG_TEST_TIMEOUT_UNIT=10        # Default: 10 seconds
+export SCRIPTRAG_TEST_TIMEOUT_INTEGRATION=30  # Default: 30 seconds
+export SCRIPTRAG_TEST_TIMEOUT_LLM=60         # Default: 60 seconds
+export SCRIPTRAG_TEST_TIMEOUT_LLM_LONG=120   # Default: 120 seconds
+```
+
 ```python
 from tests.llm_test_utils import (
-    TIMEOUT_UNIT,        # 10 seconds
-    TIMEOUT_INTEGRATION, # 30 seconds
-    TIMEOUT_LLM,        # 60 seconds
-    TIMEOUT_LLM_LONG,   # 120 seconds
+    TIMEOUT_UNIT,        # Configurable via SCRIPTRAG_TEST_TIMEOUT_UNIT
+    TIMEOUT_INTEGRATION, # Configurable via SCRIPTRAG_TEST_TIMEOUT_INTEGRATION
+    TIMEOUT_LLM,        # Configurable via SCRIPTRAG_TEST_TIMEOUT_LLM
+    TIMEOUT_LLM_LONG,   # Configurable via SCRIPTRAG_TEST_TIMEOUT_LLM_LONG
 )
 
 @pytest.mark.timeout(TIMEOUT_LLM)
 def test_with_llm():
-    # Test with 60-second timeout
+    # Test with configurable timeout (default: 60 seconds)
     pass
 ```
 

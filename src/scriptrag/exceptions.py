@@ -84,6 +84,41 @@ class LLMError(ScriptRAGError):
     pass
 
 
+class RateLimitError(LLMError):
+    """Rate limit exceeded error for LLM providers."""
+
+    def __init__(
+        self,
+        message: str = "Rate limit exceeded",
+        retry_after: float | None = None,
+        provider: str | None = None,
+    ) -> None:
+        """Initialize rate limit error.
+
+        Args:
+            message: Error message
+            retry_after: Seconds to wait before retrying
+            provider: Provider that raised the error
+        """
+        self.retry_after = retry_after
+        self.provider = provider
+        hint = None
+        if retry_after:
+            hint = f"Please wait {retry_after} seconds before retrying"
+        details: dict[str, Any] = {}
+        if provider:
+            details["provider"] = provider
+        if retry_after:
+            details["retry_after"] = retry_after
+        super().__init__(message=message, hint=hint, details=details)
+
+
+class LLMProviderError(LLMError):
+    """Generic LLM provider error for non-rate-limit failures."""
+
+    pass
+
+
 class GitError(ScriptRAGError):
     """Git-related errors including LFS and repository issues."""
 

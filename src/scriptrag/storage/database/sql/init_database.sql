@@ -15,14 +15,22 @@ CREATE TABLE IF NOT EXISTS scripts (
     author TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    file_path TEXT UNIQUE,
+    file_path TEXT UNIQUE NOT NULL,
     format TEXT DEFAULT 'fountain',
-    metadata JSON,
-    UNIQUE (title, author)
+    project_title TEXT,  -- For grouping multiple drafts of the same project
+    series_title TEXT,   -- For TV series
+    season INTEGER,      -- Season number for TV episodes
+    episode INTEGER,     -- Episode number for TV episodes
+    metadata JSON
+    -- Using file_path as the unique constraint instead of (title, author)
 );
 
--- Create index on title for faster searches
+-- Create indexes for faster searches
 CREATE INDEX IF NOT EXISTS idx_scripts_title ON scripts (title);
+CREATE INDEX IF NOT EXISTS idx_scripts_project_title
+ON scripts (project_title);
+CREATE INDEX IF NOT EXISTS idx_scripts_series
+ON scripts (series_title, season, episode);
 
 -- Scenes table: stores individual scenes
 CREATE TABLE IF NOT EXISTS scenes (
@@ -170,7 +178,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
 
 -- Insert initial schema version
 INSERT INTO schema_version (version, description)
-VALUES (2, 'Initial ScriptRAG database schema with last_read_at column');
+VALUES (3, 'ScriptRAG schema with file_path uniqueness and series metadata');
 
 -- Create triggers to update timestamps
 CREATE TRIGGER IF NOT EXISTS update_scripts_timestamp

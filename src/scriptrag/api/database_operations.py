@@ -132,7 +132,7 @@ class DatabaseOperations:
     def upsert_script(
         self, conn: sqlite3.Connection, script: Script, file_path: Path
     ) -> int:
-        """Insert or update script record.
+        """Insert or update script record using file_path as unique key.
 
         Args:
             conn: Database connection
@@ -145,7 +145,14 @@ class DatabaseOperations:
         metadata = script.metadata.copy() if script.metadata else {}
         metadata["last_indexed"] = datetime.now().isoformat()
 
-        # Check if script exists
+        # Extract series/episode info from metadata if available
+        project_title = metadata.get("project_title", script.title)
+        series_title = metadata.get("series_title")
+        season = metadata.get("season")
+        episode = metadata.get("episode")
+
+        # Use INSERT OR REPLACE with file_path as the unique key
+        # First check if script exists to get its ID
         existing = self.get_existing_script(conn, file_path)
 
         if existing and existing.id is not None:
@@ -153,21 +160,41 @@ class DatabaseOperations:
             conn.execute(
                 """
                 UPDATE scripts
-                SET title = ?, author = ?, metadata = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
+                SET title = ?, author = ?, project_title = ?, series_title = ?,
+                    season = ?, episode = ?, metadata = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE file_path = ?
                 """,
-                (script.title, script.author, json.dumps(metadata), existing.id),
+                (
+                    script.title,
+                    script.author,
+                    project_title,
+                    series_title,
+                    season,
+                    episode,
+                    json.dumps(metadata),
+                    str(file_path),
+                ),
             )
-            logger.debug(f"Updated script {existing.id}: {script.title}")
+            logger.debug(f"Updated script {existing.id}: {script.title} at {file_path}")
             return existing.id
-
         # Insert new script
         cursor = conn.execute(
             """
-            INSERT INTO scripts (title, author, file_path, metadata)
-            VALUES (?, ?, ?, ?)
-            """,
-            (script.title, script.author, str(file_path), json.dumps(metadata)),
+                INSERT INTO scripts (title, author, file_path, project_title,
+                                   series_title, season, episode, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+            (
+                script.title,
+                script.author,
+                str(file_path),
+                project_title,
+                series_title,
+                season,
+                episode,
+                json.dumps(metadata),
+            ),
         )
         script_id = cursor.lastrowid
         if script_id is None:
@@ -180,7 +207,7 @@ class DatabaseOperations:
                     "operation": "INSERT INTO scripts",
                 },
             )
-        logger.debug(f"Inserted script {script_id}: {script.title}")
+        logger.debug(f"Inserted script {script_id}: {script.title} at {file_path}")
         return script_id
 
     def clear_script_data(self, conn: sqlite3.Connection, script_id: int) -> None:

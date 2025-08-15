@@ -25,6 +25,10 @@ def temp_db():
             title TEXT,
             author TEXT,
             file_path TEXT UNIQUE NOT NULL,
+            project_title TEXT,
+            series_title TEXT,
+            season INTEGER,
+            episode INTEGER,
             metadata JSON,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

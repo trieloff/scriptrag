@@ -126,6 +126,20 @@ class FountainParser:
                 except (ValueError, TypeError):  # pragma: no cover
                     metadata["season"] = doc.title_values["season"]
 
+            # Extract series title (for TV scripts)
+            if "series" in doc.title_values:
+                metadata["series_title"] = doc.title_values["series"]
+            elif "series_title" in doc.title_values:
+                metadata["series_title"] = doc.title_values["series_title"]
+            elif "show" in doc.title_values:
+                metadata["series_title"] = doc.title_values["show"]
+
+            # Extract project title (for grouping multiple drafts)
+            if "project" in doc.title_values:
+                metadata["project_title"] = doc.title_values["project"]
+            elif "project_title" in doc.title_values:
+                metadata["project_title"] = doc.title_values["project_title"]
+
         # Process scenes
         scenes = []
         scene_number = 0
@@ -236,6 +250,20 @@ class FountainParser:
                     metadata["season"] = int(doc.title_values["season"])
                 except (ValueError, TypeError):  # pragma: no cover
                     metadata["season"] = doc.title_values["season"]
+
+            # Extract series title (for TV scripts)
+            if "series" in doc.title_values:
+                metadata["series_title"] = doc.title_values["series"]
+            elif "series_title" in doc.title_values:
+                metadata["series_title"] = doc.title_values["series_title"]
+            elif "show" in doc.title_values:
+                metadata["series_title"] = doc.title_values["show"]
+
+            # Extract project title (for grouping multiple drafts)
+            if "project" in doc.title_values:
+                metadata["project_title"] = doc.title_values["project"]
+            elif "project_title" in doc.title_values:
+                metadata["project_title"] = doc.title_values["project_title"]
 
         # Process scenes
         scenes = []

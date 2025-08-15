@@ -30,6 +30,11 @@ class TestQueryCLI:
                 id INTEGER PRIMARY KEY,
                 title TEXT NOT NULL,
                 author TEXT,
+                file_path TEXT UNIQUE,
+                project_title TEXT,
+                series_title TEXT,
+                season INTEGER,
+                episode INTEGER,
                 metadata TEXT
             );
 
@@ -55,9 +60,13 @@ class TestQueryCLI:
             );
 
             -- Insert test data
-            INSERT INTO scripts (id, title, author, metadata) VALUES
-                (1, 'Test Script', 'Test Author', '{"season": 1, "episode": 1}'),
-                (2, 'Another Script', 'Another Author', '{"season": 1, "episode": 2}');
+            INSERT INTO scripts (
+                id, title, author, file_path, series_title, season, episode, metadata
+            ) VALUES
+                (1, 'Test Script', 'Test Author', '/tmp/test1.fountain',
+                 'Test Series', 1, 1, '{"season": 1, "episode": 1}'),
+                (2, 'Another Script', 'Another Author', '/tmp/test2.fountain',
+                 'Test Series', 1, 2, '{"season": 1, "episode": 2}');
 
             INSERT INTO scenes (
                 id, script_id, scene_number, heading, location, time_of_day, content

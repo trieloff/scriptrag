@@ -305,6 +305,10 @@ def test_indexing(tmp_path):
 
 ## LLM Provider Testing
 
+**Note**: For comprehensive LLM testing documentation, see [TESTING_LLM.md](TESTING_LLM.md).
+
+### Quick Reference
+
 ### Marking LLM Tests
 
 Tests requiring external LLM providers should be marked:

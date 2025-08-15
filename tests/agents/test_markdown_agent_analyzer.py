@@ -267,7 +267,10 @@ class TestMarkdownAgentAnalyzer:
         ) as mock_execute:
             mock_execute.return_value = []  # Empty query results
 
-            result = await llm_analyzer.analyze(sample_scene)
+            # Suppress logging during validation error testing
+            # to prevent Windows CI log duplication
+            with patch("scriptrag.agents.markdown_agent_analyzer.logger"):
+                result = await llm_analyzer.analyze(sample_scene)
 
             assert result["analysis"] == "Valid on retry"
             # Should have called LLM twice
@@ -304,9 +307,12 @@ class TestMarkdownAgentAnalyzer:
         ) as mock_execute:
             mock_execute.return_value = []  # Empty query results
 
-            # Should raise ValidationError after 3 attempts
-            with pytest.raises(ValidationError) as exc_info:
-                await llm_analyzer.analyze(sample_scene)
+            # Suppress logging during validation error testing
+            # to prevent Windows CI log duplication
+            with patch("scriptrag.agents.markdown_agent_analyzer.logger"):
+                # Should raise ValidationError after 3 attempts
+                with pytest.raises(ValidationError) as exc_info:
+                    await llm_analyzer.analyze(sample_scene)
 
             assert "3 attempts" in str(exc_info.value)
             # Should have tried 3 times
@@ -335,10 +341,13 @@ class TestMarkdownAgentAnalyzer:
         ) as mock_execute:
             mock_execute.return_value = []  # Empty query results
 
-            # When LLM call fails, it returns empty dict which fails validation
-            # This should raise ValidationError after 3 attempts
-            with pytest.raises(ValidationError) as exc_info:
-                await llm_analyzer.analyze(sample_scene)
+            # Suppress logging during validation error testing
+            # to prevent Windows CI log duplication
+            with patch("scriptrag.agents.markdown_agent_analyzer.logger"):
+                # When LLM call fails, it returns empty dict which fails validation
+                # This should raise ValidationError after 3 attempts
+                with pytest.raises(ValidationError) as exc_info:
+                    await llm_analyzer.analyze(sample_scene)
 
             assert "llm_agent" in str(exc_info.value)
             assert "3 attempts" in str(exc_info.value)

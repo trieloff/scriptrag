@@ -172,6 +172,26 @@ test: install ## Run all tests in parallel with coverage
 	fi'
 
 .PHONY: test-fast
+test-unit: install ## Run only unit tests (fast)
+	@echo "🧪 Running unit tests..."
+	uv run pytest tests/ -v -m unit --timeout=30 $(PYTEST_ARGS)
+
+test-integration: install ## Run only integration tests
+	@echo "🔗 Running integration tests..."
+	uv run pytest tests/ -v -m integration --timeout=60 $(PYTEST_ARGS)
+
+test-llm: install ## Run LLM tests (requires SCRIPTRAG_TEST_LLMS=1)
+	@echo "🤖 Running LLM tests..."
+	@if [ -z "$$SCRIPTRAG_TEST_LLMS" ]; then \
+		echo "⚠️  Warning: SCRIPTRAG_TEST_LLMS not set. LLM tests will be skipped."; \
+		echo "Set SCRIPTRAG_TEST_LLMS=1 to enable LLM tests."; \
+	fi
+	uv run pytest tests/ -v -m requires_llm --timeout=120 $(PYTEST_ARGS)
+
+test-no-llm: install ## Run all tests except LLM tests
+	@echo "🧪 Running tests without LLM dependencies..."
+	uv run pytest tests/ -v -m "not requires_llm" $(PYTEST_ARGS)
+
 test-fast: install ## Run tests without coverage (faster)
 	@echo "🔍 Checking for mock files before tests..."
 	@bash -c 'if find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null | head -1 | grep -q .; then \

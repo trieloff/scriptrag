@@ -473,9 +473,12 @@ class TestMarkdownAgentAnalyzer:
 
             scene = {"text": "Test scene"}
 
-            # Should raise ValidationError after 3 attempts
-            with pytest.raises(ValidationError) as exc_info:
-                await analyzer.analyze(scene)
+            # Suppress logging during validation error testing
+            # to prevent Windows CI log duplication
+            with patch("scriptrag.agents.markdown_agent_analyzer.logger"):
+                # Should raise ValidationError after 3 attempts
+                with pytest.raises(ValidationError) as exc_info:
+                    await analyzer.analyze(scene)
 
             assert "validation failed after 3 attempts" in str(exc_info.value).lower()
             assert "test-analyzer" in str(exc_info.value)
@@ -509,9 +512,12 @@ class TestMarkdownAgentAnalyzer:
 
             scene = {"text": "Test scene"}
 
-            # Should raise ValidationError after 3 attempts
-            with pytest.raises(ValidationError) as exc_info:
-                await analyzer.analyze(scene)
+            # Suppress logging during validation error testing
+            # to prevent Windows CI log duplication
+            with patch("scriptrag.agents.markdown_agent_analyzer.logger"):
+                # Should raise ValidationError after 3 attempts
+                with pytest.raises(ValidationError) as exc_info:
+                    await analyzer.analyze(scene)
 
             assert "validation failed after 3 attempts" in str(exc_info.value).lower()
             assert "test-analyzer" in str(exc_info.value)

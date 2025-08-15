@@ -10,6 +10,18 @@ from scriptrag.config import ScriptRAGSettings, set_settings
 # Import CLI fixtures to make them available globally
 from tests.cli_fixtures import clean_runner, cli_helper, cli_invoke  # noqa: F401
 
+# Import LLM test fixtures to make them available globally
+from tests.llm_test_utils import (  # noqa: F401
+    mock_completion_response,
+    mock_embedding_response,
+    mock_llm_client,
+    mock_llm_provider,
+    mock_llm_provider_with_delay,
+    mock_llm_provider_with_failures,
+    mock_llm_provider_with_rate_limit,
+    patch_llm_client,
+)
+
 
 def pytest_configure(config):
     """Configure pytest markers."""
@@ -20,6 +32,18 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "integration: mark test as integration test",
+    )
+    config.addinivalue_line(
+        "markers",
+        "slow: mark test as slow running (may need extended timeout)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "unit: mark test as unit test",
+    )
+    config.addinivalue_line(
+        "markers",
+        "timeout(seconds): override timeout for specific test",
     )
 
 

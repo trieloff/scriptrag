@@ -1,189 +1,24 @@
 """AI-friendly scene management API for ScriptRAG."""
 
-import hashlib
-import sqlite3
-from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 from scriptrag.api.bible_index import BibleAutoDetector
 from scriptrag.api.database_operations import DatabaseOperations
+from scriptrag.api.scene_database import SceneDatabaseOperations
+from scriptrag.api.scene_models import (
+    AddSceneResult,
+    BibleReadResult,
+    DeleteSceneResult,
+    ReadSceneResult,
+    SceneIdentifier,
+    UpdateSceneResult,
+)
+from scriptrag.api.scene_validator import FountainValidator
 from scriptrag.config import ScriptRAGSettings, get_logger
-from scriptrag.parser import FountainParser, Scene
-from scriptrag.utils import ScreenplayUtils
+from scriptrag.parser import FountainParser
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class SceneIdentifier:
-    """Unique identifier for scenes in hierarchical projects."""
-
-    project: str
-    scene_number: int
-    season: int | None = None
-    episode: int | None = None
-
-    @property
-    def key(self) -> str:
-        """Generate unique key for scene identification."""
-        if self.season is not None and self.episode is not None:
-            return (
-                f"{self.project}:S{self.season:02d}E{self.episode:02d}:"
-                f"{self.scene_number:03d}"
-            )
-        return f"{self.project}:{self.scene_number:03d}"
-
-    @classmethod
-    def from_string(cls, key: str) -> "SceneIdentifier":
-        """Parse scene identifier from string key."""
-        parts = key.split(":")
-        if len(parts) == 2:
-            # Feature film format: "project:scene"
-            return cls(
-                project=parts[0],
-                scene_number=int(parts[1]),
-            )
-        if len(parts) == 3:
-            # TV format: "project:S##E##:scene"
-            season_episode = parts[1]
-            if season_episode.startswith("S") and "E" in season_episode:
-                season_str, episode_str = season_episode[1:].split("E")
-                return cls(
-                    project=parts[0],
-                    season=int(season_str),
-                    episode=int(episode_str),
-                    scene_number=int(parts[2]),
-                )
-        raise ValueError(f"Invalid scene key format: {key}")
-
-
-@dataclass
-class ValidationResult:
-    """Result of scene content validation."""
-
-    is_valid: bool
-    errors: list[str] = field(default_factory=list)
-    warnings: list[str] = field(default_factory=list)
-    parsed_scene: Scene | None = None
-
-
-@dataclass
-class ReadSceneResult:
-    """Result of reading a scene."""
-
-    success: bool
-    error: str | None
-    scene: Scene | None
-    last_read: datetime | None = None
-
-
-@dataclass
-class UpdateSceneResult:
-    """Result of updating a scene."""
-
-    success: bool
-    error: str | None
-    updated_scene: Scene | None = None
-    validation_errors: list[str] = field(default_factory=list)
-
-
-@dataclass
-class AddSceneResult:
-    """Result of adding a scene."""
-
-    success: bool
-    error: str | None
-    created_scene: Scene | None = None
-    renumbered_scenes: list[int] = field(default_factory=list)
-
-
-@dataclass
-class DeleteSceneResult:
-    """Result of deleting a scene."""
-
-    success: bool
-    error: str | None
-    renumbered_scenes: list[int] = field(default_factory=list)
-
-
-@dataclass
-class BibleReadResult:
-    """Result of reading script bible content."""
-
-    success: bool
-    error: str | None
-    bible_files: list[dict[str, Any]] = field(default_factory=list)
-    content: str | None = None
-
-
-class FountainValidator:
-    """Validates Fountain format content."""
-
-    def __init__(self) -> None:
-        """Initialize the validator."""
-        self.parser = FountainParser()
-
-    def validate_scene_content(self, content: str) -> ValidationResult:
-        """Validate single scene Fountain content."""
-        try:
-            errors = []
-            warnings = []
-
-            # Check for scene heading
-            if not self._has_scene_heading(content):
-                errors.append(
-                    "Missing scene heading. Scene must start with INT. or EXT. "
-                    "followed by location (e.g., 'INT. COFFEE SHOP - DAY')"
-                )
-
-            # Check for content after heading
-            lines = content.strip().split("\n")
-            non_empty_lines = [line for line in lines if line.strip()]
-            if len(non_empty_lines) <= 1:
-                warnings.append("Scene appears to have no content after heading")
-
-            # Try to parse the content as a complete script
-            # Wrap in minimal fountain structure if needed
-            if not content.strip().startswith(("INT.", "EXT.", "I/E.", "INT/EXT.")):
-                errors.append(
-                    "Scene must start with a scene heading "
-                    "(INT., EXT., I/E., or INT/EXT.)"
-                )
-
-            # Parse content to ensure valid Fountain
-            try:
-                # Create a temporary script with just this scene
-                parsed = self.parser.parse(content)
-                parsed_scene = parsed.scenes[0] if parsed.scenes else None
-            except Exception as e:
-                errors.append(f"Fountain parsing failed: {e!s}")
-                parsed_scene = None
-
-            return ValidationResult(
-                is_valid=len(errors) == 0,
-                errors=errors,
-                warnings=warnings,
-                parsed_scene=parsed_scene,
-            )
-
-        except Exception as e:
-            logger.error(f"Validation error: {e}")
-            return ValidationResult(
-                is_valid=False,
-                errors=[f"Validation failed: {e!s}"],
-                warnings=[],
-                parsed_scene=None,
-            )
-
-    def _has_scene_heading(self, content: str) -> bool:
-        """Check if content has a valid scene heading."""
-        first_line = content.strip().split("\n")[0] if content.strip() else ""
-        return any(
-            first_line.upper().startswith(prefix)
-            for prefix in ["INT.", "EXT.", "I/E.", "INT/EXT."]
-        )
 
 
 class SceneManagementAPI:
@@ -199,6 +34,7 @@ class SceneManagementAPI:
 
         self.settings = settings or get_settings()
         self.db_ops = DatabaseOperations(self.settings)
+        self.scene_db = SceneDatabaseOperations()
         self.validator = FountainValidator()
         self.parser = FountainParser()
 
@@ -209,7 +45,7 @@ class SceneManagementAPI:
         try:
             with self.db_ops.transaction() as conn:
                 # Get scene from database
-                scene = self._get_scene_by_id(conn, scene_id)
+                scene = self.scene_db.get_scene_by_id(conn, scene_id)
                 if not scene:
                     return ReadSceneResult(
                         success=False,
@@ -220,7 +56,7 @@ class SceneManagementAPI:
 
                 # Update last_read_at timestamp
                 last_read = datetime.now(UTC)
-                self._update_last_read(conn, scene_id, last_read)
+                self.scene_db.update_last_read(conn, scene_id, last_read)
 
                 logger.info(
                     f"Scene read: {scene_id.key}",
@@ -274,7 +110,7 @@ class SceneManagementAPI:
         try:
             with self.db_ops.transaction() as conn:
                 # Get current scene
-                current_scene = self._get_scene_by_id(conn, scene_id)
+                current_scene = self.scene_db.get_scene_by_id(conn, scene_id)
                 if not current_scene:
                     return UpdateSceneResult(
                         success=False,
@@ -294,7 +130,7 @@ class SceneManagementAPI:
                         )
 
                     # Get last modified time
-                    last_modified = self._get_last_modified(conn, scene_id)
+                    last_modified = self.scene_db.get_last_modified(conn, scene_id)
                     if last_modified and last_modified > last_read:
                         return UpdateSceneResult(
                             success=False,
@@ -306,7 +142,7 @@ class SceneManagementAPI:
                         )
 
                 # Update scene content
-                updated_scene = self._update_scene_content(
+                updated_scene = self.scene_db.update_scene_content(
                     conn, scene_id, new_content, validation.parsed_scene
                 )
 
@@ -349,7 +185,7 @@ class SceneManagementAPI:
         try:
             with self.db_ops.transaction() as conn:
                 # Check if reference scene exists
-                reference_scene = self._get_scene_by_id(conn, scene_id)
+                reference_scene = self.scene_db.get_scene_by_id(conn, scene_id)
                 if not reference_scene:
                     return AddSceneResult(
                         success=False,
@@ -360,11 +196,11 @@ class SceneManagementAPI:
                 if position == "after":
                     new_number = scene_id.scene_number + 1
                     # Shift all subsequent scenes +1
-                    self._shift_scenes_after(conn, scene_id, 1)
+                    self.scene_db.shift_scenes_after(conn, scene_id, 1)
                 elif position == "before":
                     new_number = scene_id.scene_number
                     # Shift current scene and all after +1
-                    self._shift_scenes_from(conn, scene_id, 1)
+                    self.scene_db.shift_scenes_from(conn, scene_id, 1)
                 else:
                     return AddSceneResult(
                         success=False,
@@ -379,12 +215,12 @@ class SceneManagementAPI:
                     scene_number=new_number,
                 )
 
-                created_scene = self._create_scene(
+                created_scene = self.scene_db.create_scene(
                     conn, new_scene_id, content, validation.parsed_scene
                 )
 
                 # Get list of renumbered scenes
-                renumbered = self._get_renumbered_scenes(conn, scene_id)
+                renumbered = self.scene_db.get_renumbered_scenes(conn, scene_id)
 
                 logger.info(
                     f"Scene added: {new_scene_id.key}",
@@ -419,7 +255,7 @@ class SceneManagementAPI:
         try:
             with self.db_ops.transaction() as conn:
                 # Check if scene exists
-                scene = self._get_scene_by_id(conn, scene_id)
+                scene = self.scene_db.get_scene_by_id(conn, scene_id)
                 if not scene:
                     return DeleteSceneResult(
                         success=False,
@@ -427,10 +263,10 @@ class SceneManagementAPI:
                     )
 
                 # Delete scene
-                self._delete_scene(conn, scene_id)
+                self.scene_db.delete_scene(conn, scene_id)
 
                 # Compact scene numbers (close gaps)
-                renumbered = self._compact_scene_numbers(conn, scene_id)
+                renumbered = self.scene_db.compact_scene_numbers(conn, scene_id)
 
                 logger.info(
                     f"Scene deleted: {scene_id.key}",
@@ -449,380 +285,6 @@ class SceneManagementAPI:
                 success=False,
                 error=str(e),
             )
-
-    def _get_scene_by_id(
-        self, conn: sqlite3.Connection, scene_id: SceneIdentifier
-    ) -> Scene | None:
-        """Get scene from database by identifier."""
-        # Build query based on available identifiers
-        query = """
-            SELECT s.*, sc.title as script_title
-            FROM scenes s
-            JOIN scripts sc ON s.script_id = sc.id
-            WHERE s.scene_number = ?
-        """
-        params: list[Any] = [scene_id.scene_number]
-
-        # Add project filter
-        query += " AND sc.title = ?"
-        params.append(scene_id.project)
-
-        # Add season/episode filters if present
-        if scene_id.season is not None:
-            query += " AND json_extract(sc.metadata, '$.season') = ?"
-            params.append(scene_id.season)
-
-        if scene_id.episode is not None:
-            query += " AND json_extract(sc.metadata, '$.episode') = ?"
-            params.append(scene_id.episode)
-
-        cursor = conn.execute(query, params)
-        row = cursor.fetchone()
-
-        if not row:
-            return None
-
-        # Convert row to Scene object
-        return Scene(
-            number=row["scene_number"],
-            heading=row["heading"],
-            content=row["content"] or "",
-            original_text=row["content"] or "",
-            content_hash=hashlib.sha256((row["content"] or "").encode()).hexdigest(),
-            location=row["location"],
-            time_of_day=row["time_of_day"],
-        )
-
-    def _update_scene_content(
-        self,
-        conn: sqlite3.Connection,
-        scene_id: SceneIdentifier,
-        new_content: str,
-        parsed_scene: Scene | None,
-    ) -> Scene:
-        """Update scene content in database."""
-        # Parse the new content to extract scene details
-        if parsed_scene:
-            heading = parsed_scene.heading
-            location = parsed_scene.location
-            time_of_day = parsed_scene.time_of_day
-        else:
-            # Extract basic info from content
-            lines = new_content.strip().split("\n")
-            heading = lines[0] if lines else ""
-            location = ScreenplayUtils.extract_location(heading) or ""
-            time_of_day = ScreenplayUtils.extract_time(heading) or ""
-
-        # Update scene in database
-        query = """
-            UPDATE scenes
-            SET content = ?,
-                heading = ?,
-                location = ?,
-                time_of_day = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE scene_number = ?
-                AND script_id = (
-                    SELECT id FROM scripts
-                    WHERE title = ?
-        """
-        params: list[Any] = [
-            new_content,
-            heading,
-            location,
-            time_of_day,
-            scene_id.scene_number,
-            scene_id.project,
-        ]
-
-        # Add season/episode conditions
-        if scene_id.season is not None:
-            query += " AND json_extract(metadata, '$.season') = ?"
-            params.append(scene_id.season)
-
-        if scene_id.episode is not None:
-            query += " AND json_extract(metadata, '$.episode') = ?"
-            params.append(scene_id.episode)
-
-        query += ")"
-
-        conn.execute(query, params)
-
-        # Return updated scene
-        return Scene(
-            number=scene_id.scene_number,
-            heading=heading,
-            content=new_content,
-            original_text=new_content,
-            content_hash=hashlib.sha256(new_content.encode()).hexdigest(),
-            location=location,
-            time_of_day=time_of_day,
-        )
-
-    def _create_scene(
-        self,
-        conn: sqlite3.Connection,
-        scene_id: SceneIdentifier,
-        content: str,
-        parsed_scene: Scene | None,
-    ) -> Scene:
-        """Create new scene in database."""
-        # Get script ID
-        query = "SELECT id FROM scripts WHERE title = ?"
-        params: list[Any] = [scene_id.project]
-
-        if scene_id.season is not None:
-            query += " AND json_extract(metadata, '$.season') = ?"
-            params.append(scene_id.season)
-
-        if scene_id.episode is not None:
-            query += " AND json_extract(metadata, '$.episode') = ?"
-            params.append(scene_id.episode)
-
-        cursor = conn.execute(query, params)
-        row = cursor.fetchone()
-
-        if not row:
-            raise ValueError(f"Script not found for {scene_id.key}")
-
-        script_id = row[0]
-
-        # Parse scene details
-        if parsed_scene:
-            heading = parsed_scene.heading
-            location = parsed_scene.location
-            time_of_day = parsed_scene.time_of_day
-        else:
-            lines = content.strip().split("\n")
-            heading = lines[0] if lines else ""
-            location = ScreenplayUtils.extract_location(heading) or ""
-            time_of_day = ScreenplayUtils.extract_time(heading) or ""
-
-        # Insert new scene
-        conn.execute(
-            """
-            INSERT INTO scenes (script_id, scene_number, heading, location,
-                              time_of_day, content, metadata)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                script_id,
-                scene_id.scene_number,
-                heading,
-                location,
-                time_of_day,
-                content,
-                "{}",
-            ),
-        )
-
-        return Scene(
-            number=scene_id.scene_number,
-            heading=heading,
-            content=content,
-            original_text=content,
-            content_hash=hashlib.sha256(content.encode()).hexdigest(),
-            location=location,
-            time_of_day=time_of_day,
-        )
-
-    def _delete_scene(
-        self, conn: sqlite3.Connection, scene_id: SceneIdentifier
-    ) -> None:
-        """Delete scene from database."""
-        query = """
-            DELETE FROM scenes
-            WHERE scene_number = ?
-                AND script_id = (
-                    SELECT id FROM scripts
-                    WHERE title = ?
-        """
-        params: list[Any] = [scene_id.scene_number, scene_id.project]
-
-        if scene_id.season is not None:
-            query += " AND json_extract(metadata, '$.season') = ?"
-            params.append(scene_id.season)
-
-        if scene_id.episode is not None:
-            query += " AND json_extract(metadata, '$.episode') = ?"
-            params.append(scene_id.episode)
-
-        query += ")"
-
-        conn.execute(query, params)
-
-    def _shift_scenes_after(
-        self, conn: sqlite3.Connection, scene_id: SceneIdentifier, shift: int
-    ) -> None:
-        """Shift scene numbers after a given scene."""
-        # First get all scenes that need shifting
-        query = """
-            SELECT scene_number FROM scenes
-            WHERE scene_number > ?
-                AND script_id = (
-                    SELECT id FROM scripts
-                    WHERE title = ?
-        """
-        params: list[Any] = [scene_id.scene_number, scene_id.project]
-
-        if scene_id.season is not None:
-            query += " AND json_extract(metadata, '$.season') = ?"
-            params.append(scene_id.season)
-
-        if scene_id.episode is not None:
-            query += " AND json_extract(metadata, '$.episode') = ?"
-            params.append(scene_id.episode)
-
-        # Order by scene_number DESC if shifting up, ASC if shifting down
-        if shift > 0:
-            query += ") ORDER BY scene_number DESC"
-        else:
-            query += ") ORDER BY scene_number ASC"
-
-        cursor = conn.execute(query, params)
-        scenes_to_shift = [row[0] for row in cursor.fetchall()]
-
-        # Now update each scene individually in the correct order
-        update_query = """
-            UPDATE scenes
-            SET scene_number = scene_number + ?
-            WHERE scene_number = ?
-                AND script_id = (
-                    SELECT id FROM scripts
-                    WHERE title = ?
-        """
-
-        for scene_num in scenes_to_shift:
-            update_params: list[Any] = [shift, scene_num, scene_id.project]
-
-            update_query_full = update_query
-            if scene_id.season is not None:
-                update_query_full += " AND json_extract(metadata, '$.season') = ?"
-                update_params.append(scene_id.season)
-
-            if scene_id.episode is not None:
-                update_query_full += " AND json_extract(metadata, '$.episode') = ?"
-                update_params.append(scene_id.episode)
-
-            update_query_full += ")"
-
-            conn.execute(update_query_full, update_params)
-
-    def _shift_scenes_from(
-        self, conn: sqlite3.Connection, scene_id: SceneIdentifier, shift: int
-    ) -> None:
-        """Shift scene numbers from a given scene."""
-        # First get all scenes that need shifting
-        query = """
-            SELECT scene_number FROM scenes
-            WHERE scene_number >= ?
-                AND script_id = (
-                    SELECT id FROM scripts
-                    WHERE title = ?
-        """
-        params: list[Any] = [scene_id.scene_number, scene_id.project]
-
-        if scene_id.season is not None:
-            query += " AND json_extract(metadata, '$.season') = ?"
-            params.append(scene_id.season)
-
-        if scene_id.episode is not None:
-            query += " AND json_extract(metadata, '$.episode') = ?"
-            params.append(scene_id.episode)
-
-        # Order by scene_number DESC if shifting up, ASC if shifting down
-        if shift > 0:
-            query += ") ORDER BY scene_number DESC"
-        else:
-            query += ") ORDER BY scene_number ASC"
-
-        cursor = conn.execute(query, params)
-        scenes_to_shift = [row[0] for row in cursor.fetchall()]
-
-        # Now update each scene individually in the correct order
-        update_query = """
-            UPDATE scenes
-            SET scene_number = scene_number + ?
-            WHERE scene_number = ?
-                AND script_id = (
-                    SELECT id FROM scripts
-                    WHERE title = ?
-        """
-
-        for scene_num in scenes_to_shift:
-            update_params: list[Any] = [shift, scene_num, scene_id.project]
-
-            update_query_full = update_query
-            if scene_id.season is not None:
-                update_query_full += " AND json_extract(metadata, '$.season') = ?"
-                update_params.append(scene_id.season)
-
-            if scene_id.episode is not None:
-                update_query_full += " AND json_extract(metadata, '$.episode') = ?"
-                update_params.append(scene_id.episode)
-
-            update_query_full += ")"
-
-            conn.execute(update_query_full, update_params)
-
-    def _compact_scene_numbers(
-        self, conn: sqlite3.Connection, scene_id: SceneIdentifier
-    ) -> list[int]:
-        """Compact scene numbers after deletion."""
-        # Get all scenes after the deleted one
-        query = """
-            SELECT scene_number FROM scenes
-            WHERE scene_number > ?
-                AND script_id = (
-                    SELECT id FROM scripts
-                    WHERE title = ?
-        """
-        params: list[Any] = [scene_id.scene_number, scene_id.project]
-
-        if scene_id.season is not None:
-            query += " AND json_extract(metadata, '$.season') = ?"
-            params.append(scene_id.season)
-
-        if scene_id.episode is not None:
-            query += " AND json_extract(metadata, '$.episode') = ?"
-            params.append(scene_id.episode)
-
-        query += ") ORDER BY scene_number"
-
-        cursor = conn.execute(query, params)
-        scenes_to_renumber = [row[0] for row in cursor.fetchall()]
-
-        # Shift them all down by 1
-        if scenes_to_renumber:
-            self._shift_scenes_after(conn, scene_id, -1)
-
-        return scenes_to_renumber
-
-    def _get_renumbered_scenes(
-        self, conn: sqlite3.Connection, scene_id: SceneIdentifier
-    ) -> list[int]:
-        """Get list of scene numbers that were renumbered."""
-        query = """
-            SELECT scene_number FROM scenes
-            WHERE scene_number > ?
-                AND script_id = (
-                    SELECT id FROM scripts
-                    WHERE title = ?
-        """
-        params: list[Any] = [scene_id.scene_number, scene_id.project]
-
-        if scene_id.season is not None:
-            query += " AND json_extract(metadata, '$.season') = ?"
-            params.append(scene_id.season)
-
-        if scene_id.episode is not None:
-            query += " AND json_extract(metadata, '$.episode') = ?"
-            params.append(scene_id.episode)
-
-        query += ") ORDER BY scene_number"
-
-        cursor = conn.execute(query, params)
-        return [row[0] for row in cursor.fetchall()]
 
     async def read_bible(
         self, project: str, bible_name: str | None = None
@@ -929,64 +391,3 @@ class SceneManagementAPI:
         except Exception as e:
             logger.error(f"Failed to read bible for project '{project}': {e}")
             return BibleReadResult(success=False, error=str(e))
-
-    def _update_last_read(
-        self, conn: sqlite3.Connection, scene_id: SceneIdentifier, timestamp: datetime
-    ) -> None:
-        """Update the last_read_at timestamp for a scene."""
-        query = """
-            UPDATE scenes
-            SET last_read_at = ?
-            WHERE scene_number = ?
-                AND script_id = (
-                    SELECT id FROM scripts
-                    WHERE title = ?
-        """
-        # Convert datetime to string for SQLite
-        timestamp_str = timestamp.isoformat()
-        params: list[Any] = [timestamp_str, scene_id.scene_number, scene_id.project]
-
-        # Add season/episode conditions
-        if scene_id.season is not None:
-            query += " AND json_extract(metadata, '$.season') = ?"
-            params.append(scene_id.season)
-
-        if scene_id.episode is not None:
-            query += " AND json_extract(metadata, '$.episode') = ?"
-            params.append(scene_id.episode)
-
-        query += ")"
-        conn.execute(query, params)
-
-    def _get_last_modified(
-        self, conn: sqlite3.Connection, scene_id: SceneIdentifier
-    ) -> datetime | None:
-        """Get the last modification time for a scene."""
-        query = """
-            SELECT updated_at
-            FROM scenes
-            WHERE scene_number = ?
-                AND script_id = (
-                    SELECT id FROM scripts
-                    WHERE title = ?
-        """
-        params: list[Any] = [scene_id.scene_number, scene_id.project]
-
-        # Add season/episode conditions
-        if scene_id.season is not None:
-            query += " AND json_extract(metadata, '$.season') = ?"
-            params.append(scene_id.season)
-
-        if scene_id.episode is not None:
-            query += " AND json_extract(metadata, '$.episode') = ?"
-            params.append(scene_id.episode)
-
-        query += ")"
-
-        cursor = conn.execute(query, params)
-        row = cursor.fetchone()
-
-        if row and row["updated_at"]:
-            # Parse timestamp string to datetime
-            return datetime.fromisoformat(row["updated_at"].replace(" ", "T"))
-        return None

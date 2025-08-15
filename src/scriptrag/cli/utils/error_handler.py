@@ -36,25 +36,37 @@ def handle_cli_error(
             for key, value in error.details.items():
                 console.print(f"  [dim]{key}:[/dim] {value}")
 
-        # Log the full error for debugging
+        # Log the full error with structured metadata for debugging
         logger.error(
             "ScriptRAG error occurred",
             error_type=type(error).__name__,
             message=error.message,
             hint=error.hint,
             details=error.details,
+            verbose_mode=verbose,
+            exit_code=exit_code,
         )
 
     elif isinstance(error, FileNotFoundError):
         # Standard file not found errors
         console.print(f"[red]✗ File not found: {error}[/red]")
         console.print("[yellow]→ Check that the file path is correct[/yellow]")
-        logger.error("File not found", error=str(error))
+        logger.error(
+            "File not found",
+            error=str(error),
+            filename=getattr(error, "filename", None),
+            error_type="FileNotFoundError",
+            exit_code=exit_code,
+        )
 
     elif isinstance(error, KeyboardInterrupt):
         # User interrupted the operation
         console.print("\n[yellow]Operation cancelled by user[/yellow]")
-        logger.info("Operation interrupted by user")
+        logger.info(
+            "Operation interrupted by user",
+            error_type="KeyboardInterrupt",
+            exit_code=exit_code,
+        )
 
     else:
         # Unknown/unexpected errors
@@ -66,7 +78,14 @@ def handle_cli_error(
         else:
             console.print("[dim]Run with --verbose for full error details[/dim]")
 
-        # Log full error details
-        logger.error("Unexpected error occurred", error=str(error), exc_info=True)
+        # Log full error details with structured metadata
+        logger.error(
+            "Unexpected error occurred",
+            error=str(error),
+            error_type=type(error).__name__,
+            verbose_mode=verbose,
+            exit_code=exit_code,
+            exc_info=True,
+        )
 
     raise typer.Exit(exit_code)

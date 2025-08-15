@@ -4,7 +4,8 @@ from typing import Any
 
 from mcp.server import FastMCP
 
-from scriptrag.api.scene_management import SceneIdentifier, SceneManagementAPI
+from scriptrag.api.scene_management import SceneManagementAPI
+from scriptrag.api.scene_models import SceneIdentifier
 from scriptrag.config import get_logger
 
 logger = get_logger(__name__)

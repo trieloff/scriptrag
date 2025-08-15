@@ -1,12 +1,13 @@
 """Result formatter for search functionality."""
 
 import json
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
 
 from scriptrag.config import get_logger
-from scriptrag.search.models import SearchResponse, SearchResult
+from scriptrag.search.models import SearchQuery, SearchResponse, SearchResult
 
 logger = get_logger(__name__)
 
@@ -22,6 +23,23 @@ class ResultFormatter:
         """
         self.console = console or Console()
 
+    def _get_query_attr(
+        self, query: SearchQuery | str, attr: str, default: Any = None
+    ) -> Any:
+        """Safely get query attribute, handling both SearchQuery objects and strings.
+
+        Args:
+            query: Query object or string
+            attr: Attribute name
+            default: Default value if attribute doesn't exist
+
+        Returns:
+            Attribute value or default
+        """
+        if hasattr(query, attr):
+            return getattr(query, attr)
+        return default
+
     def format_results(self, response: SearchResponse, verbose: bool = False) -> None:
         """Format and display search results.
 
@@ -30,9 +48,15 @@ class ResultFormatter:
             verbose: Show detailed information
         """
         if not response.results:
+            # Handle both SearchQuery objects and simple strings for defensive coding
+            query_text = (
+                response.query.raw_query
+                if hasattr(response.query, "raw_query")
+                else str(response.query)
+            )
             logger.debug(
                 "No search results found",
-                query=response.query.raw_query,
+                query=query_text,
                 total_count=0,
             )
             self.console.print(
@@ -65,46 +89,51 @@ class ResultFormatter:
         Args:
             response: Search response
         """
+        # Safely access query attributes for logging
+        project = self._get_query_attr(response.query, "project")
+        characters = self._get_query_attr(response.query, "characters", [])
+        dialogue = self._get_query_attr(response.query, "dialogue")
+        text_query = self._get_query_attr(response.query, "text_query")
+
         logger.debug(
             "Displaying search info",
-            project=response.query.project,
-            characters=response.query.characters,
-            dialogue=bool(response.query.dialogue),
-            text_query=bool(response.query.text_query),
+            project=project,
+            characters=characters,
+            dialogue=bool(dialogue),
+            text_query=bool(text_query),
             search_methods=response.search_methods,
         )
         query_parts = []
 
-        if response.query.project:
-            query_parts.append(f"Project: [cyan]{response.query.project}[/cyan]")
+        if project:
+            query_parts.append(f"Project: [cyan]{project}[/cyan]")
 
-        if response.query.characters:
-            chars = ", ".join(response.query.characters)
+        if characters:
+            chars = ", ".join(characters)
             query_parts.append(f"Character(s): [green]{chars}[/green]")
 
-        if response.query.dialogue:
-            query_parts.append(
-                f'Dialogue: [yellow]"{response.query.dialogue}"[/yellow]'
-            )
+        if dialogue:
+            query_parts.append(f'Dialogue: [yellow]"{dialogue}"[/yellow]')
 
-        if response.query.parenthetical:
-            query_parts.append(
-                f"Parenthetical: [dim]({response.query.parenthetical})[/dim]"
-            )
+        parenthetical = self._get_query_attr(response.query, "parenthetical")
+        if parenthetical:
+            query_parts.append(f"Parenthetical: [dim]({parenthetical})[/dim]")
 
-        if response.query.text_query:
-            query_parts.append(f"Text: [white]{response.query.text_query}[/white]")
+        if text_query:
+            query_parts.append(f"Text: [white]{text_query}[/white]")
 
-        if response.query.season_start is not None:
-            if response.query.season_end != response.query.season_start:
+        season_start = self._get_query_attr(response.query, "season_start")
+        if season_start is not None:
+            season_end = self._get_query_attr(response.query, "season_end")
+            episode_start = self._get_query_attr(response.query, "episode_start")
+            episode_end = self._get_query_attr(response.query, "episode_end")
+
+            if season_end != season_start:
                 range_str = (
-                    f"S{response.query.season_start}E{response.query.episode_start}-"
-                    f"S{response.query.season_end}E{response.query.episode_end}"
+                    f"S{season_start}E{episode_start}-S{season_end}E{episode_end}"
                 )
             else:
-                range_str = (
-                    f"S{response.query.season_start}E{response.query.episode_start}"
-                )
+                range_str = f"S{season_start}E{episode_start}"
             query_parts.append(f"Range: [magenta]{range_str}[/magenta]")
 
         if query_parts:
@@ -187,7 +216,9 @@ class ResultFormatter:
         if response.has_more:
             shown = len(response.results)
             total = response.total_count
-            next_offset = response.query.offset + response.query.limit
+            offset = self._get_query_attr(response.query, "offset", 0)
+            limit = self._get_query_attr(response.query, "limit", 5)
+            next_offset = offset + limit
 
             self.console.print(
                 f"\n[yellow]Showing {shown} of {total} results. "

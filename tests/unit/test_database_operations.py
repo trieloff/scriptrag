@@ -127,8 +127,8 @@ class TestDatabaseOperations:
         # Test successful transaction
         with initialized_db.transaction() as conn:
             conn.execute(
-                "INSERT INTO scripts (title, author) VALUES (?, ?)",
-                ("Test", "Author"),
+                "INSERT INTO scripts (title, author, file_path) VALUES (?, ?, ?)",
+                ("Test", "Author", "/test/script.fountain"),
             )
 
         # Verify data was committed
@@ -143,8 +143,8 @@ class TestDatabaseOperations:
             initialized_db.transaction() as conn,
         ):
             conn.execute(
-                "INSERT INTO scripts (title, author) VALUES (?, ?)",
-                ("Test2", "Author2"),
+                "INSERT INTO scripts (title, author, file_path) VALUES (?, ?, ?)",
+                ("Test2", "Author2", "/test/script2.fountain"),
             )
             # This should fail due to unique constraint
             conn.execute(

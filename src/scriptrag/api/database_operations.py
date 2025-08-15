@@ -146,49 +146,37 @@ class DatabaseOperations:
         metadata["last_indexed"] = datetime.now().isoformat()
 
         # Extract series/episode info from metadata if available
-        project_title = metadata.get("project_title", script.title)
+        # Ensure we have safe defaults for all fields
+        title = script.title or "Untitled"
+        author = script.author or "Unknown"
+        project_title = metadata.get("project_title") or title
         series_title = metadata.get("series_title")
         season = metadata.get("season")
         episode = metadata.get("episode")
 
-        # Use INSERT OR REPLACE with file_path as the unique key
-        # First check if script exists to get its ID
-        existing = self.get_existing_script(conn, file_path)
-
-        if existing and existing.id is not None:
-            # Update existing script
-            conn.execute(
-                """
-                UPDATE scripts
-                SET title = ?, author = ?, project_title = ?, series_title = ?,
-                    season = ?, episode = ?, metadata = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE file_path = ?
-                """,
-                (
-                    script.title,
-                    script.author,
-                    project_title,
-                    series_title,
-                    season,
-                    episode,
-                    json.dumps(metadata),
-                    str(file_path),
-                ),
-            )
-            logger.debug(f"Updated script {existing.id}: {script.title} at {file_path}")
-            return existing.id
-        # Insert new script
+        # Use INSERT OR REPLACE to handle upsert atomically
+        # This avoids race conditions between check and insert/update
         cursor = conn.execute(
             """
-                INSERT INTO scripts (title, author, file_path, project_title,
-                                   series_title, season, episode, metadata)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
+            INSERT INTO scripts (
+                file_path, title, author, project_title,
+                series_title, season, episode, metadata
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(file_path) DO UPDATE SET
+                title = excluded.title,
+                author = excluded.author,
+                project_title = excluded.project_title,
+                series_title = excluded.series_title,
+                season = excluded.season,
+                episode = excluded.episode,
+                metadata = excluded.metadata,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING id
+            """,
             (
-                script.title,
-                script.author,
                 str(file_path),
+                title,
+                author,
                 project_title,
                 series_title,
                 season,
@@ -196,18 +184,21 @@ class DatabaseOperations:
                 json.dumps(metadata),
             ),
         )
-        script_id = cursor.lastrowid
-        if script_id is None:
+
+        row = cursor.fetchone()
+        if row is None or row[0] is None:
             raise DatabaseError(
-                message="Failed to get script ID after database insert",
+                message="Failed to get script ID after upsert",
                 hint="Database constraint violation or transaction issue",
                 details={
-                    "script_title": script.title,
+                    "script_title": title,
                     "script_path": str(file_path),
-                    "operation": "INSERT INTO scripts",
+                    "operation": "INSERT OR UPDATE scripts",
                 },
             )
-        logger.debug(f"Inserted script {script_id}: {script.title} at {file_path}")
+
+        script_id = int(row[0])
+        logger.debug(f"Upserted script {script_id}: {title} at {file_path}")
         return script_id
 
     def clear_script_data(self, conn: sqlite3.Connection, script_id: int) -> None:

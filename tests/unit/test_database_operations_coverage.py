@@ -64,8 +64,8 @@ class TestDatabaseOperationsCoverage:
         with initialized_db_ops.transaction() as conn:
             # Insert a script and scene first
             cursor = conn.execute(
-                "INSERT INTO scripts (title, author) VALUES (?, ?)",
-                ("Test Script", "Test Author"),
+                "INSERT INTO scripts (title, author, file_path) VALUES (?, ?, ?)",
+                ("Test Script", "Test Author", "/test/script.fountain"),
             )
             script_id = cursor.lastrowid
 
@@ -104,8 +104,8 @@ class TestDatabaseOperationsCoverage:
         with initialized_db_ops.transaction() as conn:
             # Insert a script and scene first
             cursor = conn.execute(
-                "INSERT INTO scripts (title, author) VALUES (?, ?)",
-                ("Test Script", "Test Author"),
+                "INSERT INTO scripts (title, author, file_path) VALUES (?, ?, ?)",
+                ("Test Script", "Test Author", "/test/script.fountain"),
             )
             script_id = cursor.lastrowid
 
@@ -151,8 +151,8 @@ class TestDatabaseOperationsCoverage:
         with initialized_db_ops.transaction() as conn:
             # Insert a script and scene first
             cursor = conn.execute(
-                "INSERT INTO scripts (title, author) VALUES (?, ?)",
-                ("Test Script", "Test Author"),
+                "INSERT INTO scripts (title, author, file_path) VALUES (?, ?, ?)",
+                ("Test Script", "Test Author", "/test/script.fountain"),
             )
             script_id = cursor.lastrowid
 
@@ -190,8 +190,8 @@ class TestDatabaseOperationsCoverage:
         with initialized_db_ops.transaction() as conn:
             # Insert a script and scene first
             cursor = conn.execute(
-                "INSERT INTO scripts (title, author) VALUES (?, ?)",
-                ("Test Script", "Test Author"),
+                "INSERT INTO scripts (title, author, file_path) VALUES (?, ?, ?)",
+                ("Test Script", "Test Author", "/test/script.fountain"),
             )
             script_id = cursor.lastrowid
 
@@ -236,8 +236,8 @@ class TestDatabaseOperationsCoverage:
         with initialized_db_ops.transaction() as conn:
             # Insert a script and character first
             cursor = conn.execute(
-                "INSERT INTO scripts (title, author) VALUES (?, ?)",
-                ("Test Script", "Test Author"),
+                "INSERT INTO scripts (title, author, file_path) VALUES (?, ?, ?)",
+                ("Test Script", "Test Author", "/test/script.fountain"),
             )
             script_id = cursor.lastrowid
 
@@ -275,8 +275,8 @@ class TestDatabaseOperationsCoverage:
         with initialized_db_ops.transaction() as conn:
             # Insert a script first
             cursor = conn.execute(
-                "INSERT INTO scripts (title, author) VALUES (?, ?)",
-                ("Test Script", "Test Author"),
+                "INSERT INTO scripts (title, author, file_path) VALUES (?, ?, ?)",
+                ("Test Script", "Test Author", "/test/script.fountain"),
             )
             script_id = cursor.lastrowid
 
@@ -319,8 +319,8 @@ class TestDatabaseOperationsCoverage:
         with initialized_db_ops.transaction() as conn:
             # Insert a script first
             cursor = conn.execute(
-                "INSERT INTO scripts (title, author) VALUES (?, ?)",
-                ("Test Script", "Test Author"),
+                "INSERT INTO scripts (title, author, file_path) VALUES (?, ?, ?)",
+                ("Test Script", "Test Author", "/test/script.fountain"),
             )
             script_id = cursor.lastrowid
 

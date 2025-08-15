@@ -229,7 +229,7 @@ class TestLLMTimeoutHandling:
                 "dialogue": [],
             }
 
-            result = await analyzer.analyze_scene(scene, 0)
+            result = await analyzer.analyze(scene)
             assert "embedding_path" in result
             assert result["dimensions"] == 5
 

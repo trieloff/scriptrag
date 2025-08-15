@@ -188,8 +188,10 @@ class TestCheckDatabasePath:
 
         error = exc_info.value
         assert "default_paths" in error.details
-        assert "/default/path1" in str(error.details["default_paths"])
-        assert "/default/path2" in str(error.details["default_paths"])
+        # Check that both paths are in the list (platform-agnostic)
+        paths_str = str(error.details["default_paths"])
+        assert "path1" in paths_str
+        assert "path2" in paths_str
 
     def test_database_path_scriptrag_db_exists(self, tmp_path, monkeypatch):
         """Test when scriptrag.db exists in current directory."""

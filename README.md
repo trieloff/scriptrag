@@ -1,6 +1,6 @@
 # ScriptRAG: A Graph-Based Screenwriting Assistant
 
-[![96% Vibe_Coded](https://img.shields.io/badge/96%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
+[![97% Vibe_Coded](https://img.shields.io/badge/97%25-Vibe_Coded-ff69b4?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/trieloff/vibe-coded-badge-action)
 
 ScriptRAG is a novel screenwriting tool that combines Fountain parsing, graph databases, and local LLMs
 to create an intelligent screenplay assistant using the GraphRAG (Graph + Retrieval-Augmented
@@ -120,8 +120,6 @@ export SCRIPTRAG_DATABASE_PATH=/path/to/your/scriptrag.db
 uv run scriptrag scene read --project "My Script" --scene 1
 ```
 
-**Note**: Currently, the `search` and `query` commands have a known issue with database path validation. See [issue #240](https://github.com/trieloff/scriptrag/issues/240) for details.
-
 See the [User Guide](docs/user-guide.md) for complete documentation.
 
 ### Complete Workflow Example
@@ -163,8 +161,8 @@ uv run scriptrag scene read --project "My Amazing Script" --scene 1
 # 4. View available queries
 uv run scriptrag query list
 
-# 5. List all scenes (Note: query commands have bug #240)
-# uv run scriptrag query simple_scene_list
+# 5. List all scenes
+uv run scriptrag query simple_scene_list
 
 # 6. Scene management (requires session tokens)
 # Read a scene and get a session token
@@ -186,8 +184,8 @@ uv run scriptrag scene read --project "My Amazing Script" --scene 1
 | `scene add/update/delete` | Manage scenes | ✅ Working |
 | `watch` | Auto-import on changes | ✅ Working |
 | `mcp` | Start MCP server | ✅ Working |
-| `search` | Search scripts | ❌ [Bug #240](https://github.com/trieloff/scriptrag/issues/240) |
-| `query` | Run SQL queries | ❌ [Bug #240](https://github.com/trieloff/scriptrag/issues/240) |
+| `search` | Search scripts | ✅ Working |
+| `query` | Run SQL queries | ✅ Working |
 
 ## Tech Stack
 

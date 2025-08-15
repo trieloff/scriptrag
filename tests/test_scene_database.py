@@ -273,20 +273,37 @@ class TestSceneDatabaseOperations:
         """Test shifting scene numbers after a scene."""
         scene_id = SceneIdentifier("test_project", 5)
 
+        # Mock the cursor for SELECT query
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [(10, 6), (11, 7)]  # (id, scene_number)
+        mock_conn.execute.return_value = mock_cursor
+
         db_ops.shift_scenes_after(mock_conn, scene_id, 1)
 
-        call_args = mock_conn.execute.call_args[0]
-        query = call_args[0]
-        params = call_args[1]
-        assert "UPDATE scenes" in query
-        assert "scene_number = scene_number + ?" in query
-        assert 1 in params  # shift amount
+        # Should make multiple calls: first SELECT, then individual UPDATEs
+        assert mock_conn.execute.call_count >= 2
+
+        # First call should be SELECT query
+        first_call = mock_conn.execute.call_args_list[0]
+        query = first_call[0][0]
+        params = first_call[0][1]
+        assert "SELECT id, scene_number FROM scenes" in query
+        assert "scene_number > ?" in query
         assert 5 in params  # scene number
+
+        # Should also have individual UPDATE calls
+        update_calls = [
+            call
+            for call in mock_conn.execute.call_args_list
+            if "UPDATE scenes SET scene_number = scene_number + ?" in str(call)
+        ]
+        assert len(update_calls) >= 1
 
     def test_shift_scenes_from(self, db_ops, mock_conn):
         """Test shifting scene numbers from a scene."""
         scene_id = SceneIdentifier("test_project", 5)
 
+        # Test negative shift (uses direct UPDATE)
         db_ops.shift_scenes_from(mock_conn, scene_id, -1)
 
         call_args = mock_conn.execute.call_args[0]
@@ -295,6 +312,36 @@ class TestSceneDatabaseOperations:
         assert "UPDATE scenes" in query
         assert "scene_number >= ?" in query
         assert -1 in params  # shift amount
+
+    def test_shift_scenes_from_positive(self, db_ops, mock_conn):
+        """Test shifting scene numbers from a scene with positive shift."""
+        scene_id = SceneIdentifier("test_project", 5)
+
+        # Mock the cursor for SELECT query (positive shift uses SELECT-first approach)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [(10, 5), (11, 6)]  # (id, scene_number)
+        mock_conn.execute.return_value = mock_cursor
+
+        db_ops.shift_scenes_from(mock_conn, scene_id, 1)
+
+        # Should make multiple calls: first SELECT, then individual UPDATEs
+        assert mock_conn.execute.call_count >= 2
+
+        # First call should be SELECT query
+        first_call = mock_conn.execute.call_args_list[0]
+        query = first_call[0][0]
+        params = first_call[0][1]
+        assert "SELECT id, scene_number FROM scenes" in query
+        assert "scene_number >= ?" in query
+        assert 5 in params  # scene number
+
+        # Should also have individual UPDATE calls
+        update_calls = [
+            call
+            for call in mock_conn.execute.call_args_list
+            if "UPDATE scenes SET scene_number = scene_number + ?" in str(call)
+        ]
+        assert len(update_calls) >= 1
 
     def test_compact_scene_numbers(self, db_ops, mock_conn):
         """Test compacting scene numbers after deletion."""

@@ -345,22 +345,32 @@ class TestSceneManagementAPIExtended:
         """Test _shift_scenes_after."""
         scene_id = SceneIdentifier(project="test", scene_number=5)
 
+        # Mock the cursor for SELECT query (positive shift uses SELECT-first approach)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [(10, 6), (11, 7)]  # (id, scene_number)
+        mock_conn.execute.return_value = mock_cursor
+
         api.scene_db.shift_scenes_after(mock_conn, scene_id, 1)
 
-        # Should have 1 bulk UPDATE call
-        assert mock_conn.execute.call_count == 1
+        # Should have multiple calls: first SELECT, then individual UPDATEs
+        assert mock_conn.execute.call_count >= 2
 
-        # Check UPDATE query was executed
-        call_args = mock_conn.execute.call_args[0]
-        query = call_args[0]
-        params = call_args[1]
-
-        assert "UPDATE scenes" in query
-        assert "SET scene_number = scene_number + ?" in query
+        # First call should be SELECT query
+        first_call = mock_conn.execute.call_args_list[0]
+        query = first_call[0][0]
+        params = first_call[0][1]
+        assert "SELECT id, scene_number FROM scenes" in query
         assert "scene_number > ?" in query
-        assert 1 in params  # shift
         assert 5 in params  # scene_number
         assert "test" in params  # project
+
+        # Should also have individual UPDATE calls
+        update_calls = [
+            call
+            for call in mock_conn.execute.call_args_list
+            if "UPDATE scenes SET scene_number = scene_number + ?" in str(call)
+        ]
+        assert len(update_calls) >= 1
 
     def test_shift_scenes_after_with_season_episode(self, api, mock_conn):
         """Test _shift_scenes_after with TV show parameters."""
@@ -371,24 +381,61 @@ class TestSceneManagementAPIExtended:
             scene_number=5,
         )
 
+        # Mock the cursor for SELECT query (positive shift uses SELECT-first approach)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [(10, 6)]  # (id, scene_number)
+        mock_conn.execute.return_value = mock_cursor
+
         api.scene_db.shift_scenes_after(mock_conn, scene_id, 2)
 
         # Check SQL query included season/episode conditions
-        call_args = mock_conn.execute.call_args[0]
-        query = call_args[0]
-        params = call_args[1]
+        first_call = mock_conn.execute.call_args_list[0]
+        query = first_call[0][0]
+        params = first_call[0][1]
 
         assert "json_extract" in query
-        assert 2 in params  # shift or season
+        assert 2 in params  # season
         assert 4 in params  # episode
 
     def test_shift_scenes_from(self, api, mock_conn):
-        """Test _shift_scenes_from."""
+        """Test _shift_scenes_from with positive shift."""
         scene_id = SceneIdentifier(project="test", scene_number=5)
+
+        # Mock the cursor for SELECT query (positive shift uses SELECT-first approach)
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = [(10, 5), (11, 6)]  # (id, scene_number)
+        mock_conn.execute.return_value = mock_cursor
 
         api.scene_db.shift_scenes_from(mock_conn, scene_id, 1)
 
-        # Should have 1 bulk UPDATE call
+        # Should have multiple calls: first SELECT, then individual UPDATEs
+        assert mock_conn.execute.call_count >= 2
+
+        # First call should be SELECT query
+        first_call = mock_conn.execute.call_args_list[0]
+        query = first_call[0][0]
+        params = first_call[0][1]
+        assert "SELECT id, scene_number FROM scenes" in query
+        assert "scene_number >= ?" in query
+        assert 5 in params  # scene_number
+        assert "test" in params  # project
+
+        # Should also have individual UPDATE calls
+        update_calls = [
+            call
+            for call in mock_conn.execute.call_args_list
+            if "UPDATE scenes SET scene_number = scene_number + ?" in str(call)
+        ]
+        assert len(update_calls) >= 1
+
+    def test_shift_scenes_from_negative(self, api, mock_conn):
+        """Test _shift_scenes_from with negative shift."""
+        scene_id = SceneIdentifier(project="test", scene_number=5)
+
+        # Negative shift uses direct UPDATE (single call)
+        api.scene_db.shift_scenes_from(mock_conn, scene_id, -1)
+
+        # Should have 1 bulk UPDATE call for negative shifts
         assert mock_conn.execute.call_count == 1
 
         # Check UPDATE query was executed
@@ -399,12 +446,12 @@ class TestSceneManagementAPIExtended:
         assert "UPDATE scenes" in query
         assert "SET scene_number = scene_number + ?" in query
         assert "scene_number >= ?" in query
-        assert 1 in params  # shift
+        assert -1 in params  # shift
         assert 5 in params  # scene_number
         assert "test" in params  # project
 
     def test_shift_scenes_from_with_season_episode(self, api, mock_conn):
-        """Test _shift_scenes_from with TV show parameters."""
+        """Test _shift_scenes_from with TV show parameters (negative shift)."""
         scene_id = SceneIdentifier(
             project="show",
             season=1,
@@ -412,6 +459,7 @@ class TestSceneManagementAPIExtended:
             scene_number=10,
         )
 
+        # Negative shift uses direct UPDATE
         api.scene_db.shift_scenes_from(mock_conn, scene_id, -1)
 
         # Check SQL query included season/episode conditions

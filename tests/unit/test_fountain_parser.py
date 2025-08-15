@@ -687,6 +687,36 @@ Test scene.
                 f"Failed for field: {field}"
             )
 
+    def test_parse_series_title_fallback_to_normalized_key(self, parser):
+        """Test series_title field (from Series_Title) when series is absent."""
+        # This tests the elif branch for series_title in fountain_parser.py line 258
+        content = """Title: Test Episode
+Series_Title: The Wire
+Episode: 3
+Season: 1
+
+INT. POLICE STATION - DAY
+
+McNulty enters.
+"""
+        script = parser.parse(content)
+        # Uses series_title (from Series_Title) since 'series' key is absent
+        assert script.metadata.get("series_title") == "The Wire"
+
+    def test_parse_project_title_fallback_to_normalized_key(self, parser):
+        """Test project_title field (from Project_Title) when project is absent."""
+        # This tests the elif branch for project_title in fountain_parser.py line 266
+        content = """Title: Test Script
+Project_Title: My Amazing Project
+
+INT. OFFICE - DAY
+
+Work happens.
+"""
+        script = parser.parse(content)
+        # Uses project_title (from Project_Title) since 'project' key is absent
+        assert script.metadata.get("project_title") == "My Amazing Project"
+
     def test_parse_file_with_series_and_project_metadata(self, parser, tmp_path):
         """Test parsing file with comprehensive series and project metadata."""
         content = """Title: The Pilot

@@ -980,7 +980,7 @@ class TestSearchCommandConfigOption:
         mock_formatter.return_value = mock_formatter_instance
 
         # Mock copy.deepcopy to track db_path override
-        with patch("scriptrag.cli.commands.search.copy.deepcopy") as mock_deepcopy:
+        with patch("copy.deepcopy") as mock_deepcopy:
             copied_settings = Mock()
             copied_settings.database_path = override_db_path
             mock_deepcopy.return_value = copied_settings

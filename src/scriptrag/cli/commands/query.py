@@ -122,28 +122,36 @@ def create_query_command(
         output_json = kwargs.pop("json", False)
         limit = kwargs.pop("limit", None)
         offset = kwargs.pop("offset", None)
+        config = kwargs.pop("config", None)
         db_path = kwargs.pop("db_path", None) if db_path_option else None
 
         # Remaining kwargs are query parameters
         params = kwargs
 
         try:
-            # Get fresh API instance with current settings at execution time
-            # Apply db_path override if provided
-            if db_path:
-                # Create custom settings with db_path override
-                from scriptrag.config import get_settings as get_settings_func
+            from scriptrag.config.settings import ScriptRAGSettings
 
-                current_settings = get_settings_func()
-                # Create a copy with the new db_path
-                current_settings = copy.deepcopy(current_settings)
-                current_settings.database_path = db_path
+            # Load settings with proper precedence
+            if config:
+                if not config.exists():
+                    console.print(f"[red]Error: Config file not found: {config}[/red]")
+                    raise typer.Exit(1)
+
+                current_settings = ScriptRAGSettings.from_multiple_sources(
+                    config_files=[config],
+                )
             else:
                 # Force fresh settings to pick up environment variable changes
                 settings_module._settings = None  # Clear cached settings
                 from scriptrag.config import get_settings as get_settings_func
 
                 current_settings = get_settings_func()
+
+            # Apply db_path override if provided
+            if db_path:
+                # Create a copy with the new db_path
+                current_settings = copy.deepcopy(current_settings)
+                current_settings.database_path = db_path
 
             current_api = QueryAPI(current_settings)
 
@@ -247,6 +255,18 @@ def create_query_command(
             typer.Option(
                 default=False,
                 help="Output results as JSON",
+            ),
+        )
+    )
+
+    # Add config option
+    params.append(
+        (
+            "config",
+            Path | None,
+            typer.Option(
+                default=None,
+                help="Path to configuration file (YAML, TOML, or JSON)",
             ),
         )
     )

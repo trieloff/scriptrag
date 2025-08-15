@@ -61,6 +61,8 @@ Come in, John.
         mock_response = MagicMock()
         mock_response.content = '{"wrong_field": "value"}'
         mock_response.model = "test-model"
+        mock_response.provider = None
+        mock_response.usage = {}
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 

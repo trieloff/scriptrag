@@ -131,6 +131,13 @@ def search_command(
             help="Search only bible content, exclude script scenes",
         ),
     ] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
+    ] = None,
 ) -> None:
     """Search through indexed screenplays.
 
@@ -167,18 +174,29 @@ def search_command(
         import copy
 
         from scriptrag.config import get_settings
+        from scriptrag.config.settings import ScriptRAGSettings
 
-        # Get settings with db_path override if provided
-        if db_path:
+        # Load settings with proper precedence
+        if config:
+            if not config.exists():
+                console.print(f"[red]Error: Config file not found: {config}[/red]")
+                raise typer.Exit(1)
+
+            settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=[config],
+            )
+        else:
+            # Use default settings
             settings = get_settings()
+
+        # Apply db_path override if provided
+        if db_path:
             # Create a copy with the new db_path
             settings = copy.deepcopy(settings)
             settings.database_path = db_path
-            # Initialize search API with custom settings
-            search_api = SearchAPI(settings)
-        else:
-            # Initialize search API from config
-            search_api = SearchAPI.from_config()
+
+        # Initialize search API
+        search_api = SearchAPI(settings=settings)
 
         # Validate conflicting options
         if fuzzy and strict:

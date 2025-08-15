@@ -1,5 +1,7 @@
 """Unit tests for scriptrag search CLI command."""
 
+from collections.abc import Generator
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -19,31 +21,31 @@ class TestSearchCommand:
     """Test the search command function."""
 
     @pytest.fixture
-    def mock_console(self):
+    def mock_console(self) -> Generator[Mock, None, None]:
         """Mock the console to capture output."""
         with patch("scriptrag.cli.commands.search.console") as mock:
             yield mock
 
     @pytest.fixture
-    def mock_search_api(self):
+    def mock_search_api(self) -> Generator[Mock, None, None]:
         """Mock the SearchAPI class."""
         with patch("scriptrag.cli.commands.search.SearchAPI") as mock:
             yield mock
 
     @pytest.fixture
-    def mock_formatter(self):
+    def mock_formatter(self) -> Generator[Mock, None, None]:
         """Mock the ResultFormatter class."""
         with patch("scriptrag.cli.commands.search.ResultFormatter") as mock:
             yield mock
 
     @pytest.fixture
-    def mock_logger(self):
+    def mock_logger(self) -> Generator[Mock, None, None]:
         """Mock the logger."""
         with patch("scriptrag.cli.commands.search.logger") as mock:
             yield mock
 
     @pytest.fixture
-    def sample_search_response(self):
+    def sample_search_response(self) -> SearchResponse:
         """Create a sample search response."""
         query = SearchQuery(
             raw_query="test query",
@@ -79,13 +81,17 @@ class TestSearchCommand:
         )
 
     def test_basic_search_success(
-        self, mock_console, mock_search_api, mock_formatter, sample_search_response
-    ):
+        self,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test basic search command with successful results."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -94,7 +100,7 @@ class TestSearchCommand:
         search_command("test query")
 
         # Verify API was called correctly
-        mock_search_api.from_config.assert_called_once()
+        mock_search_api.assert_called_once()
         mock_api_instance.search.assert_called_once_with(
             query="test query",
             character=None,
@@ -118,16 +124,16 @@ class TestSearchCommand:
 
     def test_search_with_all_options(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test search command with all possible options."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -170,13 +176,17 @@ class TestSearchCommand:
         )
 
     def test_search_brief_format(
-        self, mock_console, mock_search_api, mock_formatter, sample_search_response
-    ):
+        self,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test search command with brief output format."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter_instance.format_brief.return_value = "Brief result text"
@@ -194,11 +204,11 @@ class TestSearchCommand:
 
     def test_fuzzy_and_strict_conflict(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        mock_logger,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        mock_logger: Mock,
+    ) -> None:
         """Test that fuzzy and strict flags cannot be used together."""
         # Execute command with conflicting flags
         with pytest.raises(typer.Exit) as exc_info:
@@ -217,11 +227,11 @@ class TestSearchCommand:
         # Logger should not be called for simple validation errors
         mock_logger.error.assert_not_called()
 
-        # Verify SearchAPI.from_config WAS called (happens before validation)
-        mock_search_api.from_config.assert_called_once()
+        # Verify SearchAPI WAS called (happens before validation)
+        mock_search_api.assert_called_once()
 
         # But search() method should NOT be called
-        mock_api_instance = mock_search_api.from_config.return_value
+        mock_api_instance = mock_search_api.return_value
         mock_api_instance.search.assert_not_called()
 
     @pytest.mark.parametrize(
@@ -237,21 +247,21 @@ class TestSearchCommand:
     )
     def test_search_option_combinations(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-        character,
-        dialogue,
-        parenthetical,
-        project,
-        range_filter,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+        character: str | None,
+        dialogue: str | None,
+        parenthetical: str | None,
+        project: str | None,
+        range_filter: str | None,
+    ) -> None:
         """Test various combinations of search options."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -293,18 +303,18 @@ class TestSearchCommand:
     )
     def test_pagination_options(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-        limit,
-        offset,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+        limit: int,
+        offset: int,
+    ) -> None:
         """Test different pagination combinations."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -338,18 +348,18 @@ class TestSearchCommand:
     )
     def test_search_mode_options(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-        fuzzy,
-        strict,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+        fuzzy: bool,
+        strict: bool,
+    ) -> None:
         """Test different search mode combinations."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -383,18 +393,18 @@ class TestSearchCommand:
     )
     def test_output_format_options(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-        verbose,
-        brief,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+        verbose: bool,
+        brief: bool,
+    ) -> None:
         """Test different output format options."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter_instance.format_brief.return_value = "Brief output"
@@ -418,12 +428,16 @@ class TestSearchCommand:
 
     @patch("scriptrag.cli.commands.search.handle_cli_error")
     def test_file_not_found_error(
-        self, mock_handle_error, mock_console, mock_search_api, mock_formatter
-    ):
+        self,
+        mock_handle_error: Mock,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+    ) -> None:
         """Test handling of DatabaseError (was FileNotFoundError)."""
         # Setup mock to raise DatabaseError
         error = DatabaseError("Database not found")
-        mock_search_api.from_config.side_effect = error
+        mock_search_api.side_effect = error
 
         # Setup handle_cli_error to raise Exit
         mock_handle_error.side_effect = typer.Exit(1)
@@ -443,15 +457,15 @@ class TestSearchCommand:
     @patch("scriptrag.cli.commands.search.handle_cli_error")
     def test_search_api_initialization_error(
         self,
-        mock_handle_error,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-    ):
+        mock_handle_error: Mock,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+    ) -> None:
         """Test handling of SearchAPI initialization error."""
         # Setup mock to raise generic error during initialization
         error = RuntimeError("Config error")
-        mock_search_api.from_config.side_effect = error
+        mock_search_api.side_effect = error
 
         # Setup handle_cli_error to raise Exit
         mock_handle_error.side_effect = typer.Exit(1)
@@ -471,18 +485,18 @@ class TestSearchCommand:
     @patch("scriptrag.cli.commands.search.handle_cli_error")
     def test_search_execution_error(
         self,
-        mock_handle_error,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        mock_logger,
-    ):
+        mock_handle_error: Mock,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        mock_logger: Mock,
+    ) -> None:
         """Test handling of search execution error."""
         # Setup mocks
         mock_api_instance = Mock()
         error = RuntimeError("Search failed")
         mock_api_instance.search.side_effect = error
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         # Setup handle_cli_error to raise Exit
         mock_handle_error.side_effect = typer.Exit(1)
@@ -502,18 +516,18 @@ class TestSearchCommand:
     @patch("scriptrag.cli.commands.search.handle_cli_error")
     def test_formatter_error(
         self,
-        mock_handle_error,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        mock_logger,
-        sample_search_response,
-    ):
+        mock_handle_error: Mock,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        mock_logger: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test handling of formatter error."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         error = RuntimeError("Format error")
@@ -538,18 +552,18 @@ class TestSearchCommand:
     @patch("scriptrag.cli.commands.search.handle_cli_error")
     def test_brief_formatter_error(
         self,
-        mock_handle_error,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        mock_logger,
-        sample_search_response,
-    ):
+        mock_handle_error: Mock,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        mock_logger: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test handling of brief formatter error."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         error = RuntimeError("Brief format error")
@@ -573,16 +587,16 @@ class TestSearchCommand:
 
     def test_default_parameters(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test that default parameters are correctly applied."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -613,16 +627,16 @@ class TestSearchCommand:
 
     def test_empty_query_string(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test search with empty query string."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -648,16 +662,16 @@ class TestSearchCommand:
 
     def test_special_characters_in_query(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test search with special characters in query."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -685,16 +699,16 @@ class TestSearchCommand:
 
     def test_unicode_query(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test search with unicode characters."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -722,16 +736,16 @@ class TestSearchCommand:
 
     def test_extreme_pagination_values(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test search with extreme pagination values."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -757,16 +771,16 @@ class TestSearchCommand:
 
     def test_complex_range_filter(
         self,
-        mock_console,
-        mock_search_api,
-        mock_formatter,
-        sample_search_response,
-    ):
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
         """Test search with complex range filter."""
         # Setup mocks
         mock_api_instance = Mock()
         mock_api_instance.search.return_value = sample_search_response
-        mock_search_api.from_config.return_value = mock_api_instance
+        mock_search_api.return_value = mock_api_instance
 
         mock_formatter_instance = Mock()
         mock_formatter.return_value = mock_formatter_instance
@@ -791,3 +805,335 @@ class TestSearchCommand:
             include_bible=True,
             only_bible=False,
         )
+
+
+class TestSearchCommandConfigOption:
+    """Test the --config option for search command."""
+
+    @pytest.fixture
+    def mock_console(self) -> Generator[Mock, None, None]:
+        """Mock the console to capture output."""
+        with patch("scriptrag.cli.commands.search.console") as mock:
+            yield mock
+
+    @pytest.fixture
+    def mock_search_api(self) -> Generator[Mock, None, None]:
+        """Mock the SearchAPI class."""
+        with patch("scriptrag.cli.commands.search.SearchAPI") as mock:
+            yield mock
+
+    @pytest.fixture
+    def mock_formatter(self) -> Generator[Mock, None, None]:
+        """Mock the ResultFormatter class."""
+        with patch("scriptrag.cli.commands.search.ResultFormatter") as mock:
+            yield mock
+
+    @pytest.fixture
+    def mock_get_settings(self) -> Generator[Mock, None, None]:
+        """Mock get_settings function."""
+        with patch("scriptrag.config.get_settings") as mock:
+            yield mock
+
+    @pytest.fixture
+    def mock_scriptrag_settings(self) -> Generator[Mock, None, None]:
+        """Mock ScriptRAGSettings class."""
+        with patch("scriptrag.config.settings.ScriptRAGSettings") as mock:
+            yield mock
+
+    @pytest.fixture
+    def sample_search_response(self) -> SearchResponse:
+        """Create a sample search response."""
+        from scriptrag.search.models import (
+            SearchMode,
+            SearchQuery,
+            SearchResponse,
+            SearchResult,
+        )
+
+        query = SearchQuery(
+            raw_query="test query",
+            text_query="test query",
+            mode=SearchMode.AUTO,
+            limit=5,
+            offset=0,
+            include_bible=True,
+            only_bible=False,
+        )
+        results = [
+            SearchResult(
+                script_id=1,
+                script_title="Test Script",
+                script_author="Test Author",
+                scene_id=1,
+                scene_number=1,
+                scene_heading="INT. TEST SCENE - DAY",
+                scene_location="Test Location",
+                scene_time="DAY",
+                scene_content="This is test scene content.",
+                match_type="text",
+                relevance_score=0.95,
+            )
+        ]
+        return SearchResponse(
+            query=query,
+            results=results,
+            total_count=1,
+            has_more=False,
+            execution_time_ms=42.5,
+            search_methods=["sql"],
+        )
+
+    def test_search_with_config_file_success(
+        self,
+        tmp_path: Path,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        mock_get_settings: Mock,
+        mock_scriptrag_settings: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
+        """Test search command with valid config file."""
+        # Create a test config file
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("database_path: /custom/test.db\n")
+
+        # Setup mocks
+        mock_settings = Mock()
+        mock_settings.database_path = Path("/custom/test.db")
+        mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
+
+        mock_api_instance = Mock()
+        mock_api_instance.search.return_value = sample_search_response
+        mock_search_api.return_value = mock_api_instance
+
+        mock_formatter_instance = Mock()
+        mock_formatter.return_value = mock_formatter_instance
+
+        # Execute command with config file
+        search_command("test query", config=config_file)
+
+        # Verify config was loaded
+        mock_scriptrag_settings.from_multiple_sources.assert_called_once_with(
+            config_files=[config_file]
+        )
+
+        # Verify API was initialized with custom settings
+        mock_search_api.assert_called_once_with(settings=mock_settings)
+
+        # Verify search was executed
+        mock_api_instance.search.assert_called_once()
+
+    def test_search_with_config_file_not_found(
+        self,
+        tmp_path: Path,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        mock_get_settings: Mock,
+        mock_scriptrag_settings: Mock,
+    ) -> None:
+        """Test search command with non-existent config file."""
+        # Use non-existent config file
+        config_file = tmp_path / "nonexistent.yaml"
+
+        # Execute command and expect exit
+        with pytest.raises(typer.Exit) as exc_info:
+            search_command("test query", config=config_file)
+
+        # Verify error handling
+        assert exc_info.value.exit_code == 1
+        mock_console.print.assert_called_once_with(
+            f"[red]Error: Config file not found: {config_file}[/red]"
+        )
+
+        # Verify config loading was not attempted
+        mock_scriptrag_settings.from_multiple_sources.assert_not_called()
+
+    def test_search_with_config_and_db_path_override(
+        self,
+        tmp_path: Path,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        mock_get_settings: Mock,
+        mock_scriptrag_settings: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
+        """Test search command with config file and db_path override."""
+        # Create a test config file
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("database_path: /config/test.db\n")
+
+        override_db_path = tmp_path / "override.db"
+
+        # Setup mocks
+        mock_settings = Mock()
+        mock_settings.database_path = Path("/config/test.db")
+        mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
+
+        mock_api_instance = Mock()
+        mock_api_instance.search.return_value = sample_search_response
+        mock_search_api.return_value = mock_api_instance
+
+        mock_formatter_instance = Mock()
+        mock_formatter.return_value = mock_formatter_instance
+
+        # Mock copy.deepcopy to track db_path override
+        with patch("copy.deepcopy") as mock_deepcopy:
+            copied_settings = Mock()
+            copied_settings.database_path = override_db_path
+            mock_deepcopy.return_value = copied_settings
+
+            # Execute command with both config and db_path
+            search_command("test query", config=config_file, db_path=override_db_path)
+
+            # Verify config was loaded first
+            mock_scriptrag_settings.from_multiple_sources.assert_called_once_with(
+                config_files=[config_file]
+            )
+
+            # Verify settings were copied and db_path was overridden
+            mock_deepcopy.assert_called_once_with(mock_settings)
+            assert copied_settings.database_path == override_db_path
+
+            # Verify API was initialized with copied settings
+            mock_search_api.assert_called_once_with(settings=copied_settings)
+
+    def test_search_with_config_fallback_to_default_settings(
+        self,
+        tmp_path: Path,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        mock_get_settings: Mock,
+        mock_scriptrag_settings: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
+        """Test search command falls back to default settings when no config."""
+        # Setup mocks
+        default_settings = Mock()
+        default_settings.database_path = Path("/default/test.db")
+        mock_get_settings.return_value = default_settings
+
+        mock_api_instance = Mock()
+        mock_api_instance.search.return_value = sample_search_response
+        mock_search_api.return_value = mock_api_instance
+
+        mock_formatter_instance = Mock()
+        mock_formatter.return_value = mock_formatter_instance
+
+        # Execute command without config
+        search_command("test query")
+
+        # Verify default settings were used
+        mock_get_settings.assert_called_once()
+        mock_scriptrag_settings.from_multiple_sources.assert_not_called()
+
+        # Verify API was initialized with default settings
+        mock_search_api.assert_called_once_with(settings=default_settings)
+
+    def test_search_config_with_all_options(
+        self,
+        tmp_path: Path,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        mock_get_settings: Mock,
+        mock_scriptrag_settings: Mock,
+        sample_search_response: SearchResponse,
+    ) -> None:
+        """Test search command with config file and all search options."""
+        # Create a test config file
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(
+            "database_path: /custom/test.db\nsearch:\n  max_results: 100\n"
+        )
+
+        # Setup mocks
+        mock_settings = Mock()
+        mock_settings.database_path = Path("/custom/test.db")
+        mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
+
+        mock_api_instance = Mock()
+        mock_api_instance.search.return_value = sample_search_response
+        mock_search_api.return_value = mock_api_instance
+
+        mock_formatter_instance = Mock()
+        mock_formatter.return_value = mock_formatter_instance
+
+        # Execute command with config and all options
+        search_command(
+            query="test query",
+            config=config_file,
+            character="JOHN",
+            dialogue="hello world",
+            parenthetical="whisper",
+            project="My Script",
+            range_filter="s1e2-s1e5",
+            fuzzy=True,
+            limit=10,
+            offset=5,
+            verbose=True,
+            no_bible=True,
+        )
+
+        # Verify config was loaded
+        mock_scriptrag_settings.from_multiple_sources.assert_called_once_with(
+            config_files=[config_file]
+        )
+
+        # Verify API was initialized with custom settings
+        mock_search_api.assert_called_once_with(settings=mock_settings)
+
+        # Verify search was called with all parameters
+        mock_api_instance.search.assert_called_once_with(
+            query="test query",
+            character="JOHN",
+            dialogue="hello world",
+            parenthetical="whisper",
+            project="My Script",
+            range_str="s1e2-s1e5",
+            fuzzy=True,
+            strict=False,
+            limit=10,
+            offset=5,
+            include_bible=False,
+            only_bible=False,
+        )
+
+    def test_search_config_loading_exception(
+        self,
+        tmp_path: Path,
+        mock_console: Mock,
+        mock_search_api: Mock,
+        mock_formatter: Mock,
+        mock_get_settings: Mock,
+        mock_scriptrag_settings: Mock,
+    ) -> None:
+        """Test search command handles config loading exceptions."""
+        # Create a test config file
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("database_path: /custom/test.db\n")
+
+        # Setup mock to raise exception during config loading
+        mock_scriptrag_settings.from_multiple_sources.side_effect = Exception(
+            "Config parse error"
+        )
+
+        # Mock handle_cli_error
+        with patch(
+            "scriptrag.cli.commands.search.handle_cli_error"
+        ) as mock_handle_error:
+            mock_handle_error.side_effect = typer.Exit(1)
+
+            # Execute command and expect exit
+            with pytest.raises(typer.Exit) as exc_info:
+                search_command("test query", config=config_file)
+
+            # Verify error handling
+            assert exc_info.value.exit_code == 1
+            mock_handle_error.assert_called_once()
+            args = mock_handle_error.call_args[0]
+            assert isinstance(args[0], Exception)
+            assert str(args[0]) == "Config parse error"

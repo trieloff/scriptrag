@@ -623,3 +623,104 @@ class TestWatchCommand:
                         assert handler_kwargs["batch_size"] == 25
                         assert handler_kwargs["max_queue_size"] == 100
                         assert handler_kwargs["batch_timeout"] == 5.0
+
+    def test_watch_config_file_not_found(
+        self,
+        runner,
+        mock_settings,
+        mock_observer,
+        mock_handler,
+        tmp_path,
+    ):
+        """Test watch command with non-existent config file."""
+        from tests.utils import strip_ansi_codes
+
+        # Use non-existent config file
+        config_file = tmp_path / "nonexistent.yaml"
+
+        # Run command
+        result = runner.invoke(
+            app, ["watch", ".", "--config", str(config_file), "--no-initial-pull"]
+        )
+
+        # Verify error handling
+        assert result.exit_code == 1
+        clean_output = strip_ansi_codes(result.output)
+        assert "Error: Config file not found:" in clean_output
+        # Check for filename in output (may be wrapped across lines)
+        # Remove all whitespace to handle potential line wrapping
+        assert "nonexistent.yaml" in clean_output.replace("\n", "").replace(" ", "")
+
+    def test_watch_config_loading_exception(
+        self,
+        runner,
+        mock_observer,
+        mock_handler,
+        tmp_path,
+    ):
+        """Test watch command handles config loading exceptions."""
+        # Create a test config file
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("database_path: /custom/test.db\n")
+
+        with patch(
+            "scriptrag.cli.commands.watch.ScriptRAGSettings"
+        ) as mock_settings_class:
+            mock_settings_class.from_multiple_sources.side_effect = Exception(
+                "Config parse error"
+            )
+
+            # Run command
+            result = runner.invoke(
+                app,
+                ["watch", ".", "--config", str(config_file), "--no-initial-pull"],
+            )
+
+            # Verify error handling
+            assert result.exit_code == 1
+            assert "Config parse error" in result.output
+
+    def test_watch_config_with_initial_pull(
+        self,
+        runner,
+        mock_observer,
+        mock_handler,
+        mock_pull_command,
+        tmp_path,
+    ):
+        """Test watch command with config file and initial pull."""
+        # Create a test config file
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("database_path: /custom/test.db\n")
+
+        with patch(
+            "scriptrag.cli.commands.watch.ScriptRAGSettings"
+        ) as mock_settings_class:
+            mock_settings = MagicMock()
+            mock_settings.database_path = Path("/custom/test.db")
+            mock_settings_class.from_multiple_sources.return_value = mock_settings
+
+            with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
+                mock_sleep.side_effect = [None, KeyboardInterrupt()]
+
+                # Run command with config and initial pull
+                result = runner.invoke(
+                    app,
+                    [
+                        "watch",
+                        ".",
+                        "--config",
+                        str(config_file),
+                        "--initial-pull",
+                    ],
+                )
+
+                # Verify config was loaded
+                mock_settings_class.from_multiple_sources.assert_called_once_with(
+                    config_files=[config_file]
+                )
+
+                # Verify initial pull was called with config
+                mock_pull_command.assert_called_once()
+                call_kwargs = mock_pull_command.call_args[1]
+                assert call_kwargs["config"] == config_file

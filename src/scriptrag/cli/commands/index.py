@@ -71,6 +71,14 @@ def index_command(
             "--verbose", "-v", help="Show detailed information for each script"
         ),
     ] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
+    ] = None,
 ) -> None:
     """Index analyzed Fountain files into the database.
 
@@ -92,18 +100,29 @@ def index_command(
 
         from scriptrag.api.index import IndexCommand
         from scriptrag.config import get_settings
+        from scriptrag.config.settings import ScriptRAGSettings
 
-        # Get settings with db_path override if provided
-        if db_path:
+        # Load settings with proper precedence
+        if config:
+            if not config.exists():
+                console.print(f"[red]Error: Config file not found: {config}[/red]")
+                raise typer.Exit(1)
+
+            settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=[config],
+            )
+        else:
+            # Use default settings
             settings = get_settings()
+
+        # Apply db_path override if provided
+        if db_path:
             # Create a copy with the new db_path
             settings = copy.deepcopy(settings)
             settings.database_path = db_path
-        else:
-            settings = None
 
-        # Initialize index command with custom settings if provided
-        index_cmd = IndexCommand(settings) if settings else IndexCommand.from_config()
+        # Initialize index command
+        index_cmd = IndexCommand(settings=settings)
 
         # Run with progress tracking
         with Progress(

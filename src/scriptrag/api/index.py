@@ -479,6 +479,11 @@ class IndexCommand:
         Returns:
             IndexResult with preview information
         """
+        # Check if script exists to determine updated flag
+        with self.db_ops.get_connection() as conn:
+            existing_script = self.db_ops.get_existing_script(conn, file_path)
+            is_update = existing_script is not None
+
         # Count entities that would be indexed
         characters = set()
         dialogues = 0
@@ -493,7 +498,7 @@ class IndexCommand:
         return IndexResult(
             path=file_path,
             indexed=True,  # Would be successfully processed
-            updated=False,  # Dry run doesn't track update state
+            updated=is_update,  # True if script exists, False if new
             scenes_indexed=len(script.scenes),
             characters_indexed=len(characters),
             dialogues_indexed=dialogues,

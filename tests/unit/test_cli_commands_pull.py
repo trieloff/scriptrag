@@ -763,7 +763,9 @@ class TestPullCommand:
 
         # Verify error handling
         assert result.exit_code == 1
-        assert f"Error: Config file not found: {config_file}" in result.output
+        # The error message might have formatting/newlines from Rich console
+        assert "Error: Config file not found:" in result.output
+        assert str(config_file) in result.output
 
     def test_pull_config_loading_exception(
         self, runner, mock_db_ops, mock_analyze_cmd, mock_index_cmd, tmp_path

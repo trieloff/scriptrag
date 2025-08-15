@@ -132,7 +132,7 @@ class DatabaseOperations:
     def upsert_script(
         self, conn: sqlite3.Connection, script: Script, file_path: Path
     ) -> int:
-        """Insert or update script record.
+        """Insert or update script record using file_path as unique key.
 
         Args:
             conn: Database connection
@@ -145,43 +145,79 @@ class DatabaseOperations:
         metadata = script.metadata.copy() if script.metadata else {}
         metadata["last_indexed"] = datetime.now().isoformat()
 
-        # Check if script exists
-        existing = self.get_existing_script(conn, file_path)
+        # Extract series/episode info from metadata if available
+        # Ensure we have safe defaults for all fields
+        title = script.title or "Untitled"
+        author = script.author or "Unknown"
+        project_title = metadata.get("project_title") or title
+        series_title = metadata.get("series_title")
+        season = metadata.get("season")
+        episode = metadata.get("episode")
 
-        if existing and existing.id is not None:
+        # Use separate SELECT/UPDATE/INSERT for compatibility
+        # This works with older SQLite versions that don't support ON CONFLICT RETURNING
+        cursor = conn.execute(
+            "SELECT id FROM scripts WHERE file_path = ?", (str(file_path),)
+        )
+        existing = cursor.fetchone()
+
+        if existing:
             # Update existing script
             conn.execute(
                 """
-                UPDATE scripts
-                SET title = ?, author = ?, metadata = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
+                UPDATE scripts SET
+                    title = ?, author = ?, project_title = ?,
+                    series_title = ?, season = ?, episode = ?,
+                    metadata = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE file_path = ?
                 """,
-                (script.title, script.author, json.dumps(metadata), existing.id),
+                (
+                    title,
+                    author,
+                    project_title,
+                    series_title,
+                    season,
+                    episode,
+                    json.dumps(metadata),
+                    str(file_path),
+                ),
             )
-            logger.debug(f"Updated script {existing.id}: {script.title}")
-            return existing.id
+            script_id = existing[0]
+            logger.debug(f"Updated script {script_id}: {title} at {file_path}")
+        else:
+            # Insert new script
+            cursor = conn.execute(
+                """
+                INSERT INTO scripts (
+                    file_path, title, author, project_title,
+                    series_title, season, episode, metadata
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(file_path),
+                    title,
+                    author,
+                    project_title,
+                    series_title,
+                    season,
+                    episode,
+                    json.dumps(metadata),
+                ),
+            )
+            script_id = cursor.lastrowid
+            if script_id is None:
+                raise DatabaseError(
+                    message="Failed to get script ID after insert",
+                    hint="Database constraint violation or transaction issue",
+                    details={
+                        "script_title": title,
+                        "script_path": str(file_path),
+                        "operation": "INSERT INTO scripts",
+                    },
+                )
+            logger.debug(f"Inserted script {script_id}: {title} at {file_path}")
 
-        # Insert new script
-        cursor = conn.execute(
-            """
-            INSERT INTO scripts (title, author, file_path, metadata)
-            VALUES (?, ?, ?, ?)
-            """,
-            (script.title, script.author, str(file_path), json.dumps(metadata)),
-        )
-        script_id = cursor.lastrowid
-        if script_id is None:
-            raise DatabaseError(
-                message="Failed to get script ID after database insert",
-                hint="Database constraint violation or transaction issue",
-                details={
-                    "script_title": script.title,
-                    "script_path": str(file_path),
-                    "operation": "INSERT INTO scripts",
-                },
-            )
-        logger.debug(f"Inserted script {script_id}: {script.title}")
-        return script_id
+        return int(script_id)
 
     def clear_script_data(self, conn: sqlite3.Connection, script_id: int) -> None:
         """Clear all existing data for a script before re-indexing.

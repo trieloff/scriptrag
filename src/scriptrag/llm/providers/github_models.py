@@ -148,6 +148,7 @@ class GitHubModelsProvider(BaseLLMProvider):
             client=self.client,
             token=self.token,
             base_url=self.base_url,
+            model_id_map=self.MODEL_ID_MAP,
             cache_ttl=(
                 settings.llm_model_cache_ttl
                 if settings.llm_model_cache_ttl > 0

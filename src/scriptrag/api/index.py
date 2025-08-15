@@ -379,8 +379,8 @@ class IndexCommand:
                 return IndexResult(
                     path=file_path,
                     script_id=script_id,
-                    indexed=True,
-                    updated=is_update,
+                    indexed=True,  # Successfully processed regardless of new/update
+                    updated=is_update,  # Only updated if it existed
                     scenes_indexed=stats["scenes"],
                     characters_indexed=stats["characters"],
                     dialogues_indexed=stats["dialogues"],
@@ -479,6 +479,11 @@ class IndexCommand:
         Returns:
             IndexResult with preview information
         """
+        # Check if script exists to determine updated flag
+        with self.db_ops.get_connection() as conn:
+            existing_script = self.db_ops.get_existing_script(conn, file_path)
+            is_update = existing_script is not None
+
         # Count entities that would be indexed
         characters = set()
         dialogues = 0
@@ -490,16 +495,10 @@ class IndexCommand:
                 dialogues += 1
             actions += len(scene.action_lines)
 
-        # Check if script exists
-        is_update = False
-        with self.db_ops.transaction() as conn:
-            existing = self.db_ops.get_existing_script(conn, file_path)
-            is_update = existing is not None
-
         return IndexResult(
             path=file_path,
-            indexed=True,  # Would be indexed
-            updated=is_update,
+            indexed=True,  # Would be successfully processed
+            updated=is_update,  # True if script exists, False if new
             scenes_indexed=len(script.scenes),
             characters_indexed=len(characters),
             dialogues_indexed=dialogues,

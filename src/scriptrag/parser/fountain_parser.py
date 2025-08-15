@@ -126,6 +126,20 @@ class FountainParser:
                 except (ValueError, TypeError):  # pragma: no cover
                     metadata["season"] = doc.title_values["season"]
 
+            # Extract series title (for TV scripts)
+            if "series" in doc.title_values:
+                metadata["series_title"] = doc.title_values["series"]
+            elif "series_title" in doc.title_values:
+                metadata["series_title"] = doc.title_values["series_title"]
+            elif "show" in doc.title_values:
+                metadata["series_title"] = doc.title_values["show"]
+
+            # Extract project title (for grouping multiple drafts)
+            if "project" in doc.title_values:
+                metadata["project_title"] = doc.title_values["project"]
+            elif "project_title" in doc.title_values:
+                metadata["project_title"] = doc.title_values["project_title"]
+
         # Process scenes
         scenes = []
         scene_number = 0
@@ -236,6 +250,20 @@ class FountainParser:
                     metadata["season"] = int(doc.title_values["season"])
                 except (ValueError, TypeError):  # pragma: no cover
                     metadata["season"] = doc.title_values["season"]
+
+            # Extract series title (for TV scripts)
+            if "series" in doc.title_values:
+                metadata["series_title"] = doc.title_values["series"]
+            elif "series_title" in doc.title_values:
+                metadata["series_title"] = doc.title_values["series_title"]
+            elif "show" in doc.title_values:
+                metadata["series_title"] = doc.title_values["show"]
+
+            # Extract project title (for grouping multiple drafts)
+            if "project" in doc.title_values:
+                metadata["project_title"] = doc.title_values["project"]
+            elif "project_title" in doc.title_values:
+                metadata["project_title"] = doc.title_values["project_title"]
 
         # Process scenes
         scenes = []
@@ -575,6 +603,17 @@ class FountainParser:
         if any(line.startswith(prefix) for prefix in scene_prefixes):
             return False
 
+        # Transitions and screenplay elements are not character names
+        transitions = [
+            "FADE IN:",
+            "FADE OUT.",
+            "CUT TO:",
+            "MONTAGE",
+            "INTERCUT",
+        ]
+        if any(line.startswith(transition) for transition in transitions):
+            return False
+
         # Remove parenthetical extensions like (CONT'D), (V.O.), (O.S.)
         # These are valid on character lines
         base_line = re.sub(r"\s*\([^)]+\)\s*$", "", line).strip()
@@ -585,4 +624,9 @@ class FountainParser:
 
         # Check if the base line (without parenthetical) is uppercase with allowed chars
         # Allow: letters, spaces, apostrophes, dots, hyphens, numbers, #
-        return bool(re.match(r"^[A-Z0-9\s\'\.\-#]+$", base_line))
+        # But must contain at least one letter (not just numbers/punctuation)
+        if not re.match(r"^[A-Z0-9\s\'\.\-#]+$", base_line):
+            return False
+
+        # Must contain at least one letter to be a character name
+        return bool(re.search(r"[A-Z]", base_line))

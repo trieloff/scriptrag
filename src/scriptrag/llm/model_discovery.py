@@ -182,7 +182,39 @@ class ModelDiscovery:
                     f"Discovered {len(models)} models for {self.provider_name}",
                     model_ids=[m.id for m in models[:5]],  # Log first 5 model IDs
                 )
-                # Cache the discovered models
+
+                # If discovery returned fewer models than static list,
+                # supplement with static models. This ensures fallback when
+                # API only returns subset of expected models
+                if len(models) < len(self.static_models):
+                    logger.info(
+                        f"Discovery returned {len(models)} models, "
+                        "supplementing with static models",
+                        static_count=len(self.static_models),
+                    )
+                    # Create combined list preserving static model order
+                    # Start with static models, then replace with
+                    # discovered versions where available
+                    discovered_by_id = {m.id: m for m in models}
+                    combined_models = []
+
+                    for static_model in self.static_models:
+                        if static_model.id in discovered_by_id:
+                            # Use discovered version (may have different metadata)
+                            combined_models.append(discovered_by_id[static_model.id])
+                        else:
+                            # Use static version
+                            combined_models.append(static_model)
+
+                    models = combined_models
+                    logger.info(
+                        f"Combined model list has {len(models)} models in static order",
+                        discovered_count=len(discovered_by_id),
+                        static_supplemented=len(self.static_models)
+                        - len(discovered_by_id),
+                    )
+
+                # Cache the final model list
                 if self.cache:
                     self.cache.set(models)
                 return models
@@ -445,6 +477,7 @@ class GitHubModelsDiscovery(ModelDiscovery):
         client: Any,  # HTTP client with async get method
         token: str | None,
         base_url: str,
+        model_id_map: dict[str, str] | None = None,
         cache_ttl: int | None = None,
         use_cache: bool = True,
         force_static: bool = False,
@@ -457,6 +490,7 @@ class GitHubModelsDiscovery(ModelDiscovery):
             client: HTTP client for API calls
             token: GitHub API token
             base_url: API base URL
+            model_id_map: Optional mapping from Azure registry IDs to simple IDs
             cache_ttl: Cache TTL in seconds
             use_cache: Whether to use caching
             force_static: Force static model list
@@ -467,6 +501,7 @@ class GitHubModelsDiscovery(ModelDiscovery):
         self.client = client
         self.token = token
         self.base_url = base_url
+        self.model_id_map = model_id_map or {}
 
     async def _fetch_models(self) -> list[Model] | None:
         """Fetch models from GitHub Models API.
@@ -591,9 +626,12 @@ class GitHubModelsDiscovery(ModelDiscovery):
             context_window: int = model_info.get("context_window", 4096)
             max_output: int = model_info.get("max_output_tokens", 4096)
 
+            # Use mapped ID if available, otherwise use original ID
+            final_model_id = self.model_id_map.get(model_id, model_id)
+
             models.append(
                 Model(
-                    id=model_id,
+                    id=final_model_id,
                     name=name,
                     provider=LLMProvider.GITHUB_MODELS,
                     capabilities=capabilities,

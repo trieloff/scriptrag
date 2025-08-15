@@ -643,3 +643,302 @@ JOHN raises his hands.
         assert "JOHN enters the room" in action_text
         assert "The door SLAMS shut" in action_text
         assert "JOHN raises his hands" in action_text
+
+    def test_parse_with_series_title_fields(self, parser):
+        """Test parsing with various series title field variations."""
+        variations = [
+            ("Series: Breaking Bad", "Breaking Bad"),
+            ("Series_Title: Better Call Saul", "Better Call Saul"),
+            ("Show: The Office", "The Office"),
+        ]
+
+        for field, expected in variations:
+            content = f"""Title: Test Episode
+{field}
+Episode: 5
+Season: 2
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+            script = parser.parse(content)
+            assert script.metadata.get("series_title") == expected, (
+                f"Failed for field: {field}"
+            )
+
+    def test_parse_with_project_title_fields(self, parser):
+        """Test parsing with various project title field variations."""
+        variations = [
+            ("Project: Season 2 Scripts", "Season 2 Scripts"),
+            ("Project_Title: Final Draft", "Final Draft"),
+        ]
+
+        for field, expected in variations:
+            content = f"""Title: Test Episode
+{field}
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+            script = parser.parse(content)
+            assert script.metadata.get("project_title") == expected, (
+                f"Failed for field: {field}"
+            )
+
+    def test_parse_series_title_fallback_to_normalized_key(self, parser):
+        """Test series_title field (from Series_Title) when series is absent."""
+        # This tests the elif branch for series_title in fountain_parser.py line 258
+        content = """Title: Test Episode
+Series_Title: The Wire
+Episode: 3
+Season: 1
+
+INT. POLICE STATION - DAY
+
+McNulty enters.
+"""
+        script = parser.parse(content)
+        # Uses series_title (from Series_Title) since 'series' key is absent
+        assert script.metadata.get("series_title") == "The Wire"
+
+    def test_parse_project_title_fallback_to_normalized_key(self, parser):
+        """Test project_title field (from Project_Title) when project is absent."""
+        # This tests the elif branch for project_title in fountain_parser.py line 266
+        content = """Title: Test Script
+Project_Title: My Amazing Project
+
+INT. OFFICE - DAY
+
+Work happens.
+"""
+        script = parser.parse(content)
+        # Uses project_title (from Project_Title) since 'project' key is absent
+        assert script.metadata.get("project_title") == "My Amazing Project"
+
+    def test_parse_file_with_series_and_project_metadata(self, parser, tmp_path):
+        """Test parsing file with comprehensive series and project metadata."""
+        content = """Title: The Pilot
+Author: Creator Name
+Series: Amazing Show
+Project: Season 1 Production
+Season: 1
+Episode: 1
+
+INT. COFFEE SHOP - DAY
+
+The beginning of something great.
+
+PROTAGONIST
+Here we go!
+"""
+        file_path = tmp_path / "pilot.fountain"
+        file_path.write_text(content)
+
+        script = parser.parse_file(file_path)
+
+        assert script.title == "The Pilot"
+        assert script.author == "Creator Name"
+        assert script.metadata["series_title"] == "Amazing Show"
+        assert script.metadata["project_title"] == "Season 1 Production"
+        assert script.metadata["season"] == 1
+        assert script.metadata["episode"] == 1
+        assert script.metadata["source_file"] == str(file_path)
+
+    def test_parse_metadata_field_variations_lowercase(self, parser):
+        """Test lowercase metadata field variations to cover all branches."""
+        # Test lowercase 'series' field (line 256)
+        content1 = """title: Test Episode
+series: The Show
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script1 = parser.parse(content1)
+        assert script1.metadata.get("series_title") == "The Show"
+
+        # Test lowercase 'series_title' field (line 258)
+        content2 = """title: Test Episode
+series_title: Another Show
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script2 = parser.parse(content2)
+        assert script2.metadata.get("series_title") == "Another Show"
+
+        # Test lowercase 'show' field (line 260)
+        content3 = """title: Test Episode
+show: Yet Another Show
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script3 = parser.parse(content3)
+        assert script3.metadata.get("series_title") == "Yet Another Show"
+
+        # Test lowercase 'project' field (line 264)
+        content4 = """title: Test Script
+project: My Project
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script4 = parser.parse(content4)
+        assert script4.metadata.get("project_title") == "My Project"
+
+        # Test lowercase 'project_title' field (line 266)
+        content5 = """title: Test Script
+project_title: Another Project
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script5 = parser.parse(content5)
+        assert script5.metadata.get("project_title") == "Another Project"
+
+    def test_parse_metadata_priority_order(self, parser):
+        """Test that metadata fields have correct priority when multiple are present."""
+        # Test series_title priority: series > series_title > show
+        content1 = """title: Test Episode
+series: Primary Series
+series_title: Secondary Series
+show: Tertiary Show
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script1 = parser.parse(content1)
+        assert script1.metadata.get("series_title") == "Primary Series"
+
+        # Test without 'series' but with 'series_title' and 'show'
+        content2 = """title: Test Episode
+series_title: Secondary Series
+show: Tertiary Show
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script2 = parser.parse(content2)
+        assert script2.metadata.get("series_title") == "Secondary Series"
+
+        # Test project_title priority: project > project_title
+        content3 = """title: Test Script
+project: Primary Project
+project_title: Secondary Project
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script3 = parser.parse(content3)
+        assert script3.metadata.get("project_title") == "Primary Project"
+
+    def test_parse_complex_character_dialogue_combinations(self, parser):
+        """Test complex combinations that might miss character detection."""
+        content = """Title: Edge Cases
+
+INT. COURTROOM - DAY
+
+Complex dialogue scenarios.
+
+LAWYER #1'S VOICE
+(over intercom)
+We need more time.
+
+DR. SMITH-JONES (V.O.)
+The evidence suggests otherwise.
+
+OFFICER O'MALLEY
+(entering)
+Everyone freeze!
+
+CHARACTER'S ASSISTANT
+(whispering)
+This is bad.
+
+PROSECUTOR #2 (CONT'D)
+(standing)
+I object!
+"""
+        script = parser.parse(content)
+        scene = script.scenes[0]
+
+        # Extract all character names that were detected
+        detected_characters = {d.character for d in scene.dialogue_lines}
+
+        expected_characters = {
+            "LAWYER #1'S VOICE",
+            "DR. SMITH-JONES (V.O.)",
+            "OFFICER O'MALLEY",
+            "CHARACTER'S ASSISTANT",
+            "PROSECUTOR #2 (CONT'D)",
+        }
+
+        assert detected_characters == expected_characters, (
+            f"Expected {expected_characters}, got {detected_characters}"
+        )
+
+        # Test parentheticals are preserved
+        dialogue_map = {d.character: d for d in scene.dialogue_lines}
+        assert dialogue_map["LAWYER #1'S VOICE"].parenthetical == "(over intercom)"
+        assert dialogue_map["OFFICER O'MALLEY"].parenthetical == "(entering)"
+        assert dialogue_map["CHARACTER'S ASSISTANT"].parenthetical == "(whispering)"
+        assert dialogue_map["PROSECUTOR #2 (CONT'D)"].parenthetical == "(standing)"
+
+    def test_fountain_parser_character_line_regex_comprehensive(self, parser):
+        """Test _is_character_line method with comprehensive edge cases."""
+        # Test cases that should be valid characters
+        valid_characters = [
+            "JOHN",
+            "MARY JANE",
+            "DR. SMITH",
+            "MR. O'BRIEN",
+            "CHARACTER'S VOICE",
+            "COP 1",
+            "GUARD #2",
+            "OFFICER #1A",
+            "CHARACTER (V.O.)",
+            "CHARACTER (CONT'D)",
+            "CHARACTER (O.S.)",
+            "CHARACTER (PRELAP)",
+            "CHARACTER (FILTERED)",
+            "LAWYER #1'S VOICE",
+            "DR. SMITH-JONES",
+            "MARY'S MOTHER",
+            "YOUNG BOY #3",
+        ]
+
+        for char in valid_characters:
+            assert parser._is_character_line(char), f"Should be valid character: {char}"
+
+        # Test cases that should NOT be valid characters
+        invalid_characters = [
+            "",
+            "INT. ROOM - DAY",
+            "EXT. PARK - NIGHT",
+            "I/E. VEHICLE - DAY",
+            "FADE IN:",
+            "FADE OUT.",
+            "CUT TO:",
+            "lowercase text",
+            "Mixed Case Text",
+            "MONTAGE - VARIOUS",
+            "INTERCUT - PHONE CALL",
+            "   ",  # Just whitespace
+            "123",  # Just numbers
+            ".",  # Just punctuation
+        ]
+
+        for char in invalid_characters:
+            assert not parser._is_character_line(char), (
+                f"Should NOT be valid character: {char}"
+            )

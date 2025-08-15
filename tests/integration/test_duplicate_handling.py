@@ -137,7 +137,9 @@ class TestDuplicateHandling:
         # Index it again - should update, not create duplicate
         result2 = await index_command.index(path=tmp_path)
         assert result2.total_scripts_updated == 1
-        assert result2.total_scripts_indexed == 0  # No new scripts
+        assert (
+            result2.total_scripts_indexed == 1
+        )  # Successfully processed (indexed=True)
 
         # Verify only one script in database
         with index_command.db_ops.transaction() as conn:

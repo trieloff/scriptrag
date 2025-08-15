@@ -750,3 +750,121 @@ class TestPullCommand:
         assert mock_analyze_cmd.analyze.call_count == 1
         call_kwargs = mock_analyze_cmd.analyze.call_args[1]
         assert call_kwargs["brittle"] is False
+
+    def test_pull_config_file_not_found(
+        self, runner, mock_settings, mock_db_ops, tmp_path
+    ):
+        """Test pull command with non-existent config file."""
+        # Use non-existent config file
+        config_file = tmp_path / "nonexistent.yaml"
+
+        # Run command
+        result = runner.invoke(app, ["pull", "--config", str(config_file)])
+
+        # Verify error handling
+        assert result.exit_code == 1
+        # The error message might have formatting/newlines from Rich console
+        # Check for both parts separately as they may be on different lines
+        assert "Error: Config file not found:" in result.output
+        # Check for filename in output (may be wrapped across lines)
+        # Remove all whitespace to handle potential line wrapping
+        assert "nonexistent.yaml" in result.output.replace("\n", "").replace(" ", "")
+
+    def test_pull_config_loading_exception(
+        self, runner, mock_db_ops, mock_analyze_cmd, mock_index_cmd, tmp_path
+    ):
+        """Test pull command handles config loading exceptions."""
+        # Create a test config file
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("database_path: /custom/test.db\n")
+
+        # Mock ScriptRAGSettings to raise exception
+        with patch(
+            "scriptrag.cli.commands.pull.ScriptRAGSettings"
+        ) as mock_settings_cls:
+            mock_settings_cls.from_multiple_sources.side_effect = Exception(
+                "Config parse error"
+            )
+
+            # Run command
+            result = runner.invoke(app, ["pull", "--config", str(config_file)])
+
+            # Verify error handling
+            assert result.exit_code == 1
+            assert "Config parse error" in result.output
+
+    def test_pull_with_config_and_other_options(
+        self,
+        runner,
+        mock_db_ops,
+        mock_analyze_cmd,
+        mock_index_cmd,
+        tmp_path,
+    ):
+        """Test pull command with config file and other CLI options."""
+        # Create a test config file
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text("database_path: /custom/test.db\n")
+
+        with patch(
+            "scriptrag.cli.commands.pull.ScriptRAGSettings"
+        ) as mock_settings_cls:
+            mock_settings = MagicMock()
+            mock_settings.database_path = Path("/custom/test.db")
+            mock_settings_cls.from_multiple_sources.return_value = mock_settings
+
+            # Setup mocks
+            mock_db_ops.check_database_exists.return_value = True
+
+            # Mock results
+            analyze_result = MagicMock()
+            analyze_result.total_files_updated = 3
+            analyze_result.total_scenes_updated = 15
+            analyze_result.errors = []
+            mock_analyze_cmd.analyze_return_value = analyze_result
+
+            index_result = MagicMock()
+            index_result.total_scripts_indexed = 3
+            index_result.total_scripts_updated = 0
+            index_result.total_scenes_indexed = 15
+            index_result.total_characters_indexed = 8
+            index_result.total_dialogues_indexed = 30
+            index_result.total_actions_indexed = 20
+            index_result.errors = []
+            mock_index_cmd.index_return_value = index_result
+
+            # Run command with config and other options
+            result = runner.invoke(
+                app,
+                [
+                    "pull",
+                    "/custom/path",
+                    "--config",
+                    str(config_file),
+                    "--force",
+                    "--batch-size",
+                    "20",
+                    "--no-recursive",
+                ],
+            )
+
+            # Verify success
+            assert result.exit_code == 0
+
+            # Verify config was loaded
+            mock_settings_cls.from_multiple_sources.assert_called_once_with(
+                config_files=[config_file]
+            )
+
+            # Verify other options were passed correctly
+            assert mock_analyze_cmd.analyze.call_count == 1
+            call_kwargs = mock_analyze_cmd.analyze.call_args[1]
+            assert call_kwargs["path"] == Path("/custom/path")
+            assert call_kwargs["force"] is True
+            assert call_kwargs["recursive"] is False
+
+            assert mock_index_cmd.index.call_count == 1
+            call_kwargs = mock_index_cmd.index.call_args[1]
+            assert call_kwargs["path"] == Path("/custom/path")
+            assert call_kwargs["batch_size"] == 20
+            assert call_kwargs["recursive"] is False

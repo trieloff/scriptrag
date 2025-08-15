@@ -30,6 +30,14 @@ def list_command(
             help="Don't search recursively in subdirectories",
         ),
     ] = False,
+    config: Annotated[
+        Path | None,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to configuration file (YAML, TOML, or JSON)",
+        ),
+    ] = None,
 ) -> None:
     """List all Fountain scripts in the specified path.
 
@@ -42,6 +50,20 @@ def list_command(
     The command will automatically detect series information from the title page
     or filename.
     """
+    from scriptrag.config.settings import ScriptRAGSettings
+
+    # Load settings with proper precedence if config provided
+    if config:
+        if not config.exists():
+            console.print(f"[red]Error: Config file not found: {config}[/red]")
+            raise typer.Exit(1)
+
+        ScriptRAGSettings.from_multiple_sources(
+            config_files=[config],
+        )
+        # Note: ScriptLister doesn't currently use settings,
+        # but loaded for validation purposes
+
     lister = ScriptLister()
 
     try:

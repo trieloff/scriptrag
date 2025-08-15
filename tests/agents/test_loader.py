@@ -10,6 +10,7 @@ import pytest
 from jsonschema import ValidationError
 
 from scriptrag.agents.loader import AgentLoader, AgentSpec, MarkdownAgentAnalyzer
+from scriptrag.llm.models import LLMProvider
 
 if TYPE_CHECKING:
     pass
@@ -370,6 +371,9 @@ class TestMarkdownAgentAnalyzer:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.content = '{"result": "analyzed"}'
+        mock_response.model = "test-model"
+        mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
+        mock_response.usage = {"total_tokens": 50}
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
@@ -425,6 +429,9 @@ class TestMarkdownAgentAnalyzer:
             mock_client = AsyncMock()
             mock_response = MagicMock()
             mock_response.content = '{"result": "test"}'
+            mock_response.model = "test-model"
+            mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
+            mock_response.usage = {"total_tokens": 50}
             mock_client.complete.return_value = mock_response
             mock_get_client.return_value = mock_client
 
@@ -452,6 +459,9 @@ class TestMarkdownAgentAnalyzer:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.content = "not valid json"
+        mock_response.model = "test-model"
+        mock_response.provider = None
+        mock_response.usage = {}
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 
@@ -524,6 +534,9 @@ class TestMarkdownAgentAnalyzer:
         mock_client = AsyncMock()
         mock_response = MagicMock()
         mock_response.content = '{"result": "ok"}'
+        mock_response.model = "test-model"
+        mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
+        mock_response.usage = {"total_tokens": 50}
         mock_client.complete.return_value = mock_response
         analyzer.llm_client = mock_client
 

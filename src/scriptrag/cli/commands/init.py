@@ -53,6 +53,10 @@ def init_command(
 
     # Load settings from multiple sources
     if config:
+        if not config.exists():
+            console.print(f"[red]Error: Config file not found: {config}[/red]")
+            raise typer.Exit(1)
+
         settings = ScriptRAGSettings.from_multiple_sources(
             config_files=[config],
             cli_args=cli_args,

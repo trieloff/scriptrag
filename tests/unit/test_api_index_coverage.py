@@ -547,7 +547,8 @@ class TestIndexCommandCoverage:
         # Script should be included since it has no last_indexed
         assert len(result) == 1
 
-    def test_index_script_result_semantics_new_script(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_index_script_result_semantics_new_script(self, tmp_path):
         """Test IndexResult semantics for new scripts."""
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
         mock_db_ops = Mock()
@@ -588,14 +589,15 @@ CHARACTER
 Hello world!
 """)
 
-        result = indexer.index_script(script_path)
+        result = await indexer._index_single_script(script_path, dry_run=False)
 
         # For new scripts: indexed=True, updated=False
         assert result.indexed is True  # Successfully processed
         assert result.updated is False  # Not an update (new script)
         assert result.script_id is not None
 
-    def test_index_script_result_semantics_existing_script(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_index_script_result_semantics_existing_script(self, tmp_path):
         """Test IndexResult semantics for existing scripts."""
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
         mock_db_ops = Mock()
@@ -636,7 +638,7 @@ Hello again!
             "actions": 1,
         }
 
-        result1 = indexer.index_script(script_path)
+        result1 = await indexer._index_single_script(script_path, dry_run=False)
         assert result1.indexed is True
         assert result1.updated is False  # First time = new
 
@@ -648,15 +650,24 @@ Hello again!
         )
         mock_db_ops.upsert_script.return_value = 1  # Same ID
 
-        result2 = indexer.index_script(script_path)
+        result2 = await indexer._index_single_script(script_path, dry_run=False)
         assert result2.indexed is True  # Successfully processed
         assert result2.updated is True  # This time it's an update
         assert result2.script_id == result1.script_id  # Same script
 
-    def test_dry_run_index_semantics(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_dry_run_index_semantics(self, tmp_path):
         """Test dry run semantics for IndexResult flags."""
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
         mock_db_ops = Mock()
+
+        # Setup transaction context manager (needed even for dry run)
+        mock_conn = Mock()
+        mock_context = Mock()
+        mock_context.__enter__ = Mock(return_value=mock_conn)
+        mock_context.__exit__ = Mock(return_value=None)
+        mock_db_ops.transaction.return_value = mock_context
+
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Create test script
@@ -673,7 +684,7 @@ Testing!
 """)
 
         # Test dry run
-        result = indexer.index_script(script_path, dry_run=True)
+        result = await indexer._index_single_script(script_path, dry_run=True)
 
         # Dry run always reports: indexed=True, updated=False
         # Because it "would be indexed" and dry run doesn't check existing state
@@ -681,7 +692,8 @@ Testing!
         assert result.updated is False  # Dry run doesn't track update state
         assert result.script_id is None  # No actual database operation
 
-    def test_index_script_comments_behavior(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_index_script_comments_behavior(self, tmp_path):
         """Test IndexResult behavior consistency with comments in code."""
         # Based on the comments in the modified code:
         # indexed=True means "Successfully processed regardless of new/update"
@@ -724,7 +736,7 @@ This validates the comment behavior.
             "actions": 1,
         }
 
-        result_new = indexer.index_script(script_path)
+        result_new = await indexer._index_single_script(script_path, dry_run=False)
 
         # For new scripts: Successfully processed (indexed=True),
         # not an update (updated=False)
@@ -740,7 +752,7 @@ This validates the comment behavior.
             existing_script  # Existing script
         )
 
-        result_existing = indexer.index_script(script_path)
+        result_existing = await indexer._index_single_script(script_path, dry_run=False)
 
         # For existing scripts: Successfully processed (indexed=True),
         # is an update (updated=True)

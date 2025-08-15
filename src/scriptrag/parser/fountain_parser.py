@@ -603,6 +603,17 @@ class FountainParser:
         if any(line.startswith(prefix) for prefix in scene_prefixes):
             return False
 
+        # Transitions and screenplay elements are not character names
+        transitions = [
+            "FADE IN:",
+            "FADE OUT.",
+            "CUT TO:",
+            "MONTAGE",
+            "INTERCUT",
+        ]
+        if any(line.startswith(transition) for transition in transitions):
+            return False
+
         # Remove parenthetical extensions like (CONT'D), (V.O.), (O.S.)
         # These are valid on character lines
         base_line = re.sub(r"\s*\([^)]+\)\s*$", "", line).strip()
@@ -613,4 +624,9 @@ class FountainParser:
 
         # Check if the base line (without parenthetical) is uppercase with allowed chars
         # Allow: letters, spaces, apostrophes, dots, hyphens, numbers, #
-        return bool(re.match(r"^[A-Z0-9\s\'\.\-#]+$", base_line))
+        # But must contain at least one letter (not just numbers/punctuation)
+        if not re.match(r"^[A-Z0-9\s\'\.\-#]+$", base_line):
+            return False
+
+        # Must contain at least one letter to be a character name
+        return bool(re.search(r"[A-Z]", base_line))

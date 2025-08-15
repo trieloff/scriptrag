@@ -490,16 +490,10 @@ class IndexCommand:
                 dialogues += 1
             actions += len(scene.action_lines)
 
-        # Check if script exists
-        is_update = False
-        with self.db_ops.transaction() as conn:
-            existing = self.db_ops.get_existing_script(conn, file_path)
-            is_update = existing is not None
-
         return IndexResult(
             path=file_path,
-            indexed=True,  # Successfully processed regardless of new/update
-            updated=is_update,  # Only updated if it existed
+            indexed=True,  # Would be successfully processed
+            updated=False,  # Dry run doesn't track update state
             scenes_indexed=len(script.scenes),
             characters_indexed=len(characters),
             dialogues_indexed=dialogues,

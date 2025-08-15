@@ -372,6 +372,7 @@ class TestDatabaseOperationsCoverage:
         script = Script(
             title="Test Episode",
             author="Writer Name",
+            scenes=[],
             metadata={
                 "season": 2,
                 "episode": 5,
@@ -417,7 +418,7 @@ class TestDatabaseOperationsCoverage:
         file_path = Path("/test/path.fountain")
 
         # First script (minimal metadata)
-        script1 = Script(title="Original Title", author="Original Author")
+        script1 = Script(title="Original Title", author="Original Author", scenes=[])
 
         with initialized_db_ops.transaction() as conn:
             # Insert original script
@@ -427,6 +428,7 @@ class TestDatabaseOperationsCoverage:
             script2 = Script(
                 title="Updated Title",
                 author="Updated Author",
+                scenes=[],
                 metadata={
                     "series_title": "TV Series",
                     "project_title": "Project Name",
@@ -462,7 +464,7 @@ class TestDatabaseOperationsCoverage:
 
         from scriptrag.parser import Script
 
-        script = Script(title=None, author=None, metadata=None)
+        script = Script(title=None, author=None, scenes=[], metadata=None)
         file_path = Path("/test/path.fountain")
 
         with initialized_db_ops.transaction() as conn:

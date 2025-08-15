@@ -764,8 +764,9 @@ class TestPullCommand:
         # Verify error handling
         assert result.exit_code == 1
         # The error message might have formatting/newlines from Rich console
+        # Check for both parts separately as they may be on different lines
         assert "Error: Config file not found:" in result.output
-        assert str(config_file) in result.output
+        assert "nonexistent.yaml" in result.output
 
     def test_pull_config_loading_exception(
         self, runner, mock_db_ops, mock_analyze_cmd, mock_index_cmd, tmp_path

@@ -451,6 +451,119 @@ class TestConfigOptionQueryCommand:
         finally:
             Path(config_path).unlink(missing_ok=True)
 
+    def test_scene_with_nonexistent_config(self):
+        """Test scene command with non-existent config file."""
+        # Create a path to a non-existent config file
+        config_path = Path("/tmp/nonexistent_config.toml")
+
+        # Run command with non-existent config
+        result = runner.invoke(
+            app,
+            [
+                "scene",
+                "read",
+                "--project",
+                "test",
+                "--scene",
+                "1",
+                "--config",
+                str(config_path),
+            ],
+        )
+
+        # Should fail with appropriate error
+        assert result.exit_code == 1
+        assert "Error: Config file not found" in result.output
+
+    def test_scene_add_with_nonexistent_config(self):
+        """Test scene add command with non-existent config file."""
+        config_path = Path("/tmp/nonexistent_config.toml")
+
+        result = runner.invoke(
+            app,
+            [
+                "scene",
+                "add",
+                "--project",
+                "test",
+                "--after-scene",
+                "1",
+                "--content",
+                "Test content",
+                "--config",
+                str(config_path),
+            ],
+        )
+
+        # Should fail with config file not found error
+        assert result.exit_code == 1
+        assert "Error: Config file not found" in result.output
+
+    def test_scene_update_with_nonexistent_config(self):
+        """Test scene update command with non-existent config file."""
+        config_path = Path("/tmp/nonexistent_config.toml")
+
+        result = runner.invoke(
+            app,
+            [
+                "scene",
+                "update",
+                "--project",
+                "test",
+                "--scene",
+                "1",
+                "--content",
+                "Updated content",
+                "--config",
+                str(config_path),
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error: Config file not found" in result.output
+
+    def test_scene_delete_with_nonexistent_config(self):
+        """Test scene delete command with non-existent config file."""
+        config_path = Path("/tmp/nonexistent_config.toml")
+
+        result = runner.invoke(
+            app,
+            [
+                "scene",
+                "delete",
+                "--project",
+                "test",
+                "--scene",
+                "1",
+                "--confirm",
+                "--config",
+                str(config_path),
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error: Config file not found" in result.output
+
+    def test_scene_bible_with_nonexistent_config(self):
+        """Test scene read_bible command with non-existent config file."""
+        config_path = Path("/tmp/nonexistent_config.toml")
+
+        result = runner.invoke(
+            app,
+            [
+                "scene",
+                "read",
+                "--project",
+                "test",
+                "--bible",
+                "--config",
+                str(config_path),
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error: Config file not found" in result.output
+
 
 class TestConfigOptionSearchCommand:
     """Test --config option for search command."""
@@ -511,3 +624,96 @@ class TestConfigOptionSearchCommand:
         finally:
             Path(config_path).unlink(missing_ok=True)
             db_path.unlink(missing_ok=True)
+
+    def test_search_with_nonexistent_config(self):
+        """Test search command with non-existent config file."""
+        config_path = Path("/tmp/nonexistent_search_config.toml")
+
+        result = runner.invoke(
+            app,
+            ["search", "test query", "--config", str(config_path)],
+        )
+
+        assert result.exit_code == 1
+        assert "Error: Config file not found" in result.output
+
+    def test_query_with_nonexistent_config(self):
+        """Test query command with non-existent config file."""
+        config_path = Path("/tmp/nonexistent_query_config.toml")
+
+        # Query command has subcommands, test with one that accepts config
+        # The character_lines subcommand should accept --config
+        result = runner.invoke(
+            app,
+            [
+                "query",
+                "character_lines",
+                "--project",
+                "test",
+                "--character",
+                "test",
+                "--config",
+                str(config_path),
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert "Error: Config file not found" in result.output
+
+    def test_analyze_with_nonexistent_config(self):
+        """Test analyze command with non-existent config file."""
+        config_path = Path("/tmp/nonexistent_analyze_config.toml")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = runner.invoke(
+                app,
+                ["analyze", tmpdir, "--config", str(config_path)],
+            )
+
+            assert result.exit_code == 1
+            assert "Error: Config file not found" in result.output
+
+    def test_index_with_nonexistent_config(self):
+        """Test index command with non-existent config file."""
+        config_path = Path("/tmp/nonexistent_index_config.toml")
+
+        with tempfile.NamedTemporaryFile(suffix=".fountain", delete=False) as f:
+            f.write(b"Title: Test\n\nINT. TEST - DAY\n\nTest scene.")
+            fountain_path = f.name
+
+        try:
+            result = runner.invoke(
+                app,
+                ["index", fountain_path, "--config", str(config_path)],
+            )
+
+            assert result.exit_code == 1
+            assert "Error: Config file not found" in result.output
+        finally:
+            Path(fountain_path).unlink(missing_ok=True)
+
+    def test_init_with_nonexistent_config(self):
+        """Test init command with non-existent config file."""
+        config_path = Path("/tmp/nonexistent_init_config.toml")
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = Path(tmpdir) / "test.db"
+            result = runner.invoke(
+                app,
+                ["init", "--db-path", str(db_path), "--config", str(config_path)],
+            )
+
+            assert result.exit_code == 1
+            assert "Error: Config file not found" in result.output
+
+    def test_list_with_nonexistent_config(self):
+        """Test list command with non-existent config file."""
+        config_path = Path("/tmp/nonexistent_list_config.toml")
+
+        result = runner.invoke(
+            app,
+            ["list", "--config", str(config_path)],
+        )
+
+        assert result.exit_code == 1
+        assert "Error: Config file not found" in result.output

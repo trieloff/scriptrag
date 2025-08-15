@@ -716,6 +716,102 @@ Here we go!
         assert script.metadata["episode"] == 1
         assert script.metadata["source_file"] == str(file_path)
 
+    def test_parse_metadata_field_variations_lowercase(self, parser):
+        """Test lowercase metadata field variations to cover all branches."""
+        # Test lowercase 'series' field (line 256)
+        content1 = """title: Test Episode
+series: The Show
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script1 = parser.parse(content1)
+        assert script1.metadata.get("series_title") == "The Show"
+
+        # Test lowercase 'series_title' field (line 258)
+        content2 = """title: Test Episode
+series_title: Another Show
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script2 = parser.parse(content2)
+        assert script2.metadata.get("series_title") == "Another Show"
+
+        # Test lowercase 'show' field (line 260)
+        content3 = """title: Test Episode
+show: Yet Another Show
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script3 = parser.parse(content3)
+        assert script3.metadata.get("series_title") == "Yet Another Show"
+
+        # Test lowercase 'project' field (line 264)
+        content4 = """title: Test Script
+project: My Project
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script4 = parser.parse(content4)
+        assert script4.metadata.get("project_title") == "My Project"
+
+        # Test lowercase 'project_title' field (line 266)
+        content5 = """title: Test Script
+project_title: Another Project
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script5 = parser.parse(content5)
+        assert script5.metadata.get("project_title") == "Another Project"
+
+    def test_parse_metadata_priority_order(self, parser):
+        """Test that metadata fields have correct priority when multiple are present."""
+        # Test series_title priority: series > series_title > show
+        content1 = """title: Test Episode
+series: Primary Series
+series_title: Secondary Series
+show: Tertiary Show
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script1 = parser.parse(content1)
+        assert script1.metadata.get("series_title") == "Primary Series"
+
+        # Test without 'series' but with 'series_title' and 'show'
+        content2 = """title: Test Episode
+series_title: Secondary Series
+show: Tertiary Show
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script2 = parser.parse(content2)
+        assert script2.metadata.get("series_title") == "Secondary Series"
+
+        # Test project_title priority: project > project_title
+        content3 = """title: Test Script
+project: Primary Project
+project_title: Secondary Project
+
+INT. ROOM - DAY
+
+Test scene.
+"""
+        script3 = parser.parse(content3)
+        assert script3.metadata.get("project_title") == "Primary Project"
+
     def test_parse_complex_character_dialogue_combinations(self, parser):
         """Test complex combinations that might miss character detection."""
         content = """Title: Edge Cases

@@ -16,6 +16,7 @@ from scriptrag.api.scene_management import (
 )
 from scriptrag.cli.main import app
 from scriptrag.parser import Scene
+from tests.utils import strip_ansi_codes
 
 
 class TestSceneCommandsConfigOption:
@@ -138,7 +139,9 @@ class TestSceneCommandsConfigOption:
 
         # Verify error handling
         assert result.exit_code == 1
-        assert f"Error: Config file not found: {config_file}" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Error: Config file not found:" in clean_output
+        assert str(config_file) in clean_output
 
         # Verify config loading was not attempted
         mock_scriptrag_settings.from_multiple_sources.assert_not_called()

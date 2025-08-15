@@ -633,6 +633,8 @@ class TestWatchCommand:
         tmp_path,
     ):
         """Test watch command with non-existent config file."""
+        from tests.utils import strip_ansi_codes
+
         # Use non-existent config file
         config_file = tmp_path / "nonexistent.yaml"
 
@@ -643,7 +645,9 @@ class TestWatchCommand:
 
         # Verify error handling
         assert result.exit_code == 1
-        assert f"Error: Config file not found: {config_file}" in result.output
+        clean_output = strip_ansi_codes(result.output)
+        assert "Error: Config file not found:" in clean_output
+        assert str(config_file) in clean_output
 
     def test_watch_config_loading_exception(
         self,

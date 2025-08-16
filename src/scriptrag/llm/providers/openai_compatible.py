@@ -1,6 +1,7 @@
 """Generic OpenAI-compatible API provider."""
 
 import asyncio
+import json
 import os
 import time
 from typing import Any, ClassVar
@@ -104,9 +105,23 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                 endpoint=self.base_url,
             )
             return result
-        except Exception as e:
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            # httpx.ConnectError: Connection refused or network issues
+            # httpx.TimeoutException: Request timeout
+            # httpx.HTTPStatusError: Non-2xx status codes
             logger.warning(
                 "OpenAI-compatible endpoint not available",
+                error=str(e),
+                error_type=type(e).__name__,
+                endpoint=self.base_url,
+            )
+            self._availability_cache = False
+            self._cache_timestamp = time.time()
+            return False
+        except Exception as e:
+            # Any other unexpected error during availability check
+            logger.warning(
+                "OpenAI-compatible endpoint not available due to unexpected error",
                 error=str(e),
                 error_type=type(e).__name__,
                 endpoint=self.base_url,
@@ -178,8 +193,16 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             models.sort(key=model_sort_key)
             return models
 
-        except Exception as e:
+        except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as e:
+            # httpx.HTTPError: Base class for all httpx errors
+            # json.JSONDecodeError: Invalid JSON response
+            # KeyError: Missing expected fields in response
+            # TypeError: Unexpected response structure
             logger.error(f"Failed to list models: {e}")
+            return []
+        except Exception as e:
+            # Any other unexpected error during model listing
+            logger.error(f"Failed to list models due to unexpected error: {e}")
             return []
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
@@ -274,7 +297,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                     provider=self.provider_type,
                 )
 
-            except Exception as e:
+            except httpx.HTTPError as e:
+                # httpx.HTTPError: Base class for all httpx errors
                 logger.error(
                     "OpenAI-compatible completion failed",
                     error=str(e),
@@ -283,6 +307,17 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                     model=request.model,
                 )
                 raise
+            except (json.JSONDecodeError, KeyError) as e:
+                # json.JSONDecodeError: Invalid JSON in response
+                # KeyError: Missing required fields in response
+                logger.error(
+                    "OpenAI-compatible completion response parsing failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    endpoint=completions_url,
+                    model=request.model,
+                )
+                raise ValueError(f"Invalid API response: {e}") from e
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Generate embeddings using OpenAI-compatible API."""
@@ -320,6 +355,12 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                 provider=self.provider_type,
             )
 
-        except Exception as e:
-            logger.error(f"Embedding failed: {e}")
+        except httpx.HTTPError as e:
+            # httpx.HTTPError: Base class for all httpx errors
+            logger.error(f"Embedding request failed: {e}")
             raise
+        except (json.JSONDecodeError, KeyError) as e:
+            # json.JSONDecodeError: Invalid JSON in response
+            # KeyError: Missing required fields in response
+            logger.error(f"Embedding response parsing failed: {e}")
+            raise ValueError(f"Invalid embedding response: {e}") from e

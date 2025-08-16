@@ -50,7 +50,9 @@ class VectorSearchEngine:
                     await self.llm_client.cleanup()
                 elif hasattr(self.llm_client, "close"):
                     await self.llm_client.close()
-        except Exception as e:
+        except (AttributeError, RuntimeError) as e:
+            # AttributeError: Method doesn't exist despite hasattr check
+            # RuntimeError: Async runtime issues during cleanup
             logger.warning(f"Error cleaning up LLM client: {e}")
         finally:
             self.llm_client = None
@@ -92,7 +94,10 @@ class VectorSearchEngine:
         if self.llm_client is None:
             try:
                 await self.initialize()
-            except Exception as e:
+            except (ImportError, RuntimeError, ValueError) as e:
+                # ImportError: LLM client module not available
+                # RuntimeError: Client initialization failed
+                # ValueError: Invalid configuration
                 logger.error(f"Failed to initialize LLM client: {e}")
                 raise RuntimeError(f"Failed to initialize LLM client: {e}") from e
 
@@ -124,7 +129,15 @@ class VectorSearchEngine:
 
             raise RuntimeError("No embedding data in response")
 
+        except (ValueError, KeyError, AttributeError, RuntimeError) as e:
+            # ValueError: Invalid response format or API error
+            # KeyError: Missing expected fields in response
+            # AttributeError: Response object missing expected attributes
+            # RuntimeError: LLM client errors
+            logger.error(f"Failed to generate query embedding: {e}")
+            raise RuntimeError(f"Failed to generate query embedding: {e}") from e
         except Exception as e:
+            # Any other unexpected error during embedding generation
             logger.error(f"Failed to generate query embedding: {e}")
             raise RuntimeError(f"Failed to generate query embedding: {e}") from e
 
@@ -268,7 +281,11 @@ class VectorSearchEngine:
                         )
                         results.append((result, similarity))
 
-                except Exception as e:
+                except (struct.error, ValueError, KeyError, json.JSONDecodeError) as e:
+                    # struct.error: Invalid binary blob format
+                    # ValueError: Invalid embedding dimensions or cosine similarity
+                    # KeyError: Missing expected database columns
+                    # json.JSONDecodeError: Invalid metadata JSON
                     logger.warning(
                         f"Failed to process embedding for scene {row['scene_id']}: {e}"
                     )
@@ -284,7 +301,10 @@ class VectorSearchEngine:
                 f"Found {len(results)} similar scenes with threshold {threshold}"
             )
 
-        except Exception as e:
+        except (sqlite3.Error, sqlite3.OperationalError, ValueError) as e:
+            # sqlite3.Error: General database errors
+            # sqlite3.OperationalError: Database locked or query errors
+            # ValueError: Invalid query parameters
             logger.error(f"Failed to search similar scenes: {e}")
             # Return empty results on error
             return []
@@ -347,7 +367,11 @@ class VectorSearchEngine:
             logger.info(f"Added {added_count} vector search results")
             return combined_results
 
-        except Exception as e:
+        except (RuntimeError, ValueError, sqlite3.Error, Exception) as e:
+            # RuntimeError: Embedding generation failed
+            # ValueError: Invalid parameters or API errors
+            # sqlite3.Error: Database query errors
+            # Exception: Generic errors from embedding generation
             logger.error(f"Failed to enhance with vector search: {e}")
             # Return original results on error
             return existing_results

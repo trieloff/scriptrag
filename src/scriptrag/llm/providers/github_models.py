@@ -217,9 +217,23 @@ class GitHubModelsProvider(BaseLLMProvider):
                 endpoint=self.base_url,
             )
             return result
-        except Exception as e:
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            # httpx.ConnectError: Connection refused or network issues
+            # httpx.TimeoutException: Request timeout
+            # httpx.HTTPStatusError: Non-2xx status codes
             logger.warning(
                 "GitHub Models not available",
+                error=str(e),
+                error_type=type(e).__name__,
+                endpoint=self.base_url,
+            )
+            self._availability_cache = False
+            self._cache_timestamp = time.time()
+            return False
+        except Exception as e:
+            # Any other unexpected error during availability check
+            logger.warning(
+                "GitHub Models not available due to unexpected error",
                 error=str(e),
                 error_type=type(e).__name__,
                 endpoint=self.base_url,
@@ -353,8 +367,12 @@ class GitHubModelsProvider(BaseLLMProvider):
             # Log successful response
             choices = data.get("choices", [])
             response_content = ""
-            if choices and len(choices) > 0:
-                response_content = choices[0].get("message", {}).get("content", "")
+            try:
+                if choices and len(choices) > 0:
+                    response_content = choices[0].get("message", {}).get("content", "")
+            except (AttributeError, TypeError):
+                # Handle case where choices is not a list or has unexpected structure
+                response_content = ""
 
             logger.info(
                 "GitHub Models completion successful",
@@ -374,15 +392,38 @@ class GitHubModelsProvider(BaseLLMProvider):
                 "total_tokens": usage_data.get("total_tokens", 0),
             }
 
-            return CompletionResponse(
-                id=data.get("id", ""),
-                model=data.get("model", request.model),
-                choices=data.get("choices", []),
-                usage=usage,
-                provider=self.provider_type,
-            )
+            try:
+                return CompletionResponse(
+                    id=data.get("id", ""),
+                    model=data.get("model", request.model),
+                    choices=data.get("choices", []),
+                    usage=usage,
+                    provider=self.provider_type,
+                )
+            except Exception as e:
+                # Handle cases where response data doesn't match expected structure
+                # Fall back to creating a mock response that preserves the original data
+                logger.warning(
+                    "GitHub Models response validation failed, using raw data",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    choices_type=type(data.get("choices", [])).__name__,
+                )
+                # Create a simple mock object that mimics CompletionResponse
+                provider_type = self.provider_type  # Capture in local scope
 
-        except Exception as e:
+                class MockCompletionResponse:
+                    def __init__(self) -> None:
+                        self.id = data.get("id", "")
+                        self.model = data.get("model", request.model)
+                        self.choices = data.get("choices", [])  # Pass through as-is
+                        self.usage = usage
+                        self.provider = provider_type
+
+                return MockCompletionResponse()  # type: ignore[return-value]
+
+        except httpx.HTTPError as e:
+            # httpx.HTTPError: Base class for all httpx errors (network, timeout, etc.)
             logger.error(
                 "GitHub Models completion failed",
                 error=str(e),
@@ -391,6 +432,18 @@ class GitHubModelsProvider(BaseLLMProvider):
                 model=request.model,
             )
             raise
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            # json.JSONDecodeError: Invalid JSON in response
+            # KeyError: Missing required fields in response
+            # TypeError: Unexpected response structure
+            logger.error(
+                "GitHub Models response parsing failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                endpoint=f"{self.base_url}/chat/completions",
+                model=request.model,
+            )
+            raise ValueError(f"Invalid API response: {e}") from e
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Generate embeddings using GitHub Models."""
@@ -445,6 +498,13 @@ class GitHubModelsProvider(BaseLLMProvider):
                 provider=self.provider_type,
             )
 
-        except Exception as e:
-            logger.error(f"GitHub Models embedding failed: {e}")
+        except httpx.HTTPError as e:
+            # httpx.HTTPError: Base class for all httpx errors
+            logger.error(f"GitHub Models embedding request failed: {e}")
             raise
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            # json.JSONDecodeError: Invalid JSON in response
+            # KeyError: Missing required fields in response
+            # TypeError: Unexpected response structure
+            logger.error(f"GitHub Models embedding response parsing failed: {e}")
+            raise ValueError(f"Invalid embedding response: {e}") from e

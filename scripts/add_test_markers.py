@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Add test markers to categorize tests for performance optimization."""
 
+import argparse
+import shutil
+import sys
 from pathlib import Path
 
 
@@ -98,8 +101,19 @@ def detect_test_type(
     return markers
 
 
-def add_markers_to_file(file_path: Path) -> bool:
-    """Add pytest markers to a test file."""
+def add_markers_to_file(
+    file_path: Path, backup: bool = False, dry_run: bool = False
+) -> bool:
+    """Add pytest markers to a test file.
+
+    Args:
+        file_path: Path to the test file
+        backup: If True, create a backup of the file before modifying
+        dry_run: If True, don't actually modify the file, just report what would be done
+
+    Returns:
+        True if the file was modified (or would be modified in dry-run mode)
+    """
     content = file_path.read_text()
     lines = content.splitlines()
     modified = False
@@ -142,28 +156,89 @@ def add_markers_to_file(file_path: Path) -> bool:
         i += 1
 
     if modified:
-        file_path.write_text("\n".join(new_lines))
+        if dry_run:
+            print(f"[DRY RUN] Would modify {file_path}")
+        else:
+            if backup:
+                backup_path = file_path.with_suffix(file_path.suffix + ".bak")
+                shutil.copy2(file_path, backup_path)
+                print(f"  Backup created: {backup_path}")
+            file_path.write_text("\n".join(new_lines))
         return True
 
     return False
 
 
-def main():
-    """Main function to process all test files."""
-    test_dir = Path("tests")
+def main() -> int:
+    """Main function to process all test files.
 
-    # Find all test files
-    test_files = list(test_dir.rglob("test_*.py")) + list(test_dir.rglob("*_test.py"))
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    parser = argparse.ArgumentParser(
+        description="Add pytest markers to test files for performance optimization"
+    )
+    parser.add_argument(
+        "--backup",
+        action="store_true",
+        help="Create backup files before modifying (*.bak)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be changed without modifying files",
+    )
+    parser.add_argument(
+        "--restore",
+        action="store_true",
+        help="Restore files from backups (*.bak files)",
+    )
+    parser.add_argument(
+        "path",
+        nargs="?",
+        default="tests",
+        help="Path to test directory or file (default: tests)",
+    )
+
+    args = parser.parse_args()
+
+    # Handle restore mode
+    if args.restore:
+        return restore_from_backups(Path(args.path))
+
+    test_path = Path(args.path)
+
+    if not test_path.exists():
+        print(f"Error: Path '{test_path}' does not exist")
+        return 1
+
+    # Determine test files to process
+    if test_path.is_file():
+        test_files = [test_path]
+    else:
+        # Find all test files
+        test_files = list(test_path.rglob("test_*.py")) + list(
+            test_path.rglob("*_test.py")
+        )
 
     print(f"Found {len(test_files)} test files")
 
+    if args.dry_run:
+        print("=== DRY RUN MODE - No files will be modified ===")
+
     modified_count = 0
     for test_file in test_files:
-        if add_markers_to_file(test_file):
-            print(f"✓ Added markers to {test_file}")
+        if add_markers_to_file(test_file, backup=args.backup, dry_run=args.dry_run):
+            if not args.dry_run:
+                print(f"✓ Added markers to {test_file}")
             modified_count += 1
 
-    print(f"\nModified {modified_count} files")
+    action = "Would modify" if args.dry_run else "Modified"
+    print(f"\n{action} {modified_count} files")
+
+    if args.backup and modified_count > 0 and not args.dry_run:
+        print("\nBackup files created with .bak extension")
+        print("To restore: python scripts/add_test_markers.py --restore")
     print("\nMarkers added:")
     print("- unit: Unit tests (fast, isolated)")
     print("- integration: Integration tests")
@@ -179,6 +254,44 @@ def main():
     print("- graphrag: GraphRAG tests")
     print("- search: Search tests")
 
+    return 0
+
+
+def restore_from_backups(path: Path) -> int:
+    """Restore files from their backups.
+
+    Args:
+        path: Directory or file path to restore
+
+    Returns:
+        Exit code (0 for success, 1 for error)
+    """
+    if path.is_file():
+        backup_path = path.with_suffix(path.suffix + ".bak")
+        backup_files = [backup_path] if backup_path.exists() else []
+    else:
+        backup_files = list(path.rglob("*.py.bak"))
+
+    if not backup_files:
+        print("No backup files found")
+        return 1
+
+    print(f"Found {len(backup_files)} backup files")
+    restored_count = 0
+
+    for backup_file in backup_files:
+        original_file = backup_file.with_suffix("")  # Remove .bak
+        try:
+            shutil.copy2(backup_file, original_file)
+            backup_file.unlink()  # Remove backup after successful restore
+            print(f"✓ Restored {original_file}")
+            restored_count += 1
+        except Exception as e:
+            print(f"✗ Failed to restore {original_file}: {e}")
+
+    print(f"\nRestored {restored_count} files")
+    return 0 if restored_count > 0 else 1
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

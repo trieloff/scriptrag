@@ -136,6 +136,10 @@ class VectorSearchEngine:
             # RuntimeError: LLM client errors
             logger.error(f"Failed to generate query embedding: {e}")
             raise RuntimeError(f"Failed to generate query embedding: {e}") from e
+        except Exception as e:
+            # Any other unexpected error during embedding generation
+            logger.error(f"Failed to generate query embedding: {e}")
+            raise RuntimeError(f"Failed to generate query embedding: {e}") from e
 
     def cosine_similarity(self, vec1: np.ndarray, vec2: np.ndarray) -> float:
         """Calculate cosine similarity between two vectors.

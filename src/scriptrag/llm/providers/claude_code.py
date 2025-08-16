@@ -236,6 +236,9 @@ class ClaudeCodeProvider(BaseLLMProvider):
         except ModuleNotFoundError as e:
             # ModuleNotFoundError: SDK module not found
             logger.debug(f"Claude Code SDK module not found: {e}")
+        except Exception as e:
+            # Any other exception during SDK check - fallback to environment markers
+            logger.debug(f"Claude Code SDK check failed with unexpected error: {e}")
 
         # Check for Claude Code environment markers as last resort
         # This shouldn't normally be reached if SDK detection works properly

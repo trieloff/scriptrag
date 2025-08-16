@@ -118,6 +118,17 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             self._availability_cache = False
             self._cache_timestamp = time.time()
             return False
+        except Exception as e:
+            # Any other unexpected error during availability check
+            logger.warning(
+                "OpenAI-compatible endpoint not available due to unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                endpoint=self.base_url,
+            )
+            self._availability_cache = False
+            self._cache_timestamp = time.time()
+            return False
 
     async def __aenter__(self) -> "OpenAICompatibleProvider":
         """Enter async context manager."""
@@ -188,6 +199,10 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             # KeyError: Missing expected fields in response
             # TypeError: Unexpected response structure
             logger.error(f"Failed to list models: {e}")
+            return []
+        except Exception as e:
+            # Any other unexpected error during model listing
+            logger.error(f"Failed to list models due to unexpected error: {e}")
             return []
 
     async def complete(self, request: CompletionRequest) -> CompletionResponse:

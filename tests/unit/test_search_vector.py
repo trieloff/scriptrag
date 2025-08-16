@@ -66,7 +66,7 @@ class TestVectorSearchEngine:
     @pytest.mark.asyncio
     async def test_cleanup(self, vector_engine):
         """Test cleanup of resources."""
-        vector_engine.llm_client = MagicMock()
+        vector_engine.llm_client = AsyncMock()
         vector_engine._query_embeddings_cache = {"test": np.array([1, 2, 3])}
 
         await vector_engine.cleanup()

@@ -207,7 +207,7 @@ test-fast: install ## Run tests without coverage (faster)
 			exit 1; \
 		fi; \
 	done'
-	uv run pytest tests/ -v -n auto
+	uv run pytest tests/ -c pytest-minimal.ini -q --tb=short -n auto --maxfail=5 --durations=10
 	@echo "🔍 Checking for mock files after tests..."
 	@bash -c 'if find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null | head -1 | grep -q .; then \
 		echo "❌ ERROR: Tests created mock files!"; \
@@ -218,6 +218,16 @@ test-fast: install ## Run tests without coverage (faster)
 .PHONY: test-watch
 test-watch: install ## Run tests in watch mode
 	uv run pytest-watch tests/ -- -v
+
+.PHONY: test-parallel
+test-parallel: install ## Run tests with maximum parallelization (fastest)
+	@echo "⚡ Running tests with maximum parallelization..."
+	uv run pytest tests/ --no-cov -q --tb=short -n $(shell nproc || echo 4) --dist loadscope --durations=10
+
+.PHONY: test-quick
+test-quick: install ## Run only unit tests in parallel (very fast)
+	@echo "🚀 Running quick unit tests..."
+	uv run pytest tests/ --no-cov -q --tb=short -n auto -m "unit and not slow" --maxfail=1
 
 .PHONY: test-profile
 test-profile: install ## Run tests with profiling

@@ -43,3 +43,12 @@ uv sync --dev
 ```bash
 uv run scriptrag --version
 ```
+
+## Configuration
+
+ScriptRAG can be configured through multiple sources including environment variables, configuration files, and CLI arguments. See the [Configuration Guide](configuration.md) for detailed information on:
+
+- Configuration file formats (YAML, TOML, JSON)
+- Environment variable naming conventions
+- CLI argument formats
+- Precedence order of configuration sources

@@ -8,6 +8,7 @@ from rich.console import Console
 
 from scriptrag.api import DatabaseInitializer
 from scriptrag.config import get_settings
+from scriptrag.config.template import get_default_config_path, write_config_template
 
 console = Console()
 
@@ -37,12 +38,76 @@ def init_command(
             help="Path to configuration file (YAML, TOML, or JSON)",
         ),
     ] = None,
+    generate_config: Annotated[
+        bool,
+        typer.Option(
+            "--generate-config",
+            "-g",
+            help="Generate a template configuration file with all available settings",
+        ),
+    ] = False,
+    config_output: Annotated[
+        Path | None,
+        typer.Option(
+            "--config-output",
+            "-o",
+            help=(
+                "Output path for generated config "
+                "(default: ~/.config/scriptrag/config.yaml or ./scriptrag.yaml)"
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Initialize the ScriptRAG SQLite database.
 
     This command creates a new SQLite database with the ScriptRAG schema.
     If the database already exists, it will fail unless --force is specified.
+
+    Can also generate a template configuration file with --generate-config.
     """
+    # Handle config generation first if requested
+    if generate_config:
+        try:
+            # Determine output path
+            output_path = config_output or get_default_config_path()
+
+            # Check if file exists and confirm overwrite
+            if (
+                output_path.exists()
+                and not force
+                and not typer.confirm(
+                    f"Configuration file already exists at {output_path}. Overwrite?"
+                )
+            ):
+                console.print("[yellow]Config generation cancelled.[/yellow]")
+                raise typer.Exit(0)
+
+            # Generate the config file
+            console.print("[green]Generating configuration template...[/green]")
+            written_path = write_config_template(
+                output_path, force=force or output_path.exists()
+            )
+            console.print(
+                f"[green]✓[/green] Configuration template generated at {written_path}"
+            )
+            console.print(
+                "[dim]Edit this file to customize your ScriptRAG settings.[/dim]"
+            )
+
+            # If only generating config, exit here
+            if not db_path and not config:
+                raise typer.Exit(0)
+
+        except (typer.Exit, typer.Abort):
+            # Re-raise Typer control flow exceptions
+            raise
+        except Exception as e:
+            console.print(
+                f"[red]Error:[/red] Failed to generate config: {e}",
+                style="bold",
+            )
+            raise typer.Exit(1) from e
+
     # Load settings with proper precedence
     from scriptrag.config.settings import ScriptRAGSettings
 

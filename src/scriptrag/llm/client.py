@@ -197,7 +197,7 @@ class LLMClient:
                 match = re.search(r"retry after (\d+(?:\.\d+)?)", error_message)
                 if match:
                     return float(match.group(1))
-            except Exception:  # noqa: S110
+            except (ValueError, AttributeError, TypeError):
                 pass  # Extracting retry_after is optional, okay to fail
 
         return None

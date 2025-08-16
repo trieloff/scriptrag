@@ -83,7 +83,10 @@ def scriptrag_instance(temp_db_path):
 
     from scriptrag.config import ScriptRAGSettings
 
-    settings = ScriptRAGSettings(database_path=temp_db_path)
+    settings = ScriptRAGSettings(
+        database_path=temp_db_path,
+        skip_boneyard_filter=True,  # Enable for unit tests
+    )
     instance = ScriptRAG(settings=settings, auto_init_db=True)
 
     yield instance
@@ -126,7 +129,8 @@ class TestIndexScript:
 
         # In dry run, nothing should be actually indexed
         assert result["indexed"] is False
-        assert result["scenes_indexed"] == 0
+        # But preview counts should be provided
+        assert result["scenes_indexed"] == 2  # Sample has 2 scenes
 
     def test_index_script_file_not_found(self, scriptrag_instance):
         """Test error when script file doesn't exist."""

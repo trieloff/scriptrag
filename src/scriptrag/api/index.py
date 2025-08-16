@@ -196,42 +196,11 @@ class IndexCommand:
 
         # Filter to only scripts with boneyard metadata for backwards compatibility
         # This ensures that only analyzed scripts are indexed
-        # HOWEVER: Allow all scripts if we're in test environment (no git repo found)
-        if self._is_test_environment():
+        # HOWEVER: Allow skipping this filter via configuration (useful for testing)
+        if self.settings.skip_boneyard_filter:
             return all_scripts
 
         return [script for script in all_scripts if script.has_boneyard]
-
-    def _is_test_environment(self) -> bool:
-        """Detect if we're running in a test environment.
-
-        Returns:
-            True if in test environment (temporary directories, no git repo)
-        """
-        try:
-            # Check if we're in a temporary directory (common test pattern)
-            cwd = Path.cwd()
-            if "tmp" in str(cwd).lower() or "temp" in str(cwd).lower():
-                return True
-
-            # Check if pytest is running
-            import sys
-
-            if "pytest" in sys.modules:
-                return True
-
-            # Check if we're in a proper git repository
-            try:
-                import git
-
-                git.Repo(".", search_parent_directories=True)
-                return False  # Found git repo, not test environment
-            except (git.InvalidGitRepositoryError, git.NoSuchPathError):
-                return True  # No git repo found, likely test environment
-
-        except Exception:
-            # When in doubt, assume test environment for safety
-            return True
 
     async def _filter_scripts_for_indexing(
         self, scripts: list[FountainMetadata]
@@ -494,8 +463,8 @@ class IndexCommand:
             path=file_path,
             indexed=False,  # In dry run, nothing is actually indexed
             updated=False,  # In dry run, nothing is actually updated
-            scenes_indexed=0,  # In dry run, no scenes are actually indexed
-            characters_indexed=0,  # In dry run, no characters are actually indexed
-            dialogues_indexed=0,  # In dry run, no dialogues are actually indexed
-            actions_indexed=0,  # In dry run, no actions are actually indexed
+            scenes_indexed=len(script.scenes),  # Preview: number of scenes
+            characters_indexed=len(characters),  # Preview: number of characters
+            dialogues_indexed=dialogues,  # Preview: number of dialogues
+            actions_indexed=actions,  # Preview: number of actions
         )

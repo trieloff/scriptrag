@@ -67,7 +67,10 @@ class TestEndToEndWorkflow:
         from scriptrag.config import ScriptRAGSettings
 
         # 1. Initialize ScriptRAG
-        settings = ScriptRAGSettings(database_path=temp_db_path)
+        settings = ScriptRAGSettings(
+            database_path=temp_db_path,
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         scriptrag = ScriptRAG(settings=settings, auto_init_db=True)
 
         # 2. Create a fountain file
@@ -112,7 +115,10 @@ class TestEndToEndWorkflow:
         from scriptrag.config import ScriptRAGSettings
 
         # Initialize ScriptRAG
-        settings = ScriptRAGSettings(database_path=temp_db_path)
+        settings = ScriptRAGSettings(
+            database_path=temp_db_path,
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         scriptrag = ScriptRAG(settings=settings, auto_init_db=True)
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -137,10 +143,13 @@ class TestEndToEndWorkflow:
             results = scriptrag.search("coffee")
             assert results.total_results > 0
 
-            # Search for specific script content
-            for title in script_titles:
-                results = scriptrag.search(title)
-                assert results.total_results > 0
+            # Search for scene content that exists in all scripts
+            results = scriptrag.search("London")
+            assert results.total_results == 6  # 2 scenes per script x 3 scripts
+
+            # Verify we indexed multiple scripts by checking unique content
+            results = scriptrag.search("ALICE")
+            assert results.total_results >= 3  # Alice appears in all scripts
 
         # Cleanup for Windows
         if platform.system() == "Windows":
@@ -163,7 +172,10 @@ class TestEndToEndWorkflow:
 
         from scriptrag.config import ScriptRAGSettings
 
-        settings = ScriptRAGSettings(database_path=temp_db_path)
+        settings = ScriptRAGSettings(
+            database_path=temp_db_path,
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         scriptrag = ScriptRAG(settings=settings, auto_init_db=True)
 
         with tempfile.NamedTemporaryFile(

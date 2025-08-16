@@ -81,6 +81,13 @@ class ScriptRAGSettings(BaseSettings):
         ),
         ge=0,
     )
+    skip_boneyard_filter: bool = Field(
+        default=False,
+        description=(
+            "Skip boneyard metadata filtering during indexing "
+            "(useful for testing with scripts that don't have metadata)"
+        ),
+    )
 
     # Debug settings
     debug: bool = Field(

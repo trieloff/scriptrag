@@ -113,7 +113,7 @@ class TestProviderRegistry:
         registry = ProviderRegistry()
 
         with pytest.raises(ValueError, match="Unknown provider type"):
-            registry.create_provider("unknown_provider")  # type: ignore
+            registry.create_provider("unknown_provider")  # type: ignore[arg-type]
 
     def test_initialize_default_providers(self, mock_env_vars):
         """Test initializing default providers."""

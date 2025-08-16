@@ -170,7 +170,12 @@ def register_scene_tools(mcp: FastMCP) -> None:
                 reference_scene = after_scene
                 position = "after"
             else:
-                reference_scene = before_scene  # type: ignore[assignment]
+                # At this point, before_scene must be not None due to validation above
+                if before_scene is None:
+                    raise ValueError(
+                        "Internal error: before_scene is None after validation"
+                    )
+                reference_scene = before_scene
                 position = "before"
 
             scene_id = SceneIdentifier(

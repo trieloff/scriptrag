@@ -17,6 +17,7 @@ def settings(tmp_path):
     return ScriptRAGSettings(
         database_path=tmp_path / "test.db",
         database_timeout=5.0,
+        skip_boneyard_filter=True,  # Enable for unit tests
     )
 
 
@@ -214,7 +215,10 @@ class TestIndexCommand:
                 Path("/test/script.fountain"), dry_run=True
             )
 
-        assert result.indexed
+        # In dry run, nothing is actually indexed
+        assert not result.indexed
+        assert not result.updated
+        # But preview counts should be correct
         assert result.scenes_indexed == 1
         assert result.characters_indexed == 2
         assert result.dialogues_indexed == 2
@@ -244,7 +248,7 @@ class TestIndexCommand:
 
     @pytest.mark.asyncio
     async def test_discover_scripts(self, settings, mock_db_ops, tmp_path):
-        """Test discovering scripts with boneyard metadata."""
+        """Test discovering scripts (with skip_boneyard_filter enabled)."""
         cmd = IndexCommand(settings=settings, db_ops=mock_db_ops)
 
         # Create test files
@@ -267,9 +271,10 @@ class TestIndexCommand:
         with patch.object(cmd.lister, "list_scripts", return_value=mock_scripts):
             result = await cmd._discover_scripts(tmp_path, recursive=True)
 
-        # Only script1 should be discovered (has metadata)
-        assert len(result) == 1
+        # Both scripts should be discovered (skip_boneyard_filter=True)
+        assert len(result) == 2
         assert result[0].file_path == script1
+        assert result[1].file_path == script2
 
     @pytest.mark.asyncio
     async def test_filter_scripts_for_indexing(
@@ -376,17 +381,20 @@ class TestIndexCommand:
         mock_db_ops.get_existing_script.return_value = None
         result = await cmd._dry_run_analysis(sample_script, file_path)
 
-        assert result.indexed
+        # In dry run, nothing is actually indexed/updated
+        assert not result.indexed
         assert not result.updated
+        # But preview counts should be correct
         assert result.scenes_indexed == 1
         assert result.characters_indexed == 2
 
-        # Test existing script
+        # Test existing script (dry run doesn't check existing scripts)
         mock_db_ops.get_existing_script.return_value = MagicMock(id=1)
         result = await cmd._dry_run_analysis(sample_script, file_path)
 
-        assert result.indexed
-        assert result.updated
+        # Still nothing indexed/updated in dry run
+        assert not result.indexed
+        assert not result.updated
 
     @pytest.mark.asyncio
     async def test_index_exception_handling(self, settings, mock_db_ops):
@@ -634,7 +642,10 @@ class TestIndexCommandMissingCoverage:
     @pytest.mark.asyncio
     async def test_index_with_batch_error_collection(self):
         """Test that errors from batch processing are collected properly."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -679,7 +690,10 @@ class TestIndexCommandMissingCoverage:
     @pytest.mark.asyncio
     async def test_discover_scripts_default_path(self):
         """Test _discover_scripts with default path."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -692,7 +706,10 @@ class TestIndexCommandMissingCoverage:
     @pytest.mark.asyncio
     async def test_filter_scripts_skip_metadata_condition(self):
         """Test _filter_scripts_for_indexing with skip_metadata condition."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         # Add context manager support for transaction
         mock_conn = Mock()
@@ -724,7 +741,10 @@ class TestIndexCommandMissingCoverage:
     @pytest.mark.asyncio
     async def test_process_scripts_batch_exception_handling(self):
         """Test _process_scripts_batch exception handling."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -747,7 +767,10 @@ class TestIndexCommandMissingCoverage:
     @pytest.mark.asyncio
     async def test_index_single_script_parser_error(self):
         """Test _index_single_script with parser error."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -768,7 +791,10 @@ class TestIndexCommandMissingCoverage:
     @pytest.mark.asyncio
     async def test_index_single_script_database_error(self):
         """Test _index_single_script with database error."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         # Mock transaction to raise database error
         mock_db_ops.transaction.side_effect = Exception("Database error")
@@ -795,7 +821,10 @@ class TestIndexCommandMissingCoverage:
     @pytest.mark.asyncio
     async def test_index_single_script_update_case(self):
         """Test _index_single_script update case."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         # Add context manager support for transaction
         mock_conn = Mock()

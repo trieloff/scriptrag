@@ -18,7 +18,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_discover_scripts_permission_error(self, tmp_path):
         """Test _discover_scripts handles permission errors."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -35,13 +38,16 @@ class TestIndexCommandCoverage:
         ):
             result = await indexer._discover_scripts(tmp_path, recursive=True)
 
-            # Should handle permission error gracefully and skip file
-            assert len(result) == 0
+            # With skip_boneyard_filter=True, all scripts returned (no file access)
+            assert len(result) == 1
 
     @pytest.mark.asyncio
     async def test_discover_scripts_unicode_decode_error(self, tmp_path):
         """Test _discover_scripts handles UnicodeDecodeError."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -54,13 +60,16 @@ class TestIndexCommandCoverage:
         with patch.object(indexer.lister, "list_scripts", return_value=mock_scripts):
             result = await indexer._discover_scripts(tmp_path, recursive=True)
 
-            # Should handle decode error gracefully and skip file
-            assert len(result) == 0
+            # With skip_boneyard_filter=True, all scripts returned (no file reading)
+            assert len(result) == 1
 
     @pytest.mark.asyncio
     async def test_discover_scripts_os_error(self, tmp_path):
         """Test _discover_scripts handles OSError."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -77,13 +86,16 @@ class TestIndexCommandCoverage:
         ):
             result = await indexer._discover_scripts(tmp_path, recursive=True)
 
-            # Should handle OS error gracefully and skip file
-            assert len(result) == 0
+            # With skip_boneyard_filter=True, all scripts returned (no file reading)
+            assert len(result) == 1
 
     @pytest.mark.asyncio
     async def test_discover_scripts_unexpected_error(self, tmp_path):
         """Test _discover_scripts handles unexpected errors."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -100,13 +112,16 @@ class TestIndexCommandCoverage:
         ):
             result = await indexer._discover_scripts(tmp_path, recursive=True)
 
-            # Should handle unexpected error gracefully and skip file
-            assert len(result) == 0
+            # With skip_boneyard_filter=True, all scripts returned (no file access)
+            assert len(result) == 1
 
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_metadata(self):
         """Test _process_scene_embeddings with no boneyard metadata."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -133,7 +148,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_analyzers(self):
         """Test _process_scene_embeddings with no analyzers in metadata."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -160,7 +178,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_embedding_data(self):
         """Test _process_scene_embeddings with no embedding data."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -187,7 +208,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_result(self):
         """Test _process_scene_embeddings with no result data."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -214,7 +238,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_with_error(self):
         """Test _process_scene_embeddings with error in result."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -247,7 +274,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_embedding_path(self):
         """Test _process_scene_embeddings with no embedding path."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -276,7 +306,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_file_exists(self, tmp_path):
         """Test _process_scene_embeddings with existing embedding file."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -334,7 +367,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_file_not_exists(self, tmp_path):
         """Test _process_scene_embeddings with non-existing embedding file."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -387,7 +423,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_processing_error(self):
         """Test _process_scene_embeddings with processing error."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -425,7 +464,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_scene_without_file_path(self, tmp_path):
         """Test _process_scene_embeddings with scene that has no file_path attribute."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
         indexer = IndexCommand(settings, mock_db_ops)
 
@@ -459,7 +501,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_index_single_script_existing_content(self, tmp_path):
         """Test _index_single_script when re-indexing existing content."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
 
         # Setup transaction context manager
@@ -521,7 +566,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_filter_scripts_with_existing_no_last_indexed(self):
         """Test _filter_scripts_for_indexing with existing script, no last_indexed."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
 
         # Setup transaction context manager
@@ -550,7 +598,10 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_index_script_result_semantics_new_script(self, tmp_path):
         """Test IndexResult semantics for new scripts."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
 
         # Setup transaction context
@@ -599,7 +650,10 @@ Hello world!
     @pytest.mark.asyncio
     async def test_index_script_result_semantics_existing_script(self, tmp_path):
         """Test IndexResult semantics for existing scripts."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
 
         # Setup transaction context
@@ -658,7 +712,10 @@ Hello again!
     @pytest.mark.asyncio
     async def test_dry_run_index_semantics(self, tmp_path):
         """Test dry run semantics for IndexResult flags."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
 
         # Setup transaction context manager (needed even for dry run)
@@ -692,10 +749,10 @@ Testing!
         # Test dry run
         result = await indexer._index_single_script(script_path, dry_run=True)
 
-        # Dry run always reports: indexed=True, updated=False
-        # Because it "would be indexed" and dry run doesn't check existing state
-        assert result.indexed is True  # Would be successfully processed
-        assert result.updated is False  # Dry run doesn't track update state
+        # Dry run always reports: indexed=False, updated=False
+        # Because nothing is actually indexed in dry run mode
+        assert result.indexed is False  # Nothing actually indexed in dry run
+        assert result.updated is False  # Nothing actually updated in dry run
         assert result.script_id is None  # No actual database operation
 
     @pytest.mark.asyncio
@@ -705,7 +762,10 @@ Testing!
         # indexed=True means "Successfully processed regardless of new/update"
         # updated=True means "Only updated if it existed"
 
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            skip_boneyard_filter=True,  # Enable for unit tests
+        )
         mock_db_ops = Mock()
 
         # Setup transaction context

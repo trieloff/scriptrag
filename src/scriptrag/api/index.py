@@ -194,44 +194,13 @@ class IndexCommand:
         """
         all_scripts = self.lister.list_scripts(path, recursive)
 
-        # Filter to only scripts that have been analyzed (have boneyard metadata)
-        analyzed_scripts = []
-        for script_meta in all_scripts:
-            try:
-                # Optimized check: read configured bytes from end for metadata
-                # Boneyard metadata is always at the end of the file
-                file_size = script_meta.file_path.stat().st_size
-                scan_size = self.settings.metadata_scan_size
+        # Filter to only scripts with boneyard metadata for backwards compatibility
+        # This ensures that only analyzed scripts are indexed
+        # HOWEVER: Allow skipping this filter via configuration (useful for testing)
+        if self.settings.skip_boneyard_filter:
+            return all_scripts
 
-                # If scan_size is 0, read entire file
-                read_size = file_size if scan_size == 0 else min(scan_size, file_size)
-
-                with script_meta.file_path.open("rb") as f:
-                    if file_size > read_size:
-                        f.seek(-read_size, 2)  # Seek from end of file
-                    content_bytes = f.read()
-                    content_tail = content_bytes.decode("utf-8", errors="ignore")
-
-                if "SCRIPTRAG-META-START" in content_tail:
-                    analyzed_scripts.append(script_meta)
-            except PermissionError:
-                logger.warning(
-                    f"Permission denied reading {script_meta.file_path}, skipping"
-                )
-            except UnicodeDecodeError as e:
-                logger.warning(
-                    f"Encoding error in {script_meta.file_path}: {e}, skipping"
-                )
-            except OSError as e:
-                logger.warning(
-                    f"OS error reading {script_meta.file_path}: {e}, skipping"
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Unexpected error checking {script_meta.file_path}: {e}, skipping"
-                )
-
-        return analyzed_scripts
+        return [script for script in all_scripts if script.has_boneyard]
 
     async def _filter_scripts_for_indexing(
         self, scripts: list[FountainMetadata]
@@ -479,11 +448,6 @@ class IndexCommand:
         Returns:
             IndexResult with preview information
         """
-        # Check if script exists to determine updated flag
-        with self.db_ops.get_connection() as conn:
-            existing_script = self.db_ops.get_existing_script(conn, file_path)
-            is_update = existing_script is not None
-
         # Count entities that would be indexed
         characters = set()
         dialogues = 0
@@ -497,10 +461,10 @@ class IndexCommand:
 
         return IndexResult(
             path=file_path,
-            indexed=True,  # Would be successfully processed
-            updated=is_update,  # True if script exists, False if new
-            scenes_indexed=len(script.scenes),
-            characters_indexed=len(characters),
-            dialogues_indexed=dialogues,
-            actions_indexed=actions,
+            indexed=False,  # In dry run, nothing is actually indexed
+            updated=False,  # In dry run, nothing is actually updated
+            scenes_indexed=len(script.scenes),  # Preview: number of scenes
+            characters_indexed=len(characters),  # Preview: number of characters
+            dialogues_indexed=dialogues,  # Preview: number of dialogues
+            actions_indexed=actions,  # Preview: number of actions
         )

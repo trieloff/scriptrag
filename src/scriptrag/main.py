@@ -1,6 +1,7 @@
 """ScriptRAG main entry point."""
 
 import asyncio
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,9 @@ from scriptrag.search.models import SearchMode, SearchResponse
 from scriptrag.search.parser import QueryParser
 
 logger = get_logger(__name__)
+
+# Type alias for progress callbacks
+ProgressCallback = Callable[[int, int, str], None]
 
 
 class ScriptRAG:
@@ -72,12 +76,18 @@ class ScriptRAG:
 
         return script
 
-    def index_script(self, path: str | Path, dry_run: bool = False) -> dict[str, Any]:
+    def index_script(
+        self,
+        path: str | Path,
+        dry_run: bool = False,
+        progress_callback: ProgressCallback | None = None,
+    ) -> dict[str, Any]:
         """Index a parsed screenplay into the database.
 
         Args:
             path: Path to the Fountain file to index
             dry_run: If True, preview changes without applying them
+            progress_callback: Optional callback for progress updates
 
         Returns:
             Dictionary with indexing results including:
@@ -98,6 +108,10 @@ class ScriptRAG:
         if not file_path.exists():
             raise FileNotFoundError(f"Fountain file not found: {file_path}")
 
+        # Report progress: starting
+        if progress_callback:
+            progress_callback(0, 1, f"Indexing {file_path.name}...")
+
         # Use async index method with existing or new event loop
         try:
             loop = asyncio.get_running_loop()
@@ -111,6 +125,11 @@ class ScriptRAG:
             result = asyncio.run(
                 self.index_command._index_single_script(file_path, dry_run)
             )
+
+        # Report progress: completed
+        if progress_callback:
+            status = "indexed" if result.indexed else "failed"
+            progress_callback(1, 1, f"Completed: {file_path.name} ({status})")
 
         return {
             "script_id": result.script_id,
@@ -218,6 +237,7 @@ class ScriptRAG:
         recursive: bool = True,
         dry_run: bool = False,
         batch_size: int = 10,
+        progress_callback: ProgressCallback | None = None,
     ) -> dict[str, Any]:
         """Index all Fountain files in a directory.
 
@@ -226,6 +246,7 @@ class ScriptRAG:
             recursive: Search subdirectories recursively (default: True)
             dry_run: Preview changes without applying them (default: False)
             batch_size: Number of scripts to process in each batch (default: 10)
+            progress_callback: Optional callback for progress updates
 
         Returns:
             Dictionary with indexing statistics including:
@@ -248,30 +269,40 @@ class ScriptRAG:
         if not dir_path.is_dir():
             raise ValueError(f"Path is not a directory: {dir_path}")
 
+        # Create wrapper to handle progress reporting
+        async def index_with_progress() -> Any:
+            # First discover scripts
+            if progress_callback:
+                progress_callback(0, 0, f"Discovering scripts in {dir_path.name}...")
+
+            result = await self.index_command.index(
+                path=dir_path,
+                recursive=recursive,
+                dry_run=dry_run,
+                batch_size=batch_size,
+            )
+
+            # Report progress for each script processed
+            if progress_callback and result.scripts:
+                total = len(result.scripts)
+                for i, script_result in enumerate(result.scripts, 1):
+                    status = "indexed" if script_result.indexed else "skipped"
+                    msg = f"Processed {script_result.path.name} ({status})"
+                    progress_callback(i, total, msg)
+
+            return result
+
         # Use async index method with existing or new event loop
         try:
             loop = asyncio.get_running_loop()
             # If we're in an async context, we can't use run_until_complete
             # This would need to be handled differently in async context
             result = asyncio.run_coroutine_threadsafe(
-                self.index_command.index(
-                    path=dir_path,
-                    recursive=recursive,
-                    dry_run=dry_run,
-                    batch_size=batch_size,
-                ),
-                loop,
+                index_with_progress(), loop
             ).result()
         except RuntimeError:
             # No running loop, create one
-            result = asyncio.run(
-                self.index_command.index(
-                    path=dir_path,
-                    recursive=recursive,
-                    dry_run=dry_run,
-                    batch_size=batch_size,
-                )
-            )
+            result = asyncio.run(index_with_progress())
 
         return {
             # Summary counts that tests expect

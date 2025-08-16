@@ -139,7 +139,8 @@ for scene in script.scenes:
 ```python
 index_script(
     path: str | Path,
-    dry_run: bool = False
+    dry_run: bool = False,
+    progress_callback: Callable[[int, int, str], None] | None = None
 ) -> dict[str, Any]
 ```
 
@@ -149,6 +150,7 @@ Indexes a Fountain screenplay into the database for searching.
 
 - `path` (str | Path): Path to the Fountain file to index
 - `dry_run` (bool): If True, preview changes without applying them. Default: `False`.
+- `progress_callback` (Callable): Optional callback for progress updates. Signature: `(current: int, total: int, message: str) -> None`
 
 **Returns:**
 
@@ -185,6 +187,12 @@ else:
 # Dry run to preview
 preview = rag.index_script("screenplay.fountain", dry_run=True)
 print(f"Would index {preview['scenes_indexed']} scenes")
+
+# With progress callback
+def show_progress(current, total, message):
+    print(f"[{current}/{total}] {message}")
+
+result = rag.index_script("screenplay.fountain", progress_callback=show_progress)
 ```
 
 ### index_directory()
@@ -194,7 +202,8 @@ index_directory(
     path: str | Path | None = None,
     recursive: bool = True,
     dry_run: bool = False,
-    batch_size: int = 10
+    batch_size: int = 10,
+    progress_callback: Callable[[int, int, str], None] | None = None
 ) -> dict[str, Any]
 ```
 
@@ -206,6 +215,7 @@ Indexes all Fountain files in a directory.
 - `recursive` (bool): Search subdirectories recursively. Default: `True`.
 - `dry_run` (bool): Preview changes without applying them. Default: `False`.
 - `batch_size` (int): Number of scripts to process per batch. Default: `10`.
+- `progress_callback` (Callable): Optional callback for progress updates. Signature: `(current: int, total: int, message: str) -> None`
 
 **Returns:**
 
@@ -244,6 +254,16 @@ result = rag.index_directory("./screenplays", recursive=False)
 
 # Dry run
 preview = rag.index_directory("./screenplays", dry_run=True)
+
+# With progress tracking
+def track_progress(current, total, message):
+    percent = (current / total * 100) if total > 0 else 0
+    print(f"[{percent:.0f}%] {message}")
+
+result = rag.index_directory(
+    "./screenplays",
+    progress_callback=track_progress
+)
 ```
 
 ### search()
@@ -544,6 +564,50 @@ def safe_index(rag, file_path):
 
 # Use the safe function
 safe_index(rag, "screenplay.fountain")
+```
+
+### Progress Tracking
+
+```python
+# Track indexing progress with a custom progress bar
+from tqdm import tqdm
+
+class ProgressTracker:
+    def __init__(self):
+        self.pbar = None
+
+    def update(self, current, total, message):
+        if self.pbar is None and total > 0:
+            self.pbar = tqdm(total=total, desc="Indexing")
+        if self.pbar:
+            self.pbar.n = current
+            self.pbar.set_description(message)
+            self.pbar.refresh()
+            if current >= total:
+                self.pbar.close()
+                self.pbar = None
+
+tracker = ProgressTracker()
+result = rag.index_directory(
+    "./screenplays",
+    progress_callback=tracker.update
+)
+
+# Simple console progress
+def console_progress(current, total, message):
+    if total > 0:
+        bar_length = 40
+        filled = int(bar_length * current / total)
+        bar = '█' * filled + '░' * (bar_length - filled)
+        percent = current / total * 100
+        print(f"\r[{bar}] {percent:.1f}% - {message}", end='', flush=True)
+        if current >= total:
+            print()  # New line when complete
+
+result = rag.index_script(
+    "screenplay.fountain",
+    progress_callback=console_progress
+)
 ```
 
 ### Custom Search Queries

@@ -1,0 +1,41 @@
+# ScriptRAG Configuration Example (YAML)
+# Copy this file to scriptrag.yaml and customize for your needs
+
+# Database configuration
+database_path: ./scriptrag.db  # Path to SQLite database
+database_timeout: 30.0          # Connection timeout in seconds
+database_wal_mode: true         # Enable Write-Ahead Logging for better concurrency
+
+# Application settings
+app_name: scriptrag
+metadata_scan_size: 10240      # Bytes to scan for metadata (0 = entire file)
+debug: false                    # Enable debug mode
+
+# Logging configuration
+log_level: INFO                 # DEBUG, INFO, WARNING, ERROR, CRITICAL
+log_format: console             # console, json, structured
+# log_file: /var/log/scriptrag.log  # Optional log file path
+# log_file_rotation: "1 day"        # Log rotation interval
+# log_file_retention: "7 days"      # Log retention period
+
+# Search configuration
+search_vector_threshold: 10             # Word count for automatic vector search
+search_vector_similarity_threshold: 0.3 # Minimum similarity score (0.0-1.0)
+search_vector_result_limit_factor: 0.5  # Factor of query limit for vector results
+search_vector_min_results: 5            # Minimum number of vector results
+
+# LLM configuration (optional - for AI-powered features)
+# llm_provider: github_models      # claude_code, github_models, openai
+# llm_endpoint: http://localhost:1234/v1  # For OpenAI-compatible endpoints
+# llm_api_key: ${GITHUB_TOKEN}     # API key (can use environment variables)
+# llm_model: gpt-4                 # Default model for completions
+# llm_embedding_model: text-embedding-ada-002  # Model for embeddings
+# llm_embedding_dimensions: 1536   # Embedding vector dimensions
+# llm_temperature: 0.7              # Generation temperature (0.0-2.0)
+# llm_max_tokens: 4096              # Max tokens for completions
+# llm_force_static_models: false    # Use static model lists
+# llm_model_cache_ttl: 3600         # Model list cache TTL in seconds
+
+# Bible/documentation settings
+bible_embeddings_path: embeddings/bible  # Path for bible embeddings in Git LFS
+bible_max_file_size: 10485760            # Max bible file size in bytes (10 MB)

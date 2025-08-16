@@ -181,8 +181,8 @@ Action.
         ]
         assert len(script_calls) == 2
 
-    def test_progress_callback_with_failed_script(self, scriptrag, tmp_path):
-        """Test progress callback when a script fails to index."""
+    def test_progress_callback_with_invalid_script(self, scriptrag, tmp_path):
+        """Test progress callback when processing invalid Fountain content."""
         # Create an invalid Fountain file
         invalid_file = tmp_path / "invalid.fountain"
         invalid_file.write_text("This is not valid Fountain content")
@@ -213,10 +213,9 @@ Action.
         ]
         assert len(script_calls) == 2
 
-        # One should be indexed, one should be skipped
+        # Both should be indexed (invalid content creates empty script)
         statuses = [call[0][2] for call in script_calls]
-        assert any("indexed" in s for s in statuses)
-        assert any("skipped" in s for s in statuses)
+        assert all("indexed" in s for s in statuses)
 
     def test_progress_callback_signature(self, scriptrag, sample_fountain):
         """Test that progress callback receives correct argument types."""

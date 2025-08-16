@@ -101,7 +101,7 @@ ScriptRAG follows consistent naming conventions across different configuration s
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `llm_provider` | str | `null` | LLM provider (claude_code/GitHub_models/openai_compatible) |
+| `llm_provider` | str | `null` | LLM provider (claude_code/github_models/openai_compatible) |
 | `llm_endpoint` | str | `null` | OpenAI-compatible API endpoint |
 | `llm_api_key` | str | `null` | API key for endpoint |
 | `llm_model` | str | `null` | Default completion model |

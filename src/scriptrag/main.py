@@ -263,6 +263,14 @@ class ScriptRAG:
             )
 
         return {
+            # Summary counts that tests expect
+            "total_scripts": len(result.scripts),  # Total scripts discovered/processed
+            "scripts_indexed": result.total_scripts_indexed,  # Successfully indexed
+            "scripts_updated": result.total_scripts_updated,  # Successfully updated
+            "scripts_failed": len(
+                [s for s in result.scripts if s.error is not None]
+            ),  # Failed scripts
+            # Detailed breakdown (keeping API compatibility)
             "total_scripts_indexed": result.total_scripts_indexed,
             "total_scripts_updated": result.total_scripts_updated,
             "total_scenes_indexed": result.total_scenes_indexed,

@@ -65,14 +65,14 @@ def temp_fountain_file(sample_fountain_content):
 @pytest.fixture
 def temp_db_path():
     """Create a temporary database path."""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-        db_path = Path(tmp.name)
+    # Create a temporary directory and generate a database path
+    # Don't create the actual file - let ScriptRAG initialize it
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test_scriptrag.db"
 
-    yield db_path
+        yield db_path
 
-    # Cleanup
-    if db_path.exists():
-        db_path.unlink()
+        # Cleanup is automatic when temporary directory is removed
 
 
 @pytest.fixture
@@ -244,17 +244,21 @@ class TestIndexDirectory:
             invalid_file = tmpdir_path / "invalid.fountain"
             invalid_file.write_text("")
 
-            # Mock the parser to raise an exception for the invalid file
+            # Store original method for selective mocking
+            original_method = scriptrag_instance.index_command._index_single_script
+
+            async def mock_index_single_script(path, dry_run):
+                """Mock that fails for invalid file, succeeds for valid file."""
+                if path == invalid_file:
+                    raise Exception("Parse error")
+                # Call original method for valid file
+                return await original_method(path, dry_run)
+
+            # Mock the method to simulate mixed success/failure
             with patch.object(
                 scriptrag_instance.index_command,
                 "_index_single_script",
-                side_effect=lambda path, dry_run: (
-                    scriptrag_instance.index_command._index_single_script.__wrapped__(
-                        scriptrag_instance.index_command, path, dry_run
-                    )
-                    if path == valid_file
-                    else (_ for _ in ()).throw(Exception("Parse error"))
-                ),
+                side_effect=mock_index_single_script,
             ):
                 result = scriptrag_instance.index_directory(tmpdir_path)
 

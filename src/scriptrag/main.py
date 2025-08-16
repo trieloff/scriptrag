@@ -8,6 +8,7 @@ from scriptrag.api.database import DatabaseInitializer
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.index import IndexCommand
 from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
+from scriptrag.exceptions import DatabaseError
 from scriptrag.parser import FountainParser, Script
 from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import SearchMode, SearchResponse
@@ -97,14 +98,19 @@ class ScriptRAG:
         if not file_path.exists():
             raise FileNotFoundError(f"Fountain file not found: {file_path}")
 
-        # Use async index method with event loop
-        loop = asyncio.new_event_loop()
+        # Use async index method with existing or new event loop
         try:
-            result = loop.run_until_complete(
+            loop = asyncio.get_running_loop()
+            # If we're in an async context, we can't use run_until_complete
+            # This would need to be handled differently in async context
+            result = asyncio.run_coroutine_threadsafe(
+                self.index_command._index_single_script(file_path, dry_run), loop
+            ).result()
+        except RuntimeError:
+            # No running loop, create one
+            result = asyncio.run(
                 self.index_command._index_single_script(file_path, dry_run)
             )
-        finally:
-            loop.close()
 
         return {
             "script_id": result.script_id,
@@ -157,8 +163,6 @@ class ScriptRAG:
         """
         # Ensure database exists
         if not self.db_ops.check_database_exists():
-            from scriptrag.exceptions import DatabaseError
-
             raise DatabaseError(
                 message="Database not initialized",
                 hint="Run 'scriptrag init' or initialize with auto_init_db=True",
@@ -233,10 +237,23 @@ class ScriptRAG:
         if not dir_path.is_dir():
             raise ValueError(f"Path is not a directory: {dir_path}")
 
-        # Use async index method with event loop
-        loop = asyncio.new_event_loop()
+        # Use async index method with existing or new event loop
         try:
-            result = loop.run_until_complete(
+            loop = asyncio.get_running_loop()
+            # If we're in an async context, we can't use run_until_complete
+            # This would need to be handled differently in async context
+            result = asyncio.run_coroutine_threadsafe(
+                self.index_command.index(
+                    path=dir_path,
+                    recursive=recursive,
+                    dry_run=dry_run,
+                    batch_size=batch_size,
+                ),
+                loop,
+            ).result()
+        except RuntimeError:
+            # No running loop, create one
+            result = asyncio.run(
                 self.index_command.index(
                     path=dir_path,
                     recursive=recursive,
@@ -244,8 +261,6 @@ class ScriptRAG:
                     batch_size=batch_size,
                 )
             )
-        finally:
-            loop.close()
 
         return {
             "total_scripts_indexed": result.total_scripts_indexed,

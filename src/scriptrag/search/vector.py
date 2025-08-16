@@ -367,10 +367,11 @@ class VectorSearchEngine:
             logger.info(f"Added {added_count} vector search results")
             return combined_results
 
-        except (RuntimeError, ValueError, sqlite3.Error) as e:
+        except (RuntimeError, ValueError, sqlite3.Error, Exception) as e:
             # RuntimeError: Embedding generation failed
             # ValueError: Invalid parameters or API errors
             # sqlite3.Error: Database query errors
+            # Exception: Generic errors from embedding generation
             logger.error(f"Failed to enhance with vector search: {e}")
             # Return original results on error
             return existing_results

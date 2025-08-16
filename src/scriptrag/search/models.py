@@ -45,7 +45,13 @@ class SearchQuery:
         """Allow comparison with strings for backwards compatibility."""
         if isinstance(other, str):
             return self.raw_query == other
-        return super().__eq__(other)
+        if not isinstance(other, SearchQuery):
+            return False
+        # Compare all dataclass fields
+        return all(
+            getattr(self, field.name) == getattr(other, field.name)
+            for field in self.__dataclass_fields__.values()
+        )
 
     @property
     def needs_vector_search(self) -> bool:

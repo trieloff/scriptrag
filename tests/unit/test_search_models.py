@@ -26,7 +26,9 @@ class TestSearchMode:
         """Test SearchMode inherits from str and Enum."""
         assert isinstance(SearchMode.STRICT, str)
         assert hasattr(SearchMode, "__members__")
-        assert len(SearchMode.__members__) == 3
+        assert (
+            len(SearchMode.__members__) == 6
+        )  # STRICT, FUZZY, AUTO, SCENE, CHARACTER, DIALOGUE
 
     def test_search_mode_comparison(self) -> None:
         """Test SearchMode string comparison."""

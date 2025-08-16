@@ -438,28 +438,41 @@ uv run scriptrag mcp
 
 ## Configuration
 
-ScriptRAG can be configured using YAML, TOML, or JSON files. Create a configuration file to customize database paths and other settings:
+ScriptRAG can be configured using YAML, TOML, or JSON files. See the [Configuration Guide](configuration.md) for complete documentation.
 
-### Example `config.yaml`
+### Quick Example
+
+Create a `scriptrag.yaml` configuration file:
 
 ```yaml
-database:
-  path: /custom/path/to/scriptrag.db
+# Database settings
+database_path: /custom/path/to/scriptrag.db
 
-llm:
-  provider: openai_compatible
-  endpoint: http://localhost:1234/v1
-  timeout: 30
+# LLM settings
+llm_provider: openai_compatible
+llm_endpoint: http://localhost:1234/v1
+llm_temperature: 0.7
 
-logging:
-  level: INFO
+# Logging settings
+log_level: INFO
 ```
 
 Use the configuration file with any command:
 
 ```bash
-uv run scriptrag pull --config config.yaml /path/to/screenplays
+uv run scriptrag pull --config scriptrag.yaml /path/to/screenplays
 ```
+
+### Configuration Sources
+
+Settings are loaded with this precedence (highest to lowest):
+
+1. CLI arguments (e.g., `--db-path`)
+2. Configuration files (YAML/TOML/JSON)
+3. Environment variables (e.g., `SCRIPTRAG_DATABASE_PATH`)
+4. Default values
+
+For detailed configuration options and naming conventions, see the [Configuration Guide](configuration.md).
 
 ## Troubleshooting
 
@@ -479,10 +492,10 @@ If you encounter "Invalid database path detected" errors:
    uv run scriptrag pull --config config.yaml
    ```
 
-3. Set the environment variable (may not work in all contexts):
+3. Set the environment variable:
 
    ```bash
-   export SCRIPTRAG_DB_PATH=/path/to/scriptrag.db
+   export SCRIPTRAG_DATABASE_PATH=/path/to/scriptrag.db
    ```
 
 ### UNIQUE Constraint Failures

@@ -192,9 +192,11 @@ class IndexCommand:
         Returns:
             List of discovered script metadata
         """
-        # Index all fountain files, whether they have boneyard metadata or not
-        # The indexing process should work with raw fountain files
-        return self.lister.list_scripts(path, recursive)
+        all_scripts = self.lister.list_scripts(path, recursive)
+
+        # Filter to only scripts with boneyard metadata for backwards compatibility
+        # This ensures that only analyzed scripts are indexed
+        return [script for script in all_scripts if script.has_boneyard]
 
     async def _filter_scripts_for_indexing(
         self, scripts: list[FountainMetadata]

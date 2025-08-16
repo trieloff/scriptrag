@@ -50,14 +50,14 @@ FADE OUT.
 @pytest.fixture
 def temp_db_path():
     """Create a temporary database path."""
-    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
-        db_path = Path(tmp.name)
+    # Create a temporary directory and generate a database path
+    # Don't create the actual file - let ScriptRAG initialize it
+    with tempfile.TemporaryDirectory() as tmpdir:
+        db_path = Path(tmpdir) / "test_scriptrag.db"
 
-    yield db_path
+        yield db_path
 
-    # Cleanup
-    if db_path.exists():
-        db_path.unlink()
+        # Cleanup is automatic when temporary directory is removed
 
 
 @pytest.fixture

@@ -40,6 +40,7 @@ uv run scriptrag query "What are the main character relationships?"
 ## Documentation
 
 - [Installation Guide](installation.md)
+- [Configuration Guide](configuration.md)
 - [Usage Examples](usage.md)
 - [API Reference](API.md)
 - [Development Setup](development.md)

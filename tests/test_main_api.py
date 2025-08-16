@@ -72,10 +72,33 @@ def temp_db_path():
 @pytest.fixture
 def scriptrag_instance(temp_db_path):
     """Create a ScriptRAG instance with a temporary database."""
+    import gc
+    import platform
+
     from scriptrag.config import ScriptRAGSettings
 
     settings = ScriptRAGSettings(database_path=temp_db_path)
-    return ScriptRAG(settings=settings, auto_init_db=True)
+    instance = ScriptRAG(settings=settings, auto_init_db=True)
+
+    yield instance
+
+    # Ensure proper cleanup on Windows to prevent file locking issues
+    if platform.system() == "Windows":
+        # Force cleanup of all database-related components
+        if hasattr(instance, "db_ops"):
+            del instance.db_ops
+        if hasattr(instance, "index_command"):
+            del instance.index_command
+        if hasattr(instance, "search_engine"):
+            del instance.search_engine
+
+        # Force garbage collection to close database connections
+        del instance
+        gc.collect()
+        # Small delay to ensure Windows releases file handles
+        import time
+
+        time.sleep(0.1)
 
 
 class TestScriptRAGInit:

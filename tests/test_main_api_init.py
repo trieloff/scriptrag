@@ -72,7 +72,8 @@ class TestScriptRAGInit:
         settings = ScriptRAGSettings(database_path=temp_db_path)
         scriptrag = ScriptRAG(settings=settings, auto_init_db=False)
         assert scriptrag.settings == settings
-        assert scriptrag.settings.database_path == temp_db_path
+        # Resolve paths for platform-specific symlinks (macOS /var -> /private/var)
+        assert scriptrag.settings.database_path.resolve() == temp_db_path.resolve()
 
     def test_auto_init_db(self, temp_db_path):
         """Test automatic database initialization."""

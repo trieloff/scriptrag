@@ -409,18 +409,28 @@ class GitHubModelsProvider(BaseLLMProvider):
                     error_type=type(e).__name__,
                     choices_type=type(data.get("choices", [])).__name__,
                 )
-                # Create a simple mock object that mimics CompletionResponse
-                provider_type = self.provider_type  # Capture in local scope
+                # Create a simple response that preserves the raw data
+                # Use typing.cast to explicitly handle the type conversion
+                from typing import cast
 
-                class MockCompletionResponse:
-                    def __init__(self) -> None:
-                        self.id = data.get("id", "")
-                        self.model = data.get("model", request.model)
-                        self.choices = data.get("choices", [])  # Pass through as-is
-                        self.usage = usage
-                        self.provider = provider_type
+                raw_response = type(
+                    "RawCompletionResponse",
+                    (),
+                    {
+                        "id": data.get("id", ""),
+                        "model": data.get("model", request.model),
+                        "choices": data.get("choices", []),
+                        "usage": usage,
+                        "provider": self.provider_type,
+                        "content": property(
+                            lambda self: self.choices[0]["message"]["content"]
+                            if self.choices
+                            else ""
+                        ),
+                    },
+                )()
 
-                return MockCompletionResponse()  # type: ignore[return-value]
+                return cast(CompletionResponse, raw_response)
 
         except httpx.HTTPError as e:
             # httpx.HTTPError: Base class for all httpx errors (network, timeout, etc.)

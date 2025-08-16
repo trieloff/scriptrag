@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
+from scriptrag.exceptions import LLMFallbackError
 from scriptrag.llm import (
     CompletionRequest,
     CompletionResponse,
@@ -534,7 +535,7 @@ class TestLLMClient:
             request = CompletionRequest(
                 model="test", messages=[{"role": "user", "content": "Test"}]
             )
-            with pytest.raises(RuntimeError, match="All LLM providers failed"):
+            with pytest.raises(LLMFallbackError, match="All LLM providers failed"):
                 await client.complete(request)
 
     @pytest.mark.asyncio
@@ -679,5 +680,5 @@ class TestLLMClient:
             ),
         ):
             request = EmbeddingRequest(model="test", input="test")
-            with pytest.raises(RuntimeError, match="All LLM providers failed"):
+            with pytest.raises(LLMFallbackError, match="All LLM providers failed"):
                 await client.embed(request)

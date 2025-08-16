@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from scriptrag.exceptions import LLMFallbackError
 from scriptrag.llm import LLMClient, LLMProvider
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.client import CompletionRequest, EmbeddingRequest
@@ -46,7 +47,7 @@ class TestRemainingCoverage:
             model="test", messages=[{"role": "user", "content": "test"}]
         )
 
-        with pytest.raises(RuntimeError, match="All LLM providers failed"):
+        with pytest.raises(LLMFallbackError, match="All LLM providers failed"):
             await client._complete_with_fallback(request)
 
     @pytest.mark.asyncio
@@ -62,7 +63,7 @@ class TestRemainingCoverage:
 
         request = EmbeddingRequest(model="test", input="test")
 
-        with pytest.raises(RuntimeError, match="All LLM providers failed"):
+        with pytest.raises(LLMFallbackError, match="All LLM providers failed"):
             await client._embed_with_fallback(request)
 
     @pytest.mark.asyncio
@@ -118,9 +119,11 @@ class TestRemainingCoverage:
         if github_provider:
             github_provider.is_available = AsyncMock(return_value=True)
             github_provider.list_models = AsyncMock(return_value=[])
-            github_provider.embed = AsyncMock(
-                return_value=Mock(provider=LLMProvider.GITHUB_MODELS)
-            )
+            # Create a proper mock embedding response
+            mock_embedding_response = Mock()
+            mock_embedding_response.data = []
+            mock_embedding_response.provider = LLMProvider.GITHUB_MODELS
+            github_provider.embed = AsyncMock(return_value=mock_embedding_response)
 
         request = EmbeddingRequest(model="test", input="test")
 
@@ -155,7 +158,12 @@ class TestRemainingCoverage:
 
         mock_provider = Mock(spec=BaseLLMProvider)
         mock_provider.list_models = AsyncMock(return_value=[])
-        mock_provider.embed = AsyncMock(return_value=Mock())
+        # Create a proper mock embedding response with a data attribute that has len()
+        mock_embedding_response = Mock()
+        mock_embedding_response.data = []
+        mock_embedding_response.model = "text-embedding-ada-002"
+        mock_embedding_response.provider = LLMProvider.GITHUB_MODELS
+        mock_provider.embed = AsyncMock(return_value=mock_embedding_response)
 
         request = EmbeddingRequest(
             model="text-embedding-ada-002",  # Will stay as is since no models available

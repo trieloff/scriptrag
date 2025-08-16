@@ -1,108 +1,51 @@
-# Storage Layer
+# Storage Components
 
-This directory contains the storage layer implementations for all storage backends. Each subdirectory represents a different storage backend.
+This directory contains the data storage components for ScriptRAG. Each subdirectory represents a different storage responsibility aligned with the project's Git-native architecture.
 
-## Architecture Role
+## Storage Organization
 
-The storage layer provides storage backends where data is stored and retrieved. These are components that:
+- **database/**: SQLite database schemas and SQL queries for structured data (scenes, scripts, characters, series)
+- **git/**: Git repository integration for Fountain files and version control
+- **lfs/**: Git LFS management for large binary files (embeddings)
 
-- Store data written by processing components
-- Provide data when read by processing components
-- Maintain data integrity and consistency
+## Architecture Context
 
-## Storage Components
+ScriptRAG uses a hybrid storage approach optimized for screenplay analysis:
 
-- **git/**: Git repository operations (Fountain files, Script Bibles, Custom Insight Agents)
-- **lfs/**: Git LFS operations for large files (embeddings)
-- **database/**: SQLite database operations (scenes, scripts, characters, series)
+1. **Git Repository**: Primary storage for Fountain screenplay files with boneyard metadata
+2. **SQLite Database**: Indexed, queryable storage for scene analysis and search
+3. **Git LFS**: Efficient storage for large embedding vectors
 
-## Design Principles
+## Design Philosophy
 
-1. **Separation of Concerns**: Each storage type has its own module
-2. **Common Interface**: All storage implements similar CRUD operations
-3. **Transaction Support**: Atomic operations where possible
-4. **Error Recovery**: Graceful handling of storage failures
-5. **Performance**: Caching and batching where appropriate
+Rather than abstracting over multiple storage backends, ScriptRAG embraces direct integration with specific storage technologies:
 
-## Common Patterns
+- **SQLite** for its embedded nature and excellent full-text search
+- **Git** for native version control and collaboration features
+- **Git LFS** for handling large binary data without bloating repositories
 
-All storage modules should implement these basic operations:
+This approach provides:
+- Clear, predictable behavior
+- Optimal performance for each storage type
+- Simplified debugging and maintenance
+- Direct access to storage-specific features
 
-```python
-class StorageInterface:
-    """Common interface for storage backends."""
+## Storage Responsibilities
 
-    def read(self, key: str) -> Any:
-        """Read data by key."""
-        raise NotImplementedError
+### Database (SQLite)
+- Scene and script indexing
+- Character relationship graphs
+- Full-text and semantic search
+- Query optimization
 
-    def write(self, key: str, data: Any) -> None:
-        """Write data with key."""
-        raise NotImplementedError
+### Git Integration
+- Fountain file version control
+- Boneyard metadata injection/extraction
+- Change detection and synchronization
+- Collaboration workflows
 
-    def delete(self, key: str) -> None:
-        """Delete data by key."""
-        raise NotImplementedError
-
-    def exists(self, key: str) -> bool:
-        """Check if key exists."""
-        raise NotImplementedError
-
-    def list(self, prefix: str = "") -> List[str]:
-        """List all keys with optional prefix."""
-        raise NotImplementedError
-```
-
-## Transaction Support
-
-For backends that support it:
-
-```python
-from contextlib import contextmanager
-
-@contextmanager
-def transaction(self):
-    """Provide transaction context."""
-    self.begin_transaction()
-    try:
-        yield
-        self.commit()
-    except Exception:
-        self.rollback()
-        raise
-```
-
-## Error Handling
-
-Common storage exceptions:
-
-```python
-class StorageError(ScriptRAGError):
-    """Base storage error."""
-
-class NotFoundError(StorageError):
-    """Key not found in storage."""
-
-class WriteError(StorageError):
-    """Failed to write to storage."""
-
-class TransactionError(StorageError):
-    """Transaction failed."""
-```
-
-## Performance Considerations
-
-1. **Connection Pooling**: Reuse connections where possible
-2. **Batch Operations**: Support bulk reads/writes
-3. **Caching**: Implement appropriate caching strategies
-4. **Async Support**: Consider async variants for I/O operations
-
-## Testing
-
-Each storage backend should have:
-
-- Unit tests for CRUD operations
-- Transaction tests
-- Error handling tests
-- Performance benchmarks
-- Concurrent access tests
+### Git LFS
+- Embedding vector storage
+- Large file deduplication
+- Bandwidth optimization
+- Repository size management

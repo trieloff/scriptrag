@@ -1,6 +1,6 @@
 ---
-description: Extract and categorize all props mentioned or implied in screenplay scenes
-version: 1.0
+description: Track props mentioned in scenes - first appearances and previously seen
+version: 2.0
 requires_llm: true
 ---
 
@@ -9,17 +9,15 @@ requires_llm: true
 ## Context Query
 
 ```sql
--- Get props from previous scenes for consistency
+-- Get all props from previous scenes
 SELECT DISTINCT
     s.scene_number,
-    s.heading,
-    json_extract(s.metadata, '$.boneyard.analyzers.props_inventory.result.props') as props_json
+    json_extract(s.metadata, '$.boneyard.analyzers.props_inventory.result.props_mentioned') as props_list
 FROM scenes s
 WHERE s.script_id = :script_id
     AND s.scene_number < :scene_number
-    AND json_extract(s.metadata, '$.boneyard.analyzers.props_inventory.result.props') IS NOT NULL
-ORDER BY s.scene_number DESC
-LIMIT 10;
+    AND json_extract(s.metadata, '$.boneyard.analyzers.props_inventory.result.props_mentioned') IS NOT NULL
+ORDER BY s.scene_number;
 ```
 
 ## Output Schema
@@ -28,91 +26,27 @@ LIMIT 10;
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["props", "summary"],
+  "required": ["props_mentioned", "props_first_appearance", "props_previously_seen"],
   "properties": {
-    "props": {
+    "props_mentioned": {
       "type": "array",
-      "description": "List of all props identified in the scene",
+      "description": "All props mentioned in this scene",
       "items": {
-        "type": "object",
-        "required": ["name", "category", "significance"],
-        "properties": {
-          "name": {
-            "type": "string",
-            "description": "The name of the prop"
-          },
-          "category": {
-            "type": "string",
-            "description": "Category of the prop",
-            "enum": [
-              "weapons",
-              "vehicles",
-              "technology",
-              "documents",
-              "food_beverage",
-              "clothing_accessories",
-              "furniture",
-              "tools_equipment",
-              "personal_items",
-              "money_valuables",
-              "medical",
-              "miscellaneous"
-            ]
-          },
-          "description": {
-            "type": "string",
-            "description": "Brief description of the prop if provided in the script"
-          },
-          "significance": {
-            "type": "string",
-            "description": "Story significance of the prop",
-            "enum": ["hero", "plot_device", "character_defining", "practical", "background"]
-          },
-          "action_required": {
-            "type": "boolean",
-            "description": "Whether the prop requires specific action or manipulation"
-          },
-          "quantity": {
-            "type": "integer",
-            "description": "Number of this prop needed",
-            "minimum": 1,
-            "default": 1
-          },
-          "mentions": {
-            "type": "array",
-            "description": "Where the prop is mentioned in the scene",
-            "items": {
-              "type": "string",
-              "enum": ["action", "dialogue", "implied"]
-            }
-          }
-        }
+        "type": "string"
       }
     },
-    "summary": {
-      "type": "object",
-      "description": "Summary statistics for the scene",
-      "required": ["total_props", "hero_props", "requires_action"],
-      "properties": {
-        "total_props": {
-          "type": "integer",
-          "description": "Total number of unique props identified"
-        },
-        "hero_props": {
-          "type": "integer",
-          "description": "Number of hero/featured props"
-        },
-        "requires_action": {
-          "type": "integer",
-          "description": "Number of props requiring actor manipulation"
-        },
-        "categories": {
-          "type": "array",
-          "description": "List of categories present in scene",
-          "items": {
-            "type": "string"
-          }
-        }
+    "props_first_appearance": {
+      "type": "array",
+      "description": "Props that appear for the first time in this scene",
+      "items": {
+        "type": "string"
+      }
+    },
+    "props_previously_seen": {
+      "type": "array",
+      "description": "Props in this scene that have appeared in previous scenes",
+      "items": {
+        "type": "string"
       }
     }
   }
@@ -121,7 +55,7 @@ LIMIT 10;
 
 ## Analysis Prompt
 
-You are a professional script supervisor and prop master analyzing a screenplay scene. Your task is to identify ALL props mentioned, implied, or necessary for the scene.
+You are a script supervisor tracking props in a screenplay. Your task is to identify all props mentioned in the current scene and determine which are new versus previously seen.
 
 ### Scene Content
 
@@ -131,72 +65,32 @@ You are a professional script supervisor and prop master analyzing a screenplay 
 
 ### Context: Props from Previous Scenes
 
-```sql
--- This will be replaced with the context query results showing props used in earlier scenes
-```
+The following props have been mentioned in previous scenes:
+{{context_query_results}}
 
 ### Instructions
 
-1. **REVIEW PREVIOUS PROPS** (if available)
-   - Check the context query results for props used in earlier scenes
-   - Maintain consistency with established prop names (e.g., "John's phone" not "a phone" if already established)
-   - Note any recurring props that might appear again
-
-2. **IDENTIFY ALL PROPS**
-   - Explicitly mentioned objects in action lines
+1. **IDENTIFY ALL PROPS IN THIS SCENE**
+   - Objects explicitly mentioned in action lines
    - Props referenced in dialogue
-   - Implied props from character actions (e.g., "types" implies keyboard/computer)
-   - Environmental props that actors would interact with
+   - Items characters interact with
 
-3. **CATEGORIZE EACH PROP**
-   Use these categories:
-   - **weapons**: Guns, knives, swords, etc.
-   - **vehicles**: Cars, motorcycles, bicycles, boats, aircraft
-   - **technology**: Phones, computers, tablets, cameras, recording devices
-   - **documents**: Letters, books, newspapers, photographs, maps
-   - **food_beverage**: Any consumables
-   - **clothing_accessories**: Hats, glasses, jewelry, bags (beyond costume)
-   - **furniture**: Chairs, tables, beds, couches
-   - **tools_equipment**: Work tools, sports equipment, musical instruments
-   - **personal_items**: Wallets, keys, cigarettes, makeup
-   - **money_valuables**: Cash, credit cards, art, collectibles
-   - **medical**: Medicine, medical equipment, first aid
-   - **miscellaneous**: Anything that doesn't fit above
+2. **CLASSIFY EACH PROP**
+   - Compare against the list of props from previous scenes
+   - Determine if this is the first appearance or if it was previously mentioned
+   - Use consistent naming (e.g., if "John's phone" was mentioned before, use that exact name)
 
-4. **ASSESS SIGNIFICANCE**
-   - **hero**: Close-up or critical plot importance
-   - **plot_device**: Drives story forward
-   - **character_defining**: Reveals character traits
-   - **practical**: Necessary for action but not featured
-   - **background**: Set dressing, minimal importance
-
-5. **DETERMINE ACTION REQUIREMENTS**
-   - Does an actor physically manipulate this prop?
-   - Is it thrown, broken, or transformed?
-   - Does it require special handling or effects?
-
-6. **TRACK MENTIONS**
-   - **action**: Mentioned in action lines
-   - **dialogue**: Referenced in character dialogue
-   - **implied**: Not explicitly mentioned but necessary
-
-### Special Considerations
-
-- **Prop Consistency**: If a prop appeared in previous scenes, use the exact same name for continuity
-- If a character "checks the time," include both watch AND phone as possible props
-- "Drinks coffee" implies both cup/mug AND coffee
-- "Drives away" implies car keys in addition to the vehicle
-- Consider multiples needed for continuity (clean/dirty, intact/broken)
-- Include both the container and contents for consumables
-- **Recurring Props**: Pay special attention to hero props that span multiple scenes
+3. **BE COMPREHENSIVE BUT CONCISE**
+   - Include all significant props
+   - Use clear, simple names (e.g., "phone", "gun", "coffee cup")
+   - Avoid overly specific descriptions unless necessary for continuity
 
 ### Output Format
 
-Return a JSON object matching the schema with:
+Return a JSON object with three arrays:
 
-- Complete list of all props
-- Accurate categorization
-- Story significance assessment
-- Summary statistics
+- `props_mentioned`: All props in this scene
+- `props_first_appearance`: Props appearing for the first time
+- `props_previously_seen`: Props that have appeared before
 
-Be thorough but avoid duplicates. If unsure about a category, choose the most specific one that applies.
+Keep prop names consistent across scenes for accurate tracking.

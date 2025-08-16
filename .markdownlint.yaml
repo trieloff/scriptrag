@@ -182,6 +182,7 @@ MD044:
     "MCP",
     "Fountain",
     "GitHub",
+    "github",  # Allow lowercase for enums like github_models
     "PyPI",
     "TestPyPI",
     "Jupyter",

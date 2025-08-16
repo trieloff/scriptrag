@@ -120,6 +120,8 @@ export SCRIPTRAG_DATABASE_PATH=/path/to/your/scriptrag.db
 uv run scriptrag scene read --project "My Script" --scene 1
 ```
 
+See the [Configuration Guide](docs/configuration.md) for complete documentation on configuration options, naming conventions, and precedence rules.
+
 See the [User Guide](docs/user-guide.md) for complete documentation.
 
 ### Complete Workflow Example

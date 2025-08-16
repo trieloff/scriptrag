@@ -13,6 +13,10 @@ class SearchMode(str, Enum):
     STRICT = "strict"
     FUZZY = "fuzzy"
     AUTO = "auto"
+    # Additional modes for specific search types
+    SCENE = "scene"
+    CHARACTER = "character"
+    DIALOGUE = "dialogue"
 
 
 @dataclass
@@ -36,6 +40,12 @@ class SearchQuery:
     offset: int = 0
     include_bible: bool = True  # Include bible content in search
     only_bible: bool = False  # Search only bible content
+
+    def __eq__(self, other: object) -> bool:
+        """Allow comparison with strings for backwards compatibility."""
+        if isinstance(other, str):
+            return self.raw_query == other
+        return super().__eq__(other)
 
     @property
     def needs_vector_search(self) -> bool:
@@ -102,3 +112,8 @@ class SearchResponse:
     execution_time_ms: float | None = None
     search_methods: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def total_results(self) -> int:
+        """Backwards compatibility alias for total_count."""
+        return self.total_count

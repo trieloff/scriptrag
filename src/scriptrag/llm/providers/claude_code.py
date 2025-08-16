@@ -233,8 +233,9 @@ class ClaudeCodeProvider(BaseLLMProvider):
             # SDK not available, check for environment markers as fallback
             # But only if we think SDK is available (which shouldn't happen)
             pass
-        except Exception as e:
-            logger.debug(f"Claude Code SDK check failed: {e}")
+        except ModuleNotFoundError as e:
+            # ModuleNotFoundError: SDK module not found
+            logger.debug(f"Claude Code SDK module not found: {e}")
 
         # Check for Claude Code environment markers as last resort
         # This shouldn't normally be reached if SDK detection works properly
@@ -476,9 +477,16 @@ class ClaudeCodeProvider(BaseLLMProvider):
                 "Claude Code environment detected but SDK not available. "
                 "Please use GitHub Models or OpenAI-compatible provider instead."
             ) from e
-        except Exception as e:
+        except (TimeoutError, json.JSONDecodeError, ValueError) as e:
+            # asyncio.TimeoutError: Query timeout
+            # json.JSONDecodeError: Invalid JSON response
+            # ValueError: JSON validation errors
             logger.error(f"Claude Code completion failed: {e}")
             raise
+        except AttributeError as e:
+            # AttributeError: SDK response object missing expected attributes
+            logger.error(f"Claude Code response parsing failed: {e}")
+            raise RuntimeError(f"Invalid SDK response structure: {e}") from e
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Claude Code doesn't support embeddings directly."""

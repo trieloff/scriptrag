@@ -217,7 +217,10 @@ class GitHubModelsProvider(BaseLLMProvider):
                 endpoint=self.base_url,
             )
             return result
-        except Exception as e:
+        except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as e:
+            # httpx.ConnectError: Connection refused or network issues
+            # httpx.TimeoutException: Request timeout
+            # httpx.HTTPStatusError: Non-2xx status codes
             logger.warning(
                 "GitHub Models not available",
                 error=str(e),
@@ -382,7 +385,8 @@ class GitHubModelsProvider(BaseLLMProvider):
                 provider=self.provider_type,
             )
 
-        except Exception as e:
+        except httpx.HTTPError as e:
+            # httpx.HTTPError: Base class for all httpx errors (network, timeout, etc.)
             logger.error(
                 "GitHub Models completion failed",
                 error=str(e),
@@ -391,6 +395,18 @@ class GitHubModelsProvider(BaseLLMProvider):
                 model=request.model,
             )
             raise
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            # json.JSONDecodeError: Invalid JSON in response
+            # KeyError: Missing required fields in response
+            # TypeError: Unexpected response structure
+            logger.error(
+                "GitHub Models response parsing failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                endpoint=f"{self.base_url}/chat/completions",
+                model=request.model,
+            )
+            raise ValueError(f"Invalid API response: {e}") from e
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Generate embeddings using GitHub Models."""
@@ -445,6 +461,13 @@ class GitHubModelsProvider(BaseLLMProvider):
                 provider=self.provider_type,
             )
 
-        except Exception as e:
-            logger.error(f"GitHub Models embedding failed: {e}")
+        except httpx.HTTPError as e:
+            # httpx.HTTPError: Base class for all httpx errors
+            logger.error(f"GitHub Models embedding request failed: {e}")
             raise
+        except (json.JSONDecodeError, KeyError, TypeError) as e:
+            # json.JSONDecodeError: Invalid JSON in response
+            # KeyError: Missing required fields in response
+            # TypeError: Unexpected response structure
+            logger.error(f"GitHub Models embedding response parsing failed: {e}")
+            raise ValueError(f"Invalid embedding response: {e}") from e

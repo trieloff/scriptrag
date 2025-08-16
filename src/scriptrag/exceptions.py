@@ -119,6 +119,113 @@ class LLMProviderError(LLMError):
     pass
 
 
+class LLMFallbackError(LLMError):
+    """Error raised when all LLM providers fail with detailed fallback information."""
+
+    def __init__(
+        self,
+        message: str = "All LLM providers failed",
+        provider_errors: dict[str, Exception] | None = None,
+        attempted_providers: list[str] | None = None,
+        fallback_chain: list[str] | None = None,
+        debug_info: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize fallback error with detailed provider failure information.
+
+        Args:
+            message: Primary error message
+            provider_errors: Dictionary mapping provider names to their specific errors
+            attempted_providers: List of providers that were attempted
+            fallback_chain: The order in which providers were tried
+            debug_info: Additional debugging information (stack traces, etc.)
+        """
+        self.provider_errors = provider_errors or {}
+        self.attempted_providers = attempted_providers or []
+        self.fallback_chain = fallback_chain or []
+        self.debug_info = debug_info
+
+        # Create structured hint
+        hint_parts = []
+        if self.attempted_providers:
+            hint_parts.append(f"Tried {len(self.attempted_providers)} providers")
+        if self.provider_errors:
+            hint_parts.append("Check provider credentials and availability")
+
+        hint = ". ".join(hint_parts) if hint_parts else None
+
+        # Create detailed error information
+        details: dict[str, Any] = {
+            "attempted_providers": self.attempted_providers,
+            "fallback_chain": self.fallback_chain,
+            "provider_count": len(self.attempted_providers),
+        }
+
+        # Add individual provider errors
+        if self.provider_errors:
+            details["provider_errors"] = {
+                provider: str(error) for provider, error in self.provider_errors.items()
+            }
+
+        # Add debug info if available
+        if self.debug_info:
+            details["debug_info"] = self.debug_info
+
+        super().__init__(message=message, hint=hint, details=details)
+
+
+class LLMRetryableError(LLMError):
+    """Error for transient failures that can be retried with backoff."""
+
+    def __init__(
+        self,
+        message: str,
+        provider: str | None = None,
+        retry_after: float | None = None,
+        attempt: int | None = None,
+        max_attempts: int | None = None,
+        original_error: Exception | None = None,
+    ) -> None:
+        """Initialize retryable error.
+
+        Args:
+            message: Error message
+            provider: Provider that failed
+            retry_after: Suggested retry delay in seconds
+            attempt: Current attempt number
+            max_attempts: Maximum number of attempts
+            original_error: The original exception that caused this error
+        """
+        self.provider = provider
+        self.retry_after = retry_after
+        self.attempt = attempt
+        self.max_attempts = max_attempts
+        self.original_error = original_error
+
+        hint_parts = []
+        if retry_after:
+            hint_parts.append(f"Retry after {retry_after} seconds")
+        if attempt and max_attempts:
+            hint_parts.append(f"Attempt {attempt}/{max_attempts}")
+
+        hint = ". ".join(hint_parts) if hint_parts else None
+
+        details: dict[str, Any] = {}
+        if provider:
+            details["provider"] = provider
+        if retry_after:
+            details["retry_after"] = retry_after
+        if attempt:
+            details["attempt"] = attempt
+        if max_attempts:
+            details["max_attempts"] = max_attempts
+        if original_error:
+            details["original_error"] = (
+                f"{type(original_error).__name__}: {original_error}"
+            )
+
+        super().__init__(message=message, hint=hint, details=details)
+
+
 class GitError(ScriptRAGError):
     """Git-related errors including LFS and repository issues."""
 

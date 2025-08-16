@@ -1,5 +1,6 @@
 """Test init command with config generation functionality."""
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -179,3 +180,169 @@ class TestInitConfigGeneration:
 
         for setting in expected_settings:
             assert setting in content, f"Missing setting: {setting}"
+
+    def test_generate_config_with_permission_error(self, tmp_path, monkeypatch):
+        """Test fallback when config directory cannot be created."""
+        from scriptrag.config import template
+
+        # Mock Path.mkdir to raise PermissionError
+        def mock_mkdir(*args, **kwargs):
+            raise PermissionError("Permission denied")
+
+        with patch("pathlib.Path.mkdir", side_effect=mock_mkdir):
+            # Should fall back to current directory
+            default_path = template.get_default_config_path()
+            assert default_path == Path.cwd() / "scriptrag.yaml"
+
+    def test_generate_config_with_os_error(self, tmp_path, monkeypatch):
+        """Test fallback when config directory has OSError."""
+        from scriptrag.config import template
+
+        # Mock Path.mkdir to raise OSError
+        def mock_mkdir(*args, **kwargs):
+            raise OSError("OS error")
+
+        with patch("pathlib.Path.mkdir", side_effect=mock_mkdir):
+            # Should fall back to current directory
+            default_path = template.get_default_config_path()
+            assert default_path == Path.cwd() / "scriptrag.yaml"
+
+    def test_generate_config_exception_handling(self, tmp_path):
+        """Test exception handling during config generation."""
+        with patch("scriptrag.cli.commands.init.write_config_template") as mock_write:
+            mock_write.side_effect = Exception("Test error")
+
+            result = self.runner.invoke(
+                app, ["init", "--generate-config", "-o", str(tmp_path / "test.yaml")]
+            )
+
+            assert result.exit_code == 1
+            assert "Failed to generate config: Test error" in result.output
+
+    def test_init_with_missing_config_file(self, tmp_path):
+        """Test init command when specified config file doesn't exist."""
+        missing_config = tmp_path / "missing_config.yaml"
+        db_path = tmp_path / "test.db"
+
+        result = self.runner.invoke(
+            app,
+            ["init", "--config", str(missing_config), "--db-path", str(db_path)],
+        )
+
+        assert result.exit_code == 1
+        assert "Config file not found" in result.output
+
+    def test_generate_config_with_confirm_yes(self):
+        """Test that existing config is overwritten when user confirms."""
+        # Create existing file
+        self.config_file.write_text("existing content")
+
+        # Mock user input to say yes to overwrite
+        result = self.runner.invoke(
+            app,
+            ["init", "--generate-config", "-o", str(self.config_file)],
+            input="y\n",
+        )
+
+        assert result.exit_code == 0
+        assert "Configuration template generated" in result.output
+
+        # Check file was overwritten
+        content = self.config_file.read_text()
+        assert "existing content" not in content
+        assert "# ScriptRAG Configuration File" in content
+
+    def test_config_template_value_formatting(self):
+        """Test that config values are properly formatted in YAML."""
+        from scriptrag.config.template import generate_config_template
+
+        # Generate the template
+        template = generate_config_template()
+
+        # Check various value types are formatted correctly
+        assert 'database_path: "scriptrag.db"' in template  # String with quotes
+        assert "database_timeout: 30.0" in template  # Float
+        assert "database_wal_mode: true" in template  # Boolean lowercase
+        assert "database_cache_size: -2000" in template  # Negative integer
+        assert "# llm_api_key: ${GITHUB_TOKEN}" in template  # Env var without quotes
+
+    def test_init_database_file_exists_error(self, tmp_path, monkeypatch):
+        """Test handling of FileExistsError during database initialization."""
+        from scriptrag.api import DatabaseInitializer
+
+        db_path = tmp_path / "test.db"
+
+        # Mock the initializer to raise FileExistsError
+        with patch.object(
+            DatabaseInitializer,
+            "initialize_database",
+            side_effect=FileExistsError("Database already exists"),
+        ):
+            result = self.runner.invoke(
+                app,
+                ["init", "--db-path", str(db_path)],
+            )
+
+            assert result.exit_code == 1
+            assert "Database already exists" in result.output
+
+    def test_init_database_general_exception(self, tmp_path):
+        """Test handling of general exceptions during database initialization."""
+        from scriptrag.api import DatabaseInitializer
+
+        db_path = tmp_path / "test.db"
+
+        # Mock the initializer to raise an exception
+        with patch.object(
+            DatabaseInitializer,
+            "initialize_database",
+            side_effect=Exception("Unexpected error"),
+        ):
+            result = self.runner.invoke(
+                app,
+                ["init", "--db-path", str(db_path)],
+            )
+
+            assert result.exit_code == 1
+            assert "Failed to initialize database" in result.output
+            assert "Unexpected error" in result.output
+
+    def test_init_force_cancel_database_overwrite(self, tmp_path):
+        """Test cancelling database overwrite with force flag."""
+        # Create existing database
+        db_path = tmp_path / "test.db"
+        db_path.touch()
+
+        # Mock user input to say no to overwrite
+        result = self.runner.invoke(
+            app,
+            ["init", "--db-path", str(db_path), "--force"],
+            input="n\n",
+        )
+
+        assert result.exit_code == 0
+        assert "Initialization cancelled" in result.output
+
+    def test_config_template_dict_building(self):
+        """Test the dictionary building logic in generate_config_template."""
+        from scriptrag.config.template import generate_config_template
+
+        # This exercises the value handling branches
+        template = generate_config_template()
+
+        # Verify all branches of value handling are covered
+        lines = template.split("\n")
+
+        # Check we have comments (lines starting with #)
+        comment_lines = [line for line in lines if line.startswith("#")]
+        assert len(comment_lines) > 50  # We have many comment lines
+
+        # Check we have settings with various value types
+        setting_lines = [
+            line for line in lines if ":" in line and not line.startswith("#")
+        ]
+        assert len(setting_lines) > 20  # We have many settings
+
+        # Check blank lines for spacing
+        blank_lines = [line for line in lines if line == ""]
+        assert len(blank_lines) > 5  # We have blank lines for readability

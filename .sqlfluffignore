@@ -1,0 +1,2 @@
+# Ignore VSS migration file - contains virtual table syntax not supported by sqlfluff
+src/scriptrag/storage/database/sql/vss_migration.sql

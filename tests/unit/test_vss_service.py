@@ -310,32 +310,35 @@ class TestVSSService:
     def test_error_handling_store_embedding(self, vss_service):
         """Test error handling when storing embedding fails."""
         with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
-            # Mock the store method to raise an error
-            with patch.object(vss_service, "get_connection") as mock_conn:
-                mock_conn.return_value.__enter__.return_value.execute.side_effect = (
-                    sqlite3.Error("Test error")
-                )
-                mock_conn.return_value.__exit__.return_value = None
+            # Mock the connection to raise an error during execute
+            mock_conn = MagicMock()
+            mock_conn.execute.side_effect = sqlite3.Error("Test database error")
+            mock_conn.rollback.return_value = None
+            mock_conn.close.return_value = None
 
+            with patch.object(vss_service, "get_connection", return_value=mock_conn):
                 with pytest.raises(DatabaseError) as exc_info:
                     vss_service.store_scene_embedding(1, [1, 2, 3], "model")
 
                 assert "Failed to store scene embedding" in str(exc_info.value)
+                # Verify rollback was called due to error
+                mock_conn.rollback.assert_called_once()
 
     def test_error_handling_search(self, vss_service):
         """Test error handling when search fails."""
         with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
-            # Mock the search to raise an error
-            with patch.object(vss_service, "get_connection") as mock_conn:
-                mock_conn.return_value.__enter__.return_value.execute.side_effect = (
-                    sqlite3.Error("Search error")
-                )
-                mock_conn.return_value.__exit__.return_value = None
+            # Mock the connection to raise an error during execute
+            mock_conn = MagicMock()
+            mock_conn.execute.side_effect = sqlite3.Error("Search database error")
+            mock_conn.close.return_value = None
 
+            with patch.object(vss_service, "get_connection", return_value=mock_conn):
                 with pytest.raises(DatabaseError) as exc_info:
                     vss_service.search_similar_scenes(np.random.rand(1536), "model")
 
                 assert "Failed to search similar scenes" in str(exc_info.value)
+                # Verify the connection was properly cleaned up
+                mock_conn.close.assert_called_once()
 
     def test_migrate_from_blob_storage(self, vss_service):
         """Test migration from old BLOB storage."""

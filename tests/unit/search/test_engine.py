@@ -64,6 +64,11 @@ class TestSearchEngine:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        # Add semantic search settings
+        settings.search_vector_result_limit_factor = 0.5
+        settings.search_vector_min_results = 5
+        settings.search_vector_similarity_threshold = 0.5
+        settings.search_vector_threshold = 10
         return settings
 
     @pytest.fixture
@@ -84,6 +89,11 @@ class TestSearchEngine:
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = Path("/test/db.sqlite")
+            # Add semantic search settings
+            mock_settings.search_vector_result_limit_factor = 0.5
+            mock_settings.search_vector_min_results = 5
+            mock_settings.search_vector_similarity_threshold = 0.5
+            mock_settings.search_vector_threshold = 10
             mock_get_settings.return_value = mock_settings
 
             engine = SearchEngine()
@@ -274,7 +284,7 @@ class TestSearchEngine:
             response = engine.search(query)
 
             # Should include vector in search methods and log info
-            assert "vector" in response.search_methods
+            assert "semantic" in response.search_methods
             assert "sql" in response.search_methods
             mock_logger.info.assert_called()
 

@@ -128,7 +128,7 @@ class TestSearchEngineAsync:
 
             assert isinstance(response, SearchResponse)
             assert "sql" in response.search_methods
-            assert "vector" in response.search_methods
+            assert "semantic" in response.search_methods
             mock_enhance.assert_called_once()
 
     @pytest.mark.asyncio
@@ -154,7 +154,7 @@ class TestSearchEngineAsync:
             # Should still return results from SQL search
             assert isinstance(response, SearchResponse)
             assert "sql" in response.search_methods
-            assert "vector" in response.search_methods
+            assert "semantic" in response.search_methods
 
     def test_search_sync_wrapper(self, mock_settings, mock_db):
         """Test synchronous wrapper for search."""
@@ -194,7 +194,7 @@ class TestSearchEngineAsync:
             response = await engine.search_async(query)
 
             assert isinstance(response, SearchResponse)
-            assert "vector" in response.search_methods
+            assert "semantic" in response.search_methods
 
     @pytest.mark.asyncio
     async def test_search_performance(self, mock_settings, mock_db):

@@ -132,7 +132,12 @@ class TestSearchAPIInit:
     def test_init_without_settings(self):
         """Test SearchAPI initialization without settings (uses default)."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            # Add required semantic search settings
+            mock_settings.search_vector_result_limit_factor = 0.5
+            mock_settings.search_vector_min_results = 5
+            mock_settings.search_vector_similarity_threshold = 0.5
+            mock_settings.search_vector_threshold = 10
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI(settings=None)
@@ -145,7 +150,12 @@ class TestSearchAPIInit:
     def test_init_with_none_settings(self):
         """Test SearchAPI initialization with explicit None settings."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            # Add required semantic search settings
+            mock_settings.search_vector_result_limit_factor = 0.5
+            mock_settings.search_vector_min_results = 5
+            mock_settings.search_vector_similarity_threshold = 0.5
+            mock_settings.search_vector_threshold = 10
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI(None)
@@ -178,7 +188,12 @@ class TestSearchAPIFromConfig:
     def test_from_config_without_path(self):
         """Test creating SearchAPI from config without config path."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            # Add required semantic search settings
+            mock_settings.search_vector_result_limit_factor = 0.5
+            mock_settings.search_vector_min_results = 5
+            mock_settings.search_vector_similarity_threshold = 0.5
+            mock_settings.search_vector_threshold = 10
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI.from_config()
@@ -204,7 +219,12 @@ class TestSearchAPIFromConfig:
     def test_from_config_with_none_path(self):
         """Test creating SearchAPI from config with None path."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            # Add required semantic search settings
+            mock_settings.search_vector_result_limit_factor = 0.5
+            mock_settings.search_vector_min_results = 5
+            mock_settings.search_vector_similarity_threshold = 0.5
+            mock_settings.search_vector_threshold = 10
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI.from_config(config_path=None)

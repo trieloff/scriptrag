@@ -1,6 +1,6 @@
 """Data models for search functionality."""
 
-from dataclasses import dataclass, field
+from dataclasses import Field, dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -48,9 +48,10 @@ class SearchQuery:
         if not isinstance(other, SearchQuery):
             return False
         # Compare all dataclass fields
+        fields: dict[str, Field[Any]] = self.__dataclass_fields__
         return all(
             getattr(self, field.name) == getattr(other, field.name)
-            for field in self.__dataclass_fields__.values()
+            for field in fields.values()
         )
 
     @property

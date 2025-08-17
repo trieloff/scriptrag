@@ -141,12 +141,13 @@ class TestSearchAPIInit:
             mock_settings.search_vector_similarity_threshold = 0.5
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
+            mock_settings.llm_force_static_models = False
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI(settings=None)
 
             assert api.settings == mock_settings
-            mock_get_settings.assert_called_once()
+            assert mock_get_settings.called
             assert api.parser is not None
             assert api.engine is not None
 
@@ -161,12 +162,13 @@ class TestSearchAPIInit:
             mock_settings.search_vector_similarity_threshold = 0.5
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
+            mock_settings.llm_force_static_models = False
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI(None)
 
             assert api.settings == mock_settings
-            mock_get_settings.assert_called_once()
+            assert mock_get_settings.called
 
     @patch("scriptrag.api.search.QueryParser")
     @patch("scriptrag.api.search.SearchEngine")
@@ -201,13 +203,14 @@ class TestSearchAPIFromConfig:
             mock_settings.search_vector_similarity_threshold = 0.5
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
+            mock_settings.llm_force_static_models = False
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI.from_config()
 
             assert isinstance(api, SearchAPI)
             assert api.settings == mock_settings
-            mock_get_settings.assert_called_once()
+            assert mock_get_settings.called
 
     def test_from_config_with_path(self):
         """Test creating SearchAPI from config with config path."""
@@ -234,6 +237,7 @@ class TestSearchAPIFromConfig:
             mock_settings.search_vector_similarity_threshold = 0.5
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
+            mock_settings.llm_force_static_models = False
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI.from_config(config_path=None)

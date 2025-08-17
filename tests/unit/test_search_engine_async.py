@@ -185,7 +185,9 @@ class TestSearchEngineAsync:
         mock_llm_client.embed = AsyncMock(return_value=embedding_response)
 
         with patch.object(
-            engine.semantic_adapter.semantic_service, "llm_client", mock_llm_client
+            engine.semantic_adapter.semantic_service.embedding_service,
+            "llm_client",
+            mock_llm_client,
         ):
             query = SearchQuery(
                 raw_query="Find dramatic scenes with conflict",

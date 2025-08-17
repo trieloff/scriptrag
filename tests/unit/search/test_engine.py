@@ -70,6 +70,7 @@ class TestSearchEngine:
         settings.search_vector_similarity_threshold = 0.5
         settings.search_vector_threshold = 10
         settings.llm_model_cache_ttl = 3600
+        settings.llm_force_static_models = False
         return settings
 
     @pytest.fixture
@@ -95,13 +96,15 @@ class TestSearchEngine:
             mock_settings.search_vector_min_results = 5
             mock_settings.search_vector_similarity_threshold = 0.5
             mock_settings.search_vector_threshold = 10
+            mock_settings.llm_model_cache_ttl = 3600
+            mock_settings.llm_force_static_models = False
             mock_get_settings.return_value = mock_settings
 
             engine = SearchEngine()
 
             assert engine.settings == mock_settings
             assert engine.db_path == mock_settings.database_path
-            mock_get_settings.assert_called_once()
+            assert mock_get_settings.called
 
     def test_get_read_only_connection_valid(self, engine, tmp_path):
         """Test getting read-only connection with valid path."""

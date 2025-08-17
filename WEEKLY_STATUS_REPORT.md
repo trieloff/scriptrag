@@ -34,16 +34,15 @@ Project ScriptRAG continues to demonstrate exceptional velocity with **41,406 li
 
 | PR # | Title | Lines Changed | Complexity Factors | Story Points |
 |------|-------|---------------|-------------------|--------------|
-| #198 | FileSourceResolver | +635/-84 | Unified architecture, 5 modules | 13 |
-| #197 | Context Query System | +950/-33 | SQL integration, agent system | 21 |
-| #195 | Dynamic SQL Query Runner | +5226/-37 | Security, cross-platform, CLI | 34 |
-| #193 | Test Coverage Refactor | +20604/-20305 | Massive test overhaul | 55 |
-| #192 | Coverage Expansion | +8737/-1 | 8700+ lines of tests | 34 |
-| #191 | Test Coverage Command | +415/-0 | New slash command system | 8 |
-| #189 | 21 CLAUDE.md Files | +993/-27 | Documentation architecture | 13 |
-| #186 | Scene Embedding Analyzer | +3340/-37 | LLM integration, Git LFS | 21 |
+| #282 | Props Inventory Agent Simplification | +55/-161 | Agent refactoring, history tracking | 8 |
+| #281 | Type Safety & GitHub Models Enhancement | +35/-15 | Type system improvements | 5 |
+| #280 | Weekly Status & Testing Performance | +12/-9 | Documentation & testing optimization | 3 |
+| #279 | **ScriptRAG v2 API Implementation** | **+2388/-135** | **Complete API overhaul, parsing, indexing, search** | **55** |
+| #278 | LLM Client Robust Retry & Fallback | +1014/-61 | Complex error handling, rate limiting | 21 |
+| #277 | Exception Handling in LLM & Vector Search | +655/-26 | Error management across providers | 13 |
 
-**Total Verified Story Points: 199** *(based on actual code complexity and impact)*
+**Total Verified Story Points: 105** *(Week 2 of 2-week sprint cycle)*
+**Running Sprint Total: 304 points** *(Exceptional velocity - 253% of sustainable pace!)*
 
 ## 🏗️ Major Architectural Achievements
 

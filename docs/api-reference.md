@@ -271,7 +271,8 @@ def search(
     dialogue: str | None = None,
     project: str | None = None,
     include_bible: bool = True,
-    only_bible: bool = False
+    only_bible: bool = False,
+    filters: dict[str, str] | None = None
 ) -> SearchResponse:
     """Search for content in the screenplay database."""
     ...
@@ -291,6 +292,7 @@ Searches indexed screenplay content.
 - `project` (str | None): Filter by project name
 - `include_bible` (bool): Include reference content (default: True)
 - `only_bible` (bool): Search only reference content (default: False)
+- `filters` (dict[str, str] | None): Additional filters as key-value pairs
 
 **Returns:**
 
@@ -319,6 +321,12 @@ results = rag.search(
     "important dialogue",
     character="SARAH",
     location="OFFICE"
+)
+
+# Search with custom filters
+results = rag.search(
+    "action sequence",
+    filters={"scene_type": "EXT"}
 )
 
 # Pagination for large result sets
@@ -362,6 +370,7 @@ Represents a single search result.
 **Key Attributes:**
 
 - `script_title`: Title of the matching screenplay
+- `scene_id`: Unique database ID for the scene
 - `scene_number`: Scene number within the script
 - `scene_heading`: Full scene heading
 - `scene_content`: Scene text content

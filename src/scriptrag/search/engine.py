@@ -40,6 +40,7 @@ class SearchEngine:
         self.db_path = settings.database_path
         self.query_builder = QueryBuilder()
         self.vector_engine = VectorSearchEngine(settings)
+        self.semantic_search = None  # Lazy initialization to avoid dependency issues
 
     @contextmanager
     def get_read_only_connection(self) -> Generator[sqlite3.Connection, None, None]:

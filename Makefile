@@ -153,7 +153,12 @@ test: install ## Run all tests in parallel with coverage
 			exit 1; \
 		fi; \
 	done'
-	uv run pytest tests/ -v -n auto --cov=scriptrag --cov-report= --junit-xml=junit.xml $(PYTEST_ARGS)
+	@if [ "$$(uname -s)" = "Darwin" ]; then \
+		echo "🍎 Running tests on macOS with reduced parallelism to avoid hanging..."; \
+		uv run pytest tests/ -v -n 2 --cov=scriptrag --cov-report= --junit-xml=junit.xml --timeout=300 --timeout-method=thread $(PYTEST_ARGS); \
+	else \
+		uv run pytest tests/ -v -n auto --cov=scriptrag --cov-report= --junit-xml=junit.xml --timeout=300 --timeout-method=thread $(PYTEST_ARGS); \
+	fi
 	uv run coverage combine || true  # May already be combined by pytest-xdist
 	uv run coverage xml
 	uv run coverage report --show-missing

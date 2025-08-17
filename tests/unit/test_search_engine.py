@@ -26,6 +26,7 @@ class TestSearchEngine:
         settings.search_vector_min_results = 5
         settings.search_vector_similarity_threshold = 0.5
         settings.search_vector_threshold = 10
+        settings.llm_model_cache_ttl = 3600
         return settings
 
     @pytest.fixture

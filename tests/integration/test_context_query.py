@@ -143,13 +143,13 @@ class TestContextQuerySystem:
                 heading,
                 json_extract(
                     metadata,
-                    '$.boneyard.analyzers.props_inventory.result.props'
+                    '$.boneyard.analyzers.props_inventory.result.props_mentioned'
                 ) as props_json
             FROM scenes
             WHERE script_id = ?
                 AND json_extract(
                     metadata,
-                    '$.boneyard.analyzers.props_inventory.result.props'
+                    '$.boneyard.analyzers.props_inventory.result.props_mentioned'
                 ) IS NOT NULL
             ORDER BY scene_number
             """,
@@ -164,10 +164,14 @@ class TestContextQuerySystem:
         for scene in scenes_with_props:
             props_json = scene["props_json"]
             if props_json:
-                props = json.loads(props_json)
+                props_data = json.loads(props_json)
+                if isinstance(props_data, list):
+                    props_mentioned = props_data
+                else:
+                    props_mentioned = props_data.get("props_mentioned", [])
                 all_props_by_scene[scene["scene_number"]] = {
                     "heading": scene["heading"],
-                    "props": props,
+                    "props_mentioned": props_mentioned,
                 }
                 pass  # Scene props info tracked
 
@@ -208,8 +212,8 @@ class TestContextQuerySystem:
 
         # Check that these props maintain consistent naming
         for _scene_num, scene_data in all_props_by_scene.items():
-            props = scene_data["props"]
-            prop_names = [p["name"].lower() for p in props]
+            props_mentioned = scene_data["props_mentioned"]
+            prop_names = [p.lower() for p in props_mentioned]
 
             pass  # Scene prop analysis
 
@@ -218,14 +222,10 @@ class TestContextQuerySystem:
         badge_found = False
 
         for scene_data in all_props_by_scene.values():
-            for prop in scene_data["props"]:
-                prop_name_lower = prop["name"].lower()
+            for prop_name in scene_data["props_mentioned"]:
+                prop_name_lower = prop_name.lower()
                 if "revolver" in prop_name_lower:
                     revolver_found = True
-                    # Check it's categorized as weapon
-                    assert prop["category"] == "weapons", (
-                        f"Revolver should be weapon, got {prop['category']}"
-                    )
                 if "badge" in prop_name_lower:
                     badge_found = True
 

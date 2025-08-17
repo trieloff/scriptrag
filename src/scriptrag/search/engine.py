@@ -17,7 +17,7 @@ from scriptrag.search.models import (
     SearchResponse,
     SearchResult,
 )
-from scriptrag.search.vector import VectorSearchEngine
+from scriptrag.search.semantic_adapter import SemanticSearchAdapter
 
 logger = get_logger(__name__)
 
@@ -39,8 +39,7 @@ class SearchEngine:
         self.settings = settings
         self.db_path = settings.database_path
         self.query_builder = QueryBuilder()
-        self.vector_engine = VectorSearchEngine(settings)
-        self.semantic_search = None  # Lazy initialization to avoid dependency issues
+        self.semantic_adapter = SemanticSearchAdapter(settings)
 
     @contextmanager
     def get_read_only_connection(self) -> Generator[sqlite3.Connection, None, None]:
@@ -191,29 +190,42 @@ class SearchEngine:
                     conn, query
                 )
 
-            # Check if vector search is needed
+            # Check if semantic search is needed
             search_methods = ["sql"]
             if query.needs_vector_search:
-                search_methods.append("vector")
-                logger.info("Performing vector search to enhance results")
+                search_methods.append("semantic")
+                logger.info("Performing semantic search to enhance results")
 
-                # Enhance results with vector search
+                # Enhance results with semantic search
                 try:
-                    # Use configurable settings for vector search
+                    # Use configurable settings for semantic search
                     limit_factor = self.settings.search_vector_result_limit_factor
-                    vector_limit = max(
+                    semantic_limit = max(
                         self.settings.search_vector_min_results,
                         int(query.limit * limit_factor),
                     )
-                    enhance_fn = self.vector_engine.enhance_results_with_vector_search
-                    results = await enhance_fn(
-                        conn=conn,
+                    enhance = self.semantic_adapter.enhance_results_with_semantic_search
+                    (
+                        enhanced_results,
+                        semantic_bible_results,
+                    ) = await enhance(
                         query=query,
                         existing_results=results,
-                        limit=vector_limit,
+                        limit=semantic_limit,
                     )
+                    results = enhanced_results
+
+                    # Merge semantic bible results with existing ones
+                    if semantic_bible_results:
+                        # Add to existing bible results, avoiding duplicates
+                        existing_bible_ids = {br.chunk_id for br in bible_results}
+                        for sbr in semantic_bible_results:
+                            if sbr.chunk_id not in existing_bible_ids:
+                                bible_results.append(sbr)
+                                existing_bible_ids.add(sbr.chunk_id)
+
                 except Exception as e:
-                    logger.error(f"Vector search failed: {e}")
+                    logger.error(f"Semantic search failed: {e}")
                     # Continue with SQL results only
 
             # Calculate execution time

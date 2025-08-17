@@ -13,6 +13,14 @@ The semantic search functionality uses state-of-the-art language models to gener
 - Identify narrative patterns and motifs
 - Cross-reference scenes with bible documentation
 
+### CLI Modes
+
+ScriptRAG's search command now seamlessly integrates semantic search with traditional text search. The behavior is controlled by CLI flags:
+
+- **Default (Auto mode)**: Automatically uses semantic search for queries longer than 10 words
+- **`--fuzzy`**: Forces semantic search regardless of query length
+- **`--strict`**: Disables semantic search, uses exact text matching only
+
 ## Key Features
 
 ### 1. Automatic Embedding Generation
@@ -29,18 +37,25 @@ scriptrag index path/to/script.fountain --generate-embeddings
 
 ### 2. Natural Language Search
 
-Use the existing search command with the `--fuzzy` flag to enable semantic search:
+The search command intelligently combines traditional text search with semantic search:
 
 ```bash
-# Find scenes about betrayal and trust
-scriptrag search --fuzzy "scenes about betrayal and broken trust"
+# Auto mode: Automatically uses semantic search for longer queries
+scriptrag search "scenes about betrayal and broken trust between former allies"
 
-# Find action sequences similar to a car chase
+# Force semantic search with --fuzzy flag
+scriptrag search --fuzzy "car chase"
+
+# Disable semantic search with --strict flag  
+scriptrag search --strict "INT. OFFICE"
+
+# Examples of semantic searches
 scriptrag search --fuzzy "high-speed car chase through city streets"
-
-# Find emotional dialogue scenes
 scriptrag search --fuzzy "heartfelt conversation between parent and child"
+scriptrag search --fuzzy "scenes with ominous foreshadowing"
 ```
+
+**Note**: In auto mode (default), queries with more than 10 words automatically trigger semantic search. This threshold can be configured in your settings.
 
 ### 3. Find Related Scenes
 

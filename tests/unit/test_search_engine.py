@@ -132,6 +132,11 @@ class TestSearchEngine:
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = MagicMock()
+            # Add semantic search settings
+            mock_settings.search_vector_result_limit_factor = 0.5
+            mock_settings.search_vector_min_results = 5
+            mock_settings.search_vector_similarity_threshold = 0.5
+            mock_settings.search_vector_threshold = 10
             mock_get_settings.return_value = mock_settings
             engine = SearchEngine()
             assert engine.settings is not None
@@ -833,6 +838,11 @@ class TestSearchEngine:
             # Create a mock settings object with all required attributes
             mock_settings = MagicMock()
             mock_settings.database_path = MagicMock()
+            # Add semantic search settings
+            mock_settings.search_vector_result_limit_factor = 0.5
+            mock_settings.search_vector_min_results = 5
+            mock_settings.search_vector_similarity_threshold = 0.5
+            mock_settings.search_vector_threshold = 10
             mock_get_settings.return_value = mock_settings
 
             # Test initialization without passing settings

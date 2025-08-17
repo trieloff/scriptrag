@@ -118,11 +118,11 @@ class TestSearchEngineAsync:
             mode=SearchMode.FUZZY,
         )
 
-        # Mock vector engine
+        # Mock semantic adapter
         with patch.object(
-            engine.vector_engine, "enhance_results_with_vector_search"
+            engine.semantic_adapter, "enhance_results_with_semantic_search"
         ) as mock_enhance:
-            mock_enhance.return_value = []
+            mock_enhance.return_value = ([], [])
 
             response = await engine.search_async(query)
 
@@ -143,11 +143,11 @@ class TestSearchEngineAsync:
             mode=SearchMode.FUZZY,
         )
 
-        # Mock vector engine to raise error
+        # Mock semantic adapter to raise error
         with patch.object(
-            engine.vector_engine, "enhance_results_with_vector_search"
+            engine.semantic_adapter, "enhance_results_with_semantic_search"
         ) as mock_enhance:
-            mock_enhance.side_effect = Exception("Vector search failed")
+            mock_enhance.side_effect = Exception("Semantic search failed")
 
             response = await engine.search_async(query)
 
@@ -184,7 +184,9 @@ class TestSearchEngineAsync:
         embedding_response.data = [embedding_data]
         mock_llm_client.embed = AsyncMock(return_value=embedding_response)
 
-        with patch.object(engine.vector_engine, "llm_client", mock_llm_client):
+        with patch.object(
+            engine.semantic_adapter.semantic_service, "llm_client", mock_llm_client
+        ):
             query = SearchQuery(
                 raw_query="Find dramatic scenes with conflict",
                 text_query="Find dramatic scenes with conflict",

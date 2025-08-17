@@ -1,5 +1,6 @@
 """Unit tests for search API module."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -133,7 +134,8 @@ class TestSearchAPIInit:
         """Test SearchAPI initialization without settings (uses default)."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
-            # Add required semantic search settings
+            # Add required settings
+            mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
             mock_settings.search_vector_min_results = 5
             mock_settings.search_vector_similarity_threshold = 0.5
@@ -151,7 +153,8 @@ class TestSearchAPIInit:
         """Test SearchAPI initialization with explicit None settings."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
-            # Add required semantic search settings
+            # Add required settings
+            mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
             mock_settings.search_vector_min_results = 5
             mock_settings.search_vector_similarity_threshold = 0.5
@@ -189,7 +192,8 @@ class TestSearchAPIFromConfig:
         """Test creating SearchAPI from config without config path."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
-            # Add required semantic search settings
+            # Add required settings
+            mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
             mock_settings.search_vector_min_results = 5
             mock_settings.search_vector_similarity_threshold = 0.5
@@ -220,7 +224,8 @@ class TestSearchAPIFromConfig:
         """Test creating SearchAPI from config with None path."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
-            # Add required semantic search settings
+            # Add required settings
+            mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
             mock_settings.search_vector_min_results = 5
             mock_settings.search_vector_similarity_threshold = 0.5

@@ -1,15 +1,17 @@
 # Semantic Search with Vector Embeddings
 
-ScriptRAG v2 now supports powerful semantic search capabilities using vector embeddings. This feature enables AI-assisted screenplay analysis that goes beyond simple keyword matching to understand the meaning and context of scenes.
+ScriptRAG v2 now supports powerful semantic search capabilities using vector embeddings. This feature enables AI-assisted screenplay and script bible analysis that goes beyond simple keyword matching to understand the meaning and context of scenes and bible content.
 
 ## Overview
 
-The semantic search functionality uses state-of-the-art language models to generate vector embeddings for scene content. These embeddings capture the semantic meaning of the text, allowing you to:
+The semantic search functionality uses state-of-the-art language models to generate vector embeddings for both scene content and script bible chunks. These embeddings capture the semantic meaning of the text, allowing you to:
 
 - Find scenes with similar themes or concepts
-- Discover related scenes across different scripts
+- Search script bible content semantically
+- Discover related scenes and bible entries across different scripts
 - Search using natural language queries
 - Identify narrative patterns and motifs
+- Cross-reference scenes with bible documentation
 
 ## Key Features
 
@@ -66,7 +68,38 @@ for scene in related:
     print()
 ```
 
-### 4. Advanced Similarity Search
+### 4. Bible Content Search
+
+Search script bible content semantically:
+
+```python
+# Search bible content for character backstory
+bible_results = await semantic_search.search_similar_bible_content(
+    query="character backstory and motivation",
+    script_id=10,  # Optional: limit to specific script
+    top_k=5,
+    threshold=0.6
+)
+
+# Results include bible chunks with similarity scores
+for result in bible_results:
+    print(f"{result.bible_title} - {result.heading}")
+    print(f"Similarity: {result.similarity_score:.2%}")
+    print(f"Content: {result.content[:200]}...")
+```
+
+Generate embeddings for bible content:
+
+```python
+# Generate embeddings for all bible chunks
+chunks_processed, embeddings_generated = await semantic_search.generate_bible_embeddings(
+    script_id=10,  # Optional: limit to specific script
+    batch_size=20
+)
+print(f"Processed {chunks_processed} chunks, generated {embeddings_generated} embeddings")
+```
+
+### 5. Advanced Similarity Search
 
 For more control over the search process:
 
@@ -198,6 +231,21 @@ scriptrag search --fuzzy "rain-soaked city streets at night"
 
 # Find action sequences
 scriptrag search --fuzzy "elaborate fight choreography in confined space"
+```
+
+### 5. Bible Content Analysis
+
+Search script bible documentation for world-building and character details:
+
+```bash
+# Search bible for character details
+scriptrag search --fuzzy --only-bible "protagonist's childhood trauma and fears"
+
+# Find world-building information
+scriptrag search --fuzzy --only-bible "magic system rules and limitations"
+
+# Cross-reference scenes with bible
+scriptrag search --fuzzy "scene matching the prophecy mentioned in bible"
 ```
 
 ## API Integration

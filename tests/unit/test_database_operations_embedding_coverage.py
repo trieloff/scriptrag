@@ -17,6 +17,13 @@ def mock_settings():
     settings.database_path = Path(":memory:")
     settings.llm_provider = "test"
     settings.llm_model = "test-model"
+    settings.database_timeout = 30.0
+    settings.database_journal_mode = "WAL"
+    settings.database_synchronous = "NORMAL"
+    settings.database_cache_size = -2000
+    settings.database_temp_store = "MEMORY"
+    settings.database_foreign_keys = True
+    settings.database_enable_fts = True
     return settings
 
 
@@ -232,44 +239,37 @@ class TestDatabaseOperationsEmbeddingCoverage:
             assert bible_result == b"bible_data"
 
     def test_search_similar_scenes_not_implemented(self, db_ops_with_embeddings):
-        """Test that search_similar_scenes raises NotImplementedError."""
+        """Test that search_similar_scenes now works with the new signature."""
         with db_ops_with_embeddings.get_connection() as conn:
-            with pytest.raises(NotImplementedError) as exc_info:
-                db_ops_with_embeddings.search_similar_scenes(
-                    conn, b"query_embedding", "test-model"
-                )
-
-            assert "VSS-based similarity search" in str(exc_info.value)
+            # The method now requires additional parameters
+            results = db_ops_with_embeddings.search_similar_scenes(
+                conn,
+                b"query_embedding",
+                script_id=None,
+                embedding_model="test-model",
+                limit=10,
+            )
+            # Should return empty list if no embeddings
+            assert results == []
 
     def test_upsert_embedding_failed_insert_no_lastrowid(self, db_ops_with_embeddings):
         """Test error handling when insert doesn't return lastrowid."""
-        with db_ops_with_embeddings.get_connection() as conn:
-            # Mock cursor with no lastrowid
-            mock_cursor = MagicMock()
-            mock_cursor.lastrowid = None
-            mock_cursor.fetchone.return_value = None  # No existing embedding
+        # Mock the entire connection
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_cursor.lastrowid = None
+        mock_cursor.fetchone.return_value = None  # No existing embedding
+        mock_conn.execute.return_value = mock_cursor
+        mock_conn.commit = MagicMock()
 
-            # Mock connection's execute
-            original_execute = conn.execute
+        with pytest.raises(DatabaseError) as exc_info:
+            db_ops_with_embeddings.upsert_embedding(
+                mock_conn, "scene", 999, "test-model", b"data"
+            )
 
-            def mock_execute(query, params=None):
-                if (
-                    "SELECT id FROM embeddings" in query
-                    or "INSERT INTO embeddings" in query
-                ):
-                    return mock_cursor
-                return original_execute(query, params)
-
-            conn.execute = mock_execute
-
-            with pytest.raises(DatabaseError) as exc_info:
-                db_ops_with_embeddings.upsert_embedding(
-                    conn, "scene", 999, "test-model", b"data"
-                )
-
-            assert "Failed to get embedding ID" in str(exc_info.value)
-            assert exc_info.value.details["entity_type"] == "scene"
-            assert exc_info.value.details["entity_id"] == 999
+        assert "Failed to get embedding ID" in str(exc_info.value)
+        assert exc_info.value.details["entity_type"] == "scene"
+        assert exc_info.value.details["entity_id"] == 999
 
     def test_get_scene_embeddings_null_embeddings(self, db_ops_with_embeddings):
         """Test getting scene embeddings excludes NULL embeddings."""
@@ -299,19 +299,17 @@ class TestDatabaseOperationsEmbeddingCoverage:
             assert results[0][1] == b"valid_data"
 
     def test_search_similar_scenes_with_script_filter(self, db_ops_with_embeddings):
-        """Test that search_similar_scenes with script_id raises NotImplementedError."""
+        """Test that search_similar_scenes works with script_id filter."""
         with db_ops_with_embeddings.get_connection() as conn:
-            with pytest.raises(NotImplementedError):
-                db_ops_with_embeddings.search_similar_scenes(
-                    conn, b"query", "model", script_id=1, limit=5
-                )
+            # The method now accepts script_id as a parameter
+            results = db_ops_with_embeddings.search_similar_scenes(
+                conn, b"query", script_id=1, embedding_model="model", limit=5
+            )
+            # Should return empty list if no embeddings
+            assert results == []
 
     def test_search_similar_bible_chunks_not_implemented(self, db_ops_with_embeddings):
-        """Test that search_similar_bible_chunks raises NotImplementedError."""
-        with db_ops_with_embeddings.get_connection() as conn:
-            with pytest.raises(NotImplementedError) as exc_info:
-                db_ops_with_embeddings.search_similar_bible_chunks(
-                    conn, b"query", "model", limit=10
-                )
-
-            assert "VSS-based bible chunk search" in str(exc_info.value)
+        """Test that search_similar_bible_chunks is not implemented."""
+        # This method doesn't exist in DatabaseOperations
+        # Verify that the attribute doesn't exist
+        assert not hasattr(db_ops_with_embeddings, "search_similar_bible_chunks")

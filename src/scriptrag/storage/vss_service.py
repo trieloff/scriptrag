@@ -556,6 +556,8 @@ class VSSService:
             for row in cursor:
                 try:
                     # Decode the binary embedding
+                    import struct
+
                     data = row["embedding"]
                     dimension = struct.unpack("<I", data[:4])[0]
                     format_str = f"<{dimension}f"

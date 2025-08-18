@@ -38,7 +38,7 @@ def semantic_adapter(mock_settings):
 def semantic_adapter_no_settings():
     """Create semantic adapter without explicit settings."""
     with (
-        patch("scriptrag.search.semantic_adapter.get_settings") as mock_get_settings,
+        patch("scriptrag.config.get_settings") as mock_get_settings,
         patch("scriptrag.search.semantic_adapter.SemanticSearchService"),
     ):
         mock_settings = MagicMock(spec=ScriptRAGSettings)
@@ -90,7 +90,7 @@ class TestSemanticAdapterCoverage:
     async def test_enhance_results_no_query_text(self, semantic_adapter):
         """Test enhance results with no query text."""
         # Create query with no text fields
-        query = SearchQuery()
+        query = SearchQuery(raw_query="")
         query.dialogue = None
         query.action = None
         query.text_query = None
@@ -103,6 +103,8 @@ class TestSemanticAdapterCoverage:
                 scene_id=1,
                 scene_number=1,
                 scene_heading="INT. HOUSE - DAY",
+                scene_location="HOUSE",
+                scene_time="DAY",
                 scene_content="Content",
                 match_type="sql",
                 relevance_score=1.0,
@@ -123,7 +125,7 @@ class TestSemanticAdapterCoverage:
     @pytest.mark.asyncio
     async def test_enhance_results_with_error_handling(self, semantic_adapter):
         """Test enhance results handles errors gracefully."""
-        query = SearchQuery()
+        query = SearchQuery(raw_query="test dialogue")
         query.dialogue = "test dialogue"
 
         existing_results = [
@@ -134,6 +136,8 @@ class TestSemanticAdapterCoverage:
                 scene_id=1,
                 scene_number=1,
                 scene_heading="INT. HOUSE - DAY",
+                scene_location="HOUSE",
+                scene_time="DAY",
                 scene_content="Content",
                 match_type="sql",
                 relevance_score=1.0,
@@ -156,7 +160,7 @@ class TestSemanticAdapterCoverage:
     @pytest.mark.asyncio
     async def test_enhance_results_with_bible_search(self, semantic_adapter):
         """Test enhance results with bible search enabled."""
-        query = SearchQuery()
+        query = SearchQuery(raw_query="test action")
         query.action = "test action"
         query.include_bible = True
 
@@ -211,7 +215,7 @@ class TestSemanticAdapterCoverage:
     @pytest.mark.asyncio
     async def test_enhance_results_only_bible_search(self, semantic_adapter):
         """Test enhance results with only_bible flag."""
-        query = SearchQuery()
+        query = SearchQuery(raw_query="search text")
         query.text_query = "search text"
         query.only_bible = True
 
@@ -241,13 +245,16 @@ class TestSemanticAdapterCoverage:
 
         # Check bible results handle None values
         assert len(bible) == 1
-        assert bible[0].bible_title == "Unknown"  # None becomes "Unknown"
+        assert bible[0].bible_title is None  # bible_title stays as None
+        assert (
+            bible[0].script_title == "Unknown"
+        )  # script_title becomes "Unknown" when bible_title is None
         assert bible[0].chunk_level == 0  # None becomes 0
 
     @pytest.mark.asyncio
     async def test_enhance_results_deduplication(self, semantic_adapter):
         """Test that duplicate scene IDs are not added."""
-        query = SearchQuery()
+        query = SearchQuery(raw_query="test")
         query.dialogue = "test"
 
         # Existing result with scene_id=1
@@ -259,6 +266,8 @@ class TestSemanticAdapterCoverage:
                 scene_id=1,
                 scene_number=1,
                 scene_heading="INT. HOUSE - DAY",
+                scene_location="HOUSE",
+                scene_time="DAY",
                 scene_content="Content",
                 match_type="sql",
                 relevance_score=1.0,
@@ -299,7 +308,7 @@ class TestSemanticAdapterCoverage:
     @pytest.mark.asyncio
     async def test_enhance_results_limit_respected(self, semantic_adapter):
         """Test that the limit parameter is respected."""
-        query = SearchQuery()
+        query = SearchQuery(raw_query="test")
         query.dialogue = "test"
 
         existing_results = []

@@ -182,7 +182,14 @@ class TestVSSServiceCoverage:
             ),
         ):
             with vss_service_with_migration.get_connection() as conn:
-                # Add embedding metadata table
+                # Add required tables for embeddings
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS scene_embeddings (
+                        scene_id INTEGER PRIMARY KEY,
+                        embedding_model TEXT NOT NULL,
+                        embedding BLOB NOT NULL
+                    )
+                """)
                 conn.execute("""
                     CREATE TABLE IF NOT EXISTS embedding_metadata (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,

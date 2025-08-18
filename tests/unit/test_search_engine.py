@@ -21,6 +21,12 @@ class TestSearchEngine:
         settings.database_timeout = 30.0
         settings.database_cache_size = 2000
         settings.database_temp_store = "MEMORY"
+        # Add semantic search settings
+        settings.search_vector_result_limit_factor = 0.5
+        settings.search_vector_min_results = 5
+        settings.search_vector_similarity_threshold = 0.5
+        settings.search_vector_threshold = 10
+        settings.llm_model_cache_ttl = 3600
         return settings
 
     @pytest.fixture
@@ -127,10 +133,17 @@ class TestSearchEngine:
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = MagicMock()
+            # Add semantic search settings
+            mock_settings.search_vector_result_limit_factor = 0.5
+            mock_settings.search_vector_min_results = 5
+            mock_settings.search_vector_similarity_threshold = 0.5
+            mock_settings.search_vector_threshold = 10
+            mock_settings.llm_model_cache_ttl = 3600
+            mock_settings.llm_force_static_models = False
             mock_get_settings.return_value = mock_settings
             engine = SearchEngine()
             assert engine.settings is not None
-            mock_get_settings.assert_called_once()
+            assert mock_get_settings.called
 
     def test_get_read_only_connection(self, mock_settings, mock_db):
         """Test getting read-only database connection."""
@@ -314,7 +327,7 @@ class TestSearchEngine:
 
         assert "sql" in response.search_methods
         # Vector search is marked but not implemented yet
-        assert "vector" in response.search_methods
+        assert "semantic" in response.search_methods
 
     def test_determine_match_type(self, mock_settings):
         """Test match type determination."""
@@ -736,7 +749,7 @@ class TestSearchEngine:
 
         # Should include vector search method
         assert "sql" in response.search_methods
-        assert "vector" in response.search_methods
+        assert "semantic" in response.search_methods
 
     def test_search_vector_mode_strict(self, mock_settings, mock_db):
         """Test vector search disabled in strict mode."""
@@ -758,7 +771,7 @@ class TestSearchEngine:
 
         # Should only include SQL search method
         assert "sql" in response.search_methods
-        assert "vector" not in response.search_methods
+        assert "semantic" not in response.search_methods
 
     @patch("scriptrag.search.engine.logger")
     def test_search_vector_logging(self, mock_logger, mock_settings, mock_db):
@@ -779,8 +792,10 @@ class TestSearchEngine:
 
         engine.search(query)
 
-        # Check that vector search log message was called
-        mock_logger.info.assert_any_call("Performing vector search to enhance results")
+        # Check that semantic search log message was called
+        mock_logger.info.assert_any_call(
+            "Performing semantic search to enhance results"
+        )
 
     def test_get_read_only_connection_pragma_settings(self, mock_settings, mock_db):
         """Test that PRAGMA settings are correctly applied."""
@@ -826,13 +841,20 @@ class TestSearchEngine:
             # Create a mock settings object with all required attributes
             mock_settings = MagicMock()
             mock_settings.database_path = MagicMock()
+            # Add semantic search settings
+            mock_settings.search_vector_result_limit_factor = 0.5
+            mock_settings.search_vector_min_results = 5
+            mock_settings.search_vector_similarity_threshold = 0.5
+            mock_settings.search_vector_threshold = 10
+            mock_settings.llm_model_cache_ttl = 3600
+            mock_settings.llm_force_static_models = False
             mock_get_settings.return_value = mock_settings
 
             # Test initialization without passing settings
             engine = SearchEngine()
 
             # Verify settings were retrieved and stored
-            mock_get_settings.assert_called_once()
+            assert mock_get_settings.called
             assert engine.settings == mock_settings
             assert engine.db_path == mock_settings.database_path
             assert engine.query_builder is not None

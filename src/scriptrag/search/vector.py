@@ -1,4 +1,9 @@
-"""Vector search functionality for semantic search."""
+"""Vector search functionality for semantic search.
+
+DEPRECATED: This module is deprecated and will be removed in a future version.
+Use scriptrag.api.semantic_search.SemanticSearchService instead, which provides
+pre-indexed semantic search with better performance and Git LFS storage support.
+"""
 
 import json
 import sqlite3
@@ -18,7 +23,11 @@ logger = get_logger(__name__)
 
 
 class VectorSearchEngine:
-    """Handle vector/semantic search operations."""
+    """Handle vector/semantic search operations.
+
+    DEPRECATED: Use SemanticSearchService from scriptrag.api.semantic_search instead.
+    This class is maintained for backward compatibility only.
+    """
 
     def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
         """Initialize vector search engine.

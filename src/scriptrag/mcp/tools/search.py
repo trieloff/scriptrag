@@ -33,16 +33,20 @@ def register_search_tool(mcp: FastMCP) -> None:
         include_bible: bool = True,
         only_bible: bool = False,
     ) -> dict[str, Any]:
-        """Search through indexed screenplays.
+        """Search through indexed screenplays with semantic search support.
 
-        This tool searches through all indexed scripts in the database.
+        This tool searches through all indexed scripts in the database using both
+        traditional text search and AI-powered semantic search (when available).
+
         It automatically detects:
         - ALL CAPS words as characters or locations
         - "Quoted text" as dialogue
         - (Parenthetical text) as stage directions
 
-        By default, queries longer than 10 words trigger vector search.
-        Use strict=True to disable this or fuzzy=True to always enable it.
+        Search modes:
+        - Auto (default): Queries longer than 10 words trigger semantic search
+        - Fuzzy mode: Always use semantic search (set fuzzy=True)
+        - Strict mode: Disable semantic search, exact matching (set strict=True)
 
         Args:
             query: Search query (quoted dialogue, parentheticals, CAPS)
@@ -52,8 +56,8 @@ def register_search_tool(mcp: FastMCP) -> None:
             location: Filter by location
             project: Filter by project/script title
             range: Episode range (e.g., s1e2-s1e5)
-            fuzzy: Enable fuzzy/vector search
-            strict: Disable vector search, use exact matching only
+            fuzzy: Force semantic search regardless of query length
+            strict: Disable semantic search, use exact text matching only
             limit: Maximum number of results to return
             offset: Skip this many results (for pagination)
             include_bible: Include bible content in search results

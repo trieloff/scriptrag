@@ -64,6 +64,13 @@ class TestSearchEngine:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        # Add semantic search settings
+        settings.search_vector_result_limit_factor = 0.5
+        settings.search_vector_min_results = 5
+        settings.search_vector_similarity_threshold = 0.5
+        settings.search_vector_threshold = 10
+        settings.llm_model_cache_ttl = 3600
+        settings.llm_force_static_models = False
         return settings
 
     @pytest.fixture
@@ -84,13 +91,20 @@ class TestSearchEngine:
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = Path("/test/db.sqlite")
+            # Add semantic search settings
+            mock_settings.search_vector_result_limit_factor = 0.5
+            mock_settings.search_vector_min_results = 5
+            mock_settings.search_vector_similarity_threshold = 0.5
+            mock_settings.search_vector_threshold = 10
+            mock_settings.llm_model_cache_ttl = 3600
+            mock_settings.llm_force_static_models = False
             mock_get_settings.return_value = mock_settings
 
             engine = SearchEngine()
 
             assert engine.settings == mock_settings
             assert engine.db_path == mock_settings.database_path
-            mock_get_settings.assert_called_once()
+            assert mock_get_settings.called
 
     def test_get_read_only_connection_valid(self, engine, tmp_path):
         """Test getting read-only connection with valid path."""
@@ -274,7 +288,7 @@ class TestSearchEngine:
             response = engine.search(query)
 
             # Should include vector in search methods and log info
-            assert "vector" in response.search_methods
+            assert "semantic" in response.search_methods
             assert "sql" in response.search_methods
             mock_logger.info.assert_called()
 

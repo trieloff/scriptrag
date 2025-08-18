@@ -17,6 +17,13 @@ def mock_settings():
     settings.database_path = Path(":memory:")
     settings.llm_provider = "test"
     settings.llm_model = "test-model"
+    settings.database_timeout = 30.0
+    settings.database_journal_mode = "WAL"
+    settings.database_synchronous = "NORMAL"
+    settings.database_cache_size = -2000
+    settings.database_temp_store = "MEMORY"
+    settings.database_foreign_keys = True
+    settings.database_enable_fts = True
     return settings
 
 

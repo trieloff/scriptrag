@@ -64,7 +64,7 @@ class TestFallbackChain:
     ):
         """Test successful completion with preferred provider."""
         # Setup preferred provider
-        mock_provider = Mock()
+        mock_provider = AsyncMock()
         mock_provider.is_available = AsyncMock(return_value=True)
         expected_response = CompletionResponse(
             id="test-id",
@@ -107,11 +107,11 @@ class TestFallbackChain:
     ):
         """Test fallback to secondary provider when preferred fails."""
         # Setup providers
-        preferred_provider = Mock()
+        preferred_provider = AsyncMock()
         preferred_provider.is_available = AsyncMock(return_value=True)
         preferred_provider.__class__.__name__ = "ClaudeCodeProvider"
 
-        fallback_provider = Mock()
+        fallback_provider = AsyncMock()
         fallback_provider.is_available = AsyncMock(return_value=True)
         fallback_provider.__class__.__name__ = "GitHubModelsProvider"
 
@@ -179,7 +179,7 @@ class TestFallbackChain:
 
         def get_provider(provider_type):
             if provider_type in providers:
-                mock = Mock()
+                mock = AsyncMock()
                 mock.is_available = AsyncMock(return_value=True)
                 mock.__class__.__name__ = providers[provider_type][0]
                 return mock
@@ -233,11 +233,11 @@ class TestFallbackChain:
     ):
         """Test fallback when provider is not available."""
         # Setup providers with availability issues
-        unavailable_provider = Mock()
+        unavailable_provider = AsyncMock()
         unavailable_provider.is_available = AsyncMock(return_value=False)
         unavailable_provider.__class__.__name__ = "ClaudeCodeProvider"
 
-        available_provider = Mock()
+        available_provider = AsyncMock()
         available_provider.is_available = AsyncMock(return_value=True)
         available_provider.__class__.__name__ = "GitHubModelsProvider"
 
@@ -285,7 +285,7 @@ class TestFallbackChain:
     ):
         """Test fallback when provider is not in registry."""
         # Only return provider for GitHub Models
-        available_provider = Mock()
+        available_provider = AsyncMock()
         available_provider.is_available = AsyncMock(return_value=True)
         available_provider.__class__.__name__ = "GitHubModelsProvider"
 
@@ -328,7 +328,7 @@ class TestFallbackChain:
     ):
         """Test embedding fallback chain with success."""
         # Setup provider
-        mock_provider = Mock()
+        mock_provider = AsyncMock()
         mock_provider.is_available = AsyncMock(return_value=True)
         expected_response = EmbeddingResponse(
             model="embedding-model",
@@ -367,7 +367,7 @@ class TestFallbackChain:
     ):
         """Test embedding fallback when all providers fail."""
         # Setup providers that all fail
-        mock_provider = Mock()
+        mock_provider = AsyncMock()
         mock_provider.is_available = AsyncMock(return_value=True)
         mock_provider.__class__.__name__ = "TestProvider"
 
@@ -412,7 +412,7 @@ class TestFallbackChain:
         attempts = []
 
         def get_provider(provider_type):
-            mock = Mock()
+            mock = AsyncMock()
             mock.is_available = AsyncMock(return_value=True)
             mock.__class__.__name__ = f"{provider_type.value}Provider"
             return mock
@@ -461,7 +461,7 @@ class TestFallbackChain:
             debug_mode=True,
         )
 
-        mock_provider = Mock()
+        mock_provider = AsyncMock()
         mock_provider.is_available = AsyncMock(return_value=True)
         mock_provider.__class__.__name__ = "TestProvider"
 
@@ -501,7 +501,7 @@ class TestFallbackChain:
             debug_mode=False,  # Debug mode off
         )
 
-        mock_provider = Mock()
+        mock_provider = AsyncMock()
         mock_provider.is_available = AsyncMock(return_value=True)
         mock_provider.__class__.__name__ = "TestProvider"
 

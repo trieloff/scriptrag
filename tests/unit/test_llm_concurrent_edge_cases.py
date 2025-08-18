@@ -16,6 +16,7 @@ from scriptrag.llm.models import (
     CompletionResponse,
     EmbeddingResponse,
     LLMProvider,
+    Model,
 )
 from scriptrag.llm.providers import (
     GitHubModelsProvider,
@@ -31,9 +32,19 @@ class TestConcurrentOperations:
     @pytest.fixture
     def mock_provider(self):
         """Create mock provider for testing."""
-        provider = Mock()
+        provider = AsyncMock()
         provider.is_available = AsyncMock(return_value=True)
         provider.provider_type = LLMProvider.GITHUB_MODELS
+        provider.list_models = AsyncMock(
+            return_value=[
+                Model(
+                    id="test-model",
+                    name="Test Model",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["completion", "chat", "embedding"],
+                )
+            ]
+        )
         return provider
 
     @pytest.fixture
@@ -91,11 +102,11 @@ class TestConcurrentOperations:
     async def test_concurrent_completions_with_fallback(self, client):
         """Test concurrent completions with fallback to different providers."""
         # Setup providers with different success patterns
-        github_provider = Mock()
+        github_provider = AsyncMock()
         github_provider.is_available = AsyncMock(return_value=True)
         github_provider.provider_type = LLMProvider.GITHUB_MODELS
 
-        claude_provider = Mock()
+        claude_provider = AsyncMock()
         claude_provider.is_available = AsyncMock(return_value=True)
         claude_provider.provider_type = LLMProvider.CLAUDE_CODE
 
@@ -181,8 +192,25 @@ class TestConcurrentOperations:
     @pytest.mark.asyncio
     async def test_concurrent_mixed_operations(self, client):
         """Test mix of completions and embeddings concurrently."""
-        github_provider = Mock()
+        github_provider = AsyncMock()
         github_provider.is_available = AsyncMock(return_value=True)
+        # Mock list_models to return proper Model objects
+        github_provider.list_models = AsyncMock(
+            return_value=[
+                Model(
+                    id="test-chat-model",
+                    name="Test Chat Model",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["completion", "chat"],
+                ),
+                Model(
+                    id="test-embedding-model",
+                    name="Test Embedding Model",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["embedding"],
+                ),
+            ]
+        )
 
         async def complete(request):
             await asyncio.sleep(0.01)
@@ -231,7 +259,8 @@ class TestConcurrentOperations:
 
         # Create multiple clients concurrently
         async def create_and_use_client(i):
-            client = LLMClient()
+            # Use GitHub Models to avoid Claude Code API calls
+            client = LLMClient(preferred_provider=LLMProvider.GITHUB_MODELS)
             # Use the client
             models = await client.list_models()
             await client.cleanup()
@@ -246,9 +275,32 @@ class TestConcurrentOperations:
     @pytest.mark.asyncio
     async def test_rate_limiting_under_load(self):
         """Test rate limiting behavior under concurrent load."""
-        client = LLMClient()
-        provider = Mock()
+        # Create empty registry to avoid any real providers
+        from scriptrag.llm.registry import ProviderRegistry
+
+        registry = ProviderRegistry()
+
+        # Create mock provider
+        provider = AsyncMock()
         provider.is_available = AsyncMock(return_value=True)
+        provider.list_models = AsyncMock(
+            return_value=[
+                Model(
+                    id="test-model",
+                    name="Test Model",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["completion", "chat"],
+                )
+            ]
+        )
+
+        # Add only our mock provider to the registry
+        registry.providers[LLMProvider.GITHUB_MODELS] = provider
+
+        # Create client with our controlled registry
+        client = LLMClient(
+            preferred_provider=LLMProvider.GITHUB_MODELS, registry=registry
+        )
 
         # Simulate rate limiting after certain number of calls
         call_count = 0
@@ -266,7 +318,6 @@ class TestConcurrentOperations:
             )
 
         provider.complete = AsyncMock(side_effect=complete_with_rate_limit)
-        client.registry.providers[LLMProvider.GITHUB_MODELS] = provider
 
         # Create concurrent requests that will trigger rate limiting
         with patch("asyncio.sleep"):  # Speed up test
@@ -348,8 +399,18 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_provider_cleanup_during_operation(self, client):
         """Test provider cleanup while operation is in progress."""
-        provider = Mock()
+        provider = AsyncMock()
         provider.is_available = AsyncMock(return_value=True)
+        provider.list_models = AsyncMock(
+            return_value=[
+                Model(
+                    id="test-model",
+                    name="Test Model",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["completion", "chat"],
+                )
+            ]
+        )
 
         # Simulate long-running operation
         operation_started = asyncio.Event()
@@ -409,6 +470,9 @@ class TestEdgeCases:
 
             response = await provider.complete(request)
             assert response.choices == []
+            # Don't access .content when choices is empty (will raise IndexError)
+            assert response.id == ""  # Should still have valid structure
+            assert response.model == "test-model"
 
     @pytest.mark.asyncio
     async def test_partial_response_handling(self):
@@ -461,8 +525,18 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_unicode_handling_in_responses(self):
         """Test handling of Unicode characters in responses."""
-        provider = Mock()
+        provider = AsyncMock()
         provider.is_available = AsyncMock(return_value=True)
+        provider.list_models = AsyncMock(
+            return_value=[
+                Model(
+                    id="test-model",
+                    name="Test Model",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["completion", "chat"],
+                )
+            ]
+        )
 
         unicode_content = "Hello 世界 🌍 مرحبا мир"
         provider.complete = AsyncMock(
@@ -474,7 +548,8 @@ class TestEdgeCases:
             )
         )
 
-        client = LLMClient()
+        # Use GitHub Models to avoid Claude Code API calls
+        client = LLMClient(preferred_provider=LLMProvider.GITHUB_MODELS)
         client.registry.providers[LLMProvider.GITHUB_MODELS] = provider
 
         response = await client.complete(
@@ -590,13 +665,33 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_provider_switching_during_operation(self, client):
         """Test switching providers mid-operation."""
-        provider1 = Mock()
+        provider1 = AsyncMock()
         provider1.is_available = AsyncMock(return_value=True)
         provider1.provider_type = LLMProvider.GITHUB_MODELS
+        provider1.list_models = AsyncMock(
+            return_value=[
+                Model(
+                    id="test-model",
+                    name="Test Model",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["completion", "chat"],
+                )
+            ]
+        )
 
-        provider2 = Mock()
+        provider2 = AsyncMock()
         provider2.is_available = AsyncMock(return_value=True)
         provider2.provider_type = LLMProvider.CLAUDE_CODE
+        provider2.list_models = AsyncMock(
+            return_value=[
+                Model(
+                    id="test-model-2",
+                    name="Test Model 2",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["completion", "chat"],
+                )
+            ]
+        )
 
         # First provider for first request
         provider1.complete = AsyncMock(

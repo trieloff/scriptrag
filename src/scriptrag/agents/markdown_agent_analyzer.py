@@ -86,7 +86,7 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
         if self.spec.requires_llm and not self.llm_client:
             await self.initialize()
 
-        # Execute context query (placeholder for now)
+        # Execute context query if defined in agent spec
         context = await self._execute_context_query(scene)
 
         # If LLM is required, call it with retry logic

@@ -8,11 +8,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from scriptrag.llm.discovery_base import ModelDiscovery
+from scriptrag.llm.model_cache import ModelDiscoveryCache
 from scriptrag.llm.model_discovery import (
     ClaudeCodeModelDiscovery,
     GitHubModelsDiscovery,
-    ModelDiscovery,
-    ModelDiscoveryCache,
 )
 from scriptrag.llm.models import LLMProvider, Model
 

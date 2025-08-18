@@ -80,9 +80,24 @@ class SemanticSearchService:
         """
         model = model or self.embedding_service.default_model
 
-        # Generate embedding for query
-        query_embedding = await self.embedding_service.generate_embedding(query, model)
-        query_bytes = self.embedding_service.encode_embedding_for_db(query_embedding)
+        # Generate embedding for query with error handling
+        try:
+            query_embedding = await self.embedding_service.generate_embedding(
+                query, model
+            )
+            query_bytes = self.embedding_service.encode_embedding_for_db(
+                query_embedding
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to generate embedding for query",
+                query=query[:100],  # Truncate long queries for logging
+                model=model,
+                error=str(e),
+            )
+            raise ValueError(
+                f"Failed to generate embedding for search query: {e}"
+            ) from e
 
         # Search in database
         with self.db_ops.transaction() as conn:
@@ -328,8 +343,21 @@ class SemanticSearchService:
         """
         model = model or self.embedding_service.default_model
 
-        # Generate embedding for query
-        query_embedding = await self.embedding_service.generate_embedding(query, model)
+        # Generate embedding for query with error handling
+        try:
+            query_embedding = await self.embedding_service.generate_embedding(
+                query, model
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to generate embedding for bible search query",
+                query=query[:100],
+                model=model,
+                error=str(e),
+            )
+            raise ValueError(
+                f"Failed to generate embedding for bible search: {e}"
+            ) from e
 
         with self.db_ops.transaction() as conn:
             # Get bible chunks with embeddings from the embeddings table

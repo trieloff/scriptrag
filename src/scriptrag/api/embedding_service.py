@@ -1,7 +1,6 @@
 """Embedding service for generating and managing scene embeddings."""
 
 import hashlib
-import pickle
 import struct
 from pathlib import Path
 
@@ -69,13 +68,14 @@ class EmbeddingService:
         Returns:
             Embedding vector if cached, None otherwise
         """
-        cache_file = self.cache_dir / f"{cache_key}.pkl"
+        cache_file = self.cache_dir / f"{cache_key}.npy"
         if cache_file.exists():
             try:
-                with cache_file.open("rb") as f:
-                    embedding = pickle.load(f)  # noqa: S301
+                # Use numpy's native format for better security and compatibility
+                embedding = np.load(cache_file, allow_pickle=False)
                 logger.debug(f"Loaded embedding from cache: {cache_key}")
-                return list(embedding)
+                result: list[float] = embedding.tolist()
+                return result
             except Exception as e:
                 logger.warning(f"Failed to load cached embedding: {e}")
         return None
@@ -87,10 +87,11 @@ class EmbeddingService:
             cache_key: Cache key for the embedding
             embedding: Embedding vector to cache
         """
-        cache_file = self.cache_dir / f"{cache_key}.pkl"
+        cache_file = self.cache_dir / f"{cache_key}.npy"
         try:
-            with cache_file.open("wb") as f:
-                pickle.dump(embedding, f)
+            # Use numpy's native format for better security and compatibility
+            np_embedding = np.array(embedding, dtype=np.float32)
+            np.save(cache_file, np_embedding)
             logger.debug(f"Saved embedding to cache: {cache_key}")
         except Exception as e:
             logger.warning(f"Failed to cache embedding: {e}")
@@ -332,3 +333,71 @@ class EmbeddingService:
 
         # Return top k results
         return similarities[:top_k]
+
+    def clear_cache(self) -> int:
+        """Clear all cached embeddings.
+
+        Returns:
+            Number of cache files removed
+        """
+        if not self.cache_dir.exists():
+            return 0
+
+        count = 0
+        for cache_file in self.cache_dir.glob("*.npy"):
+            try:
+                cache_file.unlink()
+                count += 1
+            except Exception as e:
+                logger.warning(f"Failed to remove cache file {cache_file}: {e}")
+
+        logger.info(f"Cleared {count} cached embeddings")
+        return count
+
+    def get_cache_size(self) -> tuple[int, int]:
+        """Get cache statistics.
+
+        Returns:
+            Tuple of (number of cached items, total size in bytes)
+        """
+        if not self.cache_dir.exists():
+            return 0, 0
+
+        count = 0
+        total_size = 0
+        for cache_file in self.cache_dir.glob("*.npy"):
+            count += 1
+            total_size += cache_file.stat().st_size
+
+        return count, total_size
+
+    def cleanup_old_cache(self, max_age_days: int = 30) -> int:
+        """Remove cache files older than specified age.
+
+        Args:
+            max_age_days: Maximum age of cache files in days
+
+        Returns:
+            Number of cache files removed
+        """
+        if not self.cache_dir.exists():
+            return 0
+
+        import time
+
+        max_age_seconds = max_age_days * 24 * 60 * 60
+        current_time = time.time()
+        count = 0
+
+        for cache_file in self.cache_dir.glob("*.npy"):
+            try:
+                file_age = current_time - cache_file.stat().st_mtime
+                if file_age > max_age_seconds:
+                    cache_file.unlink()
+                    count += 1
+            except Exception as e:
+                logger.warning(f"Failed to check/remove cache file {cache_file}: {e}")
+
+        if count > 0:
+            logger.info(f"Removed {count} old cache files (>{max_age_days} days)")
+        return count

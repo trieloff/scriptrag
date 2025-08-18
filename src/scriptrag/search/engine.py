@@ -84,11 +84,19 @@ class SearchEngine:
         Raises:
             FileNotFoundError: If database doesn't exist
             ValueError: If database path is invalid
+            DatabaseError: If database operations fail
         """
         # Run async search in a new event loop
         loop = asyncio.new_event_loop()
         try:
             return loop.run_until_complete(self.search_async(query))
+        except Exception as e:
+            logger.error(
+                "Search failed",
+                query=query.raw_query[:100] if query.raw_query else None,
+                error=str(e),
+            )
+            raise
         finally:
             loop.close()
 
@@ -225,8 +233,13 @@ class SearchEngine:
                                 existing_bible_ids.add(sbr.chunk_id)
 
                 except Exception as e:
-                    logger.error(f"Semantic search failed: {e}")
-                    # Continue with SQL results only
+                    logger.error(
+                        "Semantic search failed, falling back to SQL results",
+                        error=str(e),
+                        query=query.raw_query[:100] if query.raw_query else None,
+                        error_type=type(e).__name__,
+                    )
+                    # Continue with SQL results only - this is a graceful degradation
 
             # Calculate execution time
             execution_time_ms = (time.time() - start_time) * 1000
@@ -340,8 +353,22 @@ class SearchEngine:
                 )
                 bible_results.append(result)
 
+        except sqlite3.Error as e:
+            logger.error(
+                "Database error during bible search",
+                error=str(e),
+                query=query.raw_query[:100] if query.raw_query else None,
+                project=query.project,
+            )
+            # Return empty results for graceful degradation
         except Exception as e:
-            logger.error(f"Error searching bible content: {e}")
+            logger.error(
+                "Unexpected error searching bible content",
+                error=str(e),
+                error_type=type(e).__name__,
+                query=query.raw_query[:100] if query.raw_query else None,
+            )
+            # Return empty results for graceful degradation
 
         return bible_results, bible_total_count
 

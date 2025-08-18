@@ -80,8 +80,21 @@ class SemanticSearchVSS:
         """
         model = model or self.embedding_service.default_model
 
-        # Generate embedding for query
-        query_embedding = await self.embedding_service.generate_embedding(query, model)
+        # Generate embedding for query with error handling
+        try:
+            query_embedding = await self.embedding_service.generate_embedding(
+                query, model
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to generate embedding for VSS scene search",
+                query=query[:100],
+                model=model,
+                error=str(e),
+            )
+            raise ValueError(
+                f"Failed to generate embedding for search query: {e}"
+            ) from e
 
         # Search using VSS
         vss_results = self.vss.search_similar_scenes(
@@ -145,11 +158,22 @@ class SemanticSearchVSS:
                 logger.warning(f"Scene {scene_id} not found")
                 return []
 
-            # Generate embedding for the scene
+            # Generate embedding for the scene with error handling
             combined_text = f"Scene: {scene['heading']}\n\n{scene['content']}"
-            scene_embedding = await self.embedding_service.generate_embedding(
-                combined_text, model
-            )
+            try:
+                scene_embedding = await self.embedding_service.generate_embedding(
+                    combined_text, model
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to generate embedding for scene",
+                    scene_id=scene_id,
+                    model=model,
+                    error=str(e),
+                )
+                raise ValueError(
+                    f"Failed to generate embedding for scene {scene_id}: {e}"
+                ) from e
 
             # Search for similar scenes
             vss_results = self.vss.search_similar_scenes(
@@ -290,8 +314,21 @@ class SemanticSearchVSS:
         """
         model = model or self.embedding_service.default_model
 
-        # Generate embedding for query
-        query_embedding = await self.embedding_service.generate_embedding(query, model)
+        # Generate embedding for query with error handling
+        try:
+            query_embedding = await self.embedding_service.generate_embedding(
+                query, model
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to generate embedding for VSS bible search",
+                query=query[:100],
+                model=model,
+                error=str(e),
+            )
+            raise ValueError(
+                f"Failed to generate embedding for bible search: {e}"
+            ) from e
 
         # Search using VSS
         vss_results = self.vss.search_similar_bible_chunks(

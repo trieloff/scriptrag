@@ -65,6 +65,8 @@ class TestEmbeddingService:
 
     def test_cache_save_and_load(self, embedding_service):
         """Test saving and loading embeddings from cache."""
+        import numpy as np
+
         embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
         cache_key = "test_key"
 
@@ -73,7 +75,9 @@ class TestEmbeddingService:
 
         # Load from cache
         loaded = embedding_service._load_from_cache(cache_key)
-        assert loaded == embedding
+
+        # Compare with tolerance due to float32 precision
+        np.testing.assert_allclose(loaded, embedding, rtol=1e-6, atol=1e-7)
 
         # Non-existent key returns None
         assert embedding_service._load_from_cache("nonexistent") is None
@@ -100,6 +104,8 @@ class TestEmbeddingService:
         self, embedding_service, mock_llm_client
     ):
         """Test embedding generation with caching."""
+        import numpy as np
+
         expected_embedding = [0.1, 0.2, 0.3]
         mock_response = EmbeddingResponse(
             model="test-model",
@@ -112,14 +118,14 @@ class TestEmbeddingService:
         result1 = await embedding_service.generate_embedding(
             "test text", use_cache=True
         )
-        assert result1 == expected_embedding
+        np.testing.assert_allclose(result1, expected_embedding, rtol=1e-6, atol=1e-7)
         assert mock_llm_client.embed.call_count == 1
 
         # Second call - should hit cache
         result2 = await embedding_service.generate_embedding(
             "test text", use_cache=True
         )
-        assert result2 == expected_embedding
+        np.testing.assert_allclose(result2, expected_embedding, rtol=1e-6, atol=1e-7)
         assert mock_llm_client.embed.call_count == 1  # No additional call
 
     @pytest.mark.asyncio

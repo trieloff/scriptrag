@@ -48,7 +48,11 @@ class TestRemainingCoverage:
         )
 
         with pytest.raises(LLMFallbackError, match="All LLM providers failed"):
-            await client._complete_with_fallback(request)
+            await client.fallback_handler.complete_with_fallback(
+                request,
+                client._try_complete_with_provider,
+                client.metrics.record_fallback_chain,
+            )
 
     @pytest.mark.asyncio
     async def test_client_embed_fallback_no_preferred(self):
@@ -64,7 +68,11 @@ class TestRemainingCoverage:
         request = EmbeddingRequest(model="test", input="test")
 
         with pytest.raises(LLMFallbackError, match="All LLM providers failed"):
-            await client._embed_with_fallback(request)
+            await client.fallback_handler.embed_with_fallback(
+                request,
+                client._try_embed_with_provider,
+                client.metrics.record_fallback_chain,
+            )
 
     @pytest.mark.asyncio
     async def test_client_complete_with_fallback_skip_preferred(self):
@@ -96,7 +104,11 @@ class TestRemainingCoverage:
             model="test", messages=[{"role": "user", "content": "test"}]
         )
 
-        response = await client._complete_with_fallback(request)
+        response = await client.fallback_handler.complete_with_fallback(
+            request,
+            client._try_complete_with_provider,
+            client.metrics.record_fallback_chain,
+        )
         assert response.provider == LLMProvider.GITHUB_MODELS
 
     @pytest.mark.asyncio
@@ -127,7 +139,11 @@ class TestRemainingCoverage:
 
         request = EmbeddingRequest(model="test", input="test")
 
-        response = await client._embed_with_fallback(request)
+        response = await client.fallback_handler.embed_with_fallback(
+            request,
+            client._try_embed_with_provider,
+            client.metrics.record_fallback_chain,
+        )
         assert response.provider == LLMProvider.GITHUB_MODELS
 
     @pytest.mark.asyncio

@@ -169,7 +169,9 @@ class TestLLMClientErrorHandling:
         )
 
         # Should succeed after retries
-        response = await client._try_complete_with_provider(provider, request)
+        response = await client.retry_strategy.execute_with_retry(
+            provider.complete, "ClaudeProvider", None, request
+        )
         assert response.choices[0]["message"]["content"] == "Success"
         assert call_count == 3  # 2 failures + 1 success
 
@@ -199,7 +201,9 @@ class TestLLMClientErrorHandling:
 
         # Should fail immediately without retries
         with pytest.raises(ValueError):
-            await client._try_complete_with_provider(provider, request)
+            await client.retry_strategy.execute_with_retry(
+                provider.complete, "ClaudeProvider", None, request
+            )
 
         assert call_count == 1  # Only called once
 
@@ -235,7 +239,9 @@ class TestLLMClientErrorHandling:
             messages=[{"role": "user", "content": "test"}],
         )
 
-        response = await client._try_complete_with_provider(provider, request)
+        response = await client.retry_strategy.execute_with_retry(
+            provider.complete, "ClaudeProvider", None, request
+        )
         elapsed = time.time() - start_time
 
         assert response.choices[0]["message"]["content"] == "Success"
@@ -276,7 +282,11 @@ class TestLLMClientErrorHandling:
         )
 
         with pytest.raises(LLMFallbackError) as exc_info:
-            await client._complete_with_fallback(request)
+            await client.fallback_handler.complete_with_fallback(
+                request,
+                client._try_complete_with_provider,
+                client.metrics.record_fallback_chain,
+            )
 
         error = exc_info.value
         assert len(error.provider_errors) == 3
@@ -312,11 +322,11 @@ class TestLLMClientErrorHandling:
         assert metrics["failed_requests"] == 0
 
         # Record some successes and failures
-        client._record_success("provider1")
-        client._record_success("provider1")
-        client._record_failure("provider2", ValueError("test error"))
-        client._record_retry()
-        client._record_fallback_chain(["provider1", "provider2"])
+        client.metrics.record_success("provider1")
+        client.metrics.record_success("provider1")
+        client.metrics.record_failure("provider2", ValueError("test error"))
+        client.metrics.record_retry()
+        client.metrics.record_fallback_chain(["provider1", "provider2"])
 
         metrics = client.get_metrics()
         assert metrics["total_requests"] == 3
@@ -346,7 +356,11 @@ class TestLLMClientErrorHandling:
         )
 
         with pytest.raises(LLMFallbackError) as exc_info:
-            await client._embed_with_fallback(request)
+            await client.fallback_handler.embed_with_fallback(
+                request,
+                client._try_embed_with_provider,
+                client.metrics.record_fallback_chain,
+            )
 
         error = exc_info.value
         assert "embedding" in error.message.lower()
@@ -357,16 +371,22 @@ class TestLLMClientErrorHandling:
         client = LLMClient(registry=mock_registry)
 
         # Retryable errors
-        assert client._is_retryable_error(RateLimitError("Rate limited"))
-        assert client._is_retryable_error(ConnectionError("Connection timeout"))
-        assert client._is_retryable_error(Exception("Service unavailable"))
-        assert client._is_retryable_error(Exception("Internal server error"))
-        assert client._is_retryable_error(Exception("Too many requests"))
+        assert client.retry_strategy.is_retryable_error(RateLimitError("Rate limited"))
+        assert client.retry_strategy.is_retryable_error(
+            ConnectionError("Connection timeout")
+        )
+        assert client.retry_strategy.is_retryable_error(
+            Exception("Service unavailable")
+        )
+        assert client.retry_strategy.is_retryable_error(
+            Exception("Internal server error")
+        )
+        assert client.retry_strategy.is_retryable_error(Exception("Too many requests"))
 
         # Non-retryable errors
-        assert not client._is_retryable_error(ValueError("Invalid input"))
-        assert not client._is_retryable_error(KeyError("Missing key"))
-        assert not client._is_retryable_error(Exception("Unauthorized"))
+        assert not client.retry_strategy.is_retryable_error(ValueError("Invalid input"))
+        assert not client.retry_strategy.is_retryable_error(KeyError("Missing key"))
+        assert not client.retry_strategy.is_retryable_error(Exception("Unauthorized"))
 
     def test_retry_after_extraction(self, mock_registry):
         """Test extraction of retry-after information from errors."""
@@ -374,15 +394,15 @@ class TestLLMClientErrorHandling:
 
         # From RateLimitError
         rate_error = RateLimitError("Rate limited", retry_after=30.0)
-        assert client._extract_retry_after(rate_error) == 30.0
+        assert client.retry_strategy.extract_retry_after(rate_error) == 30.0
 
         # From error message
         error_with_retry = Exception("Rate limited. Please retry after 45 seconds")
-        assert client._extract_retry_after(error_with_retry) == 45.0
+        assert client.retry_strategy.extract_retry_after(error_with_retry) == 45.0
 
         # No retry information
         normal_error = Exception("Something went wrong")
-        assert client._extract_retry_after(normal_error) is None
+        assert client.retry_strategy.extract_retry_after(normal_error) is None
 
     @pytest.mark.asyncio
     async def test_exponential_backoff_calculation(self, mock_registry):
@@ -394,10 +414,10 @@ class TestLLMClientErrorHandling:
         )
 
         # Test exponential growth
-        delay1 = client._calculate_retry_delay(1)
-        delay2 = client._calculate_retry_delay(2)
-        delay3 = client._calculate_retry_delay(3)
-        delay4 = client._calculate_retry_delay(4)
+        delay1 = client.retry_strategy.calculate_retry_delay(1)
+        delay2 = client.retry_strategy.calculate_retry_delay(2)
+        delay3 = client.retry_strategy.calculate_retry_delay(3)
+        delay4 = client.retry_strategy.calculate_retry_delay(4)
 
         # Should grow exponentially but stay within bounds
         assert 1.0 <= delay1 <= 1.1  # 1 + jitter
@@ -423,7 +443,11 @@ class TestLLMClientErrorHandling:
         )
 
         with pytest.raises(LLMFallbackError) as exc_info:
-            await client._complete_with_fallback(request)
+            await client.fallback_handler.complete_with_fallback(
+                request,
+                client._try_complete_with_provider,
+                client.metrics.record_fallback_chain,
+            )
 
         error = exc_info.value
         assert error.debug_info is not None
@@ -452,7 +476,11 @@ class TestLLMClientErrorHandling:
         )
 
         with pytest.raises(LLMFallbackError) as exc_info:
-            await client._complete_with_fallback(request)
+            await client.fallback_handler.complete_with_fallback(
+                request,
+                client._try_complete_with_provider,
+                client.metrics.record_fallback_chain,
+            )
 
         error = exc_info.value
         assert error.debug_info is None

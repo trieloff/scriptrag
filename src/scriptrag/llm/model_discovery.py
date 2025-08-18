@@ -1,249 +1,13 @@
 """Dynamic model discovery with caching for LLM providers."""
 
-import json
-import time
-from pathlib import Path
-from typing import Any, ClassVar, TypedDict
-
-from pydantic_core import ValidationError
+import os
+from typing import Any
 
 from scriptrag.config import get_logger
-from scriptrag.llm.models import Model
+from scriptrag.llm.discovery_base import ModelDiscovery
+from scriptrag.llm.models import LLMProvider, Model
 
 logger = get_logger(__name__)
-
-
-# Type definitions for structured data
-class CacheData(TypedDict):
-    """Type for cache data structure."""
-
-    timestamp: float
-    models: list[dict[str, Any]]
-    provider: str
-
-
-class GitHubModelInfo(TypedDict, total=False):
-    """Type for GitHub API model information."""
-
-    id: str
-    name: str
-    friendly_name: str
-    context_window: int
-    max_output_tokens: int
-
-
-class GitHubModelsResponse(TypedDict, total=False):
-    """Type for GitHub Models API response."""
-
-    data: list[GitHubModelInfo]
-
-
-class ModelDiscoveryCache:
-    """Cache for discovered models with TTL support."""
-
-    DEFAULT_TTL: ClassVar[int] = 3600  # 1 hour default TTL
-    CACHE_DIR: ClassVar[Path] = Path.home() / ".cache" / "scriptrag"
-
-    def __init__(self, provider_name: str, ttl: int | None = None) -> None:
-        """Initialize model discovery cache.
-
-        Args:
-            provider_name: Name of the provider (e.g., "claude_code", "github_models")
-            ttl: Time-to-live in seconds for cached models. None uses DEFAULT_TTL.
-        """
-        self.provider_name = provider_name
-        self.ttl = ttl or self.DEFAULT_TTL
-        self.cache_file = self.CACHE_DIR / f"{provider_name}_models.json"
-        self._ensure_cache_dir()
-
-    def _ensure_cache_dir(self) -> None:
-        """Ensure cache directory exists."""
-        self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-    def get(self) -> list[Model] | None:
-        """Get cached models if still valid.
-
-        Returns:
-            List of cached models or None if cache is invalid/missing
-        """
-        if not self.cache_file.exists():
-            logger.debug(f"No cache file found for {self.provider_name}")
-            return None
-
-        try:
-            with self.cache_file.open("r") as f:
-                cache_data: dict[str, Any] = json.load(f)
-
-            timestamp = cache_data.get("timestamp", 0)
-            if time.time() - timestamp > self.ttl:
-                logger.debug(
-                    f"Cache expired for {self.provider_name}",
-                    age=time.time() - timestamp,
-                    ttl=self.ttl,
-                )
-                return None
-
-            models_data: list[dict[str, Any]] = cache_data.get("models", [])
-            models: list[Model] = [Model(**model_dict) for model_dict in models_data]
-
-            logger.info(
-                f"Using cached models for {self.provider_name}",
-                count=len(models),
-                age=int(time.time() - timestamp),
-            )
-            return models
-
-        except (json.JSONDecodeError, KeyError, TypeError, ValidationError) as e:
-            logger.warning(f"Failed to read cache for {self.provider_name}: {e}")
-            return None
-
-    def set(self, models: list[Model]) -> None:
-        """Cache models with current timestamp.
-
-        Args:
-            models: List of models to cache
-        """
-        try:
-            cache_data: CacheData = {
-                "timestamp": time.time(),
-                "models": [model.model_dump() for model in models],
-                "provider": self.provider_name,
-            }
-
-            with self.cache_file.open("w") as f:
-                json.dump(cache_data, f, indent=2)
-
-            logger.info(
-                f"Cached {len(models)} models for {self.provider_name}",
-                cache_file=self.cache_file,
-            )
-
-        except Exception as e:
-            logger.warning(f"Failed to cache models for {self.provider_name}: {e}")
-
-    def clear(self) -> None:
-        """Clear the cache file."""
-        if self.cache_file.exists():
-            self.cache_file.unlink()
-            logger.debug(f"Cleared cache for {self.provider_name}")
-
-
-class ModelDiscovery:
-    """Base class for model discovery implementations."""
-
-    def __init__(
-        self,
-        provider_name: str,
-        static_models: list[Model],
-        cache_ttl: int | None = None,
-        use_cache: bool = True,
-        force_static: bool = False,
-    ) -> None:
-        """Initialize model discovery.
-
-        Args:
-            provider_name: Name of the provider
-            static_models: Fallback static list of models
-            cache_ttl: Cache TTL in seconds
-            use_cache: Whether to use caching
-            force_static: Force static model list (skip dynamic discovery)
-        """
-        self.provider_name = provider_name
-        self.static_models = static_models
-        self.force_static = force_static
-        self.cache = (
-            ModelDiscoveryCache(provider_name, cache_ttl) if use_cache else None
-        )
-
-    async def discover_models(self) -> list[Model]:
-        """Discover available models with caching and fallback.
-
-        Returns:
-            List of discovered models
-        """
-        # If forced to use static, return immediately
-        if self.force_static:
-            logger.debug(f"Using static models for {self.provider_name} (forced)")
-            return self.static_models
-
-        # Check cache first
-        if self.cache:
-            cached_models = self.cache.get()
-            if cached_models is not None:
-                return cached_models
-
-        # Try dynamic discovery
-        try:
-            logger.debug(f"Attempting dynamic model discovery for {self.provider_name}")
-            models = await self._fetch_models()
-
-            if models:
-                logger.info(
-                    f"Discovered {len(models)} models for {self.provider_name}",
-                    model_ids=[m.id for m in models[:5]],  # Log first 5 model IDs
-                )
-
-                # If discovery returned fewer models than static list,
-                # supplement with static models. This ensures fallback when
-                # API only returns subset of expected models
-                if len(models) < len(self.static_models):
-                    logger.info(
-                        f"Discovery returned {len(models)} models, "
-                        "supplementing with static models",
-                        static_count=len(self.static_models),
-                    )
-                    # Create combined list preserving static model order
-                    # Start with static models, then replace with
-                    # discovered versions where available
-                    discovered_by_id = {m.id: m for m in models}
-                    combined_models = []
-
-                    for static_model in self.static_models:
-                        if static_model.id in discovered_by_id:
-                            # Use discovered version (may have different metadata)
-                            combined_models.append(discovered_by_id[static_model.id])
-                        else:
-                            # Use static version
-                            combined_models.append(static_model)
-
-                    models = combined_models
-                    logger.info(
-                        f"Combined model list has {len(models)} models in static order",
-                        discovered_count=len(discovered_by_id),
-                        static_supplemented=len(self.static_models)
-                        - len(discovered_by_id),
-                    )
-
-                # Cache the final model list
-                if self.cache:
-                    self.cache.set(models)
-                return models
-
-        except Exception as e:
-            logger.warning(
-                f"Dynamic discovery failed for {self.provider_name}: {e}",
-                fallback_count=len(self.static_models),
-            )
-
-        # Fall back to static models
-        logger.info(
-            f"Using static models for {self.provider_name}",
-            count=len(self.static_models),
-        )
-        # Cache static models too (to avoid repeated failed attempts)
-        if self.cache:
-            self.cache.set(self.static_models)
-        return self.static_models
-
-    async def _fetch_models(self) -> list[Model] | None:
-        """Fetch models from the provider's API.
-
-        This should be overridden by specific implementations.
-
-        Returns:
-            List of discovered models or None if not implemented
-        """
-        return None
 
 
 class ClaudeCodeModelDiscovery(ModelDiscovery):
@@ -282,8 +46,6 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             logger.debug(f"Error checking Claude Code SDK: {e}")
 
         # Try Anthropic API models endpoint if API key is available
-        import os
-
         api_key = os.environ.get("ANTHROPIC_API_KEY")
         if api_key:
             return await self._fetch_from_anthropic_api(api_key)
@@ -347,8 +109,6 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
         Returns:
             List of Model objects or None if parsing fails
         """
-        from scriptrag.llm.models import LLMProvider
-
         if not models_data:
             return None
 
@@ -403,8 +163,6 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
         Returns:
             List of Model objects or None if parsing fails
         """
-        from scriptrag.llm.models import LLMProvider
-
         if not models_data:
             return None
 
@@ -579,8 +337,6 @@ class GitHubModelsDiscovery(ModelDiscovery):
         Returns:
             List of processed Model objects
         """
-        from scriptrag.llm.models import LLMProvider
-
         # Known working model patterns
         supported_patterns: list[str] = [
             "gpt-4",

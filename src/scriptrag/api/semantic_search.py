@@ -85,9 +85,6 @@ class SemanticSearchService:
             query_embedding = await self.embedding_service.generate_embedding(
                 query, model
             )
-            query_bytes = self.embedding_service.encode_embedding_for_db(
-                query_embedding
-            )
         except Exception as e:
             logger.error(
                 "Failed to generate embedding for query",
@@ -97,6 +94,21 @@ class SemanticSearchService:
             )
             raise ValueError(
                 f"Failed to generate embedding for search query: {e}"
+            ) from e
+
+        # Encode embedding for database storage
+        try:
+            query_bytes = self.embedding_service.encode_embedding_for_db(
+                query_embedding
+            )
+        except Exception as e:
+            logger.error(
+                "Failed to encode embedding for database",
+                model=model,
+                error=str(e),
+            )
+            raise ValueError(
+                f"Failed to encode embedding for database storage: {e}"
             ) from e
 
         # Search in database
@@ -294,9 +306,18 @@ class SemanticSearchService:
                         )
 
                         # Encode for database storage
-                        embedding_bytes = (
-                            self.embedding_service.encode_embedding_for_db(embedding)
-                        )
+                        try:
+                            embedding_bytes = (
+                                self.embedding_service.encode_embedding_for_db(
+                                    embedding
+                                )
+                            )
+                        except Exception as encode_err:
+                            logger.error(
+                                "Failed to encode embedding for scene "
+                                f"{scene['id']}: {encode_err}"
+                            )
+                            raise
 
                         # Store in database
                         self.db_ops.upsert_embedding(
@@ -358,6 +379,9 @@ class SemanticSearchService:
             raise ValueError(
                 f"Failed to generate embedding for bible search: {e}"
             ) from e
+
+        # Note: query_bytes not used in this method as we fetch all chunks
+        # and calculate similarity in Python rather than using database search
 
         with self.db_ops.transaction() as conn:
             # Get bible chunks with embeddings from the embeddings table
@@ -497,9 +521,18 @@ class SemanticSearchService:
                         )
 
                         # Encode for database storage
-                        embedding_bytes = (
-                            self.embedding_service.encode_embedding_for_db(embedding)
-                        )
+                        try:
+                            embedding_bytes = (
+                                self.embedding_service.encode_embedding_for_db(
+                                    embedding
+                                )
+                            )
+                        except Exception as encode_err:
+                            logger.error(
+                                "Failed to encode embedding for bible chunk "
+                                f"{chunk['id']}: {encode_err}"
+                            )
+                            raise
 
                         # Store in database
                         self.db_ops.upsert_embedding(

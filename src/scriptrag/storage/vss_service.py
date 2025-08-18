@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 import sqlite_vec
+from sqlite_vec import serialize_float32
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.exceptions import DatabaseError
@@ -117,9 +118,12 @@ class VSSService:
             close_conn = False
 
         try:
-            # Convert to numpy array if needed
+            # Use sqlite-vec's serialization
             if isinstance(embedding, list):
-                embedding = np.array(embedding, dtype=np.float32)
+                embedding_blob = serialize_float32(embedding)
+            else:
+                # NumPy arrays work directly via Buffer protocol
+                embedding_blob = embedding.astype(np.float32)
 
             # Store in VSS table
             conn.execute(
@@ -128,7 +132,7 @@ class VSSService:
                 (scene_id, embedding_model, embedding)
                 VALUES (?, ?, ?)
                 """,
-                (scene_id, model, embedding.tobytes()),
+                (scene_id, model, embedding_blob),
             )
 
             # Update metadata
@@ -183,9 +187,12 @@ class VSSService:
             close_conn = False
 
         try:
-            # Convert to numpy array if needed
+            # Use sqlite-vec's serialization
             if isinstance(query_embedding, list):
-                query_embedding = np.array(query_embedding, dtype=np.float32)
+                query_blob = serialize_float32(query_embedding)
+            else:
+                # NumPy arrays work directly via Buffer protocol
+                query_blob = query_embedding.astype(np.float32)
 
             # Build query based on script_id filter
             params: tuple[Any, ...]
@@ -206,7 +213,7 @@ class VSSService:
                 params = (
                     model,
                     script_id,
-                    query_embedding.tobytes(),
+                    query_blob,
                     limit,
                 )
             else:
@@ -224,7 +231,7 @@ class VSSService:
                 """
                 params = (
                     model,
-                    query_embedding.tobytes(),
+                    query_blob,
                     limit,
                 )
 
@@ -272,9 +279,12 @@ class VSSService:
             close_conn = False
 
         try:
-            # Convert to numpy array if needed
+            # Use sqlite-vec's serialization
             if isinstance(embedding, list):
-                embedding = np.array(embedding, dtype=np.float32)
+                embedding_blob = serialize_float32(embedding)
+            else:
+                # NumPy arrays work directly via Buffer protocol
+                embedding_blob = embedding.astype(np.float32)
 
             # Store in VSS table
             conn.execute(
@@ -283,7 +293,7 @@ class VSSService:
                 (chunk_id, embedding_model, embedding)
                 VALUES (?, ?, ?)
                 """,
-                (chunk_id, model, embedding.tobytes()),
+                (chunk_id, model, embedding_blob),
             )
 
             # Update metadata
@@ -340,9 +350,12 @@ class VSSService:
             close_conn = False
 
         try:
-            # Convert to numpy array if needed
+            # Use sqlite-vec's serialization
             if isinstance(query_embedding, list):
-                query_embedding = np.array(query_embedding, dtype=np.float32)
+                query_blob = serialize_float32(query_embedding)
+            else:
+                # NumPy arrays work directly via Buffer protocol
+                query_blob = query_embedding.astype(np.float32)
 
             # Build query based on script_id filter
             params: tuple[Any, ...]
@@ -366,7 +379,7 @@ class VSSService:
                 params = (
                     model,
                     script_id,
-                    query_embedding.tobytes(),
+                    query_blob,
                     limit,
                 )
             else:
@@ -387,7 +400,7 @@ class VSSService:
                 """
                 params = (
                     model,
-                    query_embedding.tobytes(),
+                    query_blob,
                     limit,
                 )
 

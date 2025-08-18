@@ -12,6 +12,13 @@ from scriptrag.exceptions import DatabaseError
 from scriptrag.storage.vss_service import VSSService
 
 
+def mock_serialize_float32(x):
+    """Mock serialize_float32 for testing."""
+    if isinstance(x, list):
+        return np.array(x, dtype=np.float32).tobytes()
+    return x.tobytes()
+
+
 @pytest.fixture
 def mock_settings():
     """Create mock settings for testing."""
@@ -28,7 +35,13 @@ def vss_service(mock_settings, tmp_path):
     mock_settings.database_path = db_path
 
     # Create service with mock sqlite-vec loading
-    with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+    with (
+        patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+        patch(
+            "scriptrag.storage.vss_service.serialize_float32",
+            side_effect=mock_serialize_float32,
+        ),
+    ):
         service = VSSService(mock_settings, db_path)
 
         # Initialize basic schema
@@ -116,7 +129,13 @@ class TestVSSService:
 
     def test_get_connection(self, vss_service):
         """Test getting database connection."""
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             conn = vss_service.get_connection()
             assert conn is not None
             assert isinstance(conn, sqlite3.Connection)
@@ -128,7 +147,13 @@ class TestVSSService:
         embedding = np.random.rand(1536).astype(np.float32)
         model = "test-model"
 
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             with vss_service.get_connection() as conn:
                 # Add test scene
                 conn.execute(
@@ -164,7 +189,13 @@ class TestVSSService:
         embedding = [float(i) for i in range(1536)]
         model = "test-model"
 
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             with vss_service.get_connection() as conn:
                 # Store embedding from list
                 vss_service.store_scene_embedding(scene_id, embedding, model, conn)
@@ -178,7 +209,13 @@ class TestVSSService:
 
     def test_search_similar_scenes(self, vss_service):
         """Test searching similar scenes."""
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             # Mock the entire search method since we can't mock sqlite execute
             mock_results = [
                 {
@@ -209,7 +246,13 @@ class TestVSSService:
 
     def test_search_similar_scenes_with_script_filter(self, vss_service):
         """Test searching similar scenes with script filter."""
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             # Mock the search method with script filter
             mock_results = [
                 {
@@ -243,7 +286,13 @@ class TestVSSService:
         embedding = np.random.rand(1536).astype(np.float32)
         model = "test-model"
 
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             with vss_service.get_connection() as conn:
                 # Store embedding
                 vss_service.store_bible_embedding(chunk_id, embedding, model, conn)
@@ -258,7 +307,13 @@ class TestVSSService:
 
     def test_search_similar_bible_chunks(self, vss_service):
         """Test searching similar bible chunks."""
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             # Mock the search method
             mock_results = [
                 {
@@ -289,7 +344,13 @@ class TestVSSService:
 
     def test_get_embedding_stats(self, vss_service):
         """Test getting embedding statistics."""
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             with vss_service.get_connection() as conn:
                 # Add some test embeddings
                 for i in range(1, 4):
@@ -313,7 +374,13 @@ class TestVSSService:
 
     def test_error_handling_store_embedding(self, vss_service):
         """Test error handling when storing embedding fails."""
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             # Mock the connection to raise an error during execute
             mock_conn = MagicMock()
             mock_conn.execute.side_effect = sqlite3.Error("Test database error")
@@ -330,7 +397,13 @@ class TestVSSService:
 
     def test_error_handling_search(self, vss_service):
         """Test error handling when search fails."""
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             # Mock the connection to raise an error during execute
             mock_conn = MagicMock()
             mock_conn.execute.side_effect = sqlite3.Error("Search database error")
@@ -346,7 +419,13 @@ class TestVSSService:
 
     def test_migrate_from_blob_storage(self, vss_service):
         """Test migration from old BLOB storage."""
-        with patch("scriptrag.storage.vss_service.sqlite_vec.load"):
+        with (
+            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
+            patch(
+                "scriptrag.storage.vss_service.serialize_float32",
+                side_effect=mock_serialize_float32,
+            ),
+        ):
             with vss_service.get_connection() as conn:
                 # Create old embeddings table
                 conn.execute("""

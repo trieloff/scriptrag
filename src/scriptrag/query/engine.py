@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 class QueryEngine:
     """Execute SQL queries with parameter binding."""
 
-    def __init__(self, settings: ScriptRAGSettings | None = None):
+    def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
         """Initialize query engine.
 
         Args:

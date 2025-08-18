@@ -1,20 +1,29 @@
 # ScriptRAG v2 API Reference
 
-The ScriptRAG v2 API provides a comprehensive Python interface for parsing, indexing, and searching screenplay content. This document covers the main `ScriptRAG` class and its methods.
+The ScriptRAG v2 API provides a comprehensive Python interface for parsing, indexing, and searching screenplay content.
 
 ## Table of Contents
 
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [ScriptRAG Class](#scriptrag-class)
-  - [Initialization](#initialization)
+- [Core API](#core-api)
+  - [ScriptRAG Class](#scriptrag-class)
   - [parse_fountain()](#parse_fountain)
   - [index_script()](#index_script)
   - [index_directory()](#index_directory)
   - [search()](#search)
 - [Data Models](#data-models)
+  - [Script](#script)
+  - [Scene](#scene)
+  - [SearchResult](#searchresult)
+  - [SearchResponse](#searchresponse)
+- [Common Patterns](#common-patterns)
+  - [Error Handling](#error-handling)
+  - [Progress Tracking](#progress-tracking)
+  - [Batch Processing](#batch-processing)
+- [Configuration](#configuration)
 - [Exceptions](#exceptions)
-- [Examples](#examples)
+- [See Also](#see-also)
 
 ## Installation
 
@@ -36,65 +45,55 @@ source .venv/bin/activate
 ```python
 from scriptrag import ScriptRAG
 
-# Initialize ScriptRAG with automatic database setup
+# Initialize and index a screenplay
 rag = ScriptRAG(auto_init_db=True)
-
-# Parse a Fountain screenplay
-script = rag.parse_fountain("path/to/screenplay.fountain")
-print(f"Parsed '{script.title}' with {len(script.scenes)} scenes")
-
-# Index the screenplay into the database
-result = rag.index_script("path/to/screenplay.fountain")
-print(f"Indexed {result['scenes_indexed']} scenes")
+script = rag.parse_fountain("screenplay.fountain")
+result = rag.index_script("screenplay.fountain")
 
 # Search the indexed content
-search_results = rag.search("coffee shop", limit=5)
+search_results = rag.search("coffee shop")
 for result in search_results.results:
     print(f"Scene {result.scene_number}: {result.scene_heading}")
 ```
 
-## ScriptRAG Class
+## Core API
 
-### Initialization
+### ScriptRAG Class
 
 ```python
-ScriptRAG(
-    settings: ScriptRAGSettings | None = None,
-    auto_init_db: bool = True
-)
+class ScriptRAG:
+    def __init__(
+        self,
+        settings: ScriptRAGSettings | None = None,
+        auto_init_db: bool = True
+    ):
+        ...
 ```
 
 Creates a new ScriptRAG instance.
 
 **Parameters:**
 
-- `settings` (ScriptRAGSettings, optional): Configuration settings. Uses defaults if not provided.
-- `auto_init_db` (bool): Automatically initialize database if it doesn't exist. Default: `True`.
+- `settings`: Configuration settings (uses defaults if not provided)
+- `auto_init_db`: Automatically initialize database if it doesn't exist (default: `True`)
 
-**Example:**
+**Examples:**
 
 ```python
-from scriptrag import ScriptRAG
-from scriptrag.config import ScriptRAGSettings
-
-# Using default settings
+# Default initialization
 rag = ScriptRAG()
 
-# Using custom settings
-settings = ScriptRAGSettings(
-    database_path="/custom/path/scriptrag.db",
-    database_timeout=60.0
-)
+# Custom settings
+settings = ScriptRAGSettings(database_path="custom.db")
 rag = ScriptRAG(settings=settings)
-
-# Skip auto database initialization
-rag = ScriptRAG(auto_init_db=False)
 ```
 
 ### parse_Fountain()
 
 ```python
-parse_fountain(path: str | Path) -> Script
+def parse_fountain(self, path: str | Path) -> Script:
+    """Parse a Fountain format screenplay file."""
+    ...
 ```
 
 Parses a Fountain format screenplay file.
@@ -115,33 +114,30 @@ Parses a Fountain format screenplay file.
 **Example:**
 
 ```python
-# Parse a screenplay
 script = rag.parse_fountain("screenplay.fountain")
-
-# Access parsed data
 print(f"Title: {script.title}")
-print(f"Author: {script.author}")
-print(f"Number of scenes: {len(script.scenes)}")
+print(f"Scenes: {len(script.scenes)}")
 
-# Iterate through scenes
+# Access scene details
 for scene in script.scenes:
     print(f"Scene {scene.number}: {scene.heading}")
-    print(f"  Location: {scene.location}")
-    print(f"  Time: {scene.time_of_day}")
-
-    # Access dialogue
     for dialogue in scene.dialogue_lines:
         print(f"  {dialogue.character}: {dialogue.text}")
 ```
 
+**See also:** [Script](#script), [Scene](#scene) data models
+
 ### index_script()
 
 ```python
-index_script(
+def index_script(
+    self,
     path: str | Path,
     dry_run: bool = False,
     progress_callback: Callable[[int, int, str], None] | None = None
-) -> dict[str, Any]
+) -> dict[str, Any]:
+    """Index a parsed screenplay into the database."""
+    ...
 ```
 
 Indexes a Fountain screenplay into the database for searching.
@@ -173,38 +169,33 @@ Dictionary with indexing results:
 **Example:**
 
 ```python
-# Index a screenplay
+# Basic indexing
 result = rag.index_script("screenplay.fountain")
-
 if result["indexed"]:
-    print(f"Successfully indexed script ID: {result['script_id']}")
-    print(f"Scenes: {result['scenes_indexed']}")
-    print(f"Characters: {result['characters_indexed']}")
-    print(f"Dialogues: {result['dialogues_indexed']}")
-else:
-    print(f"Indexing failed: {result['error']}")
-
-# Dry run to preview
-preview = rag.index_script("screenplay.fountain", dry_run=True)
-print(f"Would index {preview['scenes_indexed']} scenes")
+    print(f"Indexed {result['scenes_indexed']} scenes")
 
 # With progress callback
-def show_progress(current, total, message):
+def progress(current, total, message):
     print(f"[{current}/{total}] {message}")
 
-result = rag.index_script("screenplay.fountain", progress_callback=show_progress)
+result = rag.index_script("screenplay.fountain", progress_callback=progress)
 ```
+
+**See also:** [index_directory()](#index_directory) for batch processing, [Progress Tracking](#progress-tracking) for detailed examples
 
 ### index_directory()
 
 ```python
-index_directory(
+def index_directory(
+    self,
     path: str | Path | None = None,
     recursive: bool = True,
     dry_run: bool = False,
     batch_size: int = 10,
     progress_callback: Callable[[int, int, str], None] | None = None
-) -> dict[str, Any]
+) -> dict[str, Any]:
+    """Index all Fountain files in a directory."""
+    ...
 ```
 
 Indexes all Fountain files in a directory.
@@ -269,7 +260,8 @@ result = rag.index_directory(
 ### search()
 
 ```python
-search(
+def search(
+    self,
     query: str,
     mode: SearchMode | str = SearchMode.AUTO,
     limit: int = 10,
@@ -279,8 +271,11 @@ search(
     dialogue: str | None = None,
     project: str | None = None,
     include_bible: bool = True,
-    only_bible: bool = False
-) -> SearchResponse
+    only_bible: bool = False,
+    filters: dict[str, str] | None = None
+) -> SearchResponse:
+    """Search for content in the screenplay database."""
+    ...
 ```
 
 Searches indexed screenplay content.
@@ -288,15 +283,16 @@ Searches indexed screenplay content.
 **Parameters:**
 
 - `query` (str): Search query string
-- `mode` (SearchMode | str): Search mode - 'strict', 'fuzzy', or 'auto'. Default: 'auto'.
-- `limit` (int): Maximum results to return. Default: `10`.
-- `offset` (int): Results to skip for pagination. Default: `0`.
+- `mode` (SearchMode | str): Search mode - 'strict', 'fuzzy', or 'auto' (default: 'auto')
+- `limit` (int): Maximum results to return (default: 10)
+- `offset` (int): Results to skip for pagination (default: 0)
 - `character` (str | None): Filter by character name
 - `location` (str | None): Filter by scene location
 - `dialogue` (str | None): Search specifically for dialogue
 - `project` (str | None): Filter by project name
-- `include_bible` (bool): Include reference content. Default: `True`.
-- `only_bible` (bool): Search only reference content. Default: `False`.
+- `include_bible` (bool): Include reference content (default: True)
+- `only_bible` (bool): Search only reference content (default: False)
+- `filters` (dict[str, str] | None): Additional filters as key-value pairs
 
 **Returns:**
 
@@ -319,219 +315,81 @@ Searches indexed screenplay content.
 results = rag.search("coffee shop")
 for result in results.results:
     print(f"Scene {result.scene_number}: {result.scene_heading}")
-    print(f"  {result.scene_content[:100]}...")
 
 # Search with filters
 results = rag.search(
     "important dialogue",
     character="SARAH",
-    location="OFFICE",
-    limit=5
+    location="OFFICE"
 )
 
-# Fuzzy search for similar content
+# Search with custom filters
 results = rag.search(
-    "romantic conversation",
-    mode="fuzzy",
-    limit=10
+    "action sequence",
+    filters={"scene_type": "EXT"}
 )
 
-# Pagination
+# Pagination for large result sets
 page1 = rag.search("INT.", limit=10, offset=0)
 page2 = rag.search("INT.", limit=10, offset=10)
-
-# Search only in specific project
-results = rag.search(
-    "conflict",
-    project="My Screenplay",
-    mode="strict"
-)
 ```
+
+**See also:** [SearchResponse](#searchresponse), [Common Patterns](#common-patterns) for advanced search
 
 ## Data Models
 
 ### Script
 
-Represents a parsed screenplay:
+Represents a parsed screenplay with scenes and metadata.
 
-```python
-@dataclass
-class Script:
-    title: str | None
-    author: str | None
-    scenes: list[Scene]
-    metadata: dict[str, Any]
-```
+**Attributes:**
+
+- `title`: Screenplay title
+- `author`: Author name
+- `scenes`: List of Scene objects
+- `metadata`: Additional metadata from Fountain file
 
 ### Scene
 
-Represents a scene in a screenplay:
+Represents a single scene in a screenplay.
 
-```python
-@dataclass
-class Scene:
-    number: int
-    heading: str
-    content: str
-    original_text: str
-    content_hash: str
-    type: str  # "INT" or "EXT"
-    location: str
-    time_of_day: str
-    dialogue_lines: list[Dialogue]
-    action_lines: list[str]
-    boneyard_metadata: dict[str, Any] | None
-```
+**Attributes:**
 
-### Dialogue
-
-Represents a dialogue entry:
-
-```python
-@dataclass
-class Dialogue:
-    character: str
-    text: str
-    parenthetical: str | None
-```
+- `number`: Scene number
+- `heading`: Scene heading (e.g., "INT. COFFEE SHOP - DAY")
+- `content`: Full scene text
+- `location`: Extracted location
+- `time_of_day`: Extracted time (e.g., "DAY", "NIGHT")
+- `dialogue_lines`: List of Dialogue objects
+- `action_lines`: List of action descriptions
 
 ### SearchResult
 
-Individual search result:
+Represents a single search result.
 
-```python
-@dataclass
-class SearchResult:
-    script_id: int
-    script_title: str
-    script_author: str | None
-    scene_id: int
-    scene_number: int
-    scene_heading: str
-    scene_location: str | None
-    scene_time: str | None
-    scene_content: str
-    season: int | None
-    episode: int | None
-    match_type: str  # "text", "dialogue", "action", "vector"
-    relevance_score: float
-    matched_text: str | None
-    character_name: str | None
-```
+**Key Attributes:**
+
+- `script_title`: Title of the matching screenplay
+- `scene_id`: Unique database ID for the scene
+- `scene_number`: Scene number within the script
+- `scene_heading`: Full scene heading
+- `scene_content`: Scene text content
+- `match_type`: Type of match ("text", "dialogue", "action", "vector")
+- `relevance_score`: Relevance score (higher is better)
+- `matched_text`: The specific text that matched
 
 ### SearchResponse
 
-Complete search response:
+Complete search response containing all results.
 
-```python
-@dataclass
-class SearchResponse:
-    query: SearchQuery
-    results: list[SearchResult]
-    bible_results: list[BibleSearchResult]
-    total_count: int
-    bible_total_count: int
-```
+**Attributes:**
 
-## Exceptions
+- `results`: List of SearchResult objects
+- `total_count`: Total number of matching results
+- `query`: The parsed query used for search
 
-### DatabaseError
 
-Raised when database operations fail:
-
-```python
-from scriptrag.exceptions import DatabaseError
-
-try:
-    rag.search("query")
-except DatabaseError as e:
-    print(f"Database error: {e.message}")
-    print(f"Hint: {e.hint}")
-```
-
-### ParseError
-
-Raised when Fountain parsing fails:
-
-```python
-from scriptrag.exceptions import ParseError
-
-try:
-    script = rag.parse_fountain("invalid.fountain")
-except ParseError as e:
-    print(f"Parse error: {e}")
-```
-
-## Examples
-
-### Complete Workflow
-
-```python
-from scriptrag import ScriptRAG
-from scriptrag.config import ScriptRAGSettings
-from pathlib import Path
-
-# 1. Initialize with custom settings
-settings = ScriptRAGSettings(
-    database_path=Path.home() / "screenplays.db",
-    database_timeout=60.0,
-    llm_provider="github",
-    github_token="your-token"
-)
-rag = ScriptRAG(settings=settings)
-
-# 2. Index a directory of screenplays
-result = rag.index_directory(
-    Path.home() / "Documents/Screenplays",
-    recursive=True,
-    batch_size=5
-)
-print(f"Indexed {result['total_scripts_indexed']} screenplays")
-
-# 3. Search for specific content
-# Find all coffee shop scenes
-coffee_scenes = rag.search("coffee shop", limit=20)
-
-# Find dialogue by a specific character
-sarah_dialogue = rag.search(
-    "love",
-    character="SARAH",
-    mode="fuzzy"
-)
-
-# Find action sequences
-action_scenes = rag.search(
-    "fight OR chase OR explosion",
-    mode="strict"
-)
-
-# 4. Analyze results
-for result in coffee_scenes.results:
-    print(f"\nScript: {result.script_title}")
-    print(f"Scene {result.scene_number}: {result.scene_heading}")
-    if result.matched_text:
-        print(f"Matched: ...{result.matched_text}...")
-```
-
-### Batch Processing
-
-```python
-from pathlib import Path
-
-# Process multiple directories
-directories = [
-    Path("./tv_scripts"),
-    Path("./feature_films"),
-    Path("./short_films")
-]
-
-for directory in directories:
-    if directory.exists():
-        print(f"\nProcessing {directory}...")
-        result = rag.index_directory(directory)
-        print(f"  Indexed: {result['total_scripts_indexed']}")
-        print(f"  Scenes: {result['total_scenes_indexed']}")
-```
+## Common Patterns
 
 ### Error Handling
 
@@ -541,111 +399,106 @@ from scriptrag.exceptions import DatabaseError, ParseError
 def safe_index(rag, file_path):
     """Safely index a screenplay with error handling."""
     try:
-        # First try to parse
         script = rag.parse_fountain(file_path)
-        print(f"Parsed: {script.title}")
-
-        # Then index
         result = rag.index_script(file_path)
         if result["indexed"]:
-            print(f"Indexed successfully: {result['script_id']}")
-        else:
-            print(f"Indexing failed: {result['error']}")
-
+            return result["script_id"]
     except FileNotFoundError:
         print(f"File not found: {file_path}")
     except ParseError as e:
-        print(f"Parse error in {file_path}: {e}")
+        print(f"Parse error: {e}")
     except DatabaseError as e:
         print(f"Database error: {e.message}")
-        print(f"Hint: {e.hint}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-
-# Use the safe function
-safe_index(rag, "screenplay.fountain")
+    return None
 ```
 
 ### Progress Tracking
 
 ```python
-# Track indexing progress with a custom progress bar
-from tqdm import tqdm
+from scriptrag import ScriptRAG
 
-class ProgressTracker:
-    def __init__(self):
-        self.pbar = None
+# Simple progress callback
+def show_progress(current, total, message):
+    percent = (current / total * 100) if total > 0 else 0
+    bar_length = 40
+    filled = int(bar_length * current / total) if total > 0 else 0
+    bar = '█' * filled + '░' * (bar_length - filled)
+    print(f"\r[{bar}] {percent:.1f}% - {message}", end='', flush=True)
+    if current >= total:
+        print()  # New line when complete
 
-    def update(self, current, total, message):
-        if self.pbar is None and total > 0:
-            self.pbar = tqdm(total=total, desc="Indexing")
-        if self.pbar:
-            self.pbar.n = current
-            self.pbar.set_description(message)
-            self.pbar.refresh()
-            if current >= total:
-                self.pbar.close()
-                self.pbar = None
-
-tracker = ProgressTracker()
+# Use with indexing
 result = rag.index_directory(
     "./screenplays",
-    progress_callback=tracker.update
-)
-
-# Simple console progress
-def console_progress(current, total, message):
-    if total > 0:
-        bar_length = 40
-        filled = int(bar_length * current / total)
-        bar = '█' * filled + '░' * (bar_length - filled)
-        percent = current / total * 100
-        print(f"\r[{bar}] {percent:.1f}% - {message}", end='', flush=True)
-        if current >= total:
-            print()  # New line when complete
-
-result = rag.index_script(
-    "screenplay.fountain",
-    progress_callback=console_progress
+    progress_callback=show_progress
 )
 ```
 
-### Custom Search Queries
+### Batch Processing
 
 ```python
-# Complex search with multiple filters
-def find_romantic_scenes(rag, project_name):
-    """Find romantic scenes in a specific project."""
+from pathlib import Path
+from scriptrag import ScriptRAG
 
-    keywords = [
-        "love", "kiss", "romantic", "heart",
-        "embrace", "passion", "romance"
-    ]
+rag = ScriptRAG()
 
+# Process multiple directories
+directories = ["./tv_scripts", "./feature_films", "./shorts"]
+
+for directory in directories:
+    path = Path(directory)
+    if path.exists():
+        print(f"\nProcessing {directory}...")
+        result = rag.index_directory(path)
+        print(f"  Indexed: {result['scripts_indexed']} scripts")
+        print(f"  Scenes: {result['scenes_indexed']} total")
+```
+
+### Advanced Search
+
+```python
+from scriptrag import ScriptRAG
+
+rag = ScriptRAG()
+
+# Complex search with multiple keywords
+def find_theme_scenes(rag, theme_keywords, project=None):
+    """Find scenes matching thematic keywords."""
     all_results = []
-    for keyword in keywords:
+    seen_ids = set()
+
+    for keyword in theme_keywords:
         results = rag.search(
             keyword,
-            project=project_name,
+            project=project,
             mode="fuzzy",
             limit=5
         )
-        all_results.extend(results.results)
+        for result in results.results:
+            if result.scene_id not in seen_ids:
+                seen_ids.add(result.scene_id)
+                all_results.append(result)
 
-    # Deduplicate by scene_id
-    seen = set()
-    unique_results = []
-    for result in all_results:
-        if result.scene_id not in seen:
-            seen.add(result.scene_id)
-            unique_results.append(result)
+    return all_results
 
-    return unique_results
-
-# Use the custom search
-romantic = find_romantic_scenes(rag, "My Rom-Com")
+# Find romantic scenes
+romantic = find_theme_scenes(
+    rag,
+    ["love", "kiss", "romantic", "heart"],
+    project="My Rom-Com"
+)
 print(f"Found {len(romantic)} romantic scenes")
 ```
+
+## Exceptions
+
+### DatabaseError
+
+Raised when database operations fail. Contains `message` and `hint` attributes.
+
+### ParseError  
+
+Raised when Fountain parsing fails. Contains error details about the parsing issue.
 
 ## Configuration
 

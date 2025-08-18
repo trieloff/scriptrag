@@ -25,7 +25,7 @@ logger = get_logger(__name__)
 class SearchEngine:
     """Execute search queries against the database."""
 
-    def __init__(self, settings: ScriptRAGSettings | None = None):
+    def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
         """Initialize search engine.
 
         Args:

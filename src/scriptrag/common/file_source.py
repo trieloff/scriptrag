@@ -32,7 +32,7 @@ class FileSourceResolver:
         env_var: str | None = None,
         default_subdir: str | None = None,
         file_extension: str = "*",
-    ):
+    ) -> None:
         """Initialize the file source resolver.
 
         Args:

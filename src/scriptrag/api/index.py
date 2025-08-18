@@ -76,7 +76,7 @@ class IndexCommand:
         db_ops: DatabaseOperations | None = None,
         embedding_service: EmbeddingService | None = None,
         generate_embeddings: bool = False,
-    ):
+    ) -> None:
         """Initialize index command.
 
         Args:

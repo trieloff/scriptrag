@@ -29,7 +29,7 @@ class VectorSearchEngine:
     This class is maintained for backward compatibility only.
     """
 
-    def __init__(self, settings: ScriptRAGSettings | None = None):
+    def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
         """Initialize vector search engine.
 
         Args:

@@ -192,7 +192,7 @@ class TestClaudeCodeProvider:
             },
         }
 
-        schema_info = provider._extract_schema_info(response_format)
+        schema_info = provider.schema_handler.extract_schema_info(response_format)
         assert schema_info is not None
         assert schema_info["name"] == "test_response"
         assert "properties" in schema_info["schema"]
@@ -203,7 +203,7 @@ class TestClaudeCodeProvider:
         """Test extracting schema for simple json_object type."""
         response_format = {"type": "json_object"}
 
-        schema_info = provider._extract_schema_info(response_format)
+        schema_info = provider.schema_handler.extract_schema_info(response_format)
         assert schema_info is not None
         assert schema_info["name"] == "response"
         assert schema_info["schema"] == {}
@@ -220,15 +220,15 @@ class TestClaudeCodeProvider:
             },
         }
 
-        schema_info = provider._extract_schema_info(response_format)
+        schema_info = provider.schema_handler.extract_schema_info(response_format)
         assert schema_info is not None
         assert schema_info["name"] == "my_response"
         assert "properties" in schema_info["schema"]
 
     def test_extract_schema_info_none(self, provider: ClaudeCodeProvider) -> None:
         """Test extracting schema with no format."""
-        assert provider._extract_schema_info(None) is None
-        assert provider._extract_schema_info({}) is None
+        assert provider.schema_handler.extract_schema_info(None) is None
+        assert provider.schema_handler.extract_schema_info({}) is None
 
     def test_add_json_instructions(self, provider: ClaudeCodeProvider) -> None:
         """Test adding JSON instructions to prompt."""
@@ -248,7 +248,7 @@ class TestClaudeCodeProvider:
             },
         }
 
-        modified = provider._add_json_instructions(prompt, schema_info)
+        modified = provider.schema_handler.add_json_instructions(prompt, schema_info)
         assert "IMPORTANT: You must respond with valid JSON" in modified
         assert "result (string) [REQUIRED]: The result" in modified
         assert "count (integer)" in modified
@@ -267,7 +267,7 @@ class TestClaudeCodeProvider:
             },
         }
 
-        example = provider._generate_example_from_schema(schema)
+        example = provider.schema_handler.generate_example_from_schema(schema)
         assert example is not None
         assert example["name"] == ""
         assert example["age"] == 0
@@ -289,7 +289,7 @@ class TestClaudeCodeProvider:
             }
         }
 
-        example = provider._generate_example_from_schema(schema)
+        example = provider.schema_handler.generate_example_from_schema(schema)
         assert example is not None
         assert len(example["items"]) == 1
         assert example["items"][0] == {"id": ""}
@@ -306,7 +306,7 @@ class TestClaudeCodeProvider:
             }
         }
 
-        example = provider._generate_object_example(obj_schema)
+        example = provider.schema_handler._generate_object_example(obj_schema)
         assert example["field1"] == ""
         assert example["field2"] == 0
         assert example["field3"] is False
@@ -315,7 +315,7 @@ class TestClaudeCodeProvider:
 
     def test_generate_object_example_empty(self, provider: ClaudeCodeProvider) -> None:
         """Test generating object example with no properties."""
-        example = provider._generate_object_example({})
+        example = provider.schema_handler._generate_object_example({})
         assert example == {}
 
     @pytest.mark.asyncio

@@ -23,6 +23,8 @@ class TestModelDiscoveryCache:
     def cache(self, tmp_path, monkeypatch):
         """Create a cache instance with temp directory."""
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
         return ModelDiscoveryCache("test_provider", ttl=60)
 
     def test_cache_initialization(self, cache, tmp_path):
@@ -85,6 +87,10 @@ class TestModelDiscoveryCache:
 
         with cache.cache_file.open("w") as f:
             json.dump(data, f)
+
+        # Clear in-memory cache so it reads from the modified file
+        if cache.provider_name in cache._memory_cache:
+            del cache._memory_cache[cache.provider_name]
 
         # Cache should be expired
         result = cache.get()
@@ -192,6 +198,8 @@ class TestModelDiscovery:
     async def test_force_static_models(self, static_models, tmp_path, monkeypatch):
         """Test forcing static models skips dynamic discovery."""
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
 
         discovery = ModelDiscovery(
             provider_name="test",
@@ -207,6 +215,8 @@ class TestModelDiscovery:
     async def test_cache_hit(self, static_models, tmp_path, monkeypatch):
         """Test returning cached models when available."""
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
 
         discovery = ModelDiscovery(
             provider_name="test",
@@ -233,6 +243,8 @@ class TestModelDiscovery:
     async def test_fallback_to_static(self, static_models, tmp_path, monkeypatch):
         """Test fallback to static models when dynamic discovery fails."""
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
 
         class FailingDiscovery(ModelDiscovery):
             async def _fetch_models(self):
@@ -254,6 +266,8 @@ class TestModelDiscovery:
     ):
         """Test base ModelDiscovery._fetch_models returns None."""
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
 
         discovery = ModelDiscovery(
             provider_name="test",
@@ -865,6 +879,8 @@ class TestGitHubModelsDiscovery:
     ):
         """Test GitHub Models API rate limiting."""
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
 
         # Mock rate limited response
         mock_response = MagicMock()
@@ -893,6 +909,8 @@ class TestGitHubModelsDiscovery:
     ):
         """Test GitHub Models with no token."""
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
 
         discovery = GitHubModelsDiscovery(
             provider_name="github_models",
@@ -917,6 +935,8 @@ class TestGitHubModelsDiscovery:
     ):
         """Test GitHub Models API error handling."""
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
 
         # Mock API error
         mock_client.get.side_effect = httpx.RequestError("Connection failed")
@@ -941,6 +961,8 @@ class TestGitHubModelsDiscovery:
     ):
         """Test GitHub Models with unexpected API response format."""
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
 
         # Mock unexpected response format
         mock_response = MagicMock()

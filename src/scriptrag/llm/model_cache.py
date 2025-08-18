@@ -142,3 +142,13 @@ class ModelDiscoveryCache:
         if self.cache_file.exists():
             self.cache_file.unlink()
             logger.debug(f"Cleared cache for {self.provider_name}")
+
+    @classmethod
+    def clear_all_memory_cache(cls) -> None:
+        """Clear all in-memory cache data across all providers.
+
+        This is particularly useful for testing to prevent cache contamination
+        between test runs.
+        """
+        cls._memory_cache.clear()
+        logger.debug("Cleared all in-memory cache data")

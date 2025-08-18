@@ -281,8 +281,19 @@ class SceneProcessor:
         if not line or len(line) > 50:  # Character names shouldn't be too long
             return False
 
-        # Remove valid character name punctuation for checking
-        cleaned = re.sub(r"['\.\(\)0-9\s]", "", line)
+        # Check if it's a scene heading or screenplay directive (not a character)
+        line_upper = line.strip().upper()
+        if line_upper.startswith(("INT.", "EXT.", "I/E.", "INT/EXT")):
+            return False
+
+        # Check for common screenplay transitions and directions
+        if line_upper.startswith(
+            ("FADE IN:", "FADE OUT", "CUT TO:", "MONTAGE", "INTERCUT")
+        ):
+            return False
+
+        # Remove valid character name punctuation for checking (including hyphens)
+        cleaned = re.sub(r"['\.\(\)0-9\s-]", "", line)
 
         # Check if remaining text is all uppercase letters
         return cleaned.isupper() and len(cleaned) > 1

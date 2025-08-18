@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 class QueryFormatter:
     """Format query results for display."""
 
-    def __init__(self, console: Console | None = None):
+    def __init__(self, console: Console | None = None) -> None:
         """Initialize formatter.
 
         Args:

@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 class SearchAPI:
     """Main API for search functionality."""
 
-    def __init__(self, settings: ScriptRAGSettings | None = None):
+    def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
         """Initialize search API.
 
         Args:

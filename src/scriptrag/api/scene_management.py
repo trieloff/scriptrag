@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 class SceneManagementAPI:
     """AI-friendly scene management interface."""
 
-    def __init__(self, settings: ScriptRAGSettings | None = None):
+    def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
         """Initialize the API.
 
         Args:

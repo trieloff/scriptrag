@@ -37,7 +37,7 @@ class BibleIndexer:
         self,
         settings: ScriptRAGSettings | None = None,
         db_ops: DatabaseOperations | None = None,
-    ):
+    ) -> None:
         """Initialize bible indexer.
 
         Args:

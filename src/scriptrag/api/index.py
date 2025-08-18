@@ -73,7 +73,7 @@ class IndexCommand:
         self,
         settings: ScriptRAGSettings | None = None,
         db_ops: DatabaseOperations | None = None,
-    ):
+    ) -> None:
         """Initialize index command.
 
         Args:

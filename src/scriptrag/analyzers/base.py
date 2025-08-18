@@ -11,7 +11,7 @@ class BaseSceneAnalyzer(ABC):
     additional metadata from scenes beyond the basic extraction.
     """
 
-    def __init__(self, config: dict[str, Any] | None = None):
+    def __init__(self, config: dict[str, Any] | None = None) -> None:
         """Initialize analyzer.
 
         Args:

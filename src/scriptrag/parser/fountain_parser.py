@@ -1,78 +1,26 @@
 """Fountain screenplay format parser using jouvence library."""
 
-import json
 import re
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
-from jouvence.document import (
-    TYPE_ACTION,
-    TYPE_CHARACTER,
-    TYPE_DIALOG,
-    TYPE_PARENTHETICAL,
-)
 from jouvence.parser import JouvenceParser
 
 from scriptrag.config import get_logger
 from scriptrag.exceptions import ParseError
-from scriptrag.utils.screenplay import ScreenplayUtils
+from scriptrag.parser.fountain_models import Scene, Script
+from scriptrag.parser.fountain_processor import SceneProcessor
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class Dialogue:
-    """Represents a dialogue entry."""
-
-    character: str
-    text: str
-    parenthetical: str | None = None
-
-
-@dataclass
-class Scene:
-    """Represents a scene in a screenplay."""
-
-    number: int
-    heading: str
-    content: str
-    original_text: str
-    content_hash: str
-    type: str = "INT"  # INT or EXT
-    location: str = ""
-    time_of_day: str = ""
-    dialogue_lines: list[Dialogue] = field(default_factory=list)
-    action_lines: list[str] = field(default_factory=list)
-    boneyard_metadata: dict[str, Any] | None = None
-    has_new_metadata: bool = False
-
-    def update_boneyard(self, metadata: dict[str, Any]) -> None:
-        """Update the boneyard metadata for this scene."""
-        if self.boneyard_metadata is None:
-            self.boneyard_metadata = {}
-        self.boneyard_metadata.update(metadata)
-        self.has_new_metadata = True
-
-
-@dataclass
-class Script:
-    """Represents a parsed screenplay."""
-
-    title: str | None
-    author: str | None
-    scenes: list[Scene]
-    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class FountainParser:
     """Parse Fountain screenplay format using jouvence."""
 
-    # Boneyard metadata pattern
-    BONEYARD_PATTERN = re.compile(
-        r"/\*\s*SCRIPTRAG-META-START\s*\n(.*?)\nSCRIPTRAG-META-END\s*\*/\n?",
-        re.DOTALL,
-    )
+    def __init__(self) -> None:
+        """Initialize the fountain parser."""
+        self.processor = SceneProcessor()
+        # Keep BONEYARD_PATTERN for parse_file compatibility
+        self.BONEYARD_PATTERN = self.processor.BONEYARD_PATTERN
 
     def parse(self, content: str) -> Script:
         """Parse Fountain content into structured format.
@@ -147,7 +95,7 @@ class FountainParser:
             # Skip scenes without headers (like FADE IN sections)
             if jouvence_scene.header:
                 scene_number += 1
-                scene = self._process_jouvence_scene(
+                scene = self.processor.process_jouvence_scene(
                     scene_number, jouvence_scene, content
                 )
                 scenes.append(scene)
@@ -272,7 +220,7 @@ class FountainParser:
             # Skip scenes without headers (like FADE IN sections)
             if jouvence_scene.header:
                 scene_number += 1
-                scene = self._process_jouvence_scene(
+                scene = self.processor.process_jouvence_scene(
                     scene_number, jouvence_scene, content
                 )
                 scenes.append(scene)
@@ -322,7 +270,7 @@ class FountainParser:
             if scene.content_hash in updated_by_hash:
                 updated_scene = updated_by_hash[scene.content_hash]
                 if updated_scene.has_new_metadata and updated_scene.boneyard_metadata:
-                    content = self._update_scene_boneyard(
+                    content = self.processor.update_scene_boneyard(
                         content,
                         scene.original_text,
                         updated_scene.boneyard_metadata,
@@ -333,300 +281,3 @@ class FountainParser:
             content += "\n"
         file_path.write_text(content, encoding="utf-8")
         logger.info(f"Updated {len(updated_scenes)} scenes in {file_path}")
-
-    def _process_jouvence_scene(
-        self,
-        number: int,
-        jouvence_scene: Any,
-        full_content: str,
-    ) -> Scene:
-        """Process a jouvence scene into our Scene object."""
-        heading = jouvence_scene.header if jouvence_scene.header else ""
-
-        # Parse scene type and location from heading using ScreenplayUtils
-        scene_type, location, time_of_day = ScreenplayUtils.parse_scene_heading(heading)
-
-        # Ensure we have default values if None was returned
-        scene_type = scene_type or ""
-        location = location or ""
-        time_of_day = time_of_day or ""
-
-        # Extract dialogue and action lines
-        dialogue_lines = []
-        action_lines = []
-
-        # Process scene elements
-        i = 0
-        elements = jouvence_scene.paragraphs
-        while i < len(elements):
-            element = elements[i]
-
-            if element.type == TYPE_CHARACTER:
-                character = element.text
-                parenthetical = None
-                dialogue_text = []
-
-                # Look for parenthetical and dialogue
-                j = i + 1
-                while j < len(elements):
-                    next_elem = elements[j]
-                    if next_elem.type == TYPE_PARENTHETICAL:
-                        parenthetical = next_elem.text
-                        j += 1
-                    elif next_elem.type == TYPE_DIALOG:
-                        dialogue_text.append(next_elem.text)
-                        j += 1
-                    else:
-                        break
-
-                if dialogue_text:
-                    dialogue_lines.append(
-                        Dialogue(
-                            character=character,
-                            text=" ".join(dialogue_text),
-                            parenthetical=parenthetical,
-                        )
-                    )
-                i = j
-            elif element.type == TYPE_ACTION:
-                # Post-process action lines to extract missed characters
-                # Jouvence misses characters with apostrophes or numbers
-                processed_actions = self._extract_missed_characters(
-                    element.text, dialogue_lines
-                )
-                action_lines.extend(processed_actions)
-                i += 1
-            else:
-                i += 1
-
-        # Get original scene text from content
-        # This is a simplified approach - in production you might want to
-        # track line numbers
-        scene_start = full_content.find(heading)
-        if scene_start == -1:
-            original_text = heading
-        else:
-            # Find the next scene heading or end of file
-            next_scene_pattern = re.compile(
-                r"^(INT\.|EXT\.|EST\.|INT\./EXT\.|I/E\.)", re.MULTILINE
-            )
-            match = next_scene_pattern.search(full_content, scene_start + len(heading))
-            scene_end = match.start() if match else len(full_content)
-            original_text = full_content[scene_start:scene_end].rstrip()
-
-        # Extract boneyard metadata if present
-        boneyard_metadata = None
-        boneyard_match = self.BONEYARD_PATTERN.search(original_text)
-        if boneyard_match:
-            try:
-                boneyard_metadata = json.loads(boneyard_match.group(1))
-            except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse boneyard JSON: {e}")
-
-        # Build full content (for analysis)
-        content_lines_list = [heading]
-        content_lines_list.extend(action_lines)
-        for dialogue in dialogue_lines:
-            content_lines_list.append(dialogue.character)
-            if dialogue.parenthetical:
-                content_lines_list.append(dialogue.parenthetical)
-            content_lines_list.append(dialogue.text)
-
-        # Calculate content hash (excluding boneyard)
-        content_hash = ScreenplayUtils.compute_scene_hash(original_text, truncate=True)
-
-        return Scene(
-            number=number,
-            heading=heading,
-            content="\n".join(content_lines_list),
-            original_text=original_text,
-            content_hash=content_hash,
-            type=scene_type,
-            location=location.strip(),
-            time_of_day=time_of_day.strip(),
-            dialogue_lines=dialogue_lines,
-            action_lines=action_lines,
-            boneyard_metadata=boneyard_metadata,
-        )
-
-    def _update_scene_boneyard(
-        self, content: str, scene_text: str, metadata: dict[str, Any]
-    ) -> str:
-        """Update or insert boneyard metadata for a scene.
-
-        Args:
-            content: Full file content
-            scene_text: Original scene text
-            metadata: New metadata to add
-
-        Returns:
-            Updated content
-        """
-        scene_start = content.find(scene_text)
-        if scene_start == -1:
-            logger.warning("Could not find scene in content for boneyard update")
-            return content
-
-        # Check if scene already has boneyard
-        existing_boneyard = self.BONEYARD_PATTERN.search(scene_text)
-
-        if existing_boneyard:
-            # Merge with existing metadata
-            try:
-                existing_data = json.loads(existing_boneyard.group(1))
-                existing_data.update(metadata)
-                metadata = existing_data
-            except json.JSONDecodeError:
-                pass
-
-            # Replace existing boneyard
-            boneyard_json = json.dumps(metadata, indent=2)
-            new_boneyard = (
-                f"/* SCRIPTRAG-META-START\n{boneyard_json}\nSCRIPTRAG-META-END */\n"
-            )
-            new_scene_text = self.BONEYARD_PATTERN.sub(new_boneyard, scene_text)
-        else:
-            # Insert new boneyard at end of scene
-            boneyard_json = json.dumps(metadata, indent=2)
-            new_boneyard = (
-                f"\n\n/* SCRIPTRAG-META-START\n{boneyard_json}\nSCRIPTRAG-META-END */"
-            )
-            new_scene_text = scene_text.rstrip() + new_boneyard
-
-        # Replace in content
-        return (
-            content[:scene_start]
-            + new_scene_text
-            + content[scene_start + len(scene_text) :]
-        )
-
-    def _extract_missed_characters(
-        self, action_text: str, dialogue_lines: list[Dialogue]
-    ) -> list[str]:
-        """Extract character/dialogue pairs that jouvence missed.
-
-        Jouvence fails to detect characters with:
-        - Apostrophes (e.g., "CHARACTER'S VOICE")
-        - Numbers (e.g., "COP 1", "GUARD #2")
-
-        This method post-processes action text to find these patterns.
-
-        Args:
-            action_text: The action text that may contain missed characters
-            dialogue_lines: List to append found dialogue to
-
-        Returns:
-            List of actual action lines (with character/dialogue pairs removed)
-        """
-        lines = action_text.split("\n")
-        processed_actions = []
-        i = 0
-
-        while i < len(lines):
-            line = lines[i].strip()
-
-            # Check if this looks like a character name
-            # Character names are:
-            # - All uppercase (allowing apostrophes, numbers, spaces, dots, hyphens, #)
-            # - Not scene headings (INT./EXT.)
-            # - Followed by dialogue or parenthetical
-            if line and self._is_character_line(line) and i + 1 < len(lines):
-                # Look for parenthetical and/or dialogue
-                parenthetical = None
-                dialogue_text = []
-                j = i + 1
-
-                # Check for parenthetical
-                if (
-                    j < len(lines)
-                    and lines[j].strip().startswith("(")
-                    and lines[j].strip().endswith(")")
-                ):
-                    parenthetical = lines[j].strip()
-                    j += 1
-
-                # Collect dialogue lines
-                while j < len(lines):
-                    dialogue_line = lines[j].strip()
-                    if (
-                        dialogue_line
-                        and not self._is_character_line(dialogue_line)
-                        and not (
-                            dialogue_line.startswith("(")
-                            and dialogue_line.endswith(")")
-                        )
-                    ):
-                        dialogue_text.append(dialogue_line)
-                        j += 1
-                    else:
-                        break
-
-                # If we found dialogue, add it
-                if dialogue_text:
-                    dialogue_lines.append(
-                        Dialogue(
-                            character=line,
-                            text=" ".join(dialogue_text),
-                            parenthetical=parenthetical,
-                        )
-                    )
-                    i = j  # Skip past the dialogue we just processed
-                    continue
-
-            # If not a character/dialogue pair, keep as action
-            if line:  # Only add non-empty lines
-                processed_actions.append(line)
-            i += 1
-
-        # Return the action lines that weren't character/dialogue
-        return ["\n".join(processed_actions)] if processed_actions else []
-
-    def _is_character_line(self, line: str) -> bool:
-        """Check if a line looks like a character name.
-
-        Character names are:
-        - All uppercase (with some allowed punctuation)
-        - Not scene headings
-        - May contain apostrophes, numbers, spaces, dots, hyphens, #, parentheses
-
-        Args:
-            line: The line to check
-
-        Returns:
-            True if this looks like a character name
-        """
-        if not line:
-            return False
-
-        # Scene headings are not character names
-        scene_prefixes = ["INT.", "EXT.", "EST.", "INT./EXT.", "I/E."]
-        if any(line.startswith(prefix) for prefix in scene_prefixes):
-            return False
-
-        # Transitions and screenplay elements are not character names
-        transitions = [
-            "FADE IN:",
-            "FADE OUT.",
-            "CUT TO:",
-            "MONTAGE",
-            "INTERCUT",
-        ]
-        if any(line.startswith(transition) for transition in transitions):
-            return False
-
-        # Remove parenthetical extensions like (CONT'D), (V.O.), (O.S.)
-        # These are valid on character lines
-        base_line = re.sub(r"\s*\([^)]+\)\s*$", "", line).strip()
-
-        # Empty after removing parenthetical
-        if not base_line:
-            return False
-
-        # Check if the base line (without parenthetical) is uppercase with allowed chars
-        # Allow: letters, spaces, apostrophes, dots, hyphens, numbers, #
-        # But must contain at least one letter (not just numbers/punctuation)
-        if not re.match(r"^[A-Z0-9\s\'\.\-#]+$", base_line):
-            return False
-
-        # Must contain at least one letter to be a character name
-        return bool(re.search(r"[A-Z]", base_line))

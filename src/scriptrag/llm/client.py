@@ -1,17 +1,12 @@
 """Multi-provider LLM client with automatic fallback."""
 
-import asyncio
-import time
 import traceback
 from typing import Any, cast
 
 from scriptrag.config import get_logger
-from scriptrag.exceptions import (
-    LLMFallbackError,
-    LLMRetryableError,
-    RateLimitError,
-)
 from scriptrag.llm.base import BaseLLMProvider
+from scriptrag.llm.fallback import FallbackHandler
+from scriptrag.llm.metrics import LLMMetrics
 from scriptrag.llm.models import (
     CompletionRequest,
     CompletionResponse,
@@ -21,6 +16,7 @@ from scriptrag.llm.models import (
     Model,
 )
 from scriptrag.llm.registry import ProviderRegistry
+from scriptrag.llm.retry_strategy import RetryStrategy
 
 logger = get_logger(__name__)
 
@@ -70,11 +66,6 @@ class LLMClient:
             ]
         self.fallback_order = fallback_order
         self.timeout = timeout
-
-        # Retry configuration
-        self.max_retries = max_retries
-        self.base_retry_delay = base_retry_delay
-        self.max_retry_delay = max_retry_delay
         self.debug_mode = debug_mode
 
         # Store credentials (also expose as public for testing)
@@ -82,9 +73,15 @@ class LLMClient:
         self.openai_endpoint = self._openai_endpoint = openai_endpoint
         self.openai_api_key = self._openai_api_key = openai_api_key
 
-        # Error tracking for metrics and debugging
-        self.provider_metrics: dict[str, Any] = {}
-        self._reset_metrics()
+        # Initialize metrics tracking
+        self.metrics = LLMMetrics()
+
+        # Initialize retry strategy
+        self.retry_strategy = RetryStrategy(
+            max_retries=max_retries,
+            base_retry_delay=base_retry_delay,
+            max_retry_delay=max_retry_delay,
+        )
 
         # Use provided registry or create a new one
         if registry is not None:
@@ -99,108 +96,28 @@ class LLMClient:
                 timeout=self.timeout,
             )
 
+        # Initialize fallback handler
+        self.fallback_handler = FallbackHandler(
+            registry=self.registry,
+            preferred_provider=self.preferred_provider,
+            fallback_order=self.fallback_order,
+            debug_mode=self.debug_mode,
+        )
+
         # Provider selection is done lazily via ensure_provider()
-
-    def _reset_metrics(self) -> None:
-        """Reset provider metrics."""
-        self.provider_metrics = {
-            "total_requests": 0,
-            "successful_requests": 0,
-            "failed_requests": 0,
-            "provider_successes": {},
-            "provider_failures": {},
-            "retry_attempts": 0,
-            "fallback_chains": [],
-        }
-
-    def _record_success(self, provider_name: str) -> None:
-        """Record a successful request for a provider."""
-        self.provider_metrics["total_requests"] += 1
-        self.provider_metrics["successful_requests"] += 1
-        self.provider_metrics["provider_successes"][provider_name] = (
-            self.provider_metrics["provider_successes"].get(provider_name, 0) + 1
-        )
-
-    def _record_failure(self, provider_name: str, error: Exception) -> None:
-        """Record a failed request for a provider."""
-        self.provider_metrics["total_requests"] += 1
-        self.provider_metrics["failed_requests"] += 1
-        if provider_name not in self.provider_metrics["provider_failures"]:
-            self.provider_metrics["provider_failures"][provider_name] = []
-        self.provider_metrics["provider_failures"][provider_name].append(
-            {
-                "error_type": type(error).__name__,
-                "error_message": str(error),
-                "timestamp": time.time(),
-            }
-        )
-
-    def _record_retry(self) -> None:
-        """Record a retry attempt."""
-        self.provider_metrics["retry_attempts"] += 1
-
-    def _record_fallback_chain(self, chain: list[str]) -> None:
-        """Record a fallback chain for analysis."""
-        self.provider_metrics["fallback_chains"].append(
-            {
-                "chain": chain,
-                "timestamp": time.time(),
-            }
-        )
 
     def get_metrics(self) -> dict[str, Any]:
         """Get current provider metrics."""
-        return self.provider_metrics.copy()
+        return self.metrics.get_metrics()
 
-    def _calculate_retry_delay(self, attempt: int) -> float:
-        """Calculate exponential backoff delay."""
-        delay = min(self.base_retry_delay * (2 ** (attempt - 1)), self.max_retry_delay)
-        # Add some jitter to prevent thundering herd
-        jitter = delay * 0.1 * (time.time() % 1)
-        return float(delay + jitter)
-
-    def _is_retryable_error(self, error: Exception) -> bool:
-        """Determine if an error is retryable."""
-        # Rate limit errors are retryable
-        if isinstance(error, RateLimitError):
-            return True
-
-        # Network-related errors (connection timeouts, etc.)
-        error_message = str(error).lower()
-        retryable_keywords = [
-            "timeout",
-            "connection",
-            "network",
-            "temporary",
-            "unavailable",
-            "service unavailable",
-            "bad gateway",
-            "gateway timeout",
-            "internal server error",
-            "too many requests",
-        ]
-
-        return any(keyword in error_message for keyword in retryable_keywords)
-
-    def _extract_retry_after(self, error: Exception) -> float | None:
-        """Extract retry-after information from error."""
-        if isinstance(error, RateLimitError):
-            return error.retry_after
-
-        # Try to extract from error message
-        error_message = str(error).lower()
-        if "retry after" in error_message:
-            try:
-                # Simple regex-like extraction
-                import re
-
-                match = re.search(r"retry after (\d+(?:\.\d+)?)", error_message)
-                if match:
-                    return float(match.group(1))
-            except (ValueError, AttributeError, TypeError):
-                pass  # Extracting retry_after is optional, okay to fail
-
-        return None
+    def _metrics_callback(self, provider_name: str, error: Exception | None) -> None:
+        """Callback for metrics recording during retry operations."""
+        if error:
+            self.metrics.record_failure(provider_name, error)
+            if self.retry_strategy.is_retryable_error(error):
+                self.metrics.record_retry()
+        else:
+            self.metrics.record_success(provider_name)
 
     @property
     def providers(self) -> dict[LLMProvider, BaseLLMProvider]:
@@ -334,64 +251,11 @@ class LLMClient:
                 )
             raise RuntimeError(f"Requested provider {provider.value} is not available")
         # Try providers in fallback order
-        return await self._complete_with_fallback(request)
-
-    async def _try_with_retry(
-        self,
-        operation_func: Any,
-        provider_name: str,
-        *args: Any,
-        **kwargs: Any,
-    ) -> Any:
-        """Try an operation with exponential backoff retry logic."""
-        last_error = None
-
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                result = await operation_func(*args, **kwargs)
-                self._record_success(provider_name)
-                return result
-            except Exception as e:
-                last_error = e
-                self._record_failure(provider_name, e)
-
-                # Check if the error is retryable - do this first
-                if not self._is_retryable_error(e):
-                    # Non-retryable error - fail immediately
-                    raise e
-
-                # If this is the last attempt, don't retry
-                if attempt == self.max_retries:
-                    break
-
-                # Calculate delay and record retry
-                retry_after = self._extract_retry_after(e)
-                delay = retry_after or self._calculate_retry_delay(attempt)
-
-                self._record_retry()
-
-                logger.warning(
-                    f"Attempt {attempt}/{self.max_retries} failed for {provider_name}, "
-                    f"retrying in {delay:.2f}s",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                    provider=provider_name,
-                    retry_delay=delay,
-                )
-
-                await asyncio.sleep(delay)
-
-        # All attempts failed
-        if last_error:
-            raise LLMRetryableError(
-                f"Provider {provider_name} failed after {self.max_retries} attempts",
-                provider=provider_name,
-                attempt=self.max_retries,
-                max_attempts=self.max_retries,
-                original_error=last_error,
-            )
-
-        raise RuntimeError(f"Provider {provider_name} failed without error details")
+        return await self.fallback_handler.complete_with_fallback(
+            request,
+            self._try_complete_with_provider,
+            self.metrics.record_fallback_chain,
+        )
 
     async def _try_complete_with_provider(
         self, provider: BaseLLMProvider, request: CompletionRequest
@@ -449,8 +313,11 @@ class LLMClient:
 
         try:
             # Use retry logic for the completion
-            response = await self._try_with_retry(
-                provider.complete, provider_name, request
+            response = await self.retry_strategy.execute_with_retry(
+                provider.complete,
+                provider_name,
+                self._metrics_callback,
+                request,
             )
 
             logger.info(
@@ -475,156 +342,6 @@ class LLMClient:
                 f"Provider {provider_name} failed to complete request", **error_details
             )
             raise
-
-    async def _complete_with_fallback(
-        self, request: CompletionRequest
-    ) -> CompletionResponse:
-        """Try completion with providers in fallback order with enhanced tracking."""
-        provider_errors: dict[str, Exception] = {}
-        attempted_providers: list[str] = []
-        fallback_chain: list[str] = []
-        debug_info: dict[str, Any] = {}
-
-        logger.info(
-            "Starting LLM completion with fallback strategy",
-            preferred_provider=self.preferred_provider.value
-            if self.preferred_provider
-            else "none",
-            fallback_order=[p.value for p in self.fallback_order],
-        )
-
-        # Build the complete fallback chain
-        if self.preferred_provider:
-            fallback_chain.append(self.preferred_provider.value)
-        fallback_chain.extend(
-            [p.value for p in self.fallback_order if p != self.preferred_provider]
-        )
-
-        # Try preferred provider first
-        if self.preferred_provider:
-            provider = self.registry.get_provider(self.preferred_provider)
-            if provider:
-                is_available = await provider.is_available()
-                provider_name = provider.__class__.__name__
-                attempted_providers.append(self.preferred_provider.value)
-
-                logger.info(
-                    f"Checking preferred provider: {provider_name}",
-                    is_available=is_available,
-                )
-
-                if is_available:
-                    try:
-                        result = await self._try_complete_with_provider(
-                            provider, request
-                        )
-                        self._record_fallback_chain(fallback_chain)
-                        return result
-                    except Exception as e:
-                        provider_errors[provider_name] = e
-                        error_details = {
-                            "provider": provider_name,
-                            "error": str(e),
-                            "error_type": type(e).__name__,
-                        }
-
-                        if self.debug_mode:
-                            error_details["stack_trace"] = traceback.format_exc()
-                            debug_info[f"{self.preferred_provider.value}_error"] = {
-                                "exception": e,
-                                "stack_trace": traceback.format_exc(),
-                                "timestamp": time.time(),
-                            }
-
-                        logger.warning("Preferred provider failed", **error_details)
-                else:
-                    error_msg = f"Provider {provider_name} not available"
-                    provider_errors[provider_name] = RuntimeError(error_msg)
-                    logger.warning(error_msg)
-            else:
-                error_msg = (
-                    f"Preferred provider {self.preferred_provider.value} "
-                    "not found in registry"
-                )
-                provider_errors[self.preferred_provider.value] = RuntimeError(error_msg)
-                attempted_providers.append(self.preferred_provider.value)
-                logger.warning(error_msg)
-
-        # Try fallback providers in order
-        for provider_type in self.fallback_order:
-            if provider_type == self.preferred_provider:
-                logger.debug(
-                    f"Skipping {provider_type.value} (already tried as preferred)"
-                )
-                continue  # Already tried
-
-            provider = self.registry.get_provider(provider_type)
-            if provider:
-                is_available = await provider.is_available()
-                provider_name = provider.__class__.__name__
-                attempted_providers.append(provider_type.value)
-
-                logger.info(
-                    f"Checking fallback provider: {provider_name}",
-                    is_available=is_available,
-                )
-
-                if is_available:
-                    try:
-                        result = await self._try_complete_with_provider(
-                            provider, request
-                        )
-                        self._record_fallback_chain(fallback_chain)
-                        return result
-                    except Exception as e:
-                        provider_errors[provider_name] = e
-                        error_details = {
-                            "provider": provider_name,
-                            "error": str(e),
-                            "error_type": type(e).__name__,
-                        }
-
-                        if self.debug_mode:
-                            error_details["stack_trace"] = traceback.format_exc()
-                            debug_info[f"{provider_type.value}_error"] = {
-                                "exception": e,
-                                "stack_trace": traceback.format_exc(),
-                                "timestamp": time.time(),
-                            }
-
-                        logger.warning(
-                            f"Fallback provider {provider_name} failed", **error_details
-                        )
-                else:
-                    error_msg = f"Fallback provider {provider_name} not available"
-                    provider_errors[provider_name] = RuntimeError(error_msg)
-                    logger.debug(error_msg)
-            else:
-                error_msg = (
-                    f"Fallback provider {provider_type.value} not found in registry"
-                )
-                provider_errors[provider_type.value] = RuntimeError(error_msg)
-                attempted_providers.append(provider_type.value)
-                logger.debug(error_msg)
-
-        # Record the failed fallback chain
-        self._record_fallback_chain(fallback_chain)
-
-        # All providers failed - create comprehensive error
-        logger.error(
-            "All LLM providers failed",
-            provider_errors={k: str(v) for k, v in provider_errors.items()},
-            attempted_providers=attempted_providers,
-            fallback_chain=fallback_chain,
-        )
-
-        raise LLMFallbackError(
-            message="All LLM providers failed",
-            provider_errors=provider_errors,
-            attempted_providers=attempted_providers,
-            fallback_chain=fallback_chain,
-            debug_info=debug_info if self.debug_mode else None,
-        )
 
     async def embed(
         self,
@@ -662,7 +379,11 @@ class LLMClient:
                 return await self._try_embed_with_provider(provider_instance, request)
             raise RuntimeError(f"Requested provider {provider.value} is not available")
         # Try providers in fallback order
-        return await self._embed_with_fallback(request)
+        return await self.fallback_handler.embed_with_fallback(
+            request,
+            self._try_embed_with_provider,
+            self.metrics.record_fallback_chain,
+        )
 
     async def _try_embed_with_provider(
         self, provider: BaseLLMProvider, request: EmbeddingRequest
@@ -682,8 +403,11 @@ class LLMClient:
 
         try:
             # Use retry logic for the embedding
-            response = await self._try_with_retry(
-                provider.embed, provider_name, request
+            response = await self.retry_strategy.execute_with_retry(
+                provider.embed,
+                provider_name,
+                self._metrics_callback,
+                request,
             )
 
             logger.info(
@@ -708,99 +432,6 @@ class LLMClient:
                 f"Provider {provider_name} failed to embed text", **error_details
             )
             raise
-
-    async def _embed_with_fallback(
-        self, request: EmbeddingRequest
-    ) -> EmbeddingResponse:
-        """Try embedding with providers in fallback order with enhanced tracking."""
-        provider_errors: dict[str, Exception] = {}
-        attempted_providers: list[str] = []
-        fallback_chain: list[str] = []
-        debug_info: dict[str, Any] = {}
-
-        # Build the complete fallback chain
-        if self.preferred_provider:
-            fallback_chain.append(self.preferred_provider.value)
-        fallback_chain.extend(
-            [p.value for p in self.fallback_order if p != self.preferred_provider]
-        )
-
-        # Try preferred provider first
-        if self.preferred_provider:
-            provider = self.registry.get_provider(self.preferred_provider)
-            if provider and await provider.is_available():
-                provider_name = provider.__class__.__name__
-                attempted_providers.append(self.preferred_provider.value)
-
-                try:
-                    result = await self._try_embed_with_provider(provider, request)
-                    self._record_fallback_chain(fallback_chain)
-                    return result
-                except Exception as e:
-                    provider_errors[provider_name] = e
-                    error_details = {
-                        "provider": provider_name,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    }
-
-                    if self.debug_mode:
-                        error_details["stack_trace"] = traceback.format_exc()
-                        debug_info[f"{self.preferred_provider.value}_error"] = {
-                            "exception": e,
-                            "stack_trace": traceback.format_exc(),
-                            "timestamp": time.time(),
-                        }
-
-                    logger.debug(
-                        f"Preferred provider {provider_name} failed", **error_details
-                    )
-
-        # Try fallback providers in order
-        for provider_type in self.fallback_order:
-            if provider_type == self.preferred_provider:
-                continue  # Already tried
-
-            provider = self.registry.get_provider(provider_type)
-            if provider and await provider.is_available():
-                provider_name = provider.__class__.__name__
-                attempted_providers.append(provider_type.value)
-
-                try:
-                    result = await self._try_embed_with_provider(provider, request)
-                    self._record_fallback_chain(fallback_chain)
-                    return result
-                except Exception as e:
-                    provider_errors[provider_name] = e
-                    error_details = {
-                        "provider": provider_name,
-                        "error": str(e),
-                        "error_type": type(e).__name__,
-                    }
-
-                    if self.debug_mode:
-                        error_details["stack_trace"] = traceback.format_exc()
-                        debug_info[f"{provider_type.value}_error"] = {
-                            "exception": e,
-                            "stack_trace": traceback.format_exc(),
-                            "timestamp": time.time(),
-                        }
-
-                    logger.debug(
-                        f"Fallback provider {provider_name} failed", **error_details
-                    )
-
-        # Record the failed fallback chain
-        self._record_fallback_chain(fallback_chain)
-
-        # All providers failed - create comprehensive error
-        raise LLMFallbackError(
-            message="All LLM providers failed for embedding",
-            provider_errors=provider_errors,
-            attempted_providers=attempted_providers,
-            fallback_chain=fallback_chain,
-            debug_info=debug_info if self.debug_mode else None,
-        )
 
     def get_current_provider(self) -> LLMProvider | None:
         """Get the currently active provider type."""

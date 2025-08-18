@@ -32,7 +32,9 @@ def vss_service(mock_settings, tmp_path):
         service = VSSService(mock_settings, db_path)
 
         # Initialize basic schema
-        with service.get_connection() as conn:
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        try:
             # Create scenes table
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS scenes (
@@ -98,6 +100,8 @@ def vss_service(mock_settings, tmp_path):
             """)
 
             conn.commit()
+        finally:
+            conn.close()
 
     return service
 

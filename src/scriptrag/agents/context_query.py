@@ -151,7 +151,7 @@ class ContextParameters:
 class ContextQueryExecutor:
     """Executes context queries for agents."""
 
-    def __init__(self, settings: ScriptRAGSettings | None = None):
+    def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
         """Initialize the executor.
 
         Args:

@@ -336,7 +336,9 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             logger.debug(f"Failed to fetch models from Anthropic API: {e}")
             return None
 
-    def _parse_anthropic_models(self, models_data: list[dict]) -> list[Model] | None:
+    def _parse_anthropic_models(
+        self, models_data: list[dict[str, Any]]
+    ) -> list[Model] | None:
         """Parse model data from Anthropic API into Model objects.
 
         Args:

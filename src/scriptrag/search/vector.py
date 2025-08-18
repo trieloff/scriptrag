@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 class VectorSearchEngine:
     """Handle vector/semantic search operations."""
 
-    def __init__(self, settings: ScriptRAGSettings | None = None):
+    def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
         """Initialize vector search engine.
 
         Args:

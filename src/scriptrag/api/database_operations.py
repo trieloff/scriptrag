@@ -31,7 +31,7 @@ class ScriptRecord:
 class DatabaseOperations:
     """Handles all database operations for indexing."""
 
-    def __init__(self, settings: ScriptRAGSettings):
+    def __init__(self, settings: ScriptRAGSettings) -> None:
         """Initialize database operations with settings.
 
         Args:

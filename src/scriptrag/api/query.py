@@ -11,7 +11,7 @@ logger = get_logger(__name__)
 class QueryAPI:
     """High-level API for query operations."""
 
-    def __init__(self, settings: ScriptRAGSettings | None = None):
+    def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
         """Initialize query API.
 
         Args:

@@ -63,7 +63,7 @@ class AnalyzeCommand:
     def __init__(
         self,
         analyzers: list[SceneAnalyzer | Any] | None = None,
-    ):
+    ) -> None:
         """Initialize analyze command.
 
         Args:

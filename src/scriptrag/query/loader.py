@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 class QueryLoader:
     """Load and manage SQL query specifications."""
 
-    def __init__(self, settings: ScriptRAGSettings | None = None):
+    def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
         """Initialize query loader.
 
         Args:

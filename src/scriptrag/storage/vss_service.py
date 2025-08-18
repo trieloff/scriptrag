@@ -1,6 +1,7 @@
 """SQLite VSS service using sqlite-vec for vector similarity search."""
 
 import sqlite3
+import struct
 from pathlib import Path
 from typing import Any
 
@@ -527,8 +528,6 @@ class VSSService:
             for row in cursor:
                 try:
                     # Decode the binary embedding
-                    import struct
-
                     data = row["embedding"]
                     dimension = struct.unpack("<I", data[:4])[0]
                     format_str = f"<{dimension}f"
@@ -556,8 +555,6 @@ class VSSService:
             for row in cursor:
                 try:
                     # Decode the binary embedding
-                    import struct
-
                     data = row["embedding"]
                     dimension = struct.unpack("<I", data[:4])[0]
                     format_str = f"<{dimension}f"

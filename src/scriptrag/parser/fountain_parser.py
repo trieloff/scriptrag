@@ -2,6 +2,7 @@
 
 import re
 from pathlib import Path
+from typing import Any
 
 from jouvence.parser import JouvenceParser
 
@@ -281,3 +282,15 @@ class FountainParser:
             content += "\n"
         file_path.write_text(content, encoding="utf-8")
         logger.info(f"Updated {len(updated_scenes)} scenes in {file_path}")
+
+    def _process_jouvence_scene(
+        self, number: int, jouvence_scene: Any, full_content: str
+    ) -> Scene:
+        """Delegate to processor for backward compatibility with tests."""
+        return self.processor.process_jouvence_scene(
+            number, jouvence_scene, full_content
+        )
+
+    def _is_character_line(self, line: str) -> bool:
+        """Delegate to processor for backward compatibility with tests."""
+        return self.processor._is_character_line(line)

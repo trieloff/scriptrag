@@ -224,13 +224,37 @@ class SceneProcessor:
                 and line not in existing_chars
                 and i + 1 < len(lines)
             ):
-                next_line = lines[i + 1].strip()
-                # Simple heuristic: dialogue usually doesn't start with
-                # stage directions
-                if next_line and not next_line.startswith("("):
-                    # Create dialogue entry
-                    existing_dialogue.append(Dialogue(character=line, text=next_line))
-                    i += 2  # Skip both lines
+                # Look ahead to find potential dialogue after optional parenthetical
+                j = i + 1
+                parenthetical = None
+                dialogue_text = []
+
+                # Check for parenthetical
+                if j < len(lines) and lines[j].strip().startswith("("):
+                    parenthetical = lines[j].strip()
+                    j += 1
+
+                # Collect dialogue lines
+                while j < len(lines):
+                    potential_dialogue = lines[j].strip()
+                    if not potential_dialogue:
+                        break
+                    # Stop if we hit another character line or action
+                    if self._is_character_line(potential_dialogue):
+                        break
+                    dialogue_text.append(potential_dialogue)
+                    j += 1
+
+                # If we found dialogue, create the dialogue entry
+                if dialogue_text:
+                    existing_dialogue.append(
+                        Dialogue(
+                            character=line,
+                            text=" ".join(dialogue_text),
+                            parenthetical=parenthetical,
+                        )
+                    )
+                    i = j  # Skip all processed lines
                     continue
 
             # Otherwise treat as action

@@ -1,4 +1,4 @@
-"""Additional tests to achieve 99% coverage for LLM client module."""
+"""Additional tests for LLM client module with REAL methods only."""
 
 from unittest.mock import AsyncMock, patch
 
@@ -41,7 +41,6 @@ def mock_provider():
             data=[{"embedding": [0.1, 0.2, 0.3]}],
             model="embed-model",
             provider=LLMProvider.GITHUB_MODELS,
-            embeddings=[[0.1, 0.2, 0.3]],  # This is a computed field
         )
     )
     provider.list_models = AsyncMock(
@@ -61,32 +60,33 @@ class TestLLMClientAdditionalCoverage:
     """Additional test cases for achieving 99% coverage."""
 
     @pytest.mark.asyncio
-    async def test_set_default_models_all_provided(self, mock_provider):
-        """Test set_default_models when all models are provided."""
+    async def test_get_current_provider(self, mock_provider):
+        """Test get_current_provider method."""
         client = LLMClient()
-        client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
-        client.set_default_models(
-            chat_model="chat-model",
-            completion_model="completion-model",
-            embedding_model="embedding-model",
-        )
+        # Initially no provider selected
+        assert client.get_current_provider() is None
 
-        assert client.default_chat_model == "chat-model"
-        assert client.default_completion_model == "completion-model"
-        assert client.default_embedding_model == "embedding-model"
+        # After setting current provider
+        client.current_provider = mock_provider
+        mock_provider.provider_type = LLMProvider.GITHUB_MODELS
+        assert client.get_current_provider() == LLMProvider.GITHUB_MODELS
 
     @pytest.mark.asyncio
-    async def test_context_manager_exit(self, mock_provider):
-        """Test context manager exit cleanup."""
+    async def test_async_context_manager(self, mock_provider):
+        """Test async context manager functionality."""
         client = LLMClient()
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
-        # Test normal exit
-        client.__exit__(None, None, None)
+        # Mock cleanup
+        cleanup_mock = AsyncMock()
+        client.cleanup = cleanup_mock
 
-        # Test exit with exception
-        client.__exit__(Exception, Exception("test"), None)
+        # Test async context manager
+        async with client:
+            pass
+
+        cleanup_mock.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_select_provider_with_unavailable_preferred(self, mock_provider):
@@ -224,7 +224,9 @@ class TestLLMClientAdditionalCoverage:
                 )
             ),
         ):
-            response = await client.complete("test prompt")
+            response = await client.complete(
+                [{"role": "user", "content": "test prompt"}]
+            )
             assert response.content == "fallback response"
 
     @pytest.mark.asyncio
@@ -252,7 +254,7 @@ class TestLLMClientAdditionalCoverage:
             new=AsyncMock(side_effect=Exception("All providers failed")),
         ):
             with pytest.raises(Exception) as exc_info:
-                await client.complete("test prompt")
+                await client.complete([{"role": "user", "content": "test prompt"}])
             assert "All providers failed" in str(exc_info.value)
 
     @pytest.mark.asyncio
@@ -289,28 +291,53 @@ class TestLLMClientAdditionalCoverage:
         client = LLMClient()
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
-        # Pre-populate cache
-        client.model_cache.set("best_chat_github_models", "cached-model")
+        # Pre-populate cache with correct structure
+        cache_key = f"{mock_provider.__class__.__name__}:chat"
+        client._model_selection_cache[cache_key] = "cached-model"
 
-        model = await client._select_best_model(
-            mock_provider, capabilities=["chat"], prefer_model=None
-        )
+        model = await client._select_best_model(mock_provider, "chat")
         assert model == "cached-model"
 
     @pytest.mark.asyncio
-    async def test_select_best_model_prefer_model_available(self, mock_provider):
-        """Test _select_best_model when preferred model is available."""
+    async def test_select_best_model_chat_capability(self, mock_provider):
+        """Test _select_best_model finding chat-capable model."""
         mock_provider.list_models = AsyncMock(
             return_value=[
                 Model(
-                    id="preferred-model",
-                    name="Preferred Model",
+                    id="chat-model",
+                    name="Chat Model",
                     provider=LLMProvider.GITHUB_MODELS,
                     capabilities=["chat"],
                 ),
                 Model(
-                    id="other-model",
-                    name="Other Model",
+                    id="completion-model",
+                    name="Completion Model",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["completion"],
+                ),
+            ]
+        )
+
+        client = LLMClient()
+        client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
+
+        model = await client._select_best_model(mock_provider, "chat")
+        assert model == "chat-model"
+
+    @pytest.mark.asyncio
+    async def test_select_best_model_embedding_capability(self, mock_provider):
+        """Test _select_best_model finding embedding-capable model."""
+        mock_provider.list_models = AsyncMock(
+            return_value=[
+                Model(
+                    id="embedding-model",
+                    name="Embedding Model",
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["embedding"],
+                ),
+                Model(
+                    id="chat-model",
+                    name="Chat Model",
                     provider=LLMProvider.GITHUB_MODELS,
                     capabilities=["chat"],
                 ),
@@ -320,36 +347,12 @@ class TestLLMClientAdditionalCoverage:
         client = LLMClient()
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
-        model = await client._select_best_model(
-            mock_provider, capabilities=["chat"], prefer_model="preferred-model"
-        )
-        assert model == "preferred-model"
+        model = await client._select_best_model(mock_provider, "embedding")
+        assert model == "embedding-model"
 
     @pytest.mark.asyncio
-    async def test_select_best_model_prefer_model_not_available(self, mock_provider):
-        """Test _select_best_model when preferred model is not available."""
-        mock_provider.list_models = AsyncMock(
-            return_value=[
-                Model(
-                    id="other-model",
-                    name="Other Model",
-                    provider=LLMProvider.GITHUB_MODELS,
-                    capabilities=["chat"],
-                ),
-            ]
-        )
-
-        client = LLMClient()
-        client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
-
-        model = await client._select_best_model(
-            mock_provider, capabilities=["chat"], prefer_model="nonexistent-model"
-        )
-        assert model == "other-model"
-
-    @pytest.mark.asyncio
-    async def test_select_best_model_no_matching_capabilities(self, mock_provider):
-        """Test _select_best_model when no models have required capabilities."""
+    async def test_select_best_model_fallback_to_first(self, mock_provider):
+        """Test _select_best_model fallback when no exact capability match."""
         mock_provider.list_models = AsyncMock(
             return_value=[
                 Model(
@@ -364,10 +367,9 @@ class TestLLMClientAdditionalCoverage:
         client = LLMClient()
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
-        model = await client._select_best_model(
-            mock_provider, capabilities=["chat"], prefer_model=None
-        )
-        assert model is None
+        # Should return first model as fallback
+        model = await client._select_best_model(mock_provider, "chat")
+        assert model == "completion-only"
 
     @pytest.mark.asyncio
     async def test_try_complete_with_provider_request_model_update(self, mock_provider):
@@ -376,8 +378,8 @@ class TestLLMClientAdditionalCoverage:
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
         request = CompletionRequest(
-            prompt="test",
-            model="auto-select",
+            messages=[{"role": "user", "content": "test"}],
+            model="",  # Empty triggers auto-selection
             max_tokens=100,
         )
 
@@ -407,14 +409,15 @@ class TestLLMClientAdditionalCoverage:
             assert request.model == "selected-model"
 
     @pytest.mark.asyncio
-    async def test_try_embed_with_provider_request_model_update(self, mock_provider):
-        """Test _try_embed_with_provider updates request model."""
+    async def test_try_embed_with_provider_model_auto_selection(self, mock_provider):
+        """Test _try_embed_with_provider with model auto-selection logic."""
         client = LLMClient()
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
+        # Use default model that triggers auto-selection
         request = EmbeddingRequest(
             input="test",
-            model="auto-select",
+            model="text-embedding-ada-002",  # This is the default
         )
 
         mock_provider.embed = AsyncMock(
@@ -422,35 +425,38 @@ class TestLLMClientAdditionalCoverage:
                 data=[{"embedding": [0.1, 0.2]}],
                 model="embed-model",
                 provider=LLMProvider.GITHUB_MODELS,
-                embeddings=[[0.1, 0.2]],
             )
         )
 
-        # Mock _select_best_model to return a specific model
-        with patch.object(
-            client, "_select_best_model", new=AsyncMock(return_value="embed-model")
-        ):
-            response = await client._try_embed_with_provider(mock_provider, request)
-            assert len(response.embeddings) == 1
-            # The request model should be updated
-            assert request.model == "embed-model"
+        # Mock settings to ensure auto-selection occurs
+        with patch("scriptrag.llm.client.get_settings") as mock_settings:
+            mock_config = mock_settings.return_value
+            mock_config.llm_embedding_model = None  # Not explicitly configured
+
+            # Mock _select_best_model to return a specific model
+            with patch.object(
+                client, "_select_best_model", new=AsyncMock(return_value="embed-model")
+            ):
+                response = await client._try_embed_with_provider(mock_provider, request)
+                assert len(response.data) == 1
+                # The request model should be updated when auto-selecting
+                assert request.model == "embed-model"
 
     @pytest.mark.asyncio
-    async def test_complete_with_json_response_format(self, mock_provider):
-        """Test complete with JSON response format."""
+    async def test_complete_with_specific_provider(self, mock_provider):
+        """Test complete with specific provider parameter."""
         client = LLMClient()
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
-        client.current_provider = mock_provider
 
         mock_provider.complete = AsyncMock(
             return_value=CompletionResponse(
-                id="json-response-id",
+                id="provider-specific-response",
                 choices=[
                     {
                         "index": 0,
                         "message": {
                             "role": "assistant",
-                            "content": '{"result": "test"}',
+                            "content": "provider specific response",
                         },
                         "finish_reason": "stop",
                     }
@@ -462,9 +468,10 @@ class TestLLMClientAdditionalCoverage:
         )
 
         response = await client.complete(
-            "test prompt", response_format={"type": "json_object"}
+            [{"role": "user", "content": "test prompt"}],
+            provider=LLMProvider.GITHUB_MODELS,
         )
-        assert response.content == '{"result": "test"}'
+        assert response.content == "provider specific response"
 
     @pytest.mark.asyncio
     async def test_embed_with_dimensions(self, mock_provider):
@@ -478,9 +485,32 @@ class TestLLMClientAdditionalCoverage:
                 data=[{"embedding": [0.1, 0.2]}],
                 model="embed-model",
                 provider=LLMProvider.GITHUB_MODELS,
-                embeddings=[[0.1, 0.2]],
             )
         )
 
         response = await client.embed("test text", dimensions=512)
-        assert len(response.embeddings) == 1
+        assert len(response.data) == 1
+        assert response.data[0]["embedding"] == [0.1, 0.2]
+
+    @pytest.mark.asyncio
+    async def test_switch_provider_success(self, mock_provider):
+        """Test successful provider switching."""
+        client = LLMClient()
+        client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
+
+        success = await client.switch_provider(LLMProvider.GITHUB_MODELS)
+        assert success is True
+        assert client.current_provider == mock_provider
+
+    @pytest.mark.asyncio
+    async def test_switch_provider_unavailable(self):
+        """Test switching to unavailable provider."""
+        unavailable_provider = AsyncMock()
+        unavailable_provider.is_available = AsyncMock(return_value=False)
+
+        client = LLMClient()
+        client.registry.providers = {LLMProvider.GITHUB_MODELS: unavailable_provider}
+
+        success = await client.switch_provider(LLMProvider.GITHUB_MODELS)
+        assert success is False
+        assert client.current_provider is None

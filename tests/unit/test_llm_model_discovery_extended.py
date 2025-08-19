@@ -449,7 +449,7 @@ class TestGitHubModelsDiscoveryExtended:
             ]
         }
 
-        with patch.object(discovery, "_discover_via_api") as mock_api:
+        with patch.object(discovery, "_fetch_models") as mock_api:
             mock_api.return_value = [
                 Model(
                     id="gpt-4o",
@@ -481,7 +481,7 @@ class TestGitHubModelsDiscoveryExtended:
         """Test fallback to static models on API error."""
         with patch.object(discovery.cache, "get", return_value=None):
             with patch.object(
-                discovery, "_discover_via_api", side_effect=Exception("API error")
+                discovery, "_fetch_models", side_effect=Exception("API error")
             ):
                 models = await discovery.discover_models()
 
@@ -501,7 +501,7 @@ class TestGitHubModelsDiscoveryExtended:
         ]
 
         for _malformed_response in test_cases:
-            with patch.object(discovery, "_discover_via_api") as mock_api:
+            with patch.object(discovery, "_fetch_models") as mock_api:
                 # Simulate API returning malformed data then falling back
                 mock_api.side_effect = Exception("Malformed response")
 
@@ -535,7 +535,7 @@ class TestGitHubModelsDiscoveryExtended:
                     )
                 ]
 
-            with patch.object(discovery, "_discover_via_api", side_effect=mock_api):
+            with patch.object(discovery, "_fetch_models", side_effect=mock_api):
                 # Run multiple concurrent discoveries
                 results = await asyncio.gather(
                     discovery.discover_models(),
@@ -549,13 +549,19 @@ class TestGitHubModelsDiscoveryExtended:
         assert call_count == 3
 
     @pytest.mark.asyncio
-    async def test_is_available_with_token(self, discovery):
-        """Test availability check with token."""
-        assert await discovery.is_available() is True
+    async def test_discovery_with_token(self, discovery):
+        """Test discovery with token returns models."""
+        # With token, should attempt fetch
+        with patch.object(discovery, "_fetch_models") as mock_fetch:
+            mock_fetch.return_value = None  # Simulate no models from API
+            models = await discovery.discover_models()
+            # Should still return static models
+            assert len(models) > 0
+            mock_fetch.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_is_available_without_token(self):
-        """Test availability check without token."""
+    async def test_discovery_without_token(self):
+        """Test discovery without token uses static models."""
         # Create sample static models for testing
         static_models = [
             Model(
@@ -577,7 +583,10 @@ class TestGitHubModelsDiscoveryExtended:
             use_cache=True,
             force_static=False,
         )
-        assert await discovery.is_available() is False
+        # Without token, _fetch_models returns None and falls back to static
+        models = await discovery.discover_models()
+        assert len(models) == 1
+        assert models[0].id == "gpt-4o"
 
 
 class TestModelDiscoveryIntegration:
@@ -614,7 +623,7 @@ class TestModelDiscoveryIntegration:
         )
 
         # First discovery - no cache
-        with patch.object(discovery, "_discover_via_sdk") as mock_sdk:
+        with patch.object(discovery, "_fetch_models") as mock_sdk:
             mock_sdk.return_value = [
                 Model(
                     id="model-v1",
@@ -635,7 +644,7 @@ class TestModelDiscoveryIntegration:
         time.sleep(2)  # Assuming short TTL for test
 
         # Third discovery - cache expired, fetch new
-        with patch.object(discovery, "_discover_via_sdk") as mock_sdk:
+        with patch.object(discovery, "_fetch_models") as mock_sdk:
             mock_sdk.return_value = [
                 Model(
                     id="model-v2",
@@ -695,7 +704,7 @@ class TestModelDiscoveryIntegration:
         )
 
         # Mock discoveries
-        with patch.object(claude_discovery, "_discover_via_sdk") as mock_claude:
+        with patch.object(claude_discovery, "_fetch_models") as mock_claude:
             mock_claude.return_value = [
                 Model(
                     id="claude-model",
@@ -705,7 +714,7 @@ class TestModelDiscoveryIntegration:
                 )
             ]
 
-            with patch.object(github_discovery, "_discover_via_api") as mock_github:
+            with patch.object(github_discovery, "_fetch_models") as mock_github:
                 mock_github.return_value = [
                     Model(
                         id="github-model",

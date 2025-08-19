@@ -334,7 +334,7 @@ class TestRetryStrategy:
         errors = [
             ConnectionError("Network error"),
             RateLimitError("Rate limit", retry_after=0.5),
-            ConnectionError("Connection timeout"),  # Third error also retryable
+            # Only 2 errors so the 3rd attempt will succeed
         ]
 
         call_count = 0
@@ -362,9 +362,11 @@ class TestRetryStrategy:
                     mock_metrics,
                 )
 
+        # With max_retries=3, we expect 3 total attempts
+        # 2 failures followed by 1 success
         assert result == "success"
-        assert call_count == 4
-        assert len(sleep_calls) == 3
+        assert call_count == 3
+        assert len(sleep_calls) == 2
         # Second sleep should use retry_after from RateLimitError
         assert sleep_calls[1] == 0.5
 

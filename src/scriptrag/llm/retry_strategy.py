@@ -121,8 +121,9 @@ class RetryStrategy:
         last_error = None
 
         # Always try at least once, even with max_retries=0
-        # max_retries actually means max_attempts in this codebase
+        # In this codebase, max_retries actually means max total attempts
         # max_retries=3 means 3 total attempts (not 1 initial + 3 retries)
+        # max_retries=0 means 1 attempt (no retries)
         total_attempts = max(1, self.max_retries)
 
         for attempt in range(1, total_attempts + 1):

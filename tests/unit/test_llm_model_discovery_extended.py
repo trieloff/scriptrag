@@ -399,6 +399,9 @@ class TestGitHubModelsDiscoveryExtended:
     @pytest.fixture
     def discovery(self, temp_cache_dir):
         """Create GitHub Models discovery instance."""
+        # Clear memory cache to ensure test isolation
+        ModelDiscoveryCache.clear_all_memory_cache()
+
         # Create sample static models for testing
         static_models = [
             Model(
@@ -607,6 +610,9 @@ class TestModelDiscoveryIntegration:
     @pytest.mark.asyncio
     async def test_discovery_with_cache_invalidation(self, temp_cache_dir):
         """Test model discovery with cache invalidation."""
+        # Clear memory cache to ensure test isolation
+        ModelDiscoveryCache.clear_all_memory_cache()
+
         # Create sample static models for testing
         static_models = [
             Model(

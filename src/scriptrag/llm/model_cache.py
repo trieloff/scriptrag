@@ -1,6 +1,10 @@
 """Model discovery cache with TTL support."""
 
+import contextlib
+import errno
 import json
+import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Any, ClassVar
@@ -40,8 +44,15 @@ class ModelDiscoveryCache:
         self._ensure_cache_dir()
 
     def _ensure_cache_dir(self) -> None:
-        """Ensure cache directory exists."""
-        self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        """Ensure cache directory exists with restrictive permissions."""
+        try:
+            # Create directory with restrictive permissions
+            self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            # Set restrictive permissions (owner read/write/execute only)
+            self.CACHE_DIR.chmod(0o700)
+        except OSError as e:
+            logger.error(f"Failed to create cache directory: {e}")
+            raise
 
     def get(self) -> list[Model] | None:
         """Get cached models if still valid.
@@ -81,7 +92,7 @@ class ModelDiscoveryCache:
             return None
 
     def set(self, models: list[Model]) -> None:
-        """Cache models with current timestamp.
+        """Cache models with current timestamp using atomic write operation.
 
         Args:
             models: List of models to cache
@@ -93,14 +104,50 @@ class ModelDiscoveryCache:
                 "provider": self.provider_name,
             }
 
-            with self.cache_file.open("w") as f:
-                json.dump(cache_data, f, indent=2)
-
-            logger.info(
-                f"Cached {len(models)} models for {self.provider_name}",
-                cache_file=self.cache_file,
+            # Write to a temporary file first (atomic operation)
+            # Use the same directory to ensure atomic rename works
+            temp_fd, temp_path = tempfile.mkstemp(
+                dir=self.CACHE_DIR,
+                prefix=f".{self.provider_name}_models_",
+                suffix=".tmp",
             )
 
+            try:
+                # Write data to temp file
+                with os.fdopen(temp_fd, "w") as f:
+                    json.dump(cache_data, f, indent=2)
+
+                # Set restrictive permissions on the temp file
+                Path(temp_path).chmod(0o600)
+
+                # Atomic rename (replaces existing file if present)
+                Path(temp_path).replace(self.cache_file)
+
+                logger.info(
+                    f"Cached {len(models)} models for {self.provider_name}",
+                    cache_file=self.cache_file,
+                )
+
+            except Exception:
+                # Clean up temp file if something went wrong
+                with contextlib.suppress(OSError):
+                    Path(temp_path).unlink()
+                raise
+
+        except OSError as e:
+            # Specific handling for disk space and permission issues
+            if e.errno == errno.ENOSPC:  # No space left on device
+                logger.error(
+                    f"Insufficient disk space to cache models for {self.provider_name}"
+                )
+            elif e.errno == errno.EACCES:  # Permission denied
+                logger.error(
+                    f"Permission denied when caching models for {self.provider_name}"
+                )
+            else:
+                logger.error(
+                    f"OS error when caching models for {self.provider_name}: {e}"
+                )
         except Exception as e:
             logger.warning(f"Failed to cache models for {self.provider_name}: {e}")
 

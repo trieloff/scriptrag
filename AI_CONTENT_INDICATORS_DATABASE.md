@@ -201,7 +201,7 @@ academic research, industry analysis, and community observations from 2024-2025.
 
 **Abstract/Concrete Eyeball Kicks**
 
-According to nostalgebraist's analysis in "hydrogen jukeboxes: on the crammed poetics of 'creative writing' LLMs" (2024), modern creative AI models exhibit a distinctive pattern of what Allen Ginsberg called "eyeball kicks" - striking juxtapositions of abstract and concrete imagery. The term "hydrogen jukebox" itself comes from Ginsberg's "Howl" (1955): "...listening to the crack of doom on the hydrogen jukebox..."
+According to nostalgebraist's analysis in "hydrogen jukeboxes: on the crammed poetics of 'creative writing' LLMs" (2024), modern creative AI models exhibit a distinctive pattern of what Allen Ginsberg called "eyeball kicks" (visually striking, unexpected image combinations) - striking juxtapositions of abstract and concrete imagery. The term "hydrogen jukebox" itself comes from Ginsberg's "Howl" (1955): "...listening to the crack of doom on the hydrogen jukebox..."
 
 Key characteristics identified by nostalgebraist:
 
@@ -543,7 +543,7 @@ AI models exhibit a compulsive need to conclude:
 
 ## Sources and Attribution
 
-- **nostalgebraist** (2024): "hydrogen jukeboxes: on the crammed poetics of 'creative writing' LLMs" - Analysis of abstract/concrete "eyeball kick" patterns in AI creative writing. Blog post available at: <https://nostalgebraist.tumblr.com/post/778041178124926976/hydrogen-jukeboxes>
+- **nostalgebraist** (2024): "hydrogen jukeboxes: on the crammed poetics of 'creative writing' LLMs" - Analysis of abstract/concrete "eyeball kick" patterns in AI creative writing. [Blog post available here](https://nostalgebraist.tumblr.com/post/778041178124926976/hydrogen-jukeboxes)
 - Academic research on "delve" usage patterns in 2024 publications
 - Community observations from Reddit, Twitter, and technical forums
 - Industry reports on AI content detection methods and statistics

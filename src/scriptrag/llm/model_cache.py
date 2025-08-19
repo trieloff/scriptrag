@@ -7,7 +7,7 @@ import os
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypedDict
 
 from pydantic_core import ValidationError
 
@@ -17,7 +17,7 @@ from scriptrag.llm.models import Model
 logger = get_logger(__name__)
 
 
-class CacheData:
+class CacheData(TypedDict):
     """Type for cache data structure."""
 
     timestamp: float

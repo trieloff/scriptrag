@@ -208,13 +208,9 @@ class FountainFileHandler(FileSystemEventHandler):
             if self.callback:
                 self.callback("processing", path)
 
-            # Run the pull workflow in a new event loop
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                loop.run_until_complete(self._pull_single_file(path))
-            finally:
-                loop.close()
+            # Run the pull workflow using asyncio.run() for proper event loop management
+            # This ensures thread safety and proper cleanup
+            asyncio.run(self._pull_single_file(path))
 
             if self.callback:
                 self.callback("completed", path)

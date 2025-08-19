@@ -495,19 +495,15 @@ class TestFountainFileHandler:
         handler.callback = None
         path = Path("/test/script.fountain")
 
-        with patch("scriptrag.cli.utils.file_watcher.asyncio") as mock_asyncio:
-            mock_loop = MagicMock()
-            mock_asyncio.new_event_loop.return_value = mock_loop
-
+        with patch("scriptrag.cli.utils.file_watcher.asyncio.run") as mock_run:
             # Mock successful completion
-            mock_loop.run_until_complete.return_value = None
+            mock_run.return_value = None
 
             # Should not raise
             handler._process_file_sync(path)
 
-            # Verify pull was executed via the event loop
-            mock_loop.run_until_complete.assert_called_once()
-            mock_loop.close.assert_called_once()
+            # Verify pull was executed via asyncio.run
+            mock_run.assert_called_once()
 
     def test_on_modified_non_fountain_file(self, handler):
         """Test on_modified ignores non-Fountain files."""
@@ -534,12 +530,9 @@ class TestFountainFileHandler:
         path = Path("/test/script.fountain")
         error_msg = "Database connection failed"
 
-        with patch("scriptrag.cli.utils.file_watcher.asyncio") as mock_asyncio:
-            mock_loop = MagicMock()
-            mock_asyncio.new_event_loop.return_value = mock_loop
-
-            # Make run_until_complete raise the exception
-            mock_loop.run_until_complete.side_effect = Exception(error_msg)
+        with patch("scriptrag.cli.utils.file_watcher.asyncio.run") as mock_run:
+            # Make asyncio.run raise the exception
+            mock_run.side_effect = Exception(error_msg)
 
             handler._process_file_sync(path)
 
@@ -548,9 +541,6 @@ class TestFountainFileHandler:
             calls = [call.args for call in mock_callback.call_args_list]
             assert ("processing", path) in calls
             assert ("error", path, error_msg) in calls
-
-            # Verify loop was closed even on error
-            mock_loop.close.assert_called_once()
 
     def test_process_batch_exception_handling(self, handler):
         """Test _process_batch handles exceptions and cleans up properly."""

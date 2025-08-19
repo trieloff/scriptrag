@@ -76,6 +76,9 @@ class FallbackHandler:
         attempted_providers: list[str] = []
         fallback_chain: list[str] = []
         debug_info: dict[str, Any] = {}
+        # Preserve the original request model so provider attempts don't
+        # accidentally reuse a model selected by a previous provider.
+        original_model = request.model
 
         logger.info(
             "Starting LLM completion with fallback strategy",
@@ -94,9 +97,12 @@ class FallbackHandler:
 
         # Try preferred provider first
         if self.preferred_provider:
+            # Use a fresh request copy for each provider attempt
+            req_copy = request.model_copy()
+            req_copy.model = original_model
             result = await self._try_provider(
                 self.preferred_provider,
-                request,
+                req_copy,
                 try_provider_func,
                 provider_errors,
                 attempted_providers,
@@ -115,9 +121,12 @@ class FallbackHandler:
                 )
                 continue
 
+            # Use a fresh request copy for each provider attempt
+            req_copy = request.model_copy()
+            req_copy.model = original_model
             result = await self._try_provider(
                 provider_type,
-                request,
+                req_copy,
                 try_provider_func,
                 provider_errors,
                 attempted_providers,
@@ -172,6 +181,7 @@ class FallbackHandler:
         attempted_providers: list[str] = []
         fallback_chain: list[str] = []
         debug_info: dict[str, Any] = {}
+        original_model = request.model
 
         # Build the complete fallback chain
         if self.preferred_provider:
@@ -182,9 +192,11 @@ class FallbackHandler:
 
         # Try preferred provider first
         if self.preferred_provider:
+            req_copy = request.model_copy()
+            req_copy.model = original_model
             result = await self._try_provider(
                 self.preferred_provider,
-                request,
+                req_copy,
                 try_provider_func,
                 provider_errors,
                 attempted_providers,
@@ -200,9 +212,11 @@ class FallbackHandler:
             if provider_type == self.preferred_provider:
                 continue
 
+            req_copy = request.model_copy()
+            req_copy.model = original_model
             result = await self._try_provider(
                 provider_type,
-                request,
+                req_copy,
                 try_provider_func,
                 provider_errors,
                 attempted_providers,

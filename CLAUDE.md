@@ -8,6 +8,11 @@ delegating specialized work to appropriate experts.
 
 **Codebase Scale**: 20+ Python modules, 86+ tests, 2230+ lines of test code
 
+**CRITICAL**: Before suggesting ANY feature, consult [TO-NEVER-DO.md](TO-NEVER-DO.md)
+to ensure it aligns with ScriptRAG's philosophy of respecting writer autonomy.
+ScriptRAG is an analysis tool that NEVER modifies creative content without
+explicit user action.
+
 ## 🎯 Core Principles
 
 ### 1. **Quality First**
@@ -25,7 +30,7 @@ delegating specialized work to appropriate experts.
 - Maintain the GraphRAG pattern throughout all implementations
 - Use the project's configuration system consistently
 
-### 3. **Screenplay Domain Expertise**
+### 3. **Screenplay Domain Expertise & Writer Respect**
 
 - Understand that this is a screenwriting tool with specific domain needs
 - Respect the Fountain format specifications and screenplay conventions
@@ -33,6 +38,9 @@ delegating specialized work to appropriate experts.
 - Design with screenwriters' workflows in mind
 - Handle boneyard metadata sections for Git integration
 - Maintain character capitalization consistency
+- **NEVER auto-correct or modify writer's formatting choices**
+- **NEVER make subjective judgments about screenplay quality**
+- **See [TO-NEVER-DO.md](TO-NEVER-DO.md) for complete list of non-goals**
 
 ## 🤖 Sub-Agent Delegation
 
@@ -313,6 +321,7 @@ make run-mcp          # Run MCP server
 
 ### **Key Files to Check**
 
+- **[TO-NEVER-DO.md](TO-NEVER-DO.md)**: CRITICAL list of non-goals and anti-patterns
 - **README.md**: Project roadmap and architecture
 - **AGENTS.md**: Commit message guidelines and project rules
 - **[TESTING.md](docs/TESTING.md)**: Comprehensive testing best practices and cross-platform guidelines
@@ -349,12 +358,15 @@ make run-mcp          # Run MCP server
 This is a sophisticated screenwriting tool combining software engineering with
 screenplay domain knowledge. When working on ScriptRAG:
 
-1. **Respect the craft** - Screenwriting has specific conventions
-2. **Think in graphs** - Characters, scenes, and relationships form networks
-3. **Plan for scale** - Professional scripts have hundreds of scenes
-4. **Maintain quality** - High standards throughout
-5. **Use sub-agents** - Delegate specialized work to experts
-6. **Learn from iterations** - Check recent PRs for common pitfall patterns
+1. **Respect writer autonomy** - NEVER modify creative content without explicit permission
+2. **Analysis, not judgment** - We analyze objectively, never judge subjectively
+3. **Respect the craft** - Screenwriting has specific conventions we honor but don't enforce
+4. **Think in graphs** - Characters, scenes, and relationships form networks
+5. **Plan for scale** - Professional scripts have hundreds of scenes
+6. **Maintain quality** - High standards throughout
+7. **Use sub-agents** - Delegate specialized work to experts
+8. **Learn from iterations** - Check recent PRs for common pitfall patterns
+9. **Consult TO-NEVER-DO.md** - Always verify features align with project philosophy
 
 **Areas Requiring Extra Care (based on recent development):**
 - LLM provider rate limiting and error handling

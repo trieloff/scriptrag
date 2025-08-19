@@ -186,6 +186,10 @@ class TestModelDiscoveryCacheExtended:
         # Corrupt the cache file
         cache.cache_file.write_text("corrupted")
 
+        # Clear memory cache to force reading from corrupted file
+        if cache.provider_name in cache._memory_cache:
+            del cache._memory_cache[cache.provider_name]
+
         # Get should return None
         assert cache.get() is None
 
@@ -662,6 +666,8 @@ class TestModelDiscoveryIntegration:
     @pytest.mark.asyncio
     async def test_cross_provider_discovery(self, temp_cache_dir):
         """Test discovery across multiple providers."""
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
         # Create sample static models for testing
         claude_static_models = [
             Model(

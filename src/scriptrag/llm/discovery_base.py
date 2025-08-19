@@ -65,7 +65,7 @@ class ModelDiscovery:
                 # If discovery returned fewer models than static list,
                 # supplement with static models. This ensures fallback when
                 # API only returns subset of expected models
-                if len(models) < len(self.static_models):
+                if self.static_models and len(models) < len(self.static_models):
                     logger.info(
                         f"Discovery returned {len(models)} models, "
                         "supplementing with static models",
@@ -101,18 +101,19 @@ class ModelDiscovery:
         except Exception as e:
             logger.warning(
                 f"Dynamic discovery failed for {self.provider_name}: {e}",
-                fallback_count=len(self.static_models),
+                fallback_count=len(self.static_models) if self.static_models else 0,
             )
 
         # Fall back to static models
+        fallback_models = self.static_models or []
         logger.info(
             f"Using static models for {self.provider_name}",
-            count=len(self.static_models),
+            count=len(fallback_models),
         )
         # Cache static models too (to avoid repeated failed attempts)
-        if self.cache:
-            self.cache.set(self.static_models)
-        return self.static_models
+        if self.cache and fallback_models:
+            self.cache.set(fallback_models)
+        return fallback_models
 
     async def _fetch_models(self) -> list[Model] | None:
         """Fetch models from the provider's API.

@@ -32,6 +32,8 @@ class TestModelDiscoveryCache:
     @pytest.fixture
     def cache(self, temp_cache_dir):
         """Create cache instance with temporary directory."""
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
         return ModelDiscoveryCache("test_provider", ttl=3600)
 
     @pytest.fixture
@@ -629,6 +631,9 @@ class TestModelDiscoveryIntegration:
     @pytest.mark.asyncio
     async def test_end_to_end_cache_workflow(self):
         """Test complete workflow with caching."""
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
+
         static_models = [
             Model(
                 id="static-model",
@@ -682,6 +687,9 @@ class TestModelDiscoveryIntegration:
     @pytest.mark.asyncio
     async def test_cache_corruption_recovery(self):
         """Test recovery from cache corruption."""
+        # Clear any existing in-memory cache to prevent test contamination
+        ModelDiscoveryCache.clear_all_memory_cache()
+
         static_models = [
             Model(
                 id="static-model",

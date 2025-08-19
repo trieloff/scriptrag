@@ -3,7 +3,7 @@
 import traceback
 from typing import Any, cast
 
-from scriptrag.config import get_logger
+from scriptrag.config import get_logger, get_settings
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.fallback import FallbackHandler
 from scriptrag.llm.metrics import LLMMetrics
@@ -75,6 +75,9 @@ class LLMClient:
 
         # Initialize metrics tracking
         self.metrics = LLMMetrics()
+
+        # Cache for model selection results (provider -> model mapping)
+        self._model_selection_cache: dict[str, str] = {}
 
         # Initialize retry strategy
         self.retry_strategy = RetryStrategy(
@@ -257,6 +260,68 @@ class LLMClient:
             self.metrics.record_fallback_chain,
         )
 
+    async def _select_best_model(
+        self, provider: BaseLLMProvider, capability_type: str = "chat"
+    ) -> str | None:
+        """Select the best model for a provider based on capability type.
+
+        Uses caching to avoid repeated model discovery and searching.
+
+        Args:
+            provider: The LLM provider to select a model for
+            capability_type: Type of capability ("chat", "completion", "embedding")
+
+        Returns:
+            Model ID if found, None otherwise
+        """
+        provider_name = provider.__class__.__name__
+        cache_key = f"{provider_name}:{capability_type}"
+
+        # Check cache first
+        if cache_key in self._model_selection_cache:
+            logger.debug(
+                f"Using cached model selection for {provider_name}",
+                model=self._model_selection_cache[cache_key],
+                capability=capability_type,
+            )
+            return self._model_selection_cache[cache_key]
+
+        # Get models from provider
+        models = await provider.list_models()
+        if not models:
+            logger.warning(f"No models available from {provider_name}")
+            return None
+
+        selected_model = None
+
+        # Find the first model with the desired capability
+        # Models are already sorted by preference in most providers
+        for model in models:
+            if capability_type in model.capabilities:
+                selected_model = model.id
+                logger.info(
+                    f"Selected {capability_type}-capable model: {model.id}",
+                    provider=provider_name,
+                    capabilities=model.capabilities,
+                )
+                break
+
+        # Fallback to first model if no specific capability found
+        if not selected_model and models:
+            selected_model = models[0].id
+            logger.info(
+                f"Using first available model: {models[0].id}",
+                provider=provider_name,
+                capabilities=models[0].capabilities,
+                reason=f"no {capability_type}-capable model found",
+            )
+
+        # Cache the result
+        if selected_model:
+            self._model_selection_cache[cache_key] = selected_model
+
+        return selected_model
+
     async def _try_complete_with_provider(
         self, provider: BaseLLMProvider, request: CompletionRequest
     ) -> CompletionResponse:
@@ -269,33 +334,17 @@ class LLMClient:
 
         # Update model if not specified or empty
         if not request.model or request.model == "":
-            models = await provider.list_models()
-            model_count = len(models) if models else 0
-            logger.info(
-                f"Auto-selecting model from {model_count} available models",
-                provider=provider_name,
-            )
-            if models:
-                # Pick first chat-capable model (models sorted by preference)
-                for m in models:
-                    if "chat" in m.capabilities or "completion" in m.capabilities:
-                        request.model = m.id
-                        logger.info(
-                            f"Auto-selected chat-capable model: {m.id}",
-                            provider=provider_name,
-                            capabilities=m.capabilities,
-                        )
-                        break
+            # Use optimized model selection with caching
+            selected_model = await self._select_best_model(provider, "chat")
+            if not selected_model:
+                # Try "completion" capability as fallback
+                selected_model = await self._select_best_model(provider, "completion")
 
-                # If no chat-capable model found, use the first one
-                if not request.model and models:
-                    request.model = models[0].id
-                    logger.info(
-                        f"Using first available model: {models[0].id}",
-                        provider=provider_name,
-                        capabilities=models[0].capabilities,
-                        reason="no chat-capable model found",
-                    )
+            if selected_model:
+                request.model = selected_model
+            else:
+                logger.error(f"No models available from {provider_name}")
+                raise RuntimeError(f"No models available from provider {provider_name}")
         else:
             logger.info(
                 f"Using specified model: {request.model}",
@@ -365,10 +414,13 @@ class LLMClient:
         if isinstance(text, EmbeddingRequest):
             request = text
         else:
+            # Use configured default embedding model from settings
+            config = get_settings()
+            default_model = config.llm_embedding_model or "text-embedding-ada-002"
             request = EmbeddingRequest(
-                model=model or "text-embedding-ada-002",  # Temporary fallback
+                model=model or default_model,
                 input=text,
-                dimensions=dimensions,
+                dimensions=dimensions or config.llm_embedding_dimensions,
             )
 
         # Try embedding with fallback logic
@@ -391,15 +443,15 @@ class LLMClient:
         """Try embedding with a specific provider with model selection and retry."""
         provider_name = provider.__class__.__name__
 
-        # Update model if not specified
-        if request.model == "text-embedding-ada-002":  # Our temporary fallback
-            models = await provider.list_models()
-            if models:
-                # Pick first embedding-capable model
-                for m in models:
-                    if "embedding" in m.capabilities:
-                        request.model = m.id
-                        break
+        # Auto-select model if using default placeholder
+        config = get_settings()
+        default_model = config.llm_embedding_model or "text-embedding-ada-002"
+
+        # If model is the default and not explicitly configured, auto-select
+        if request.model == default_model and not config.llm_embedding_model:
+            selected_model = await self._select_best_model(provider, "embedding")
+            if selected_model:
+                request.model = selected_model
 
         try:
             # Use retry logic for the embedding

@@ -31,6 +31,9 @@ class ModelDiscoveryCache:
     DEFAULT_TTL: ClassVar[int] = 3600  # 1 hour default TTL
     CACHE_DIR: ClassVar[Path] = Path.home() / ".cache" / "scriptrag"
 
+    # In-memory cache to avoid repeated file I/O and JSON parsing
+    _memory_cache: ClassVar[dict[str, tuple[float, list[Model]]]] = {}
+
     def __init__(self, provider_name: str, ttl: int | None = None) -> None:
         """Initialize model discovery cache.
 
@@ -60,6 +63,21 @@ class ModelDiscoveryCache:
         Returns:
             List of cached models or None if cache is invalid/missing
         """
+        # Check in-memory cache first
+        if self.provider_name in self._memory_cache:
+            timestamp, models = self._memory_cache[self.provider_name]
+            if time.time() - timestamp <= self.ttl:
+                logger.debug(
+                    f"Using in-memory cached models for {self.provider_name}",
+                    count=len(models),
+                    age=int(time.time() - timestamp),
+                )
+                return models
+            # Clear expired in-memory cache
+            del self._memory_cache[self.provider_name]
+            logger.debug(f"In-memory cache expired for {self.provider_name}")
+
+        # Fall back to file cache
         if not self.cache_file.exists():
             logger.debug(f"No cache file found for {self.provider_name}")
             return None
@@ -71,21 +89,26 @@ class ModelDiscoveryCache:
             timestamp = cache_data.get("timestamp", 0)
             if time.time() - timestamp > self.ttl:
                 logger.debug(
-                    f"Cache expired for {self.provider_name}",
+                    f"File cache expired for {self.provider_name}",
                     age=time.time() - timestamp,
                     ttl=self.ttl,
                 )
                 return None
 
             models_data: list[dict[str, Any]] = cache_data.get("models", [])
-            models: list[Model] = [Model(**model_dict) for model_dict in models_data]
+            cached_models: list[Model] = [
+                Model(**model_dict) for model_dict in models_data
+            ]
+
+            # Store in memory cache for faster subsequent access
+            self._memory_cache[self.provider_name] = (timestamp, cached_models)
 
             logger.info(
-                f"Using cached models for {self.provider_name}",
-                count=len(models),
+                f"Using file cached models for {self.provider_name}",
+                count=len(cached_models),
                 age=int(time.time() - timestamp),
             )
-            return models
+            return cached_models
 
         except (json.JSONDecodeError, KeyError, TypeError, ValidationError) as e:
             logger.warning(f"Failed to read cache for {self.provider_name}: {e}")
@@ -97,9 +120,14 @@ class ModelDiscoveryCache:
         Args:
             models: List of models to cache
         """
+        timestamp = time.time()
+
+        # Update in-memory cache immediately
+        self._memory_cache[self.provider_name] = (timestamp, models)
+
         try:
             cache_data = {
-                "timestamp": time.time(),
+                "timestamp": timestamp,
                 "models": [model.model_dump() for model in models],
                 "provider": self.provider_name,
             }
@@ -152,7 +180,22 @@ class ModelDiscoveryCache:
             logger.warning(f"Failed to cache models for {self.provider_name}: {e}")
 
     def clear(self) -> None:
-        """Clear the cache file."""
+        """Clear the cache file and in-memory cache."""
+        # Clear in-memory cache
+        if self.provider_name in self._memory_cache:
+            del self._memory_cache[self.provider_name]
+
+        # Clear file cache
         if self.cache_file.exists():
             self.cache_file.unlink()
             logger.debug(f"Cleared cache for {self.provider_name}")
+
+    @classmethod
+    def clear_all_memory_cache(cls) -> None:
+        """Clear all in-memory cache data across all providers.
+
+        This is particularly useful for testing to prevent cache contamination
+        between test runs.
+        """
+        cls._memory_cache.clear()
+        logger.debug("Cleared all in-memory cache data")

@@ -839,12 +839,12 @@ class TestGitHubModelsDiscovery:
         mock_response.json.return_value = {
             "data": [
                 {
-                    "id": "gpt-4o-mini",
-                    "name": "GPT-4o Mini",
+                    "id": "gpt-4o",
+                    "name": "GPT-4o",
                 },
                 {
-                    "id": "gpt-3.5-turbo",
-                    "name": "GPT-3.5 Turbo",
+                    "id": "gpt-4o-mini",
+                    "name": "GPT-4o Mini",
                 },
             ]
         }
@@ -861,8 +861,8 @@ class TestGitHubModelsDiscovery:
 
         models = await discovery.discover_models()
         assert len(models) == 2
-        assert models[0].id == "gpt-4o-mini"
-        assert models[1].id == "gpt-3.5-turbo"
+        assert models[0].id == "gpt-4o"
+        assert models[1].id == "gpt-4o-mini"
 
         # Check API was called correctly
         mock_client.get.assert_called_once_with(

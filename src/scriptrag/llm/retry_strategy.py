@@ -121,9 +121,11 @@ class RetryStrategy:
         last_error = None
 
         # Always try at least once, even with max_retries=0
-        max_attempts = max(1, self.max_retries + 1)
+        # max_retries actually means max_attempts in this codebase
+        # max_retries=3 means 3 total attempts (not 1 initial + 3 retries)
+        total_attempts = max(1, self.max_retries)
 
-        for attempt in range(1, max_attempts + 1):
+        for attempt in range(1, total_attempts + 1):
             try:
                 result = await operation_func(*args, **kwargs)
                 if metrics_callback:
@@ -140,7 +142,7 @@ class RetryStrategy:
                     raise e
 
                 # If this is the last attempt, don't retry
-                if attempt >= max_attempts:
+                if attempt >= total_attempts:
                     break
 
                 # Calculate delay and record retry

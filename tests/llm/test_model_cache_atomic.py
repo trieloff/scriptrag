@@ -28,6 +28,7 @@ class TestModelCacheAtomicWrites:
             cache.set(models)
 
             # Verify file permissions
+            assert cache.cache_file.exists()
             file_stat = cache.cache_file.stat()
             assert file_stat.st_mode & 0o777 == 0o600
 

@@ -125,6 +125,8 @@ class ModelDiscoveryCache:
         # Update in-memory cache immediately
         self._memory_cache[self.provider_name] = (timestamp, models)
 
+        # Initialize for safe cleanup if temporary file creation fails early
+        temp_path: str | None = None
         try:
             cache_data = {
                 "timestamp": timestamp,
@@ -157,8 +159,9 @@ class ModelDiscoveryCache:
                 )
 
             except Exception:
-                # Clean up temp file if something went wrong
-                with contextlib.suppress(OSError):
+                # Clean up temp file if something went wrong.
+                # Avoid a branch on None; suppress TypeError when temp_path is None.
+                with contextlib.suppress(OSError, TypeError):
                     Path(temp_path).unlink()
                 raise
 

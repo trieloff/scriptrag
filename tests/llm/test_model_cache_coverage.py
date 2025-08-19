@@ -2,7 +2,7 @@
 
 import json
 import time
-from unittest.mock import mock_open, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -156,20 +156,21 @@ class TestModelCacheCoverage:
                 )
             ]
 
-            # Mock the file opening to raise an exception during write
-            mock_file = mock_open()
-            mock_file.side_effect = PermissionError("Write failed")
-
+            # Mock tempfile.mkstemp to raise an exception during temp file creation
             with (
-                patch("scriptrag.llm.model_cache.logger.warning") as mock_warning,
-                patch("pathlib.Path.open", mock_file),
+                patch("scriptrag.llm.model_cache.logger.error") as mock_error,
+                patch("tempfile.mkstemp") as mock_mkstemp,
             ):
+                mock_mkstemp.side_effect = PermissionError("Write failed")
                 cache.set(test_models)
 
-                # Should log warning but not crash
-                mock_warning.assert_called_once()
-                warning_msg = mock_warning.call_args[0][0]
-                assert "Failed to cache models for test_provider" in warning_msg
+                # PermissionError is OSError, uses error level logging
+                mock_error.assert_called_once()
+                error_msg = mock_error.call_args[0][0]
+                assert (
+                    "OS error when caching models for test_provider: Write failed"
+                    in error_msg
+                )
 
                 # Memory cache should still be updated
                 assert "test_provider" in cache._memory_cache

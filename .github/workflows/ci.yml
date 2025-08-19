@@ -197,8 +197,7 @@ jobs:
         run: |
           echo "🐤 Running canary tests with minimal output, 10 error limit, and 15s per-test timeout"
           echo "⏭️  Excluding integration tests (marked with @pytest.mark.integration)"
-          echo "🚫 Ignoring Claude provider to prevent hanging in CI"
-          SCRIPTRAG_LOG_LEVEL=ERROR SCRIPTRAG_IGNORE_CLAUDE=1 uv run pytest -x -q --tb=short --maxfail=10 --disable-warnings --junit-xml=junit.xml -o log_cli=false --capture=fd --timeout=15 --timeout-method=thread -m "not integration"
+          SCRIPTRAG_LOG_LEVEL=ERROR uv run pytest -x -q --tb=short --maxfail=10 --disable-warnings --junit-xml=junit.xml -o log_cli=false --capture=fd --timeout=15 --timeout-method=thread -m "not integration"
         env:
           PYTHONPATH: src
           SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}

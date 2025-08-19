@@ -852,11 +852,11 @@ class TestGitHubModelsDiscovery:
 
         discovery = GitHubModelsDiscovery(
             provider_name="github_models",
-            static_models=static_models,
+            static_models=None,  # Don't use static models for API test
             client=mock_client,
             token="test-token",  # noqa: S106
             base_url="https://api.test.com",
-            use_cache=True,
+            use_cache=False,  # Disable cache to ensure API call
         )
 
         models = await discovery.discover_models()

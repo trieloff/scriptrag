@@ -1,6 +1,9 @@
 """Atomic write tests for ModelDiscoveryCache."""
 
+import sys
 from unittest.mock import patch
+
+import pytest
 
 from scriptrag.llm.model_cache import ModelDiscoveryCache
 from scriptrag.llm.models import LLMProvider, Model
@@ -11,6 +14,10 @@ class TestModelCacheAtomicWrites:
         """Ensure clean in-memory cache before each test."""
         ModelDiscoveryCache.clear_all_memory_cache()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="POSIX permission bits are not reliably enforced on Windows",
+    )
     def test_atomic_write_permissions(self, tmp_path):
         """Cache files and directory should have restrictive permissions."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
@@ -27,7 +34,7 @@ class TestModelCacheAtomicWrites:
 
             cache.set(models)
 
-            # Verify file permissions
+            # Verify file permissions (POSIX only)
             assert cache.cache_file.exists()
             file_stat = cache.cache_file.stat()
             assert file_stat.st_mode & 0o777 == 0o600

@@ -1,5 +1,6 @@
 """Unit tests for LLM model discovery system."""
 
+import errno
 import json
 import tempfile
 import time
@@ -173,6 +174,91 @@ class TestModelDiscoveryCache:
         finally:
             # Reset permissions for cleanup
             cache.cache_file.chmod(0o644)
+
+    def test_ensure_cache_dir_oserror(self, temp_cache_dir):
+        """Test OSError handling when creating cache directory."""
+        # Mock Path.mkdir to raise OSError
+        with patch("pathlib.Path.mkdir", side_effect=OSError("Permission denied")):
+            with pytest.raises(OSError, match="Permission denied"):
+                ModelDiscoveryCache("test_provider")
+
+    @pytest.mark.parametrize(
+        "error_errno,error_msg",
+        [
+            (errno.ENOSPC, "Insufficient disk space"),
+            (errno.EACCES, "Permission denied"),
+            (errno.EEXIST, "OS error"),  # General OSError case
+        ],
+    )
+    def test_set_oserror_handling(self, cache, sample_models, error_errno, error_msg):
+        """Test OSError handling in set() method with specific errno values."""
+        # Create OSError with specific errno
+        os_error = OSError(error_msg)
+        os_error.errno = error_errno
+
+        # Mock tempfile.mkstemp to raise the specific OSError
+        with patch("tempfile.mkstemp", side_effect=os_error):
+            # Should not raise exception, just log error
+            cache.set(sample_models)
+            # The cache file should not exist after the error
+            assert not cache.cache_file.exists()
+
+    def test_set_general_exception_handling(self, cache, sample_models):
+        """Test general Exception handling in set() method."""
+        # Mock tempfile.mkstemp to raise a general exception
+        with patch("tempfile.mkstemp", side_effect=ValueError("Invalid argument")):
+            # Should not raise exception, just log warning
+            cache.set(sample_models)
+            # The cache file should not exist after the error
+            assert not cache.cache_file.exists()
+
+    def test_set_atomic_write_cleanup_on_exception(self, cache, sample_models):
+        """Test temp file cleanup when atomic write fails."""
+        temp_file_path = None
+
+        def mock_mkstemp(*args, **kwargs):
+            nonlocal temp_file_path
+            # Create actual temp file
+            fd, temp_file_path = tempfile.mkstemp(dir=cache.CACHE_DIR)
+            return fd, temp_file_path
+
+        # Mock json.dump to fail after temp file is created
+        with patch("tempfile.mkstemp", side_effect=mock_mkstemp):
+            with patch(
+                "json.dump", side_effect=TypeError("Object not JSON serializable")
+            ):
+                # Should not raise exception
+                cache.set(sample_models)
+
+                # Verify temp file was cleaned up
+                if temp_file_path:
+                    assert not Path(temp_file_path).exists()
+
+    def test_set_chmod_failure_after_write(self, cache, sample_models):
+        """Test chmod failure after successful write."""
+
+        def mock_chmod(self, mode):
+            if str(self).endswith(".tmp"):
+                raise OSError("chmod failed")
+            # For non-temp files, just return None (successful)
+            return
+
+        with patch.object(Path, "chmod", side_effect=mock_chmod):
+            # Should not raise exception, should clean up temp file
+            cache.set(sample_models)
+            # Verify no temp files left behind
+            temp_files = list(cache.CACHE_DIR.glob("*.tmp"))
+            assert len(temp_files) == 0
+
+    def test_set_replace_failure_after_write(self, cache, sample_models):
+        """Test Path.replace failure after successful write."""
+        # Mock Path.replace to raise OSError after file is written
+        with patch.object(Path, "replace", side_effect=OSError("replace failed")):
+            # Should not raise exception, should clean up temp file
+            cache.set(sample_models)
+            # Verify no temp files left behind
+            temp_files = list(cache.CACHE_DIR.glob("*.tmp"))
+            assert len(temp_files) == 0
 
 
 class TestModelDiscovery:

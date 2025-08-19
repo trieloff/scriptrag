@@ -2,10 +2,12 @@
 
 import time
 import traceback
-from typing import Any, cast
+from collections.abc import Awaitable, Callable
+from typing import Any, TypeVar
 
 from scriptrag.config import get_logger
 from scriptrag.exceptions import LLMFallbackError
+from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.models import (
     CompletionRequest,
     CompletionResponse,
@@ -16,6 +18,10 @@ from scriptrag.llm.models import (
 from scriptrag.llm.registry import ProviderRegistry
 
 logger = get_logger(__name__)
+
+# Type variables for generic request/response handling
+T = TypeVar("T", CompletionRequest, EmbeddingRequest)
+U = TypeVar("U", CompletionResponse, EmbeddingResponse)
 
 
 class FallbackHandler:
@@ -48,8 +54,10 @@ class FallbackHandler:
     async def complete_with_fallback(
         self,
         request: CompletionRequest,
-        try_provider_func: Any,
-        record_chain_func: Any,
+        try_provider_func: Callable[
+            [BaseLLMProvider, CompletionRequest], Awaitable[CompletionResponse]
+        ],
+        record_chain_func: Callable[[list[str]], None],
     ) -> CompletionResponse:
         """Try completion with providers in fallback order.
 
@@ -97,7 +105,7 @@ class FallbackHandler:
             )
             if result:
                 record_chain_func(fallback_chain)
-                return cast(CompletionResponse, result)
+                return result
 
         # Try fallback providers in order
         for provider_type in self.fallback_order:
@@ -118,7 +126,7 @@ class FallbackHandler:
             )
             if result:
                 record_chain_func(fallback_chain)
-                return cast(CompletionResponse, result)
+                return result
 
         # Record the failed fallback chain
         record_chain_func(fallback_chain)
@@ -142,8 +150,10 @@ class FallbackHandler:
     async def embed_with_fallback(
         self,
         request: EmbeddingRequest,
-        try_provider_func: Any,
-        record_chain_func: Any,
+        try_provider_func: Callable[
+            [BaseLLMProvider, EmbeddingRequest], Awaitable[EmbeddingResponse]
+        ],
+        record_chain_func: Callable[[list[str]], None],
     ) -> EmbeddingResponse:
         """Try embedding with providers in fallback order.
 
@@ -183,7 +193,7 @@ class FallbackHandler:
             )
             if result:
                 record_chain_func(fallback_chain)
-                return cast(EmbeddingResponse, result)
+                return result
 
         # Try fallback providers in order
         for provider_type in self.fallback_order:
@@ -201,7 +211,7 @@ class FallbackHandler:
             )
             if result:
                 record_chain_func(fallback_chain)
-                return cast(EmbeddingResponse, result)
+                return result
 
         # Record the failed fallback chain
         record_chain_func(fallback_chain)
@@ -218,13 +228,13 @@ class FallbackHandler:
     async def _try_provider(
         self,
         provider_type: LLMProvider,
-        request: Any,
-        try_func: Any,
+        request: T,
+        try_func: Callable[[BaseLLMProvider, T], Awaitable[U]],
         provider_errors: dict[str, Exception],
         attempted_providers: list[str],
         debug_info: dict[str, Any],
         provider_role: str,
-    ) -> Any | None:
+    ) -> U | None:
         """Try a single provider for an operation.
 
         Args:

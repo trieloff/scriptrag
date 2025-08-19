@@ -107,12 +107,25 @@ class ClaudeSchemaHandler:
             prop_type = details.get("type", "string")
 
             if prop_type == "array":
-                items_type = details.get("items", {}).get("type", "string")
+                items = details.get("items", {})
+                # Handle case where items is a list (tuple validation) or dict
+                # (single type)
+                if isinstance(items, list):
+                    # Multiple item types (tuple validation) - use first type
+                    if items and isinstance(items[0], dict):
+                        items_type = items[0].get("type", "string")
+                        items_schema = items[0]
+                    else:
+                        items_type = "string"
+                        items_schema = {}
+                else:
+                    # Single item type
+                    items_type = items.get("type", "string")
+                    items_schema = items
+
                 if items_type == "object":
                     # For complex objects, provide a single example
-                    example[prop] = [
-                        self._generate_object_example(details.get("items", {}))
-                    ]
+                    example[prop] = [self._generate_object_example(items_schema)]
                 else:
                     example[prop] = []
             elif prop_type == "object":
@@ -150,6 +163,7 @@ class ClaudeSchemaHandler:
                 elif prop_type == "array":
                     result[key] = []
                 elif prop_type == "object":
-                    result[key] = {}
+                    # Recursively generate nested object structure
+                    result[key] = self._generate_object_example(val)
             return result
         return {}

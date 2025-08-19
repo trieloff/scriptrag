@@ -369,7 +369,9 @@ class GitHubModelsProvider(BaseLLMProvider):
             response_content = ""
             try:
                 if choices and len(choices) > 0:
-                    response_content = choices[0].get("message", {}).get("content", "")
+                    response_content = (
+                        choices[0].get("message", {}).get("content", "") or ""
+                    )
             except (AttributeError, TypeError):
                 # Handle case where choices is not a list or has unexpected structure
                 response_content = ""

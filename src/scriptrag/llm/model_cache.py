@@ -159,10 +159,10 @@ class ModelDiscoveryCache:
                 )
 
             except Exception:
-                # Clean up temp file if something went wrong
-                if temp_path:
-                    with contextlib.suppress(OSError):
-                        Path(temp_path).unlink()
+                # Clean up temp file if something went wrong.
+                # Avoid a branch on None; suppress TypeError when temp_path is None.
+                with contextlib.suppress(OSError, TypeError):
+                    Path(temp_path).unlink()
                 raise
 
         except OSError as e:

@@ -1,6 +1,7 @@
 """Dynamic model discovery with caching for LLM providers."""
 
 import os
+import re
 from typing import Any
 
 from scriptrag.config import get_logger
@@ -338,6 +339,9 @@ class GitHubModelsDiscovery(ModelDiscovery):
             List of processed Model objects
         """
         # Known working model patterns
+        # Note: some providers (e.g., AzureML registries) use IDs like
+        # "Cohere-embed-v3-english" where the token is "embed" not "embedding".
+        # We include both to properly classify capabilities.
         supported_patterns: list[str] = [
             "gpt-4",
             "gpt-3.5",
@@ -347,6 +351,8 @@ class GitHubModelsDiscovery(ModelDiscovery):
             "phi",
             "cohere",
             "embedding",
+            "embed",
+            "text-embedding",
             "ada",
         ]
 
@@ -369,14 +375,22 @@ class GitHubModelsDiscovery(ModelDiscovery):
 
             # Determine capabilities
             capabilities: list[str] = []
-            if "embedding" in model_id_lower:
-                capabilities.append("embedding")
+            # Treat any model that clearly signals embedding as embedding-only
+            if (
+                "embedding" in model_id_lower
+                or "text-embedding" in model_id_lower
+                or re.search(
+                    r"\bembed\b", model_id_lower
+                )  # e.g. "Cohere-embed-v3-english"
+            ):
+                capabilities = ["embedding"]
+            # Common chat/completion model families
             elif any(
-                term in model_id_lower for term in ["gpt", "llama", "claude", "mistral"]
+                term in model_id_lower
+                for term in ["gpt", "llama", "claude", "mistral", "phi", "cohere"]
             ):
                 capabilities = ["completion", "chat"]
-
-            # Default to chat capabilities if not specified
+            # Default conservatively to chat for other supported patterns
             if not capabilities:
                 capabilities = ["chat"]
 

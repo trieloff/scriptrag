@@ -78,7 +78,12 @@ class QueryEngine:
             validated_params["offset"] = 0
 
         # Prepare SQL
-        sql = spec.sql
+        # Normalize SQL by trimming whitespace and removing a trailing semicolon.
+        # This avoids syntax errors when wrapping the statement in a subquery
+        # for LIMIT/OFFSET handling (SQLite disallows a semicolon inside).
+        sql = spec.sql.strip()
+        if sql.endswith(";"):
+            sql = sql[:-1].rstrip()
 
         # Wrap SQL if limit/offset not in original query but provided in params
         if not has_limit and "limit" in validated_params:

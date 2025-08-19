@@ -91,6 +91,18 @@ class ContextParameters:
             # Generate script_id from file path or metadata
             if hasattr(script, "file_path"):
                 file_str = str(script.file_path)
+            else:
+                # Fallback to source file stored in script metadata
+                file_str = None
+                try:
+                    meta = getattr(script, "metadata", {}) or {}
+                    src = meta.get("source_file")
+                    if src:
+                        file_str = str(src)
+                except Exception:  # pragma: no cover - defensive fallback
+                    file_str = None
+
+            if file_str:
                 params.script_id = hashlib.sha256(file_str.encode()).hexdigest()[
                     :HASH_ID_LENGTH
                 ]

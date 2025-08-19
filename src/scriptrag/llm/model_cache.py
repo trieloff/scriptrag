@@ -49,10 +49,11 @@ class ModelDiscoveryCache:
     def _ensure_cache_dir(self) -> None:
         """Ensure cache directory exists with restrictive permissions."""
         try:
-            # Create directory with restrictive permissions
-            self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
-            # Set restrictive permissions (owner read/write/execute only)
-            self.CACHE_DIR.chmod(0o700)
+            # Only set permissions when creating the directory the first time
+            if not self.CACHE_DIR.exists():
+                self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+                # Set restrictive permissions (owner read/write/execute only)
+                self.CACHE_DIR.chmod(0o700)
         except OSError as e:
             logger.error(f"Failed to create cache directory: {e}")
             raise

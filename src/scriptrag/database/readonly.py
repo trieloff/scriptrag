@@ -199,10 +199,15 @@ def get_read_only_connection(
             check_same_thread=False,
         )
 
-        # Configure for read-only access
-        conn.execute("PRAGMA query_only = ON")
-        conn.execute(f"PRAGMA cache_size = {settings.database_cache_size}")
-        conn.execute(f"PRAGMA temp_store = {settings.database_temp_store}")
+        # Configure for read-only access via consolidated pragma settings
+        pragma_settings = {
+            "query_only": "ON",
+            "cache_size": settings.database_cache_size,
+            "temp_store": settings.database_temp_store,
+        }
+
+        for pragma, value in pragma_settings.items():
+            conn.execute(f"PRAGMA {pragma} = {value}")
 
         # Enable JSON support
         conn.row_factory = sqlite3.Row

@@ -1,8 +1,141 @@
-# ScriptRAG To-Never-Do List
+# TO-NEVER-DO: ScriptRAG Anti-Patterns and Non-Goals
 
-This document explicitly lists technologies, patterns, and approaches that are
-NOT to be used in the ScriptRAG project. These decisions are final and should
-not be revisited.
+This document explicitly defines what ScriptRAG will **NEVER** do. These are intentional design decisions to maintain project focus, respect screenwriter autonomy, and preserve creative integrity.
+
+## 🚫 Core Non-Goals: Respecting Writer Autonomy
+
+### 1. **NEVER Auto-Correct Fountain Formatting**
+
+ScriptRAG will NEVER automatically "fix" or modify a writer's screenplay formatting. We parse and analyze, but we respect the writer's creative choices and formatting decisions.
+
+**Why:** Writers often use unconventional formatting for creative effect. What looks like an "error" might be an intentional stylistic choice. ScriptRAG is an analysis tool, not a formatting enforcer.
+
+### 2. **NEVER Modify Creative Content Without Explicit User Action**
+
+The tool will NEVER:
+
+- Automatically rewrite dialogue to be "better"
+- Suggest character name changes
+- Alter scene descriptions for "clarity"
+- Change action lines for "pacing"
+- Modify any creative content without explicit user-initiated action
+
+**Why:** ScriptRAG respects writer autonomy. We provide insights and analysis, not unsolicited creative changes.
+
+### 3. **NEVER Act as a Screenplay Quality Judge**
+
+ScriptRAG will NEVER:
+
+- Rate scripts on a quality scale
+- Provide "good/bad" judgments on creative choices
+- Implement scoring systems for dialogue or structure
+- Compare scripts to determine which is "better"
+
+**Why:** Quality is subjective in creative work. Our role is to provide objective analysis and data, not subjective judgments.
+
+### 4. **NEVER Enforce Screenplay "Rules" or Conventions**
+
+The tool will NEVER:
+
+- Force adherence to three-act structure
+- Require specific page counts for acts
+- Enforce "rules" like "no camera directions"
+- Mandate formatting conventions beyond basic Fountain syntax
+
+**Why:** Screenwriting "rules" are guidelines, not laws. Innovation comes from breaking conventions.
+
+### 5. **NEVER Implement Proprietary Screenplay Formats**
+
+ScriptRAG will NEVER support:
+
+- Final Draft's .fdx format (proprietary)
+- Celtx's proprietary formats
+- WriterDuet's proprietary formats
+- Any closed-source, proprietary screenplay format
+
+**Why:** We're committed to open standards. Fountain is open, human-readable, and version-control friendly.
+
+## 🚫 Technical Anti-Patterns
+
+### **NEVER Store or Transmit Scripts to External Services Without Explicit Consent**
+
+The tool will NEVER:
+
+- Automatically upload scripts to cloud services
+- Send script content to analytics services
+- Share script data with third parties
+- Use script content for model training without explicit opt-in
+
+**Why:** Scripts are valuable intellectual property. Privacy and ownership must be absolute.
+
+### **NEVER Implement "AI Writing" Features**
+
+ScriptRAG will NEVER:
+
+- Generate entire scenes from prompts
+- Write dialogue for characters
+- Create plot outlines from themes
+- Finish incomplete scripts automatically
+
+**Why:** We're an analysis tool, not a writing tool. Writers write; we analyze what they've written.
+
+### **NEVER Make Subjective Style Decisions**
+
+The tool will NEVER:
+
+- Convert between dialogue styles (e.g., formal to casual)
+- "Modernize" dated language
+- Adjust tone or voice
+- Standardize character speech patterns
+
+**Why:** Style is the writer's domain. Every character's voice is intentional.
+
+## 🚫 Scope Boundaries
+
+### **NEVER Become a Production Management Tool**
+
+ScriptRAG will NEVER include:
+
+- Shooting schedule generation
+- Budget calculation
+- Location scouting features
+- Casting suggestions
+- Production logistics
+
+**Why:** We focus on script analysis, not production. There are specialized tools for production management.
+
+### **NEVER Implement Social Features**
+
+The tool will NEVER:
+
+- Create writer social networks
+- Implement script sharing platforms
+- Add commenting/collaboration features
+- Build screenplay marketplaces
+
+**Why:** ScriptRAG is a local-first, privacy-focused analysis tool. Social features compromise privacy and shift focus from core functionality.
+
+### **NEVER Require Online Connectivity for Core Features**
+
+All essential ScriptRAG features must work offline. We will NEVER:
+
+- Require internet for basic parsing
+- Gate features behind online authentication
+- Make cloud sync mandatory
+- Require online validation for local analysis
+
+**Why:** Writers work everywhere - planes, cabins, coffee shops with bad wifi. Local-first is non-negotiable.
+
+### **NEVER Collect Telemetry Without Explicit Opt-In**
+
+The tool will NEVER:
+
+- Automatically collect usage statistics
+- Track script content or metadata
+- Monitor writing patterns
+- Share any data without explicit, informed consent
+
+**Why:** Privacy is paramount. Writers must have complete control over their data.
 
 ## 🚫 Never Use These Technologies
 
@@ -89,23 +222,47 @@ multi-user features.
 - Git-friendly structured data formats (JSON, YAML)
 - Let users create visualizations with external tools
 
+## 📝 Implementation Guidelines
+
+When implementing new features, ask:
+
+1. Does this respect writer autonomy?
+2. Does this make subjective creative decisions?
+3. Does this require modifying the writer's content?
+4. Does this judge or rate creative work?
+5. Does this compromise privacy or require online connectivity?
+
+If the answer to ANY of these is "yes" or "maybe", the feature belongs in this TO-NEVER-DO list.
+
+## 🎯 What ScriptRAG DOES Do
+
+For clarity, ScriptRAG DOES:
+
+- Parse and analyze Fountain format screenplays
+- Extract structured data (scenes, characters, dialogue)
+- Provide objective metrics and visualizations
+- Enable powerful search and query capabilities
+- Integrate with version control (Git)
+- Respect writer privacy and autonomy
+- Work entirely offline
+- Preserve creative intent
+
+## 💡 Philosophy
+
+> "A computer should never touch the creative aspects of a screenplay. That's the writer's domain, and it's sacred." - ScriptRAG Design Principle #1
+
+This document is not about limitations - it's about focus. By clearly defining what we won't do, we can excel at what we choose to do: providing writers with powerful, respectful, privacy-focused analysis tools that enhance their understanding of their own work without ever presuming to judge or modify it.
+
 ## 📝 How to Update This List
 
 This list should only be updated when:
 
-1. A technology is explicitly rejected by project maintainers
-2. A clear alternative has been identified
-3. The decision is considered permanent
-
-## 🎯 Purpose
-
-This document serves to:
-
-- Prevent wasted effort on rejected approaches
-- Guide contributors away from non-viable solutions
-- Maintain project focus on chosen technologies
-- Document architectural decisions clearly
+1. A technology or approach is explicitly rejected by project maintainers
+2. The decision aligns with our core philosophy of respecting writer autonomy
+3. A clear alternative has been identified (when applicable)
+4. The decision is considered permanent
 
 ---
 
+*Last Updated: 2025-08-19*
 *"Sometimes knowing what NOT to do is as important as knowing what to do."*

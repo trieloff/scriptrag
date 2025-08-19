@@ -29,11 +29,16 @@ class DatabaseConnectionManager:
             str(self.db_path), timeout=self.settings.database_timeout
         )
 
-        # Configure connection
-        conn.execute(f"PRAGMA journal_mode = {self.settings.database_journal_mode}")
-        conn.execute(f"PRAGMA synchronous = {self.settings.database_synchronous}")
-        conn.execute(f"PRAGMA cache_size = {self.settings.database_cache_size}")
-        conn.execute(f"PRAGMA temp_store = {self.settings.database_temp_store}")
+        # Configure connection pragmas
+        pragma_settings = {
+            "journal_mode": self.settings.database_journal_mode,
+            "synchronous": self.settings.database_synchronous,
+            "cache_size": self.settings.database_cache_size,
+            "temp_store": self.settings.database_temp_store,
+        }
+
+        for pragma, value in pragma_settings.items():
+            conn.execute(f"PRAGMA {pragma} = {value}")
 
         if self.settings.database_foreign_keys:
             conn.execute("PRAGMA foreign_keys = ON")

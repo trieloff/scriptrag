@@ -580,7 +580,7 @@ class TestGitHubModelsDiscoveryExtended:
             token=None,
             base_url="https://api.github.com",
             cache_ttl=3600,
-            use_cache=True,
+            use_cache=False,  # Disable cache to avoid contamination
             force_static=False,
         )
         # Without token, _fetch_models returns None and falls back to static

@@ -38,13 +38,27 @@ class RetryStrategy:
         """Calculate exponential backoff delay."""
         delay = min(self.base_retry_delay * (2 ** (attempt - 1)), self.max_retry_delay)
         # Add some jitter to prevent thundering herd
-        jitter = delay * 0.1 * (time.time() % 1)
+        # Use both fractional part and a hash-based component for better variation
+        time_fraction = time.time() % 1
+        # Add hash-based jitter using attempt number to ensure variation even
+        # with mocked time
+        hash_jitter = (hash(f"{attempt}_{time.time()}") % 1000) / 10000.0
+        jitter = delay * 0.1 * max(time_fraction, hash_jitter)
         return float(delay + jitter)
 
     def is_retryable_error(self, error: Exception) -> bool:
         """Determine if an error is retryable."""
         # Rate limit errors are retryable
         if isinstance(error, RateLimitError):
+            return True
+
+        # Common retryable exception types
+        retryable_types = (
+            ConnectionError,
+            TimeoutError,
+            # Add other timeout-related exceptions
+        )
+        if isinstance(error, retryable_types):
             return True
 
         # Network-related errors (connection timeouts, etc.)
@@ -106,7 +120,10 @@ class RetryStrategy:
         """
         last_error = None
 
-        for attempt in range(1, self.max_retries + 1):
+        # Always try at least once, even with max_retries=0
+        max_attempts = max(1, self.max_retries + 1)
+
+        for attempt in range(1, max_attempts + 1):
             try:
                 result = await operation_func(*args, **kwargs)
                 if metrics_callback:
@@ -123,7 +140,7 @@ class RetryStrategy:
                     raise e
 
                 # If this is the last attempt, don't retry
-                if attempt == self.max_retries:
+                if attempt >= max_attempts:
                     break
 
                 # Calculate delay and record retry

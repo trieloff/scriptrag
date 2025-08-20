@@ -106,10 +106,20 @@ class ScriptOperations:
             if isinstance(existing_meta.get("bible"), dict) or isinstance(
                 new_metadata.get("bible"), dict
             ):
-                merged_meta["bible"] = {
-                    **(existing_meta.get("bible") or {}),
-                    **(new_metadata.get("bible") or {}),
-                }
+                # Handle cases where existing or new bible metadata might not be dicts
+                existing_bible = existing_meta.get("bible") or {}
+                new_bible = new_metadata.get("bible") or {}
+
+                # Only merge if both are dicts, otherwise use the dict one or new one
+                if isinstance(existing_bible, dict) and isinstance(new_bible, dict):
+                    merged_meta["bible"] = {**existing_bible, **new_bible}
+                elif isinstance(new_bible, dict):
+                    merged_meta["bible"] = new_bible
+                elif isinstance(existing_bible, dict):
+                    merged_meta["bible"] = existing_bible
+                else:
+                    # Both are non-dicts, prefer new
+                    merged_meta["bible"] = new_bible
 
             # Update existing script
             conn.execute(

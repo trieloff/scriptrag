@@ -238,7 +238,7 @@ class TestScriptOperationsUpsertScript:
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
-        script_id = script_ops.upsert_script(mock_connection, sample_script, file_path)
+        script_id = script_ops.upsert_script(mock_connection, script, file_path)
 
         assert script_id == 123
 
@@ -247,8 +247,8 @@ class TestScriptOperationsUpsertScript:
         title = insert_call_args[0][1][1]  # 2nd parameter (0-indexed)
         author = insert_call_args[0][1][2]  # 3rd parameter (0-indexed)
 
-        assert title == "Test Script"  # From sample_script fixture
-        assert author == "Test Author"  # From sample_script fixture
+        assert title == "Untitled"  # Default for None title
+        assert author == "Unknown"  # Default for None author
 
     def test_upsert_script_lastrowid_none_error(
         self,

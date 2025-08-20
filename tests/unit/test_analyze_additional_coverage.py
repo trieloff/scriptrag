@@ -29,19 +29,18 @@ def mock_scene_analyzer() -> Mock:
 @pytest.fixture
 def sample_script() -> Script:
     """Create a sample script for testing."""
-    script = Script()
-    script.title = "Test Script"
-
-    # Create a scene with metadata
-    scene = Scene()
-    scene.number = 1
-    scene.heading = "INT. OFFICE - DAY"
-    scene.content = "Test scene content"
-    scene.content_hash = "test_hash"
+    # Create a scene with all required arguments
+    scene = Scene(
+        number=1,
+        heading="INT. OFFICE - DAY",
+        content="Test scene content",
+        original_text="INT. OFFICE - DAY\n\nTest scene content",
+        content_hash="test_hash",
+    )
     scene.boneyard_metadata = None
-    script.scenes = [scene]
 
-    return script
+    # Create script with all required arguments
+    return Script(title="Test Script", author="Test Author", scenes=[scene])
 
 
 class TestFileResult:
@@ -424,6 +423,9 @@ class TestAnalyzeCommand:
         relationships_analyzer.bible_characters = None
         relationships_analyzer._build_alias_index = Mock()
         relationships_analyzer.analyze = AsyncMock(return_value={})
+        # Remove initialize and cleanup attributes to prevent hasattr checks
+        del relationships_analyzer.initialize
+        del relationships_analyzer.cleanup
 
         command = AnalyzeCommand(analyzers=[relationships_analyzer])
 
@@ -461,6 +463,8 @@ class TestAnalyzeCommand:
         analyzer_with_init.name = "test"
         analyzer_with_init.initialize = AsyncMock()
         analyzer_with_init.analyze = AsyncMock(return_value={})
+        # Remove cleanup attribute to prevent hasattr check from passing
+        del analyzer_with_init.cleanup
 
         command = AnalyzeCommand(analyzers=[analyzer_with_init])
 
@@ -544,7 +548,13 @@ class TestAnalyzeCommand:
         """Test _scene_needs_update with scene having no metadata."""
         command = AnalyzeCommand()
 
-        scene = Scene()
+        scene = Scene(
+            number=1,
+            heading="INT. TEST - DAY",
+            content="Test content",
+            original_text="INT. TEST - DAY\n\nTest content",
+            content_hash="test_hash",
+        )
         scene.boneyard_metadata = None
 
         result = command._scene_needs_update(scene)
@@ -554,7 +564,13 @@ class TestAnalyzeCommand:
         """Test _scene_needs_update with metadata missing analyzed_at."""
         command = AnalyzeCommand()
 
-        scene = Scene()
+        scene = Scene(
+            number=1,
+            heading="INT. TEST - DAY",
+            content="Test content",
+            original_text="INT. TEST - DAY\n\nTest content",
+            content_hash="test_hash",
+        )
         scene.boneyard_metadata = {"some": "data"}
 
         result = command._scene_needs_update(scene)
@@ -566,7 +582,13 @@ class TestAnalyzeCommand:
         """Test _scene_needs_update when current analyzers missing from metadata."""
         command = AnalyzeCommand(analyzers=[mock_scene_analyzer])
 
-        scene = Scene()
+        scene = Scene(
+            number=1,
+            heading="INT. TEST - DAY",
+            content="Test content",
+            original_text="INT. TEST - DAY\n\nTest content",
+            content_hash="test_hash",
+        )
         scene.boneyard_metadata = {
             "analyzed_at": "2023-01-01T00:00:00",
             "analyzers": {"other-analyzer": {}},
@@ -581,7 +603,13 @@ class TestAnalyzeCommand:
         """Test _scene_needs_update when all analyzers are present."""
         command = AnalyzeCommand(analyzers=[mock_scene_analyzer])
 
-        scene = Scene()
+        scene = Scene(
+            number=1,
+            heading="INT. TEST - DAY",
+            content="Test content",
+            original_text="INT. TEST - DAY\n\nTest content",
+            content_hash="test_hash",
+        )
         scene.boneyard_metadata = {
             "analyzed_at": "2023-01-01T00:00:00",
             "analyzers": {"test-analyzer": {}},
@@ -595,7 +623,9 @@ class TestAnalyzeCommand:
         """Test loading bible metadata when database doesn't exist."""
         command = AnalyzeCommand()
 
-        with patch("scriptrag.api.analyze.DatabaseOperations") as mock_db_class:
+        with patch(
+            "scriptrag.api.database_operations.DatabaseOperations"
+        ) as mock_db_class:
             mock_db = Mock()
             mock_db.check_database_exists.return_value = False
             mock_db_class.return_value = mock_db
@@ -608,7 +638,9 @@ class TestAnalyzeCommand:
         """Test loading bible metadata when script record not found."""
         command = AnalyzeCommand()
 
-        with patch("scriptrag.api.analyze.DatabaseOperations") as mock_db_class:
+        with patch(
+            "scriptrag.api.database_operations.DatabaseOperations"
+        ) as mock_db_class:
             mock_db = Mock()
             mock_db.check_database_exists.return_value = True
 
@@ -631,7 +663,9 @@ class TestAnalyzeCommand:
         bible_data = {"version": 1, "characters": []}
         metadata = {"bible.characters": bible_data}
 
-        with patch("scriptrag.api.analyze.DatabaseOperations") as mock_db_class:
+        with patch(
+            "scriptrag.api.database_operations.DatabaseOperations"
+        ) as mock_db_class:
             mock_db = Mock()
             mock_db.check_database_exists.return_value = True
 
@@ -651,7 +685,9 @@ class TestAnalyzeCommand:
         """Test loading bible metadata with exception."""
         command = AnalyzeCommand()
 
-        with patch("scriptrag.api.analyze.DatabaseOperations") as mock_db_class:
+        with patch(
+            "scriptrag.api.database_operations.DatabaseOperations"
+        ) as mock_db_class:
             mock_db_class.side_effect = Exception("Database error")
 
             result = await command._load_bible_metadata(Path("/test.fountain"))

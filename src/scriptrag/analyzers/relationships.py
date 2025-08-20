@@ -115,7 +115,6 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         # Optional direct alias map injection for tests: config["bible_characters"]
         self._index: _AliasIndex | None = None
         # Back-compat attributes used by tests
-        self.alias_to_canonical: dict[str, str] = {}
         self.alias_patterns: dict[str, re.Pattern[str]] = {}
         # Build immediate alias index from config (tests don't call initialize())
         provided = self.config.get("bible_characters") if self.config else None
@@ -124,7 +123,6 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
             patterns_list = _compile_alias_patterns(list(alias_to_canonical))
             self._index = _AliasIndex(alias_to_canonical, canonicals, patterns_list)
             # Populate legacy attributes
-            self.alias_to_canonical = dict(alias_to_canonical)
             self.alias_patterns = {
                 alias: self._create_word_boundary_pattern(alias)
                 for alias in alias_to_canonical
@@ -143,7 +141,6 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
             alias_to_canonical, canonicals = _build_alias_index(provided)
             patterns = _compile_alias_patterns(list(alias_to_canonical))
             self._index = _AliasIndex(alias_to_canonical, canonicals, patterns)
-            self.alias_to_canonical = dict(alias_to_canonical)
             self.alias_patterns = {
                 alias: self._create_word_boundary_pattern(alias)
                 for alias in alias_to_canonical
@@ -190,7 +187,6 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
                 patterns = _compile_alias_patterns(list(alias_to_canonical))
                 self._index = _AliasIndex(alias_to_canonical, canonicals, patterns)
                 # Populate legacy attributes for tests/compat
-                self.alias_to_canonical = dict(alias_to_canonical)
                 self.alias_patterns = {
                     alias: self._create_word_boundary_pattern(alias)
                     for alias in alias_to_canonical
@@ -324,3 +320,24 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
                 if canonical:
                     found.add(canonical)
         return found
+
+    # Backward compatibility properties for tests
+    @property
+    def alias_to_canonical(self) -> dict[str, str]:
+        """Backward compatibility: access to alias mapping.
+
+        Returns:
+            Dictionary mapping aliases to canonical names
+        """
+        # Ensure index is initialized (either from config or DB)
+        if self._index is None:
+            # First try to initialize from config if available (for tests)
+            provided = self.config.get("bible_characters") if self.config else None
+            if provided:
+                alias_to_canonical, canonicals = _build_alias_index(provided)
+                patterns = _compile_alias_patterns(list(alias_to_canonical.keys()))
+                self._index = _AliasIndex(alias_to_canonical, canonicals, patterns)
+            else:
+                # Fallback to DB loading
+                self._ensure_index_from_db()
+        return self._index.alias_to_canonical if self._index else {}

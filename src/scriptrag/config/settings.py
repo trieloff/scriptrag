@@ -99,12 +99,12 @@ class ScriptRAGSettings(BaseSettings):
     log_level: str = Field(
         default="INFO",
         description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
-        pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
+        pattern="^(?i)(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
     )
     log_format: str = Field(
         default="console",
         description="Log output format (console, json, structured)",
-        pattern="^(console|json|structured)$",
+        pattern="^(?i)(console|json|structured)$",
     )
     log_file: Path | None = Field(
         default=None,
@@ -217,6 +217,22 @@ class ScriptRAGSettings(BaseSettings):
         return Path(v)  # pragma: no cover
         # This line is a defensive fallback for unexpected types.
         # In practice, Pydantic ensures v is always str or Path.
+
+    @field_validator("log_level", mode="before")
+    @classmethod
+    def normalize_log_level(cls, v: Any) -> str:
+        """Normalize log level to uppercase for case-insensitive handling."""
+        if isinstance(v, str):
+            return v.upper()
+        return str(v)
+
+    @field_validator("log_format", mode="before")
+    @classmethod
+    def normalize_log_format(cls, v: Any) -> str:
+        """Normalize log format to lowercase for case-insensitive handling."""
+        if isinstance(v, str):
+            return v.lower()
+        return str(v)
 
     @classmethod
     def from_env(cls) -> "ScriptRAGSettings":

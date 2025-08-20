@@ -74,7 +74,13 @@ class TestClaudeCodeProvider:
         self, provider: ClaudeCodeProvider
     ) -> None:
         """Test availability when SDK can be imported."""
-        with patch("claude_code_sdk.ClaudeCodeOptions"):
+        # Mock network calls to prevent CI timeouts
+        with (
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+            patch("httpx.AsyncClient") as mock_client,
+        ):
+            mock_client.return_value.__aenter__.return_value = MagicMock()
+            mock_client.return_value.__aexit__.return_value = None
             assert await provider.is_available() is True
 
     @pytest.mark.asyncio

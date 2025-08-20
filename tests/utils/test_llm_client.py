@@ -414,12 +414,17 @@ class TestLLMClient:
     @pytest.mark.asyncio
     async def test_initialization(self):
         """Test client initialization."""
-        client = LLMClient()
+        # Mock network calls during provider initialization to prevent CI timeouts
+        with patch("httpx.AsyncClient") as mock_client:
+            mock_client.return_value.__aenter__.return_value = MagicMock()
+            mock_client.return_value.__aexit__.return_value = None
 
-        assert len(client.providers) == 3
-        assert LLMProvider.CLAUDE_CODE in client.providers
-        assert LLMProvider.GITHUB_MODELS in client.providers
-        assert LLMProvider.OPENAI_COMPATIBLE in client.providers
+            client = LLMClient()
+
+            assert len(client.providers) == 3
+            assert LLMProvider.CLAUDE_CODE in client.providers
+            assert LLMProvider.GITHUB_MODELS in client.providers
+            assert LLMProvider.OPENAI_COMPATIBLE in client.providers
 
     @pytest.mark.asyncio
     async def test_provider_selection_preferred(self):

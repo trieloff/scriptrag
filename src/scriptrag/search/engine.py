@@ -3,6 +3,7 @@
 import asyncio
 import json
 import sqlite3
+import threading
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -86,19 +87,59 @@ class SearchEngine:
             ValueError: If database path is invalid
             DatabaseError: If database operations fail
         """
-        # Run async search in a new event loop
-        loop = asyncio.new_event_loop()
+        # Check if we're already in an event loop
         try:
-            return loop.run_until_complete(self.search_async(query))
-        except Exception as e:
-            logger.error(
-                "Search failed",
-                query=query.raw_query[:100] if query.raw_query else None,
-                error=str(e),
-            )
-            raise
-        finally:
-            loop.close()
+            asyncio.get_running_loop()
+            # We're in an async context, can't use run_until_complete
+            # Create a new thread to run the async function
+
+            result: SearchResponse | None = None
+            exception: Exception | None = None
+
+            def run_in_new_loop() -> None:
+                nonlocal result, exception
+                new_loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(new_loop)
+                try:
+                    result = new_loop.run_until_complete(self.search_async(query))
+                except Exception as e:
+                    exception = e
+                finally:
+                    new_loop.close()
+
+            thread = threading.Thread(target=run_in_new_loop)
+            thread.start()
+            thread.join(timeout=300)  # 5 minute timeout
+
+            # Check if thread is still alive (timeout occurred)
+            if thread.is_alive():
+                logger.error("Search thread timed out after 300 seconds")
+                raise RuntimeError("Search operation timed out")
+
+            if exception:
+                logger.error(
+                    "Search failed",
+                    query=query.raw_query[:100] if query.raw_query else None,
+                    error=str(exception),
+                )
+                raise exception
+            if result is None:
+                raise RuntimeError("Search result should not be None")
+            return result
+        except RuntimeError:
+            # No event loop is running, we can create one
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(self.search_async(query))
+            except Exception as e:
+                logger.error(
+                    "Search failed",
+                    query=query.raw_query[:100] if query.raw_query else None,
+                    error=str(e),
+                )
+                raise
+            finally:
+                loop.close()
 
     async def search_async(self, query: SearchQuery) -> SearchResponse:
         """Execute a search query asynchronously.

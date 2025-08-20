@@ -212,7 +212,6 @@ class ModelDiscoveryCache:
                 )
 
             except Exception:
-
                 # Clean up file descriptor if it wasn't consumed by fdopen
                 if temp_fd is not None:
                     with contextlib.suppress(OSError):

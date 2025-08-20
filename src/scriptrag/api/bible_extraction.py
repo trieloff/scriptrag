@@ -230,11 +230,11 @@ class BibleCharacterExtractor:
         import re
 
         # Enhanced pattern to match complete JSON arrays while avoiding embedded arrays
-        # Look for arrays that start with [ and contain objects at line boundaries
+        # Look for arrays that contain objects, not just simple values
         json_match = re.search(
-            r"(?:^|\n\s*)(\[\s*(?:\{.*?\}\s*,?\s*)*\])",
+            r"(\[\s*\{.*?\}\s*(?:,\s*\{.*?\}\s*)*\])",
             response,
-            re.DOTALL | re.MULTILINE,
+            re.DOTALL,
         )
         if json_match:
             try:

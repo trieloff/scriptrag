@@ -109,7 +109,6 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         """Create a relationships analyzer.
 
         Args:
-        
             config: Optional configuration. Supports key "bible_characters" to
                 inject a pre-parsed alias map for tests.
         """

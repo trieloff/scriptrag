@@ -209,7 +209,11 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         """
         # Ensure alias index is ready
         if self._index is None:
-            self._ensure_index_from_db()
+            # First try to initialize from config if available (for tests)
+            await self.initialize()
+            # If still None after initialize, try DB loading as fallback
+            if self._index is None:
+                self._ensure_index_from_db()
 
         if not self._index or not self._index.alias_to_canonical:
             # No-op when no bible map in config or DB
@@ -249,9 +253,6 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
                 continue
         mentions = self._scan_mentions("\n".join(text_blobs))
         present_set.update(mentions)
-
-        if not present_set:
-            return {}
 
         # Build co-presence pairs (unordered, unique, sorted)
         present_list = sorted(present_set)
@@ -318,3 +319,38 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
                 if canonical:
                     found.add(canonical)
         return found
+
+    # Backward compatibility properties for tests
+    @property
+    def alias_to_canonical(self) -> dict[str, str]:
+        """Backward compatibility: access to alias mapping.
+
+        Returns:
+            Dictionary mapping aliases to canonical names
+        """
+        # Ensure index is initialized (either from config or DB)
+        if self._index is None:
+            # First try to initialize from config if available (for tests)
+            provided = self.config.get("bible_characters") if self.config else None
+            if provided:
+                alias_to_canonical, canonicals = _build_alias_index(provided)
+                patterns = _compile_alias_patterns(list(alias_to_canonical.keys()))
+                self._index = _AliasIndex(alias_to_canonical, canonicals, patterns)
+            else:
+                # Fallback to DB loading
+                self._ensure_index_from_db()
+        return self._index.alias_to_canonical if self._index else {}
+
+    def _create_word_boundary_pattern(self, text: str) -> re.Pattern[str]:
+        """Backward compatibility: create word boundary pattern for given text.
+
+        Args:
+            text: The text to create a pattern for
+
+        Returns:
+            Compiled regex pattern for word-boundary matching
+        """
+        # Escape text and create boundary pattern (mirrors old implementation)
+        escaped = re.escape(text)
+        pattern = rf"\b{escaped}\b"
+        return re.compile(pattern, re.IGNORECASE)

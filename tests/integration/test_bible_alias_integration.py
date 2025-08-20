@@ -55,6 +55,7 @@ async def test_index_attaches_aliases_to_characters(tmp_path: Path) -> None:
         assert row is not None
         script_id = row["id"]
         meta = json.loads(row["metadata"]) if row["metadata"] else {}
+        # Store Bible characters data using dotted key format expected by index.py
         meta["bible.characters"] = {
             "version": 1,
             "extracted_at": datetime.utcnow().isoformat() + "Z",

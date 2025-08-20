@@ -12,7 +12,7 @@ from scriptrag.api.analyze import (
     FileResult,
     SceneAnalyzer,
 )
-from scriptrag.api.list import ScriptMetadata
+from scriptrag.api.list import FountainMetadata
 from scriptrag.parser import Scene, Script
 
 
@@ -232,7 +232,7 @@ class TestAnalyzeCommand:
         command = AnalyzeCommand(analyzers=[mock_scene_analyzer])
 
         # Mock script lister
-        script_meta = ScriptMetadata(file_path=Path("/test.fountain"), title="Test")
+        script_meta = FountainMetadata(file_path=Path("/test.fountain"), title="Test")
 
         # Mock progress callback
         progress_calls = []
@@ -268,7 +268,7 @@ class TestAnalyzeCommand:
         """Test analyze in brittle mode with file processing error."""
         command = AnalyzeCommand(analyzers=[mock_scene_analyzer])
 
-        script_meta = ScriptMetadata(file_path=Path("/test.fountain"), title="Test")
+        script_meta = FountainMetadata(file_path=Path("/test.fountain"), title="Test")
 
         with (
             patch("scriptrag.api.analyze.ScriptLister") as mock_lister_class,
@@ -292,7 +292,7 @@ class TestAnalyzeCommand:
         """Test analyze in non-brittle mode with file processing error."""
         command = AnalyzeCommand(analyzers=[mock_scene_analyzer])
 
-        script_meta = ScriptMetadata(file_path=Path("/test.fountain"), title="Test")
+        script_meta = FountainMetadata(file_path=Path("/test.fountain"), title="Test")
 
         with (
             patch("scriptrag.api.analyze.ScriptLister") as mock_lister_class,

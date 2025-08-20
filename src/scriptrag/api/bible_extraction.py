@@ -229,8 +229,13 @@ class BibleCharacterExtractor:
         # Try to find JSON array in response
         import re
 
-        # Look for JSON array pattern at the start of a line or after whitespace
-        json_match = re.search(r"(?:^|\s)(\[.*\])", response, re.DOTALL | re.MULTILINE)
+        # Enhanced pattern to match complete JSON arrays while avoiding embedded arrays
+        # Look for arrays that start with [ and contain objects at line boundaries
+        json_match = re.search(
+            r"(?:^|\n\s*)(\[\s*(?:\{.*?\}\s*,?\s*)*\])",
+            response,
+            re.DOTALL | re.MULTILINE,
+        )
         if json_match:
             try:
                 result = json.loads(json_match.group(1))

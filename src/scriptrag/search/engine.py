@@ -196,7 +196,8 @@ class SearchEngine:
                 # Build and execute count query for pagination
                 count_sql, count_params = self.query_builder.build_count_query(query)
                 count_cursor = conn.execute(count_sql, count_params)
-                total_count = count_cursor.fetchone()["total"]
+                count_result = count_cursor.fetchone()
+                total_count = count_result["total"] if count_result else 0
 
                 # Convert rows to SearchResult objects
                 for idx, row in enumerate(rows):
@@ -377,7 +378,8 @@ class SearchEngine:
             )
             count_sql = "SELECT COUNT(*) as total FROM " + count_sql
             count_cursor = conn.execute(count_sql, params)
-            bible_total_count = count_cursor.fetchone()["total"]
+            count_result = count_cursor.fetchone()
+            bible_total_count = count_result["total"] if count_result else 0
 
             # Convert rows to BibleSearchResult objects
             for row in rows:

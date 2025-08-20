@@ -7,8 +7,12 @@ import struct
 from collections.abc import Callable
 from typing import Any
 
+from scriptrag.config import get_logger
+
 from .vss_bible_ops import store_bible_embedding as store_bible
 from .vss_scene_ops import store_scene_embedding as store_scene
+
+logger = get_logger(__name__)
 
 
 def get_embedding_stats(conn: sqlite3.Connection) -> dict[str, Any]:
@@ -101,18 +105,28 @@ def migrate_from_blob_storage(
     )
 
     for row in cursor:
-        data = row["embedding"]
-        dimension = struct.unpack("<I", data[:4])[0]
-        format_str = f"<{dimension}f"
-        values = struct.unpack(format_str, data[4 : 4 + dimension * 4])
-        store_scene_fn(
-            conn,
-            row["entity_id"],
-            list(values),
-            row["embedding_model"],
-            serializer,
-        )
-        scenes_migrated += 1
+        try:
+            data = row["embedding"]
+            dimension = struct.unpack("<I", data[:4])[0]
+            format_str = f"<{dimension}f"
+            values = struct.unpack(format_str, data[4 : 4 + dimension * 4])
+            store_scene_fn(
+                conn,
+                row["entity_id"],
+                list(values),
+                row["embedding_model"],
+                serializer,
+            )
+            scenes_migrated += 1
+        except Exception as e:
+            logger.warning(
+                "Skipping corrupted scene embedding during migration",
+                extra={
+                    "entity_id": row.get("entity_id"),
+                    "model": row.get("embedding_model"),
+                    "error": str(e),
+                },
+            )
 
     # Migrate bible chunk embeddings
     cursor = conn.execute(
@@ -124,17 +138,27 @@ def migrate_from_blob_storage(
     )
 
     for row in cursor:
-        data = row["embedding"]
-        dimension = struct.unpack("<I", data[:4])[0]
-        format_str = f"<{dimension}f"
-        values = struct.unpack(format_str, data[4 : 4 + dimension * 4])
-        store_bible_fn(
-            conn,
-            row["entity_id"],
-            list(values),
-            row["embedding_model"],
-            serializer,
-        )
-        bible_migrated += 1
+        try:
+            data = row["embedding"]
+            dimension = struct.unpack("<I", data[:4])[0]
+            format_str = f"<{dimension}f"
+            values = struct.unpack(format_str, data[4 : 4 + dimension * 4])
+            store_bible_fn(
+                conn,
+                row["entity_id"],
+                list(values),
+                row["embedding_model"],
+                serializer,
+            )
+            bible_migrated += 1
+        except Exception as e:
+            logger.warning(
+                "Skipping corrupted bible embedding during migration",
+                extra={
+                    "entity_id": row.get("entity_id"),
+                    "model": row.get("embedding_model"),
+                    "error": str(e),
+                },
+            )
 
     return (scenes_migrated, bible_migrated)

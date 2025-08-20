@@ -11,6 +11,31 @@ from scriptrag.llm.models import CompletionRequest, EmbeddingRequest, LLMProvide
 from scriptrag.llm.providers.github_models import GitHubModelsProvider
 
 
+@pytest.fixture(autouse=True)
+def clear_model_cache():
+    """Clear model discovery cache to prevent Ubuntu CI cache corruption."""
+    # Clear in-memory cache from ModelDiscoveryCache if it exists
+    try:
+        from scriptrag.llm.model_cache import ModelDiscoveryCache
+
+        # Clear any existing in-memory cache
+        if hasattr(ModelDiscoveryCache, "_memory_cache"):
+            ModelDiscoveryCache._memory_cache.clear()
+    except ImportError:
+        pass
+
+    yield
+
+    # Clear again after test to prevent interference
+    try:
+        from scriptrag.llm.model_cache import ModelDiscoveryCache
+
+        if hasattr(ModelDiscoveryCache, "_memory_cache"):
+            ModelDiscoveryCache._memory_cache.clear()
+    except ImportError:
+        pass
+
+
 class TestGitHubModelsProvider:
     """Test GitHub Models provider functionality."""
 

@@ -291,3 +291,31 @@ database_path = "/tmp/test.db"
         configure_logging(settings)
         root_logger = logging.getLogger()
         assert root_logger.level == logging.DEBUG
+
+    def test_log_level_non_string_input(self):
+        """Test that non-string log level inputs are converted to strings."""
+        # Test integer input
+        with pytest.raises(ValueError, match="pattern"):
+            ScriptRAGSettings(log_level=123)
+
+        # Test None input
+        with pytest.raises(ValueError, match="pattern"):
+            ScriptRAGSettings(log_level=None)
+
+        # Test boolean input
+        with pytest.raises(ValueError, match="pattern"):
+            ScriptRAGSettings(log_level=True)
+
+    def test_log_format_non_string_input(self):
+        """Test that non-string log format inputs are converted to strings."""
+        # Test integer input
+        with pytest.raises(ValueError, match="pattern"):
+            ScriptRAGSettings(log_format=123)
+
+        # Test None input
+        with pytest.raises(ValueError, match="pattern"):
+            ScriptRAGSettings(log_format=None)
+
+        # Test boolean input
+        with pytest.raises(ValueError, match="pattern"):
+            ScriptRAGSettings(log_format=False)

@@ -31,7 +31,6 @@ def _normalize_speaker(raw: str) -> str:
     - Strip trailing parentheticals like "(CONT'D)", "(O.S.)", etc.
     - Trim whitespace
     """
-    # Remove trailing parentheticals
     cleaned = re.sub(r"\s*\([^)]*\)\s*$", "", raw or "")
     return cleaned.strip().upper()
 
@@ -82,9 +81,7 @@ def _compile_alias_patterns(aliases: list[str]) -> list[tuple[re.Pattern[str], s
     """
     patterns: list[tuple[re.Pattern[str], str]] = []
     for alias in aliases:
-        # Escape alias literally
         escaped = re.escape(alias)
-        # Custom boundary: not preceded/followed by [A-Za-z0-9]
         pattern = rf"(?<![A-Za-z0-9]){escaped}(?![A-Za-z0-9])"
         patterns.append((re.compile(pattern, re.IGNORECASE), alias))
     return patterns
@@ -124,7 +121,7 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         provided = self.config.get("bible_characters") if self.config else None
         if provided:
             alias_to_canonical, canonicals = _build_alias_index(provided)
-            patterns_list = _compile_alias_patterns(list(alias_to_canonical.keys()))
+            patterns_list = _compile_alias_patterns(list(alias_to_canonical))
             self._index = _AliasIndex(alias_to_canonical, canonicals, patterns_list)
             # Populate legacy attributes
             self.alias_to_canonical = dict(alias_to_canonical)
@@ -144,7 +141,7 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         provided = self.config.get("bible_characters") if self.config else None
         if provided:
             alias_to_canonical, canonicals = _build_alias_index(provided)
-            patterns = _compile_alias_patterns(list(alias_to_canonical.keys()))
+            patterns = _compile_alias_patterns(list(alias_to_canonical))
             self._index = _AliasIndex(alias_to_canonical, canonicals, patterns)
             self.alias_to_canonical = dict(alias_to_canonical)
             self.alias_patterns = {
@@ -190,7 +187,7 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
                         bible_chars = None
 
                 alias_to_canonical, canonicals = _build_alias_index(bible_chars)
-                patterns = _compile_alias_patterns(list(alias_to_canonical.keys()))
+                patterns = _compile_alias_patterns(list(alias_to_canonical))
                 self._index = _AliasIndex(alias_to_canonical, canonicals, patterns)
                 # Populate legacy attributes for tests/compat
                 self.alias_to_canonical = dict(alias_to_canonical)
@@ -232,7 +229,6 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
             else:
                 continue
             speaker = _normalize_speaker(raw)
-            # Map speaker via alias table if known; else skip
             canonical = self._resolve_alias(speaker)
             if canonical:
                 speaking_set.add(canonical)
@@ -253,6 +249,15 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
                 continue
         mentions = self._scan_mentions("\n".join(text_blobs))
         present_set.update(mentions)
+
+        if not present_set:
+            return {
+                "present": [],
+                "speaking": [],
+                "co_presence_pairs": [],
+                "speaking_edges": [],
+                "stats": {"present_count": 0, "speaking_count": 0},
+            }
 
         # Build co-presence pairs (unordered, unique, sorted)
         present_list = sorted(present_set)
@@ -319,38 +324,3 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
                 if canonical:
                     found.add(canonical)
         return found
-
-    # Backward compatibility properties for tests
-    @property
-    def alias_to_canonical(self) -> dict[str, str]:
-        """Backward compatibility: access to alias mapping.
-
-        Returns:
-            Dictionary mapping aliases to canonical names
-        """
-        # Ensure index is initialized (either from config or DB)
-        if self._index is None:
-            # First try to initialize from config if available (for tests)
-            provided = self.config.get("bible_characters") if self.config else None
-            if provided:
-                alias_to_canonical, canonicals = _build_alias_index(provided)
-                patterns = _compile_alias_patterns(list(alias_to_canonical.keys()))
-                self._index = _AliasIndex(alias_to_canonical, canonicals, patterns)
-            else:
-                # Fallback to DB loading
-                self._ensure_index_from_db()
-        return self._index.alias_to_canonical if self._index else {}
-
-    def _create_word_boundary_pattern(self, text: str) -> re.Pattern[str]:
-        """Backward compatibility: create word boundary pattern for given text.
-
-        Args:
-            text: The text to create a pattern for
-
-        Returns:
-            Compiled regex pattern for word-boundary matching
-        """
-        # Escape text and create boundary pattern (mirrors old implementation)
-        escaped = re.escape(text)
-        pattern = rf"\b{escaped}\b"
-        return re.compile(pattern, re.IGNORECASE)

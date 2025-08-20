@@ -101,7 +101,7 @@ class ModelDiscoveryCache:
                         f"In-memory cache expired for {self.provider_name}",
                         age=int(time.time() - timestamp),
                     )
-            else:
+            elif isinstance(entry, tuple) and len(entry) == 2:
                 # Backward-compat: older 2-tuple shape (timestamp, models)
                 timestamp = cast(float, entry[0])
                 models = cast(list[Model], entry[1])
@@ -115,6 +115,14 @@ class ModelDiscoveryCache:
                 # Clear expired in-memory cache
                 del self._memory_cache[self.provider_name]
                 logger.debug(f"In-memory cache expired for {self.provider_name}")
+            else:
+                # Invalid cache entry - clear it
+                logger.warning(
+                    f"Invalid cache entry for {self.provider_name}, clearing",
+                    entry_type=type(entry).__name__,
+                    entry_len=len(entry) if isinstance(entry, tuple) else "N/A",
+                )
+                del self._memory_cache[self.provider_name]
 
         # Fall back to file cache
         if not self.cache_file.exists():

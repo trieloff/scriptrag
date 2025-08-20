@@ -381,3 +381,111 @@ class TestModelCacheCoverage:
                 mock_info.assert_called()
                 info_msg = mock_info.call_args[0][0]
                 assert "Using file cached models for test_provider" in info_msg
+
+    def test_invalid_memory_cache_entry_empty_tuple(self, tmp_path):
+        """Test handling of invalid empty tuple in memory cache."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Add invalid empty tuple to memory cache
+            cache._memory_cache["test_provider"] = ()
+
+            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
+                result = cache.get()
+
+                # Should return None for invalid entry
+                assert result is None
+
+                # Should log warning about invalid entry
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Invalid cache entry for test_provider" in warning_msg
+
+                # Should include entry details in kwargs
+                warning_kwargs = mock_warning.call_args[1]
+                assert warning_kwargs["entry_type"] == "tuple"
+                assert warning_kwargs["entry_len"] == 0
+
+                # Should have cleared the invalid entry
+                assert "test_provider" not in cache._memory_cache
+
+    def test_invalid_memory_cache_entry_single_tuple(self, tmp_path):
+        """Test handling of invalid single-element tuple in memory cache."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Add invalid single-element tuple to memory cache
+            cache._memory_cache["test_provider"] = (time.time(),)
+
+            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
+                result = cache.get()
+
+                # Should return None for invalid entry
+                assert result is None
+
+                # Should log warning about invalid entry
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Invalid cache entry for test_provider" in warning_msg
+
+                # Should include entry details in kwargs
+                warning_kwargs = mock_warning.call_args[1]
+                assert warning_kwargs["entry_type"] == "tuple"
+                assert warning_kwargs["entry_len"] == 1
+
+                # Should have cleared the invalid entry
+                assert "test_provider" not in cache._memory_cache
+
+    def test_invalid_memory_cache_entry_non_tuple(self, tmp_path):
+        """Test handling of non-tuple invalid entry in memory cache."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Add invalid non-tuple entry to memory cache
+            cache._memory_cache["test_provider"] = "invalid_string_entry"
+
+            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
+                result = cache.get()
+
+                # Should return None for invalid entry
+                assert result is None
+
+                # Should log warning about invalid entry
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Invalid cache entry for test_provider" in warning_msg
+
+                # Should include entry details in kwargs
+                warning_kwargs = mock_warning.call_args[1]
+                assert warning_kwargs["entry_type"] == "str"
+                assert warning_kwargs["entry_len"] == "N/A"
+
+                # Should have cleared the invalid entry
+                assert "test_provider" not in cache._memory_cache
+
+    def test_invalid_memory_cache_entry_wrong_sized_tuple(self, tmp_path):
+        """Test handling of wrong-sized tuple (not 2 or 3) in memory cache."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Add invalid 4-element tuple to memory cache
+            cache._memory_cache["test_provider"] = (time.time(), [], "extra", "invalid")
+
+            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
+                result = cache.get()
+
+                # Should return None for invalid entry
+                assert result is None
+
+                # Should log warning about invalid entry
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Invalid cache entry for test_provider" in warning_msg
+
+                # Should include entry details in kwargs
+                warning_kwargs = mock_warning.call_args[1]
+                assert warning_kwargs["entry_type"] == "tuple"
+                assert warning_kwargs["entry_len"] == 4
+
+                # Should have cleared the invalid entry
+                assert "test_provider" not in cache._memory_cache

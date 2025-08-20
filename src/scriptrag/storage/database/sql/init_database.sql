@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS characters (
     -- JSON array of uppercase alias strings, stored as TEXT for compatibility
     aliases TEXT,
     description TEXT,
-    aliases TEXT,  -- JSON array of uppercase alias strings from Bible
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     metadata JSON,

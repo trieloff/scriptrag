@@ -142,6 +142,10 @@ class ModelDiscoveryCache:
 
             try:
                 # Write data to temp file
+                # Note: On Windows, if os.fdopen() fails the file descriptor
+                # from mkstemp() remains open, which prevents unlink().
+                # We handle that in the exception path by explicitly closing
+                # the descriptor before attempting cleanup.
                 with os.fdopen(temp_fd, "w") as f:
                     json.dump(cache_data, f, indent=2)
 
@@ -157,6 +161,12 @@ class ModelDiscoveryCache:
                 )
 
             except Exception:
+                # Ensure the raw file descriptor is closed before cleanup.
+                # If the failure occurred before the context manager could
+                # wrap/close the descriptor (e.g. os.fdopen raised), the
+                # descriptor is still open and Windows will not allow unlink().
+                with contextlib.suppress(OSError):
+                    os.close(temp_fd)
                 # Clean up temp file if something went wrong
                 with contextlib.suppress(OSError):
                     Path(temp_path).unlink()

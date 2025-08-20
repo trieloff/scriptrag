@@ -117,6 +117,21 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         self.script: Any | None = None
         # Optional direct alias map injection for tests: config["bible_characters"]
         self._index: _AliasIndex | None = None
+        # Back-compat attributes used by tests
+        self.alias_to_canonical: dict[str, str] = {}
+        self.alias_patterns: dict[str, re.Pattern[str]] = {}
+        # Build immediate alias index from config (tests don't call initialize())
+        provided = self.config.get("bible_characters") if self.config else None
+        if provided:
+            alias_to_canonical, canonicals = _build_alias_index(provided)
+            patterns_list = _compile_alias_patterns(list(alias_to_canonical.keys()))
+            self._index = _AliasIndex(alias_to_canonical, canonicals, patterns_list)
+            # Populate legacy attributes
+            self.alias_to_canonical = dict(alias_to_canonical)
+            self.alias_patterns = {
+                alias: self._create_word_boundary_pattern(alias)
+                for alias in alias_to_canonical
+            }
 
     @property
     def name(self) -> str:
@@ -131,6 +146,11 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
             alias_to_canonical, canonicals = _build_alias_index(provided)
             patterns = _compile_alias_patterns(list(alias_to_canonical.keys()))
             self._index = _AliasIndex(alias_to_canonical, canonicals, patterns)
+            self.alias_to_canonical = dict(alias_to_canonical)
+            self.alias_patterns = {
+                alias: self._create_word_boundary_pattern(alias)
+                for alias in alias_to_canonical
+            }
 
     def _ensure_index_from_db(self) -> None:
         """Load alias index from DB scripts.metadata if not already loaded."""
@@ -172,6 +192,12 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
                 alias_to_canonical, canonicals = _build_alias_index(bible_chars)
                 patterns = _compile_alias_patterns(list(alias_to_canonical.keys()))
                 self._index = _AliasIndex(alias_to_canonical, canonicals, patterns)
+                # Populate legacy attributes for tests/compat
+                self.alias_to_canonical = dict(alias_to_canonical)
+                self.alias_patterns = {
+                    alias: self._create_word_boundary_pattern(alias)
+                    for alias in alias_to_canonical
+                }
         except Exception as e:  # pragma: no cover
             logger.info(f"Relationships analyzer: DB load failed: {e}")
             self._index = _AliasIndex({}, set(), [])
@@ -186,13 +212,22 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
             self._ensure_index_from_db()
 
         if not self._index or not self._index.alias_to_canonical:
-            # No-op when no bible map
+            # No-op when no bible map in config or DB
             return {}
 
         # Collect speaking characters (normalize speakers via alias map)
         speaking_set: set[str] = set()
         for d in scene.get("dialogue") or []:
-            speaker = _normalize_speaker(d.get("character", ""))
+            raw = ""
+            if isinstance(d, dict):
+                raw = str(d.get("character") or "")
+            elif isinstance(d, str):
+                raw = d.strip()
+                if ":" in raw:
+                    raw = raw.split(":", 1)[0]
+            else:
+                continue
+            speaker = _normalize_speaker(raw)
             # Map speaker via alias table if known; else skip
             canonical = self._resolve_alias(speaker)
             if canonical:
@@ -203,8 +238,15 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         text_blobs: list[str] = []
         if scene.get("heading"):
             text_blobs.append(scene["heading"])
-        for line in scene.get("action") or []:
-            text_blobs.append(line)
+        for entry in scene.get("action") or []:
+            if isinstance(entry, str):
+                text_blobs.append(entry)
+            elif isinstance(entry, dict):
+                text = entry.get("text") or ""
+                if text:
+                    text_blobs.append(str(text))
+            else:
+                continue
         mentions = self._scan_mentions("\n".join(text_blobs))
         present_set.update(mentions)
 
@@ -240,6 +282,30 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         # Exact, case-insensitive match of alias keys
         key = name_or_alias.strip().upper()
         return self._index.alias_to_canonical.get(key) if self._index else None
+
+    # Back-compat API expected by existing tests
+    def _create_word_boundary_pattern(self, text: str) -> re.Pattern[str]:
+        """Create a regex pattern for word-boundary matching.
+
+        Escapes special characters and matches transitions from/to non-
+        alphanumeric to avoid partial matches (e.g., BOB != BOBBIN).
+        """
+        escaped = re.escape(text)
+        return re.compile(rf"(?<![A-Za-z0-9]){escaped}(?![A-Za-z0-9])", re.IGNORECASE)
+
+    def _resolve_to_canonical(self, name: str) -> str | None:
+        """Resolve a name/alias to its canonical form using local map."""
+        return self.alias_to_canonical.get(name.upper())
+
+    def _find_mentions_in_text(self, text: str) -> set[str]:
+        """Find mentions using precompiled alias patterns."""
+        mentioned: set[str] = set()
+        for alias, pattern in self.alias_patterns.items():
+            if pattern.search(text):
+                canonical = self.alias_to_canonical.get(alias)
+                if canonical:
+                    mentioned.add(canonical)
+        return mentioned
 
     def _scan_mentions(self, text: str) -> set[str]:
         """Scan text for alias matches and return set of canonical names."""

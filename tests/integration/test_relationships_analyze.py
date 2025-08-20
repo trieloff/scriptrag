@@ -54,7 +54,7 @@ async def test_analyze_relationships_persists_scene_metadata(tmp_path: Path) -> 
         assert row is not None
         script_id = row["id"]
         meta = json.loads(row["metadata"]) if row["metadata"] else {}
-        meta.setdefault("bible", {})["characters"] = {
+        meta["bible.characters"] = {
             "version": 1,
             "extracted_at": datetime.utcnow().isoformat() + "Z",
             "characters": [

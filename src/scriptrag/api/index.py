@@ -319,7 +319,6 @@ class IndexCommand:
                     character_map = self.db_ops.upsert_characters(
                         conn, script_id, all_characters
                     )
-
                     # Apply Bible aliases if available
                     await self._apply_bible_aliases(conn, script_id, character_map)
 

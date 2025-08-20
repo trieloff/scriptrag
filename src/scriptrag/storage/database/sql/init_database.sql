@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS characters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     script_id INTEGER NOT NULL,
     name TEXT NOT NULL,
+    -- JSON array of uppercase alias strings, stored as TEXT for compatibility
+    aliases TEXT,
     description TEXT,
     aliases TEXT,  -- JSON array of uppercase alias strings from Bible
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

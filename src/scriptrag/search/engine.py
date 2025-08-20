@@ -197,7 +197,15 @@ class SearchEngine:
                 count_sql, count_params = self.query_builder.build_count_query(query)
                 count_cursor = conn.execute(count_sql, count_params)
                 count_result = count_cursor.fetchone()
-                total_count = count_result["total"] if count_result else 0
+                # Handle None result or missing 'total' key gracefully
+                if count_result:
+                    try:
+                        total_count = count_result["total"] or 0
+                    except (KeyError, TypeError, IndexError):
+                        # Handle various cases where 'total' key is missing
+                        total_count = 0
+                else:
+                    total_count = 0
 
                 # Convert rows to SearchResult objects
                 for idx, row in enumerate(rows):

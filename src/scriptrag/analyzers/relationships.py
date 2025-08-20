@@ -148,7 +148,7 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         speaking = set()
         speaking_edges = []
 
-        dialogue_entries = scene.get("dialogue", [])
+        dialogue_entries = scene.get("dialogue", []) or []
         for entry in dialogue_entries:
             if isinstance(entry, dict):
                 speaker = entry.get("character", "")
@@ -169,7 +169,7 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         if heading:
             mentioned.update(self._find_mentions_in_text(heading))
 
-        action_lines = scene.get("action", [])
+        action_lines = scene.get("action", []) or []
         for action in action_lines:
             if isinstance(action, str):
                 mentioned.update(self._find_mentions_in_text(action))

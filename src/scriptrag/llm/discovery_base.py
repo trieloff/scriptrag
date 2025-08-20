@@ -49,6 +49,25 @@ class ModelDiscovery:
         if self.cache:
             cached_models = self.cache.get()
             if cached_models is not None:
+                # If cached list is smaller than our static fallback,
+                # supplement it to avoid under-reporting due to prior runs
+                # (e.g., tests writing minimal caches under different settings).
+                if self.static_models and len(cached_models) < len(self.static_models):
+                    logger.info(
+                        (
+                            f"Cached model list smaller than static for "
+                            f"{self.provider_name}, supplementing with static models"
+                        ),
+                        cached_count=len(cached_models),
+                        static_count=len(self.static_models),
+                    )
+                    discovered_by_id = {m.id: m for m in cached_models}
+                    combined_models: list[Model] = []
+                    for static_model in self.static_models:
+                        combined_models.append(
+                            discovered_by_id.get(static_model.id, static_model)
+                        )
+                    return combined_models
                 return cached_models
 
         # Try dynamic discovery

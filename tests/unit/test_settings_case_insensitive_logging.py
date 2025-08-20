@@ -293,29 +293,49 @@ database_path = "/tmp/test.db"
         assert root_logger.level == logging.DEBUG
 
     def test_log_level_non_string_input(self):
-        """Test that non-string log level inputs are converted to strings."""
+        """Test that non-string log level inputs are rejected."""
         # Test integer input
-        with pytest.raises(ValueError, match="pattern"):
+        with pytest.raises(ValueError, match="log_level must be a string"):
             ScriptRAGSettings(log_level=123)
 
         # Test None input
-        with pytest.raises(ValueError, match="pattern"):
+        with pytest.raises(ValueError, match="log_level must be a string"):
             ScriptRAGSettings(log_level=None)
 
         # Test boolean input
-        with pytest.raises(ValueError, match="pattern"):
+        with pytest.raises(ValueError, match="log_level must be a string"):
             ScriptRAGSettings(log_level=True)
 
     def test_log_format_non_string_input(self):
-        """Test that non-string log format inputs are converted to strings."""
+        """Test that non-string log format inputs are rejected."""
         # Test integer input
-        with pytest.raises(ValueError, match="pattern"):
+        with pytest.raises(ValueError, match="log_format must be a string"):
             ScriptRAGSettings(log_format=123)
 
         # Test None input
-        with pytest.raises(ValueError, match="pattern"):
+        with pytest.raises(ValueError, match="log_format must be a string"):
             ScriptRAGSettings(log_format=None)
 
         # Test boolean input
-        with pytest.raises(ValueError, match="pattern"):
+        with pytest.raises(ValueError, match="log_format must be a string"):
             ScriptRAGSettings(log_format=False)
+
+    def test_log_level_list_input(self):
+        """Test that list log level inputs are rejected."""
+        with pytest.raises(ValueError, match="log_level must be a string"):
+            ScriptRAGSettings(log_level=["DEBUG"])
+
+    def test_log_level_dict_input(self):
+        """Test that dict log level inputs are rejected."""
+        with pytest.raises(ValueError, match="log_level must be a string"):
+            ScriptRAGSettings(log_level={"level": "DEBUG"})
+
+    def test_log_format_list_input(self):
+        """Test that list log format inputs are rejected."""
+        with pytest.raises(ValueError, match="log_format must be a string"):
+            ScriptRAGSettings(log_format=["console"])
+
+    def test_log_format_dict_input(self):
+        """Test that dict log format inputs are rejected."""
+        with pytest.raises(ValueError, match="log_format must be a string"):
+            ScriptRAGSettings(log_format={"format": "json"})

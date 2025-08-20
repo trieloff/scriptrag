@@ -1122,3 +1122,189 @@ class TestSearchEngine:
             # Should not crash and should return empty results with 0 count
             assert bible_results == []
             assert bible_total == 0
+
+    def test_search_handles_null_count_query_result(self, mock_settings, tmp_path):
+        """Test that search gracefully handles when count query returns None."""
+        # Create a minimal database
+        db_path = tmp_path / "null_count.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+
+        # Create minimal schema
+        conn.execute("""
+            CREATE TABLE scripts (
+                id INTEGER PRIMARY KEY,
+                title TEXT,
+                author TEXT,
+                metadata TEXT
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE scenes (
+                id INTEGER PRIMARY KEY,
+                script_id INTEGER,
+                scene_number INTEGER,
+                heading TEXT,
+                location TEXT,
+                time_of_day TEXT,
+                content TEXT
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE characters (
+                id INTEGER PRIMARY KEY,
+                script_id INTEGER,
+                name TEXT,
+                description TEXT
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE dialogues (
+                id INTEGER PRIMARY KEY,
+                scene_id INTEGER,
+                character_id INTEGER,
+                dialogue_text TEXT,
+                order_in_scene INTEGER
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE actions (
+                id INTEGER PRIMARY KEY,
+                scene_id INTEGER,
+                action_text TEXT,
+                order_in_scene INTEGER
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE bible_content (
+                id INTEGER PRIMARY KEY,
+                script_id INTEGER,
+                content TEXT,
+                metadata TEXT
+            )
+        """)
+
+        conn.commit()
+        conn.close()
+
+        mock_settings.database_path = db_path
+        engine = SearchEngine(mock_settings)
+
+        # Mock the query builder to return a count query that will return None
+        with patch.object(engine.query_builder, "build_count_query") as mock_count:
+            # Return a query that fetches no rows (simulating database issue)
+            mock_count.return_value = ("SELECT NULL as total WHERE 1=0", [])
+
+            query = SearchQuery(
+                raw_query="test",
+                text_query="test",
+                mode=SearchMode.AUTO,
+                limit=10,
+                offset=0,
+            )
+
+            # This should not raise an exception
+            response = engine.search(query)
+
+            # Should return empty results with 0 total count
+            assert isinstance(response, SearchResponse)
+            assert response.total_count == 0
+            assert response.results == []
+
+    def test_search_handles_malformed_count_query_result(self, mock_settings, tmp_path):
+        """Test search handles when count query returns malformed result."""
+        # Create a minimal database
+        db_path = tmp_path / "malformed_count.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+
+        # Create minimal schema
+        conn.execute("""
+            CREATE TABLE scripts (
+                id INTEGER PRIMARY KEY,
+                title TEXT,
+                author TEXT,
+                metadata TEXT
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE scenes (
+                id INTEGER PRIMARY KEY,
+                script_id INTEGER,
+                scene_number INTEGER,
+                heading TEXT,
+                location TEXT,
+                time_of_day TEXT,
+                content TEXT
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE characters (
+                id INTEGER PRIMARY KEY,
+                script_id INTEGER,
+                name TEXT,
+                description TEXT
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE dialogues (
+                id INTEGER PRIMARY KEY,
+                scene_id INTEGER,
+                character_id INTEGER,
+                dialogue_text TEXT,
+                order_in_scene INTEGER
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE actions (
+                id INTEGER PRIMARY KEY,
+                scene_id INTEGER,
+                action_text TEXT,
+                order_in_scene INTEGER
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE bible_content (
+                id INTEGER PRIMARY KEY,
+                script_id INTEGER,
+                content TEXT,
+                metadata TEXT
+            )
+        """)
+
+        conn.commit()
+        conn.close()
+
+        mock_settings.database_path = db_path
+        engine = SearchEngine(mock_settings)
+
+        # Mock the query builder to return a count query with wrong column name
+        with patch.object(engine.query_builder, "build_count_query") as mock_count:
+            # Return a query that returns a row but with wrong column name
+            mock_count.return_value = ("SELECT 0 as wrong_column", [])
+
+            query = SearchQuery(
+                raw_query="test",
+                text_query="test",
+                mode=SearchMode.AUTO,
+                limit=10,
+                offset=0,
+            )
+
+            # This should not raise an exception
+            response = engine.search(query)
+
+            # Should return empty results with 0 total count
+            assert isinstance(response, SearchResponse)
+            assert response.total_count == 0
+            assert response.results == []

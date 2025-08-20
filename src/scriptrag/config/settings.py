@@ -224,7 +224,8 @@ class ScriptRAGSettings(BaseSettings):
         """Normalize log level to uppercase for case-insensitive handling."""
         if isinstance(v, str):
             return v.upper()
-        return str(v)
+        # Only accept string values, reject other types
+        raise ValueError(f"log_level must be a string, got {type(v).__name__}")
 
     @field_validator("log_format", mode="before")
     @classmethod
@@ -232,7 +233,8 @@ class ScriptRAGSettings(BaseSettings):
         """Normalize log format to lowercase for case-insensitive handling."""
         if isinstance(v, str):
             return v.lower()
-        return str(v)
+        # Only accept string values, reject other types
+        raise ValueError(f"log_format must be a string, got {type(v).__name__}")
 
     @classmethod
     def from_env(cls) -> "ScriptRAGSettings":

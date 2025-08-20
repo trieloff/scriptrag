@@ -3,6 +3,7 @@
 import asyncio
 import json
 import sqlite3
+import threading
 import time
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -91,7 +92,6 @@ class SearchEngine:
             asyncio.get_running_loop()
             # We're in an async context, can't use run_until_complete
             # Create a new thread to run the async function
-            import threading
 
             result: SearchResponse | None = None
             exception: Exception | None = None
@@ -109,7 +109,12 @@ class SearchEngine:
 
             thread = threading.Thread(target=run_in_new_loop)
             thread.start()
-            thread.join()
+            thread.join(timeout=300)  # 5 minute timeout
+
+            # Check if thread is still alive (timeout occurred)
+            if thread.is_alive():
+                logger.error("Search thread timed out after 300 seconds")
+                raise RuntimeError("Search operation timed out")
 
             if exception:
                 logger.error(

@@ -7,7 +7,7 @@ import os
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from pydantic_core import ValidationError
 
@@ -32,7 +32,10 @@ class ModelDiscoveryCache:
     CACHE_DIR: ClassVar[Path] = Path.home() / ".cache" / "scriptrag"
 
     # In-memory cache to avoid repeated file I/O and JSON parsing
-    _memory_cache: ClassVar[dict[str, tuple[float, list[Model]]]] = {}
+    # In-memory cache structure: provider_name -> (timestamp, models[, cache_dir])
+    # The optional 3rd element (cache_dir) namespaces the entry by the CACHE_DIR
+    # to avoid cross-test contamination when different tests monkeypatch CACHE_DIR.
+    _memory_cache: ClassVar[dict[str, tuple]] = {}
 
     def __init__(self, provider_name: str, ttl: int | None = None) -> None:
         """Initialize model discovery cache.
@@ -65,17 +68,50 @@ class ModelDiscoveryCache:
         """
         # Check in-memory cache first
         if self.provider_name in self._memory_cache:
-            timestamp, models = self._memory_cache[self.provider_name]
-            if time.time() - timestamp <= self.ttl:
-                logger.debug(
-                    f"Using in-memory cached models for {self.provider_name}",
-                    count=len(models),
-                    age=int(time.time() - timestamp),
-                )
-                return models
-            # Clear expired in-memory cache
-            del self._memory_cache[self.provider_name]
-            logger.debug(f"In-memory cache expired for {self.provider_name}")
+            entry = self._memory_cache[self.provider_name]
+            # Entry shape with namespace: (timestamp, models, cache_dir)
+            if isinstance(entry, tuple) and len(entry) == 3:
+                timestamp = cast(float, entry[0])
+                models = cast(list[Model], entry[1])
+                cache_dir = cast(str, entry[2])
+                same_namespace = str(Path(cache_dir)) == str(self.CACHE_DIR.resolve())
+                if not same_namespace:
+                    logger.debug(
+                        (
+                            "Ignoring in-memory cache for provider "
+                            "due to different namespace"
+                        ),
+                        stored_namespace=cache_dir,
+                        current_namespace=str(self.CACHE_DIR.resolve()),
+                    )
+                elif time.time() - timestamp <= self.ttl:
+                    logger.debug(
+                        f"Using in-memory cached models for {self.provider_name}",
+                        count=len(models),
+                        age=int(time.time() - timestamp),
+                    )
+                    return models
+                else:
+                    # Expired entry
+                    del self._memory_cache[self.provider_name]
+                    logger.debug(
+                        f"In-memory cache expired for {self.provider_name}",
+                        age=int(time.time() - timestamp),
+                    )
+            else:
+                # Backward-compat: older 2-tuple shape (timestamp, models)
+                timestamp = cast(float, entry[0])
+                models = cast(list[Model], entry[1])
+                if time.time() - timestamp <= self.ttl:
+                    logger.debug(
+                        f"Using in-memory cached models for {self.provider_name}",
+                        count=len(models),
+                        age=int(time.time() - timestamp),
+                    )
+                    return models
+                # Clear expired in-memory cache
+                del self._memory_cache[self.provider_name]
+                logger.debug(f"In-memory cache expired for {self.provider_name}")
 
         # Fall back to file cache
         if not self.cache_file.exists():
@@ -101,7 +137,11 @@ class ModelDiscoveryCache:
             ]
 
             # Store in memory cache for faster subsequent access
-            self._memory_cache[self.provider_name] = (timestamp, cached_models)
+            self._memory_cache[self.provider_name] = (
+                timestamp,
+                cached_models,
+                str(self.CACHE_DIR.resolve()),
+            )
 
             logger.info(
                 f"Using file cached models for {self.provider_name}",
@@ -123,7 +163,11 @@ class ModelDiscoveryCache:
         timestamp = time.time()
 
         # Update in-memory cache immediately
-        self._memory_cache[self.provider_name] = (timestamp, models)
+        self._memory_cache[self.provider_name] = (
+            timestamp,
+            models,
+            str(self.CACHE_DIR.resolve()),
+        )
 
         try:
             cache_data = {
@@ -142,6 +186,10 @@ class ModelDiscoveryCache:
 
             try:
                 # Write data to temp file
+                # Note: On Windows, if os.fdopen() fails the file descriptor
+                # from mkstemp() remains open, which prevents unlink().
+                # We handle that in the exception path by explicitly closing
+                # the descriptor before attempting cleanup.
                 with os.fdopen(temp_fd, "w") as f:
                     json.dump(cache_data, f, indent=2)
 
@@ -157,6 +205,12 @@ class ModelDiscoveryCache:
                 )
 
             except Exception:
+                # Ensure the raw file descriptor is closed before cleanup.
+                # If the failure occurred before the context manager could
+                # wrap/close the descriptor (e.g. os.fdopen raised), the
+                # descriptor is still open and Windows will not allow unlink().
+                with contextlib.suppress(OSError):
+                    os.close(temp_fd)
                 # Clean up temp file if something went wrong
                 with contextlib.suppress(OSError):
                     Path(temp_path).unlink()

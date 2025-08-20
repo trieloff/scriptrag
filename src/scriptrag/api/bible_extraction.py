@@ -219,25 +219,27 @@ class BibleCharacterExtractor:
         Returns:
             Parsed JSON array
         """
-        # Try to find JSON array in response
-        import re
-
-        # Look for JSON array pattern
-        json_match = re.search(r"\[.*\]", response, re.DOTALL)
-        if json_match:
-            try:
-                result = json.loads(json_match.group())
-                return result if isinstance(result, list) else []
-            except json.JSONDecodeError:
-                pass
-
-        # Try parsing the whole response
+        # Try parsing the whole response first to avoid false positives
         try:
             result = json.loads(response)
             return result if isinstance(result, list) else []
         except json.JSONDecodeError:
-            logger.warning("Could not parse LLM response as JSON")
-            return []
+            pass
+
+        # Try to find JSON array in response
+        import re
+
+        # Look for JSON array pattern at the start of a line or after whitespace
+        json_match = re.search(r"(?:^|\s)(\[.*\])", response, re.DOTALL | re.MULTILINE)
+        if json_match:
+            try:
+                result = json.loads(json_match.group(1))
+                return result if isinstance(result, list) else []
+            except json.JSONDecodeError:
+                pass
+
+        logger.warning("Could not parse LLM response as JSON")
+        return []
 
     def _normalize_characters(
         self, characters: list[BibleCharacter]

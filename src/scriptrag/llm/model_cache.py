@@ -130,6 +130,7 @@ class ModelDiscoveryCache:
 
         # Initialize for safe cleanup if temporary file creation fails early
         temp_path: str | None = None
+        temp_fd: int | None = None
         try:
             cache_data = {
                 "timestamp": timestamp,
@@ -147,8 +148,13 @@ class ModelDiscoveryCache:
 
             try:
                 # Write data to temp file
+                # fdopen takes ownership of the file descriptor
                 with os.fdopen(temp_fd, "w") as f:
                     json.dump(cache_data, f, indent=2)
+                    # After this point, temp_fd is closed by fdopen's context manager
+
+                # Mark that fd was consumed by fdopen
+                temp_fd = None
 
                 # Set restrictive permissions on the temp file
                 Path(temp_path).chmod(0o600)
@@ -162,10 +168,15 @@ class ModelDiscoveryCache:
                 )
 
             except Exception:
-                # Clean up temp file if something went wrong.
-                # Avoid a branch on None; suppress TypeError when temp_path is None.
-                with contextlib.suppress(OSError, TypeError):
-                    Path(temp_path).unlink()
+                # Clean up file descriptor if it wasn't consumed by fdopen
+                if temp_fd is not None:
+                    with contextlib.suppress(OSError):
+                        os.close(temp_fd)
+
+                # Clean up temp file if it exists
+                if temp_path is not None:
+                    with contextlib.suppress(OSError):
+                        Path(temp_path).unlink()
                 raise
 
         except OSError as e:

@@ -260,9 +260,10 @@ ALICE - Supporting character
         assert len(result["characters"]) == 4
 
         # Check that appropriate chunks were sent to LLM
-        call_args = mock_llm.complete.call_args[0][0]
-        assert "Cast of Characters" in call_args
-        assert "Antagonists" in call_args
-        assert "Main Roles" in call_args
-        assert "World Building" not in call_args  # Should not include
-        assert "Setting" not in call_args  # Should not include
+        call_args = mock_llm.complete.call_args[0][0]  # Get the messages list
+        llm_content = call_args[0]["content"]  # Get the content from first message
+        assert "Cast of Characters" in llm_content
+        assert "Antagonists" in llm_content
+        assert "Main Roles" in llm_content
+        assert "World Building" not in llm_content  # Should not include
+        assert "Setting" not in llm_content  # Should not include

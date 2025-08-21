@@ -2,13 +2,13 @@
 
 from typing import TextIO
 
-from jouvence.document import Document
+from jouvence.document import JouvenceDocument
 
 class JouvenceParser:
     """Parser for Fountain screenplay format."""
 
     def __init__(self) -> None: ...
-    def parseString(self, text: str) -> Document:  # noqa: N802
+    def parseString(self, text: str) -> JouvenceDocument:  # noqa: N802
         """Parse fountain text string.
 
         Args:
@@ -19,7 +19,7 @@ class JouvenceParser:
         """
         ...
 
-    def parse(self, fp: TextIO) -> Document:
+    def parse(self, fp: TextIO) -> JouvenceDocument:
         """Parse fountain from file object.
 
         Args:

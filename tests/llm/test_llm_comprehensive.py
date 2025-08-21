@@ -584,7 +584,13 @@ class TestOpenAICompatibleProviderExtended:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "completion-1",
-            "choices": [{"message": {"content": "Response"}}],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Response"},
+                    "finish_reason": "stop",
+                }
+            ],
         }
 
         request = CompletionRequest(

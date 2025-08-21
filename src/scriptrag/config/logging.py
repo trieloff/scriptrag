@@ -1,6 +1,7 @@
 """Logging configuration for ScriptRAG."""
 
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -128,6 +129,9 @@ def configure_logging(settings: ScriptRAGSettings) -> None:
             )
         )
 
+    # Detect if we're in a test environment (pytest sets this)
+    in_pytest = "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
+
     # Add final processors based on format
     if settings.log_format == "json" or settings.log_format == "structured":
         processors.extend(
@@ -138,20 +142,32 @@ def configure_logging(settings: ScriptRAGSettings) -> None:
             ]
         )
     else:
-        processors.extend(
-            [
-                format_exc_info,
-                structlog.dev.ConsoleRenderer(
-                    colors=sys.stderr.isatty(),
-                    exception_formatter=structlog.dev.rich_traceback,
-                ),
-            ]
-        )
+        if in_pytest:
+            # In test environment: use ProcessorFormatter for caplog compatibility
+            processors.extend(
+                [
+                    format_exc_info,
+                    render_to_log_kwargs,
+                    ProcessorFormatter.wrap_for_formatter,
+                ]
+            )
+        else:
+            # In normal runtime: use console renderer for pretty output
+            processors.extend(
+                [
+                    format_exc_info,
+                    structlog.dev.ConsoleRenderer(
+                        colors=sys.stderr.isatty(),
+                        exception_formatter=structlog.dev.rich_traceback,
+                    ),
+                ]
+            )
 
     structlog.configure(
         processors=processors,
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
         cache_logger_on_first_use=True,
     )
 

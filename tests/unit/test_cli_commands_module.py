@@ -119,6 +119,7 @@ class TestCLICommandsModule:
                 "pull",
                 "query",
                 "scene",  # Scene module imported as side effect from main.py
+                "scene_config",  # New module for scene configuration loading
                 "search",
                 "watch",
             ]

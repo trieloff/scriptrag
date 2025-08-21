@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
-from scriptrag.api.bible_index import BibleAutoDetector
+from scriptrag.api.bible_detector import BibleAutoDetector
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.scene_database import SceneDatabaseOperations
 from scriptrag.api.scene_models import (

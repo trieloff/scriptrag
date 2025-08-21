@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from scriptrag.api.index import IndexCommand
+from scriptrag.api.index_bible_aliases import IndexBibleAliasApplicator
 from scriptrag.api.index_embeddings import IndexEmbeddingProcessor
 from scriptrag.api.list import FountainMetadata
 from scriptrag.config import ScriptRAGSettings
@@ -864,10 +865,7 @@ This validates the comment behavior.
 
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_no_bible_characters_key(self):
-        """Test _apply_bible_aliases when metadata has no bible.characters key."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
-        cmd = IndexCommand(settings=settings)
-
+        """Test apply_bible_aliases when metadata has no bible.characters key."""
         mock_conn = Mock()
         mock_cursor = Mock()
         mock_conn.cursor.return_value = mock_cursor
@@ -877,7 +875,7 @@ This validates the comment behavior.
         mock_cursor.fetchone.return_value = (json.dumps(metadata_no_bible),)
 
         # This should trigger the early return on line 552
-        await cmd._apply_bible_aliases(
+        await IndexBibleAliasApplicator.apply_bible_aliases(
             mock_conn, script_id=1, character_map={"TEST": 1}
         )
 
@@ -888,10 +886,7 @@ This validates the comment behavior.
 
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_character_not_in_map(self):
-        """Test _apply_bible_aliases when character not found in character_map."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
-        cmd = IndexCommand(settings=settings)
-
+        """Test apply_bible_aliases when character not found in character_map."""
         mock_conn = Mock()
         mock_cursor = Mock()
         mock_conn.cursor.return_value = mock_cursor
@@ -909,7 +904,7 @@ This validates the comment behavior.
         # Character map that doesn't include "NONEXISTENT"
         character_map = {"ALICE": 1, "BOB": 2}  # No "NONEXISTENT"
 
-        await cmd._apply_bible_aliases(
+        await IndexBibleAliasApplicator.apply_bible_aliases(
             mock_conn, script_id=1, character_map=character_map
         )
 

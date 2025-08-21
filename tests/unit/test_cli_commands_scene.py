@@ -53,7 +53,7 @@ class TestSceneCommandsConfigOption:
     @pytest.fixture
     def mock_scriptrag_settings(self) -> Generator[Mock, None, None]:
         """Mock ScriptRAGSettings class."""
-        with patch("scriptrag.config.settings.ScriptRAGSettings") as mock:
+        with patch("scriptrag.cli.commands.scene_config.ScriptRAGSettings") as mock:
             yield mock
 
     def test_scene_read_with_config_file_success(

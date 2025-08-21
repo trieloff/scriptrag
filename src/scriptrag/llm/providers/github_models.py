@@ -18,6 +18,7 @@ from scriptrag.llm.models import (
     EmbeddingResponse,
     LLMProvider,
     Model,
+    UsageInfo,
 )
 
 logger = get_logger(__name__)
@@ -390,7 +391,7 @@ class GitHubModelsProvider(BaseLLMProvider):
 
             # Extract usage data, handling GitHub Models' nested structure
             usage_data: dict[str, Any] = data.get("usage", {})
-            usage: dict[str, int] = {
+            usage: UsageInfo = {
                 "prompt_tokens": usage_data.get("prompt_tokens", 0),
                 "completion_tokens": usage_data.get("completion_tokens", 0),
                 "total_tokens": usage_data.get("total_tokens", 0),
@@ -421,7 +422,7 @@ class GitHubModelsProvider(BaseLLMProvider):
                         self.id: str = data.get("id", "")
                         self.model: str = data.get("model", request.model)
                         self.choices: list[dict[str, Any]] = data.get("choices", [])
-                        self.usage: dict[str, int] = usage
+                        self.usage: UsageInfo = usage
                         self.provider: str = provider_type
 
                     @property

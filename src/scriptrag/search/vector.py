@@ -126,8 +126,10 @@ class VectorSearchEngine:
             # Extract embedding vector
             if response.data and len(response.data) > 0:
                 embedding_data = response.data[0]
-                if hasattr(embedding_data, "embedding"):
-                    embedding = np.array(embedding_data.embedding, dtype=np.float32)
+                if hasattr(embedding_data, "embedding") and embedding_data.get(
+                    "embedding"
+                ):
+                    embedding = np.array(embedding_data["embedding"], dtype=np.float32)
                 else:
                     # Handle dict response
                     embedding = np.array(embedding_data["embedding"], dtype=np.float32)

@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
+from typing_extensions import TypedDict
 
 
 class LLMProvider(str, Enum):
@@ -12,6 +13,50 @@ class LLMProvider(str, Enum):
     CLAUDE_CODE = "claude_code"
     GITHUB_MODELS = "github_models"
     OPENAI_COMPATIBLE = "openai_compatible"
+
+
+# TypedDict definitions for structured data
+class CompletionMessage(TypedDict):
+    """Message in completion choice."""
+
+    role: str
+    content: Any  # Can be str, int, None - converted to str in the property
+
+
+class CompletionChoice(TypedDict):
+    """Choice in completion response."""
+
+    index: int
+    message: CompletionMessage
+    finish_reason: str
+
+
+class EmbeddingData(TypedDict, total=False):
+    """Embedding data structure."""
+
+    object: str
+    index: int
+    embedding: list[float]
+
+
+class UsageInfo(TypedDict, total=False):
+    """Token usage information."""
+
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+
+
+def _default_usage_info() -> UsageInfo:
+    """Create default empty UsageInfo."""
+    return UsageInfo()
+
+
+class ResponseFormat(TypedDict, total=False):
+    """Response format specification for completions."""
+
+    type: str  # e.g., "json_object", "text"
+    schema: dict[str, Any]  # JSON schema when type is "json_object"
 
 
 class Model(BaseModel):
@@ -35,7 +80,7 @@ class CompletionRequest(BaseModel):
     top_p: float = 1.0
     stream: bool = False
     system: str | None = None
-    response_format: dict[str, Any] | None = None
+    response_format: ResponseFormat | None = None
 
 
 class CompletionResponse(BaseModel):
@@ -43,8 +88,8 @@ class CompletionResponse(BaseModel):
 
     id: str
     model: str
-    choices: list[dict[str, Any]]
-    usage: dict[str, int] = Field(default_factory=dict)
+    choices: list[CompletionChoice]
+    usage: UsageInfo = Field(default_factory=_default_usage_info)
     provider: LLMProvider
 
     @property
@@ -75,6 +120,6 @@ class EmbeddingResponse(BaseModel):
     """Response from text embedding."""
 
     model: str
-    data: list[dict[str, Any]]
-    usage: dict[str, int] = Field(default_factory=dict)
+    data: list[EmbeddingData]
+    usage: UsageInfo = Field(default_factory=_default_usage_info)
     provider: LLMProvider

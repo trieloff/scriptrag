@@ -1,6 +1,8 @@
 """Type definitions for LLM modules."""
 
-from typing import Any, TypeAlias, TypedDict
+from typing import Any, NotRequired, TypeAlias
+
+from typing_extensions import TypedDict
 
 # Provider configuration types
 ProviderConfig: TypeAlias = dict[str, Any]
@@ -65,3 +67,44 @@ class ModelInfo(TypedDict, total=False):
     max_output_tokens: int
     capabilities: list[str]
     pricing: dict[str, float]
+
+
+# Client-specific types
+class ProviderMetrics(TypedDict):
+    """Metrics for a specific LLM provider."""
+
+    provider: str
+    success_count: int
+    failure_count: int
+    retry_count: int
+    total_requests: int
+    avg_response_time: float
+
+
+class ClientMetrics(TypedDict):
+    """Overall client metrics."""
+
+    total_requests: int
+    successful_requests: int
+    failed_requests: int
+    retry_attempts: int
+    fallback_attempts: int
+    providers: dict[str, ProviderMetrics]
+
+
+class ErrorDetails(TypedDict, total=False):
+    """Error details for logging and debugging."""
+
+    error: str
+    error_type: str
+    model: str
+    provider: str
+    stack_trace: NotRequired[str]
+
+
+class ModelSelectionCacheEntry(TypedDict):
+    """Cache entry for model selection results."""
+
+    model_id: str
+    capability_type: str
+    timestamp: float

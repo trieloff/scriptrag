@@ -1,7 +1,10 @@
 """Metrics tracking for LLM operations."""
 
 import time
-from typing import Any, TypedDict
+
+from typing_extensions import TypedDict
+
+from scriptrag.llm.types import ClientMetrics
 
 
 class FailureEntry(TypedDict):
@@ -19,8 +22,8 @@ class FallbackChain(TypedDict):
     timestamp: float
 
 
-class ProviderMetrics(TypedDict):
-    """Structure for provider metrics data."""
+class LLMProviderMetrics(TypedDict):
+    """Structure for internal provider metrics data."""
 
     total_requests: int
     successful_requests: int
@@ -41,12 +44,12 @@ class LLMMetrics:
 
     def __init__(self) -> None:
         """Initialize metrics tracker."""
-        self.provider_metrics: ProviderMetrics
+        self.provider_metrics: LLMProviderMetrics
         self.reset()
 
     def reset(self) -> None:
         """Reset all metrics."""
-        self.provider_metrics = ProviderMetrics(
+        self.provider_metrics = LLMProviderMetrics(
             total_requests=0,
             successful_requests=0,
             failed_requests=0,
@@ -105,9 +108,40 @@ class LLMMetrics:
                 "fallback_chains"
             ][-self.MAX_FALLBACK_CHAINS :]
 
-    def get_metrics(self) -> dict[str, Any]:
+    def get_metrics(self) -> ClientMetrics:
         """Get current provider metrics."""
-        return dict(self.provider_metrics)
+        # Convert internal metrics format to ClientMetrics format
+        from scriptrag.llm.types import ProviderMetrics as ClientProviderMetrics
+
+        provider_metrics: dict[str, ClientProviderMetrics] = {}
+
+        for provider_name in self.provider_metrics["provider_successes"]:
+            success_count = self.provider_metrics["provider_successes"].get(
+                provider_name, 0
+            )
+            failure_count = len(
+                self.provider_metrics["provider_failures"].get(provider_name, [])
+            )
+
+            provider_metrics[provider_name] = {
+                "provider": provider_name,
+                "success_count": success_count,
+                "failure_count": failure_count,
+                "retry_count": self.provider_metrics[
+                    "retry_attempts"
+                ],  # Shared across all providers
+                "total_requests": success_count + failure_count,
+                "avg_response_time": 0.0,  # Not currently tracked
+            }
+
+        return ClientMetrics(
+            total_requests=self.provider_metrics["total_requests"],
+            successful_requests=self.provider_metrics["successful_requests"],
+            failed_requests=self.provider_metrics["failed_requests"],
+            retry_attempts=self.provider_metrics["retry_attempts"],
+            fallback_attempts=len(self.provider_metrics["fallback_chains"]),
+            providers=provider_metrics,
+        )
 
     def cleanup_old_metrics(self, max_age_seconds: float = 3600) -> None:
         """Remove metrics older than specified age.

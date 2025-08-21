@@ -4,7 +4,10 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypedDict
+
+if TYPE_CHECKING:
+    pass
 
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.embedding_service import EmbeddingService
@@ -13,6 +16,43 @@ from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 from scriptrag.parser import FountainParser, Scene, Script
 
 logger = get_logger(__name__)
+
+
+# Database operation result types
+class ScriptStatsDict(TypedDict):
+    """Statistics for a script in the database."""
+
+    scenes: int
+    characters: int
+    dialogues: int
+    actions: int
+
+
+class CharacterMapDict(TypedDict):
+    """Mapping of character names to database IDs."""
+
+    # Dynamic keys - character names map to their database IDs
+    pass
+
+
+class BoneyardAnalyzersDict(TypedDict, total=False):
+    """Structure for boneyard analyzers metadata."""
+
+    scene_embeddings: dict[str, Any]
+
+
+class BoneyardMetadataDict(TypedDict, total=False):
+    """Structure for boneyard metadata."""
+
+    analyzers: BoneyardAnalyzersDict
+
+
+class EmbeddingResultDict(TypedDict, total=False):
+    """Structure for embedding analyzer results."""
+
+    embedding_path: str
+    model: str
+    error: str
 
 
 @dataclass
@@ -200,7 +240,7 @@ class IndexCommand:
         Returns:
             List of discovered script metadata
         """
-        all_scripts = self.lister.list_scripts(path, recursive)
+        all_scripts: list[FountainMetadata] = self.lister.list_scripts(path, recursive)
 
         # Filter to only scripts with boneyard metadata for backwards compatibility
         # This ensures that only analyzed scripts are indexed
@@ -221,7 +261,7 @@ class IndexCommand:
         Returns:
             Filtered list of scripts that need indexing
         """
-        scripts_to_index = []
+        scripts_to_index: list[FountainMetadata] = []
 
         with self.db_ops.transaction() as conn:
             for script_meta in scripts:
@@ -232,8 +272,8 @@ class IndexCommand:
                     scripts_to_index.append(script_meta)
                 else:
                     # Check if script has been modified since last index
-                    metadata = existing.metadata or {}
-                    last_indexed = metadata.get("last_indexed")
+                    metadata: dict[str, Any] = existing.metadata or {}
+                    last_indexed: Any = metadata.get("last_indexed")
 
                     if last_indexed:
                         # Could compare with file modification time
@@ -256,11 +296,13 @@ class IndexCommand:
         Returns:
             List of index results
         """
-        results = []
+        results: list[IndexResult] = []
 
         for script_meta in scripts:
             try:
-                result = await self._index_single_script(script_meta.file_path, dry_run)
+                result: IndexResult = await self._index_single_script(
+                    script_meta.file_path, dry_run
+                )
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to index {script_meta.file_path}: {e}")
@@ -288,7 +330,7 @@ class IndexCommand:
 
         try:
             # Parse the script
-            script = self.parser.parse_file(file_path)
+            script: Script = self.parser.parse_file(file_path)
 
             if dry_run:
                 # In dry run mode, just analyze what would be done
@@ -298,35 +340,37 @@ class IndexCommand:
             with self.db_ops.transaction() as conn:
                 # Check if script exists
                 existing = self.db_ops.get_existing_script(conn, file_path)
-                is_update = existing is not None
+                is_update: bool = existing is not None
 
                 # Always clear existing data when updating to ensure consistency
                 if existing and existing.id is not None:
                     self.db_ops.clear_script_data(conn, existing.id)
 
                 # Upsert script
-                script_id = self.db_ops.upsert_script(conn, script, file_path)
+                script_id: int = self.db_ops.upsert_script(conn, script, file_path)
 
                 # Extract all unique characters from all scenes
-                all_characters = set()
+                all_characters: set[str] = set()
                 for scene in script.scenes:
                     for dialogue in scene.dialogue_lines:
                         all_characters.add(dialogue.character)
 
                 # Upsert all characters
-                character_map = {}
+                character_map: dict[str, int] = {}
                 if all_characters:
                     character_map = self.db_ops.upsert_characters(
                         conn, script_id, all_characters
                     )
 
                 # Process scenes
-                total_dialogues = 0
-                total_actions = 0
+                total_dialogues: int = 0
+                total_actions: int = 0
 
                 for scene in script.scenes:
                     # Clear existing scene content if updating
                     # Upsert scene and check if content changed
+                    scene_id: int
+                    content_changed: bool
                     scene_id, content_changed = self.db_ops.upsert_scene(
                         conn, scene, script_id
                     )
@@ -336,13 +380,13 @@ class IndexCommand:
                         self.db_ops.clear_scene_content(conn, scene_id)
 
                         # Insert dialogues
-                        dialogue_count = self.db_ops.insert_dialogues(
+                        dialogue_count: int = self.db_ops.insert_dialogues(
                             conn, scene_id, scene.dialogue_lines, character_map
                         )
                         total_dialogues += dialogue_count
 
                         # Insert actions
-                        action_count = self.db_ops.insert_actions(
+                        action_count: int = self.db_ops.insert_actions(
                             conn, scene_id, scene.action_lines
                         )
                         total_actions += action_count
@@ -351,7 +395,7 @@ class IndexCommand:
                     await self._process_scene_embeddings(conn, scene, scene_id)
 
                 # Get final stats
-                stats = self.db_ops.get_script_stats(conn, script_id)
+                stats: dict[str, int] = self.db_ops.get_script_stats(conn, script_id)
 
                 return IndexResult(
                     path=file_path,
@@ -381,20 +425,22 @@ class IndexCommand:
             scene: Scene object with potential embedding metadata
             scene_id: Database ID of the scene
         """
-        embedding_stored = False
+        embedding_stored: bool = False
 
         # First check for existing embeddings in boneyard metadata
         if scene.boneyard_metadata:
             # Check for embedding analyzer results
-            analyzers: dict[str, Any] = scene.boneyard_metadata.get("analyzers", {})
+            analyzers: BoneyardAnalyzersDict = scene.boneyard_metadata.get(
+                "analyzers", {}
+            )
             embedding_data: dict[str, Any] = analyzers.get("scene_embeddings", {})
 
             if embedding_data and "result" in embedding_data:
-                result: dict[str, Any] = embedding_data.get("result", {})
+                result: EmbeddingResultDict = embedding_data.get("result", {})
                 if "error" not in result:
                     # Extract embedding information
-                    embedding_path = result.get("embedding_path")
-                    model = result.get("model", "unknown")
+                    embedding_path: str | None = result.get("embedding_path")
+                    model: str = result.get("model", "unknown")
 
                     if embedding_path:
                         # Check if embedding file exists and load it
@@ -403,7 +449,7 @@ class IndexCommand:
                             import numpy as np
 
                             # Get the repository root
-                            repo = git.Repo(
+                            repo: git.Repo = git.Repo(
                                 (
                                     scene.file_path.parent
                                     if hasattr(scene, "file_path")
@@ -411,14 +457,14 @@ class IndexCommand:
                                 ),
                                 search_parent_directories=True,
                             )
-                            repo_root = Path(repo.working_dir)
-                            full_embedding_path = repo_root / embedding_path
+                            repo_root: Path = Path(repo.working_dir or ".")
+                            full_embedding_path: Path = repo_root / embedding_path
 
                             if full_embedding_path.exists():
                                 # Load embedding from file
                                 embedding_array = np.load(full_embedding_path)
                                 # Convert to bytes for database storage
-                                embedding_bytes = embedding_array.tobytes()
+                                embedding_bytes: bytes = embedding_array.tobytes()
 
                                 # Store in database
                                 self.db_ops.upsert_embedding(
@@ -457,12 +503,14 @@ class IndexCommand:
         if self.generate_embeddings and self.embedding_service and not embedding_stored:
             try:
                 # Generate embedding for the scene
-                embedding = await self.embedding_service.generate_scene_embedding(
+                embedding: list[
+                    float
+                ] = await self.embedding_service.generate_scene_embedding(
                     scene.content, scene.heading
                 )
 
                 # Save to Git LFS
-                lfs_path = self.embedding_service.save_embedding_to_lfs(
+                lfs_path: Path = self.embedding_service.save_embedding_to_lfs(
                     embedding,
                     "scene",
                     scene_id,
@@ -503,9 +551,9 @@ class IndexCommand:
             IndexResult with preview information
         """
         # Count entities that would be indexed
-        characters = set()
-        dialogues = 0
-        actions = 0
+        characters: set[str] = set()
+        dialogues: int = 0
+        actions: int = 0
 
         for scene in script.scenes:
             for dialogue in scene.dialogue_lines:

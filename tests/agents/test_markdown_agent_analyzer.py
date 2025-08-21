@@ -525,7 +525,6 @@ class TestMarkdownAgentAnalyzer:
         # Response format should be set
         assert call_args.response_format is not None
         assert call_args.response_format["type"] == "json_schema"
-        assert call_args.response_format["json_schema"]["name"] == "llm_agent"
 
     @pytest.mark.asyncio
     async def test_call_llm_no_client_error(

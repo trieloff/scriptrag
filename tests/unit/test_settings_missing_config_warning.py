@@ -18,6 +18,27 @@ class TestMissingConfigWarning:
         settings_logger = logging.getLogger("scriptrag.config.settings")
         settings_logger.setLevel(logging.WARNING)
 
+        # Force structlog to properly integrate with standard logging
+        # This is critical for MacOS compatibility with caplog
+        import structlog
+
+        structlog.configure(
+            processors=[
+                structlog.stdlib.filter_by_level,
+                structlog.stdlib.add_logger_name,
+                structlog.stdlib.add_log_level,
+                structlog.stdlib.PositionalArgumentsFormatter(),
+                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.processors.StackInfoRenderer(),
+                structlog.processors.format_exc_info,
+                structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+            ],
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            wrapper_class=structlog.stdlib.BoundLogger,
+            cache_logger_on_first_use=True,
+        )
+
     def test_missing_config_file_logs_warning(self, tmp_path, caplog):
         """Test that missing config files emit a warning log."""
         missing_file = tmp_path / "missing.yml"

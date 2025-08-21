@@ -366,6 +366,7 @@ class TestOpenAICompatibleProvider:
                 {
                     "index": 0,
                     "message": {"role": "assistant", "content": "Response"},
+                    "finish_reason": "stop",
                 }
             ],
             "usage": {"total_tokens": 20},

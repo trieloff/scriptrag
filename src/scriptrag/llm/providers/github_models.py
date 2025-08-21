@@ -4,7 +4,7 @@ import json
 import os
 import re
 import time
-from typing import Any, ClassVar, Literal, TypedDict, cast
+from typing import Any, ClassVar, Literal, TypedDict
 
 import httpx
 
@@ -12,6 +12,8 @@ from scriptrag.config import get_logger
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.model_discovery import GitHubModelsDiscovery
 from scriptrag.llm.models import (
+    CompletionChoice,
+    CompletionMessage,
     CompletionRequest,
     CompletionResponse,
     EmbeddingRequest,
@@ -37,14 +39,6 @@ class GitHubErrorResponse(TypedDict, total=False):
     """Type for GitHub API error response."""
 
     error: GitHubErrorInfo
-
-
-class CompletionChoice(TypedDict):
-    """Type for completion choice."""
-
-    index: int
-    message: dict[str, str]
-    finish_reason: Literal["stop", "length", "content_filter"]
 
 
 class CompletionUsage(TypedDict):
@@ -407,34 +401,53 @@ class GitHubModelsProvider(BaseLLMProvider):
                 )
             except Exception as e:
                 # Handle cases where response data doesn't match expected structure
-                # Fall back to creating a mock response that preserves the original data
+                # Fall back to creating a proper CompletionResponse with sanitized data
                 logger.warning(
-                    "GitHub Models response validation failed, using raw data",
+                    "GitHub Models response validation failed, creating safe response",
                     error=str(e),
                     error_type=type(e).__name__,
                     choices_type=type(data.get("choices", [])).__name__,
                 )
-                # Create a simple response that preserves the raw data
-                # Use typing.cast to explicitly handle the type conversion
 
-                class RawCompletionResponse:
-                    def __init__(self, provider_type: str) -> None:
-                        self.id: str = data.get("id", "")
-                        self.model: str = data.get("model", request.model)
-                        self.choices: list[dict[str, Any]] = data.get("choices", [])
-                        self.usage: UsageInfo = usage
-                        self.provider: str = provider_type
+                # Sanitize choices data to ensure proper structure
+                raw_choices = data.get("choices", [])
+                sanitized_choices: list[CompletionChoice] = []
 
-                    @property
-                    def content(self) -> str:
-                        return (
-                            self.choices[0]["message"]["content"]
-                            if self.choices
-                            else ""
-                        )
+                for choice in raw_choices:
+                    if isinstance(choice, dict):
+                        # Ensure each choice has required fields
+                        message: CompletionMessage = {
+                            "role": choice.get("message", {}).get("role", "assistant"),
+                            "content": choice.get("message", {}).get("content") or "",
+                        }
+                        sanitized_choice: CompletionChoice = {
+                            "index": choice.get("index", 0),
+                            "message": message,
+                            "finish_reason": choice.get("finish_reason", "stop"),
+                        }
+                        sanitized_choices.append(sanitized_choice)
 
-                raw_response = RawCompletionResponse(self.provider_type)
-                return cast(CompletionResponse, raw_response)
+                # If no valid choices, create a default empty response
+                if not sanitized_choices:
+                    default_message: CompletionMessage = {
+                        "role": "assistant",
+                        "content": "",
+                    }
+                    default_choice: CompletionChoice = {
+                        "index": 0,
+                        "message": default_message,
+                        "finish_reason": "stop",
+                    }
+                    sanitized_choices = [default_choice]
+
+                # Create proper CompletionResponse with sanitized data
+                return CompletionResponse(
+                    id=data.get("id", ""),
+                    model=data.get("model", request.model),
+                    choices=sanitized_choices,
+                    usage=usage,
+                    provider=self.provider_type,
+                )
 
         except httpx.HTTPError as e:
             # httpx.HTTPError: Base class for all httpx errors (network, timeout, etc.)

@@ -647,16 +647,17 @@ class TestBibleIndexerEdgeCases:
             assert mock_client.complete.called
 
     def test_attach_aliases_to_characters_successful_update(
-        self, mock_settings: ScriptRAGSettings
+        self, mock_settings: ScriptRAGSettings, tmp_path: Path
     ) -> None:
         """Test _attach_aliases_to_characters with successful database operations."""
         # Use real sqlite3 connection to test the actual logic
         import sqlite3
-        import tempfile
 
-        with tempfile.NamedTemporaryFile(suffix=".db") as tmp_db:
-            conn = sqlite3.connect(tmp_db.name)
+        # Use tmp_path instead of NamedTemporaryFile to avoid Windows locks
+        db_path = tmp_path / "test.db"
+        conn = sqlite3.connect(str(db_path))
 
+        try:
             # Create the characters table with aliases column
             conn.execute("""
                 CREATE TABLE characters (
@@ -704,6 +705,8 @@ class TestBibleIndexerEdgeCases:
             assert "JANE SMITH" in aliases_set
             assert "JOHN DOE" in aliases_set
 
+        finally:
+            # Ensure connection is closed before tmp_path cleanup
             conn.close()
 
     def test_attach_aliases_to_characters_no_matching_characters(

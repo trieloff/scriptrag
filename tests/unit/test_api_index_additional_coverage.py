@@ -8,6 +8,8 @@ import numpy as np
 import pytest
 
 from scriptrag.api.index import IndexCommand
+from scriptrag.api.index_bible_aliases import IndexBibleAliasApplicator
+from scriptrag.api.index_embeddings import IndexEmbeddingProcessor
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.parser import Scene
 
@@ -72,9 +74,6 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_success(self, tmp_path):
         """Test successful application of Bible aliases to characters."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
-        cmd = IndexCommand(settings=settings)
-
         # Mock connection and cursor
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
@@ -93,7 +92,7 @@ class TestIndexCommandAdditionalCoverage:
         # Mock character map
         character_map = {"JANE SMITH": 1, "BOB": 2}
 
-        await cmd._apply_bible_aliases(
+        await IndexBibleAliasApplicator.apply_bible_aliases(
             mock_conn, script_id=1, character_map=character_map
         )
 
@@ -109,15 +108,14 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_no_metadata(self, tmp_path):
         """Test Bible alias application when no script metadata exists."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
-        cmd = IndexCommand(settings=settings)
-
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
         mock_cursor.fetchone.return_value = None  # No metadata row
 
-        await cmd._apply_bible_aliases(mock_conn, script_id=1, character_map={})
+        await IndexBibleAliasApplicator.apply_bible_aliases(
+            mock_conn, script_id=1, character_map={}
+        )
 
         # Should handle gracefully and not attempt updates
         mock_cursor.execute.assert_called_once_with(
@@ -127,9 +125,6 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_invalid_data(self, tmp_path):
         """Test Bible alias application with invalid character data."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
-        cmd = IndexCommand(settings=settings)
-
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
@@ -148,7 +143,7 @@ class TestIndexCommandAdditionalCoverage:
 
         character_map = {"JANE": 1}
 
-        await cmd._apply_bible_aliases(
+        await IndexBibleAliasApplicator.apply_bible_aliases(
             mock_conn, script_id=1, character_map=character_map
         )
 
@@ -163,15 +158,14 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_exception(self, tmp_path):
         """Test Bible alias application with database exception."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
-        cmd = IndexCommand(settings=settings)
-
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.side_effect = Exception("DB Error")
 
         # Should handle exception gracefully
-        await cmd._apply_bible_aliases(mock_conn, script_id=1, character_map={})
+        await IndexBibleAliasApplicator.apply_bible_aliases(
+            mock_conn, script_id=1, character_map={}
+        )
 
         # Exception should be caught and logged, not re-raised
 
@@ -179,7 +173,13 @@ class TestIndexCommandAdditionalCoverage:
     async def test_process_scene_embeddings_from_lfs_file(self, tmp_path):
         """Test processing scene embeddings from existing LFS file."""
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
-        cmd = IndexCommand(settings=settings)
+
+        # Mock database operations
+        mock_db_ops = MagicMock()
+
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
+        )
 
         # Create mock embedding file
         embedding_file = tmp_path / "embeddings" / "scene_1.npy"
@@ -206,16 +206,14 @@ class TestIndexCommandAdditionalCoverage:
             },
         )
 
-        # Mock database operations and git repo
+        # Mock connection and git repo
         mock_conn = MagicMock()
-        mock_db_ops = MagicMock()
-        cmd.db_ops = mock_db_ops
 
         with patch("git.Repo") as mock_repo_class:
             mock_repo = mock_repo_class.return_value
             mock_repo.working_dir = str(tmp_path)
 
-            await cmd._process_scene_embeddings(mock_conn, scene, scene_id=1)
+            await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
             # Should call upsert_embedding with loaded embedding data
             mock_db_ops.upsert_embedding.assert_called_once()
@@ -227,8 +225,12 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_lfs_file_missing(self, tmp_path):
         """Test processing scene embeddings when LFS file doesn't exist locally."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
-        cmd = IndexCommand(settings=settings)
+        # Mock database operations
+        mock_db_ops = MagicMock()
+
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
+        )
 
         scene = Scene(
             number=1,
@@ -249,14 +251,12 @@ class TestIndexCommandAdditionalCoverage:
         )
 
         mock_conn = MagicMock()
-        mock_db_ops = MagicMock()
-        cmd.db_ops = mock_db_ops
 
         with patch("git.Repo") as mock_repo_class:
             mock_repo = mock_repo_class.return_value
             mock_repo.working_dir = str(tmp_path)
 
-            await cmd._process_scene_embeddings(mock_conn, scene, scene_id=1)
+            await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
             # Should store reference path without embedding data
             mock_db_ops.upsert_embedding.assert_called_once()
@@ -270,8 +270,12 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_error_in_result(self, tmp_path):
         """Test processing scene embeddings when result contains error."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
-        cmd = IndexCommand(settings=settings)
+        # Mock database operations
+        mock_db_ops = MagicMock()
+
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
+        )
 
         scene = Scene(
             number=1,
@@ -292,10 +296,8 @@ class TestIndexCommandAdditionalCoverage:
         )
 
         mock_conn = MagicMock()
-        mock_db_ops = MagicMock()
-        cmd.db_ops = mock_db_ops
 
-        await cmd._process_scene_embeddings(mock_conn, scene, scene_id=1)
+        await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
         # Should not process embeddings when error is present
         mock_db_ops.upsert_embedding.assert_not_called()
@@ -303,8 +305,12 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_git_exception(self, tmp_path):
         """Test handling of git/embedding processing exceptions."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
-        cmd = IndexCommand(settings=settings)
+        # Mock database operations
+        mock_db_ops = MagicMock()
+
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
+        )
 
         scene = Scene(
             number=1,
@@ -325,14 +331,15 @@ class TestIndexCommandAdditionalCoverage:
 
         with patch("git.Repo", side_effect=Exception("Git error")):
             # Should handle exception gracefully
-            await cmd._process_scene_embeddings(mock_conn, scene, scene_id=1)
+            await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
             # No exception should be raised
 
     @pytest.mark.asyncio
     async def test_generate_new_embedding_success(self, tmp_path):
         """Test successful generation of new embeddings."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        # Mock database operations
+        mock_db_ops = MagicMock()
 
         # Mock embedding service
         mock_embedding_service = AsyncMock()
@@ -345,8 +352,8 @@ class TestIndexCommandAdditionalCoverage:
         mock_embedding_service.encode_embedding_for_db.return_value = b"encoded"
         mock_embedding_service.default_model = "test-model"
 
-        cmd = IndexCommand(
-            settings=settings,
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
             embedding_service=mock_embedding_service,
             generate_embeddings=True,
         )
@@ -360,10 +367,8 @@ class TestIndexCommandAdditionalCoverage:
         )
 
         mock_conn = MagicMock()
-        mock_db_ops = MagicMock()
-        cmd.db_ops = mock_db_ops
 
-        await cmd._process_scene_embeddings(mock_conn, scene, scene_id=1)
+        await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
         # Should generate and store new embedding
         mock_embedding_service.generate_scene_embedding.assert_called_once_with(
@@ -374,15 +379,16 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_generate_new_embedding_failure(self, tmp_path):
         """Test handling of embedding generation failures."""
-        settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+        # Mock database operations
+        mock_db_ops = MagicMock()
 
         mock_embedding_service = AsyncMock()
         mock_embedding_service.generate_scene_embedding.side_effect = Exception(
             "Generation failed"
         )
 
-        cmd = IndexCommand(
-            settings=settings,
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
             embedding_service=mock_embedding_service,
             generate_embeddings=True,
         )
@@ -398,7 +404,7 @@ class TestIndexCommandAdditionalCoverage:
         mock_conn = MagicMock()
 
         # Should handle exception gracefully
-        await cmd._process_scene_embeddings(mock_conn, scene, scene_id=1)
+        await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
         # No exception should be raised
 

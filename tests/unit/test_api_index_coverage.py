@@ -8,6 +8,8 @@ import numpy as np
 import pytest
 
 from scriptrag.api.index import IndexCommand
+from scriptrag.api.index_bible_aliases import IndexBibleAliasApplicator
+from scriptrag.api.index_embeddings import IndexEmbeddingProcessor
 from scriptrag.api.list import FountainMetadata
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.parser import Scene
@@ -118,13 +120,13 @@ class TestIndexCommandCoverage:
 
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_metadata(self):
-        """Test _process_scene_embeddings with no boneyard metadata."""
-        settings = ScriptRAGSettings(
-            database_path=Path("test.db"),
-            skip_boneyard_filter=True,  # Enable for unit tests
-        )
+        """Test process_scene_embeddings with no boneyard metadata."""
         mock_db_ops = Mock()
-        indexer = IndexCommand(settings, mock_db_ops)
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
+            embedding_service=None,
+            generate_embeddings=False,
+        )
 
         # Create scene without boneyard metadata
         scene = Scene(
@@ -141,20 +143,20 @@ class TestIndexCommandCoverage:
         mock_conn = Mock()
 
         # Should return early without processing
-        await indexer._process_scene_embeddings(mock_conn, scene, scene_id=1)
+        await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
         # No database operations should be called
         mock_db_ops.upsert_embedding.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_analyzers(self):
-        """Test _process_scene_embeddings with no analyzers in metadata."""
-        settings = ScriptRAGSettings(
-            database_path=Path("test.db"),
-            skip_boneyard_filter=True,  # Enable for unit tests
-        )
+        """Test process_scene_embeddings with no analyzers in metadata."""
         mock_db_ops = Mock()
-        indexer = IndexCommand(settings, mock_db_ops)
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
+            embedding_service=None,
+            generate_embeddings=False,
+        )
 
         # Create scene with empty boneyard metadata
         scene = Scene(
@@ -171,20 +173,20 @@ class TestIndexCommandCoverage:
         mock_conn = Mock()
 
         # Should return early without processing
-        await indexer._process_scene_embeddings(mock_conn, scene, scene_id=1)
+        await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
         # No database operations should be called
         mock_db_ops.upsert_embedding.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_embedding_data(self):
-        """Test _process_scene_embeddings with no embedding data."""
-        settings = ScriptRAGSettings(
-            database_path=Path("test.db"),
-            skip_boneyard_filter=True,  # Enable for unit tests
-        )
+        """Test process_scene_embeddings with no embedding data."""
         mock_db_ops = Mock()
-        indexer = IndexCommand(settings, mock_db_ops)
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
+            embedding_service=None,
+            generate_embeddings=False,
+        )
 
         # Create scene with analyzers but no scene_embeddings
         scene = Scene(
@@ -201,20 +203,20 @@ class TestIndexCommandCoverage:
         mock_conn = Mock()
 
         # Should return early without processing
-        await indexer._process_scene_embeddings(mock_conn, scene, scene_id=1)
+        await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
         # No database operations should be called
         mock_db_ops.upsert_embedding.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_result(self):
-        """Test _process_scene_embeddings with no result data."""
-        settings = ScriptRAGSettings(
-            database_path=Path("test.db"),
-            skip_boneyard_filter=True,  # Enable for unit tests
-        )
+        """Test process_scene_embeddings with no result data."""
         mock_db_ops = Mock()
-        indexer = IndexCommand(settings, mock_db_ops)
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
+            embedding_service=None,
+            generate_embeddings=False,
+        )
 
         # Create scene with embedding data but no result
         scene = Scene(
@@ -231,20 +233,20 @@ class TestIndexCommandCoverage:
         mock_conn = Mock()
 
         # Should return early without processing
-        await indexer._process_scene_embeddings(mock_conn, scene, scene_id=1)
+        await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
         # No database operations should be called
         mock_db_ops.upsert_embedding.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_with_error(self):
-        """Test _process_scene_embeddings with error in result."""
-        settings = ScriptRAGSettings(
-            database_path=Path("test.db"),
-            skip_boneyard_filter=True,  # Enable for unit tests
-        )
+        """Test process_scene_embeddings with error in result."""
         mock_db_ops = Mock()
-        indexer = IndexCommand(settings, mock_db_ops)
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
+            embedding_service=None,
+            generate_embeddings=False,
+        )
 
         # Create scene with embedding error
         scene = Scene(
@@ -267,20 +269,20 @@ class TestIndexCommandCoverage:
         mock_conn = Mock()
 
         # Should return early due to error
-        await indexer._process_scene_embeddings(mock_conn, scene, scene_id=1)
+        await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
         # No database operations should be called
         mock_db_ops.upsert_embedding.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_embedding_path(self):
-        """Test _process_scene_embeddings with no embedding path."""
-        settings = ScriptRAGSettings(
-            database_path=Path("test.db"),
-            skip_boneyard_filter=True,  # Enable for unit tests
-        )
+        """Test process_scene_embeddings with no embedding path."""
         mock_db_ops = Mock()
-        indexer = IndexCommand(settings, mock_db_ops)
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
+            embedding_service=None,
+            generate_embeddings=False,
+        )
 
         # Create scene with embedding result but no path
         scene = Scene(
@@ -299,20 +301,20 @@ class TestIndexCommandCoverage:
         mock_conn = Mock()
 
         # Should return early without embedding path
-        await indexer._process_scene_embeddings(mock_conn, scene, scene_id=1)
+        await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
         # No database operations should be called
         mock_db_ops.upsert_embedding.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_file_exists(self, tmp_path):
-        """Test _process_scene_embeddings with existing embedding file."""
-        settings = ScriptRAGSettings(
-            database_path=Path("test.db"),
-            skip_boneyard_filter=True,  # Enable for unit tests
-        )
+        """Test process_scene_embeddings with existing embedding file."""
         mock_db_ops = Mock()
-        indexer = IndexCommand(settings, mock_db_ops)
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
+            embedding_service=None,
+            generate_embeddings=False,
+        )
 
         # Create embedding file
         embedding_path = "embeddings/test_hash.npy"
@@ -349,7 +351,7 @@ class TestIndexCommandCoverage:
             mock_repo.working_dir = str(tmp_path)
             mock_repo_class.return_value = mock_repo
 
-            await indexer._process_scene_embeddings(mock_conn, scene, scene_id=1)
+            await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
             # Should store embedding in database
             mock_db_ops.upsert_embedding.assert_called_once()
@@ -367,13 +369,13 @@ class TestIndexCommandCoverage:
 
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_file_not_exists(self, tmp_path):
-        """Test _process_scene_embeddings with non-existing embedding file."""
-        settings = ScriptRAGSettings(
-            database_path=Path("test.db"),
-            skip_boneyard_filter=True,  # Enable for unit tests
-        )
+        """Test process_scene_embeddings with non-existing embedding file."""
         mock_db_ops = Mock()
-        indexer = IndexCommand(settings, mock_db_ops)
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
+            embedding_service=None,
+            generate_embeddings=False,
+        )
 
         # Create scene with embedding result but file doesn't exist
         embedding_path = "embeddings/nonexistent.npy"
@@ -404,7 +406,7 @@ class TestIndexCommandCoverage:
             mock_repo.working_dir = str(tmp_path)
             mock_repo_class.return_value = mock_repo
 
-            await indexer._process_scene_embeddings(mock_conn, scene, scene_id=1)
+            await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
             # Should store reference without data
             mock_db_ops.upsert_embedding.assert_called_once()
@@ -424,12 +426,12 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_processing_error(self):
         """Test _process_scene_embeddings with processing error."""
-        settings = ScriptRAGSettings(
-            database_path=Path("test.db"),
-            skip_boneyard_filter=True,  # Enable for unit tests
-        )
         mock_db_ops = Mock()
-        indexer = IndexCommand(settings, mock_db_ops)
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
+            embedding_service=None,
+            generate_embeddings=False,
+        )
 
         # Create scene with embedding result
         embedding_path = "embeddings/test.npy"
@@ -457,20 +459,20 @@ class TestIndexCommandCoverage:
 
         with patch("git.Repo", side_effect=Exception("Git error")):
             # Should handle error gracefully
-            await indexer._process_scene_embeddings(mock_conn, scene, scene_id=1)
+            await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
             # No database operations should be called due to error
             mock_db_ops.upsert_embedding.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_scene_without_file_path(self, tmp_path):
-        """Test _process_scene_embeddings with scene that has no file_path attribute."""
-        settings = ScriptRAGSettings(
-            database_path=Path("test.db"),
-            skip_boneyard_filter=True,  # Enable for unit tests
-        )
+        """Test process_scene_embeddings with scene that has no file_path attribute."""
         mock_db_ops = Mock()
-        indexer = IndexCommand(settings, mock_db_ops)
+        processor = IndexEmbeddingProcessor(
+            db_ops=mock_db_ops,
+            embedding_service=None,
+            generate_embeddings=False,
+        )
 
         # Create scene without file_path attribute
         scene = Mock()
@@ -494,7 +496,7 @@ class TestIndexCommandCoverage:
             mock_repo.working_dir = str(tmp_path)
             mock_repo_class.return_value = mock_repo
 
-            await indexer._process_scene_embeddings(mock_conn, scene, scene_id=1)
+            await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
             # Should use current directory "." for repo search
             mock_repo_class.assert_called_once_with(".", search_parent_directories=True)
@@ -863,10 +865,7 @@ This validates the comment behavior.
 
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_no_bible_characters_key(self):
-        """Test _apply_bible_aliases when metadata has no bible.characters key."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
-        cmd = IndexCommand(settings=settings)
-
+        """Test apply_bible_aliases when metadata has no bible.characters key."""
         mock_conn = Mock()
         mock_cursor = Mock()
         mock_conn.cursor.return_value = mock_cursor
@@ -876,7 +875,7 @@ This validates the comment behavior.
         mock_cursor.fetchone.return_value = (json.dumps(metadata_no_bible),)
 
         # This should trigger the early return on line 552
-        await cmd._apply_bible_aliases(
+        await IndexBibleAliasApplicator.apply_bible_aliases(
             mock_conn, script_id=1, character_map={"TEST": 1}
         )
 
@@ -887,10 +886,7 @@ This validates the comment behavior.
 
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_character_not_in_map(self):
-        """Test _apply_bible_aliases when character not found in character_map."""
-        settings = ScriptRAGSettings(database_path=Path("test.db"))
-        cmd = IndexCommand(settings=settings)
-
+        """Test apply_bible_aliases when character not found in character_map."""
         mock_conn = Mock()
         mock_cursor = Mock()
         mock_conn.cursor.return_value = mock_cursor
@@ -908,7 +904,7 @@ This validates the comment behavior.
         # Character map that doesn't include "NONEXISTENT"
         character_map = {"ALICE": 1, "BOB": 2}  # No "NONEXISTENT"
 
-        await cmd._apply_bible_aliases(
+        await IndexBibleAliasApplicator.apply_bible_aliases(
             mock_conn, script_id=1, character_map=character_map
         )
 

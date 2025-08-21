@@ -36,7 +36,11 @@ class TestMissingConfigWarning:
         assert caplog.records[0].levelname == "WARNING"
         assert "Configuration file not found" in caplog.records[0].message
         # Check the extra field via __dict__ or the message itself
-        assert str(missing_file) in caplog.text
+        # On Windows, paths may have escaped backslashes in structured log output
+        assert (
+            str(missing_file) in caplog.text
+            or str(missing_file).replace("\\", "\\\\") in caplog.text
+        )
 
     def test_multiple_missing_files_log_multiple_warnings(self, tmp_path, caplog):
         """Test that multiple missing files each emit their own warning."""
@@ -56,9 +60,19 @@ class TestMissingConfigWarning:
         assert len(caplog.records) == 3
 
         # Check each file is mentioned in the logs
-        assert str(missing_file1) in caplog.text
-        assert str(missing_file2) in caplog.text
-        assert str(missing_file3) in caplog.text
+        # On Windows, paths may have escaped backslashes in structured log output
+        assert (
+            str(missing_file1) in caplog.text
+            or str(missing_file1).replace("\\", "\\\\") in caplog.text
+        )
+        assert (
+            str(missing_file2) in caplog.text
+            or str(missing_file2).replace("\\", "\\\\") in caplog.text
+        )
+        assert (
+            str(missing_file3) in caplog.text
+            or str(missing_file3).replace("\\", "\\\\") in caplog.text
+        )
 
         for record in caplog.records:
             assert record.levelname == "WARNING"
@@ -90,7 +104,11 @@ log_level: DEBUG
         assert len(caplog.records) == 1
         assert caplog.records[0].levelname == "WARNING"
         assert "Configuration file not found" in caplog.records[0].message
-        assert str(missing_file) in caplog.text
+        # On Windows, paths may have escaped backslashes in structured log output
+        assert (
+            str(missing_file) in caplog.text
+            or str(missing_file).replace("\\", "\\\\") in caplog.text
+        )
 
     def test_missing_file_with_higher_precedence_sources(self, tmp_path, caplog):
         """Test that CLI args still override even with missing config files."""

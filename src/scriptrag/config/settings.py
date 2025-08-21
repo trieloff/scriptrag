@@ -339,7 +339,14 @@ class ScriptRAGSettings(BaseSettings):
                     file_data = file_settings.model_dump()
                     data.update(file_data)
                 except FileNotFoundError:
-                    # Skip missing config files
+                    # Log warning when config file is not found
+                    from scriptrag.config import get_logger
+
+                    logger = get_logger(__name__)
+                    logger.warning(
+                        "Configuration file not found, using defaults",
+                        config_file=str(config_file),
+                    )
                     pass
 
         # Create settings with env vars and .env file

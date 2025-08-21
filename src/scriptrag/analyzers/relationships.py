@@ -38,17 +38,40 @@ def _normalize_speaker(raw: str) -> str:
 def _build_alias_index(
     bible_characters: dict[str, Any] | None,
 ) -> tuple[dict[str, str], set[str]]:
-    """Build a mapping alias->canonical and set of canonicals.
+    """Build character alias mapping from Bible character data.
 
-    Input format (stored in scripts.metadata):
-    {
-      "version": 1,
-      "extracted_at": "ISO8601",
-      "characters": [
-        {"canonical": "JANE SMITH", "aliases": ["JANE", "MS. SMITH"], ...},
-        ...
-      ]
-    }
+    Creates a bidirectional mapping system for character name resolution,
+    processing Bible character data extracted via LLM or authored manually.
+    All names are normalized to uppercase for case-insensitive matching.
+
+    Args:
+        bible_characters: Dictionary containing character data in the expected
+                         format with 'characters' list, or None if no data
+                         is available.
+
+    Returns:
+        Tuple containing:
+        - alias_to_canonical: Dict mapping all aliases (including canonical
+          names) to their canonical forms
+        - canonicals: Set of all canonical character names
+
+    Example:
+        Input format (stored in scripts.metadata):
+        {
+          "version": 1,
+          "extracted_at": "ISO8601",
+          "characters": [
+            {"canonical": "JANE SMITH", "aliases": ["JANE", "MS. SMITH"]},
+            {"canonical": "BOB JONES", "aliases": ["BOB", "DETECTIVE JONES"]}
+          ]
+        }
+
+    Returns:
+        (
+          {"JANE": "JANE SMITH", "MS. SMITH": "JANE SMITH",
+           "JANE SMITH": "JANE SMITH", "BOB": "BOB JONES", ...},
+          {"JANE SMITH", "BOB JONES"}
+        )
     """
     alias_to_canonical: dict[str, str] = {}
     canonicals: set[str] = set()
@@ -73,11 +96,32 @@ def _build_alias_index(
 
 
 def _compile_alias_patterns(aliases: list[str]) -> list[tuple[re.Pattern[str], str]]:
-    """Compile case-insensitive, word-boundary-like regex for each alias.
+    r"""Compile regex patterns for word-boundary alias matching.
 
-    We consider boundaries as transitions to/from non-alphanumeric to avoid
-    partial matches (e.g., BOB != BOBBIN). Periods and hyphens are treated
-    as non-alphanumerics (boundaries).
+    Creates case-insensitive regex patterns that match character aliases
+    only when they appear as complete words, preventing false positives
+    from partial matches. Boundaries are defined as transitions between
+    alphanumeric and non-alphanumeric characters.
+
+    Args:
+        aliases: List of character aliases to create patterns for
+
+    Returns:
+        List of tuples, each containing:
+        - Compiled regex pattern for the alias
+        - Original alias string for reference
+
+    Example:
+        >>> patterns = _compile_alias_patterns(["BOB", "MS. SMITH"])
+        >>> [pattern.pattern for pattern, _ in patterns]
+        ['(?<![A-Za-z0-9])BOB(?![A-Za-z0-9])',
+         '(?<![A-Za-z0-9])MS\. SMITH(?![A-Za-z0-9])']
+
+    Note:
+        Periods and hyphens are treated as word boundaries to properly
+        handle titles ("MS. SMITH") and hyphenated names ("MARY-JANE").
+        This prevents "BOB" from matching "BOBBIN" while allowing
+        "MS. SMITH" to match in "MS. SMITH walks in."
     """
     patterns: list[tuple[re.Pattern[str], str]] = []
     for alias in aliases:
@@ -147,7 +191,28 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
             }
 
     def _ensure_index_from_db(self) -> None:
-        """Load alias index from DB scripts.metadata if not already loaded."""
+        """Load character alias index from database metadata when needed.
+
+        Reads Bible character data from the scripts.metadata column in the
+        database, looking for entries under 'bible.characters' or nested
+        'bible' -> 'characters' structure. This method is called lazily
+        when analysis is performed and no alias index has been provided
+        via configuration.
+
+        The method safely handles missing script context, database connection
+        failures, and malformed metadata by creating an empty index that
+        allows analysis to continue without character resolution.
+
+        Raises:
+            No exceptions are raised. All errors are logged and result in
+            an empty alias index being created.
+
+        Note:
+            This method sets self._index to an empty AliasIndex if any
+            errors occur, ensuring the analyzer can still function even
+            without Bible character data. The alias index is cached after
+            first load to avoid repeated database queries.
+        """
         if self._index is not None:
             return
         # Need script to know which file we're analyzing
@@ -281,6 +346,28 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         }
 
     def _resolve_alias(self, name_or_alias: str) -> str | None:
+        """Resolve an alias or name to its canonical character form.
+
+        Performs exact, case-insensitive matching against the alias index
+        built from Bible character data. This is the core method that connects
+        dialogue speakers and text mentions to their canonical characters.
+
+        Args:
+            name_or_alias: Character name or alias to resolve. Will be
+                          normalized to uppercase for matching.
+
+        Returns:
+            Canonical character name if found, None if no match or no
+            alias index available.
+
+        Example:
+            >>> analyzer._resolve_alias("jane")
+            'JANE SMITH'
+            >>> analyzer._resolve_alias("DETECTIVE SMITH")
+            'JANE SMITH'
+            >>> analyzer._resolve_alias("UNKNOWN")
+            None
+        """
         # Exact, case-insensitive match of alias keys
         key = name_or_alias.strip().upper()
         return self._index.alias_to_canonical.get(key) if self._index else None
@@ -310,7 +397,27 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
         return mentioned
 
     def _scan_mentions(self, text: str) -> set[str]:
-        """Scan text for alias matches and return set of canonical names."""
+        """Scan text for character alias mentions using word-boundary patterns.
+
+        Uses precompiled regex patterns to find character mentions in scene
+        action lines and headings. Each pattern matches word boundaries to
+        avoid false positives (e.g., "BOB" won't match "BOBBIN").
+
+        Args:
+            text: Text content to search for character mentions
+
+        Returns:
+            Set of canonical character names found in the text. Empty set
+            if no matches found or no alias index available.
+
+        Example:
+            >>> analyzer._scan_mentions("BOB walks into the room.")
+            {'ROBERT JONES'}
+            >>> analyzer._scan_mentions("The detective arrives.")
+            set()
+            >>> analyzer._scan_mentions("MS. SMITH and JANE talk quietly.")
+            {'JANE SMITH'}
+        """
         found: set[str] = set()
         if not self._index:
             return found

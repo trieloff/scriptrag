@@ -20,7 +20,31 @@ logger = get_logger(__name__)
 
 @dataclass
 class BibleIndexResult:
-    """Result from indexing a single bible document."""
+    """Result data from indexing a single script Bible document.
+
+    Tracks the outcome of indexing operations including success/failure status,
+    database IDs, and counts of processed elements. This information is used
+    for reporting and debugging indexing operations.
+
+    Attributes:
+        path: Path to the Bible file that was processed
+        bible_id: Database ID of the Bible record, if successfully created/found
+        indexed: True if this was a new Bible file that was indexed
+        updated: True if this was an existing Bible file that was updated
+        chunks_indexed: Number of content chunks successfully indexed
+        embeddings_created: Number of embeddings generated for chunks
+        error: Error message if indexing failed, None if successful
+
+    Example:
+        >>> result = BibleIndexResult(
+        ...     path=Path("my_bible.md"),
+        ...     bible_id=123,
+        ...     indexed=True,
+        ...     chunks_indexed=15,
+        ...     embeddings_created=15
+        ... )
+        >>> print(f"Indexed {result.chunks_indexed} chunks")
+    """
 
     path: Path
     bible_id: int | None = None
@@ -32,7 +56,26 @@ class BibleIndexResult:
 
 
 class BibleIndexer:
-    """Handles indexing of script bible documents."""
+    """Indexes script Bible documents into the ScriptRAG database.
+
+    Manages the complete process of parsing Bible markdown files, extracting
+    structured content, storing it in the database, generating embeddings for
+    semantic search, and extracting character alias information via LLM.
+
+    The indexing process includes:
+    1. Parsing markdown files into structured chunks
+    2. Storing Bible metadata and chunks in the database
+    3. Generating embeddings for semantic search (if configured)
+    4. Extracting character aliases via LLM (if configured)
+    5. Linking extracted aliases to script character records
+
+    Example:
+        >>> indexer = BibleIndexer()
+        >>> result = await indexer.index_bible(
+        ...     Path("my_bible.md"), script_id=123
+        ... )
+        >>> print(f"Indexed {result.chunks_indexed} chunks")
+    """
 
     def __init__(
         self,
@@ -51,7 +94,26 @@ class BibleIndexer:
         self.embedding_analyzer: SceneEmbeddingAnalyzer | None = None
 
     async def initialize_embedding_analyzer(self) -> None:
-        """Initialize the embedding analyzer for bible chunks."""
+        """Initialize the embedding analyzer for Bible chunk processing.
+
+        Sets up the SceneEmbeddingAnalyzer with configuration specific to
+        Bible content processing. The analyzer handles generating vector
+        embeddings for Bible chunks to enable semantic search capabilities.
+
+        The configuration includes:
+        - LFS storage path for embedding files
+        - Repository root path for Git LFS integration
+        - Embedding model selection from settings
+
+        Raises:
+            Exception: If embedding analyzer initialization fails due to
+                      LLM configuration issues or storage path problems
+
+        Note:
+            This method is called lazily when embeddings are needed, allowing
+            the indexer to function even when embeddings are not configured.
+            The analyzer is cached after first initialization.
+        """
         if self.embedding_analyzer is None:
             # Configure for bible embeddings using settings
             config = {
@@ -72,15 +134,47 @@ class BibleIndexer:
         script_id: int,
         force: bool = False,
     ) -> BibleIndexResult:
-        """Index a single bible document.
+        """Index a single script Bible document into the database.
+
+        Orchestrates the complete Bible indexing pipeline including parsing,
+        database storage, embedding generation, and character alias extraction.
+        Handles both new Bible files and updates to existing ones.
+
+        The indexing process:
+        1. Parse Bible markdown file using BibleParser
+        2. Check for existing Bible record and compare file hashes
+        3. Insert new or update existing Bible metadata
+        4. Index all content chunks with hierarchical relationships
+        5. Generate embeddings for semantic search (if configured)
+        6. Extract character aliases via LLM (if configured)
+        7. Link aliases to script metadata and character records
 
         Args:
-            bible_path: Path to the bible markdown file
-            script_id: ID of the associated script
-            force: Force re-indexing even if unchanged
+            bible_path: Path to the Bible markdown file to index. Must be
+                       accessible and contain valid markdown content.
+            script_id: Database ID of the associated script that this Bible
+                      document provides reference material for
+            force: If True, re-process the Bible even if the file hash
+                  indicates it hasn't changed since last indexing
 
         Returns:
-            BibleIndexResult with indexing details
+            BibleIndexResult containing outcome details including database IDs,
+            processing counts, and any error information.
+
+        Example:
+            >>> indexer = BibleIndexer()
+            >>> result = await indexer.index_bible(
+            ...     Path("script_bible.md"), script_id=42
+            ... )
+            >>> if result.error:
+            ...     print(f"Indexing failed: {result.error}")
+            ... else:
+            ...     print(f"Success: {result.chunks_indexed} chunks indexed")
+
+        Note:
+            All errors are caught and returned in the result object rather than
+            raised, allowing batch indexing operations to continue processing
+            other files even if one fails.
         """
         result = BibleIndexResult(path=bible_path)
 
@@ -156,17 +250,46 @@ class BibleIndexer:
         return result
 
     async def _extract_bible_aliases(self, parsed_bible: ParsedBible) -> dict | None:
-        """Optionally use an LLM to extract canonical+aliases JSON from bible text.
+        """Extract character aliases from Bible content using LLM analysis.
 
-        Returns None if LLM isn't configured. The expected return:
-        {
-          "version": 1,
-          "extracted_at": "ISO8601",
-          "characters": [
-            {"canonical": "JANE SMITH", "aliases": ["JANE", "MS. SMITH"], ...},
-            ...
-          ]
-        }
+        Uses the configured LLM to analyze Bible content and extract structured
+        character information including canonical names and aliases. This enables
+        automatic character relationship detection in scene analysis.
+
+        The extraction process:
+        1. Concatenates relevant Bible chunks (limited to 2000 chars)
+        2. Sends structured prompts to LLM requesting JSON output
+        3. Parses and validates the LLM response
+        4. Normalizes character data (uppercase, deduplication)
+        5. Returns standardized metadata structure
+
+        Args:
+            parsed_bible: Parsed Bible data containing content chunks
+                         to analyze for character information
+
+        Returns:
+            Dictionary with character extraction metadata if LLM is configured
+            and extraction succeeds, None if LLM is not available or extraction
+            fails. The format matches BibleCharacterExtractor output:
+            {
+              "version": 1,
+              "extracted_at": "2024-01-15T10:30:00.000Z",
+              "characters": [
+                {"canonical": "JANE SMITH", "aliases": ["JANE", "MS. SMITH"]},
+                ...
+              ]
+            }
+
+        Example:
+            >>> aliases = await indexer._extract_bible_aliases(parsed_bible)
+            >>> if aliases:
+            ...     char_count = len(aliases.get("characters", []))
+            ...     print(f"Extracted {char_count} characters")
+
+        Note:
+            Returns None if no LLM is configured (missing model, provider, or API key).
+            All extraction errors are logged and result in None return value,
+            allowing indexing to continue without character alias data.
         """
         settings = self.settings
         if (
@@ -256,7 +379,28 @@ class BibleIndexer:
     def _attach_alias_map_to_script(
         self, conn: sqlite3.Connection, script_id: int, alias_map: dict
     ) -> None:
-        """Store alias map under scripts.metadata['bible']['characters']."""
+        """Store extracted character aliases in script metadata.
+
+        Updates the script's metadata to include the character alias mapping
+        extracted from the Bible. This data is used by the relationships
+        analyzer to identify characters mentioned in scenes.
+
+        The aliases are stored under the key 'bible.characters' to distinguish
+        them from other metadata while providing a consistent location for
+        the relationships analyzer to find character data.
+
+        Args:
+            conn: Active database connection within a transaction
+            script_id: Database ID of the script to update
+            alias_map: Character alias mapping extracted from Bible content,
+                      in the format returned by _extract_bible_aliases
+
+        Note:
+            This method preserves existing metadata while adding/updating
+            the character aliases. JSON parsing errors result in starting
+            with an empty metadata dictionary. The script's updated_at
+            timestamp is automatically updated.
+        """
         cur = conn.execute("SELECT metadata FROM scripts WHERE id = ?", (script_id,))
         row = cur.fetchone()
         try:
@@ -276,7 +420,29 @@ class BibleIndexer:
     def _attach_aliases_to_characters(
         self, conn: sqlite3.Connection, script_id: int, alias_map: dict
     ) -> None:
-        """If 'aliases' column exists, update characters' aliases by canonical match."""
+        """Update character records with extracted aliases if schema supports it.
+
+        Attempts to populate the 'aliases' column in character records by matching
+        canonical names from the extracted alias map. This provides direct access
+        to character aliases in database queries without requiring metadata parsing.
+
+        The method:
+        1. Checks if the characters table has an 'aliases' column
+        2. Builds a canonical-to-aliases mapping from the alias data
+        3. Matches existing character names to canonical names
+        4. Updates character records with JSON-encoded alias lists
+
+        Args:
+            conn: Active database connection within a transaction
+            script_id: Database ID of the script whose characters to update
+            alias_map: Character alias mapping with 'characters' array containing
+                      objects with 'canonical' and 'aliases' fields
+
+        Note:
+            This method gracefully handles schema variations - if the characters
+            table doesn't have an 'aliases' column, it silently returns without
+            error. All database and processing errors are caught and logged.
+        """
         # Check schema for aliases column
         try:
             has_aliases = False

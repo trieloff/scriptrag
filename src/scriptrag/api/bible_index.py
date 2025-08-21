@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -134,6 +135,18 @@ class BibleIndexer:
                     f"Successfully indexed bible {bible_path}: "
                     f"{chunks_indexed} chunks, {result.embeddings_created} embeddings"
                 )
+                # Extract character aliases from bible and persist to script metadata
+                try:
+                    alias_map = await self._extract_bible_aliases(parsed_bible)
+                except Exception as e:  # pragma: no cover
+                    logger.debug(f"Alias extraction skipped due to error: {e}")
+                    alias_map = None
+
+                if alias_map:
+                    # Persist under scripts.metadata["bible"]["characters"]
+                    self._attach_alias_map_to_script(conn, script_id, alias_map)
+                    # Attempt to attach aliases to existing characters if column exists
+                    self._attach_aliases_to_characters(conn, script_id, alias_map)
                 # Note: commit happens automatically with transaction context
 
         except Exception as e:
@@ -141,6 +154,165 @@ class BibleIndexer:
             result.error = str(e)
 
         return result
+
+    async def _extract_bible_aliases(self, parsed_bible: ParsedBible) -> dict | None:
+        """Optionally use an LLM to extract canonical+aliases JSON from bible text.
+
+        Returns None if LLM isn't configured. The expected return:
+        {
+          "version": 1,
+          "extracted_at": "ISO8601",
+          "characters": [
+            {"canonical": "JANE SMITH", "aliases": ["JANE", "MS. SMITH"], ...},
+            ...
+          ]
+        }
+        """
+        settings = self.settings
+        if (
+            not settings.llm_model
+            and not settings.llm_provider
+            and not settings.llm_api_key
+        ):
+            return None
+
+        try:
+            from datetime import datetime
+
+            from scriptrag.utils import get_default_llm_client
+
+            client = await get_default_llm_client()
+
+            # Concatenate relevant chunks into a single prompt context (bounded)
+            # Keep it lightweight: headings + first 2000 chars
+            chunks_text = []
+            limit = 2000
+            total = 0
+            for ch in parsed_bible.chunks:
+                frag = f"# {ch.heading or ''}\n\n{ch.content}\n\n"
+                if total + len(frag) > limit:
+                    remaining = max(0, limit - total)
+                    if remaining > 0:
+                        frag = frag[:remaining]
+                    else:
+                        break
+                chunks_text.append(frag)
+                total += len(frag)
+
+            system = (
+                "You extract canonical character names and their aliases "
+                "from a screenplay bible. "
+                "Return strict JSON with fields: version (1), "
+                "extracted_at (ISO8601), characters (list of objects). "
+                "Each object has: canonical (UPPERCASE string), "
+                "aliases (list of UPPERCASE strings). "
+                "Exclude generic nouns; dedupe and uppercase all outputs."
+            )
+            user = (
+                "Extract character canonical names and aliases from the "
+                "following notes. "
+                "Focus on sections describing characters or naming "
+                "variations.\n\n" + "\n".join(chunks_text)
+            )
+            resp = await client.complete(
+                messages=[{"role": "user", "content": user}],
+                system=system,
+                temperature=0.0,
+                max_tokens=800,
+            )
+            text = resp.text.strip() if hasattr(resp, "text") else str(resp)
+            # Try to parse as JSON; if the model wrapped in code fences, strip them
+            text = re.sub(
+                r"^```json\s*|```$",
+                "",
+                text.strip(),
+                flags=re.IGNORECASE | re.MULTILINE,
+            )
+            data = json.loads(text)
+
+            # Basic validation/normalization
+            chars = []
+            for entry in data.get("characters", []) or []:
+                canonical = (entry.get("canonical") or "").strip().upper()
+                aliases = [
+                    (a or "").strip().upper() for a in (entry.get("aliases") or []) if a
+                ]
+                if canonical:
+                    # dedupe while preserving order
+                    unique_aliases = list(dict.fromkeys([a for a in aliases if a]))
+                    # Ensure canonical not duplicated in aliases
+                    unique_aliases = [a for a in unique_aliases if a != canonical]
+                    chars.append({"canonical": canonical, "aliases": unique_aliases})
+
+            return {
+                "version": 1,
+                "extracted_at": datetime.utcnow().isoformat() + "Z",
+                "characters": chars,
+            }
+        except Exception as e:  # pragma: no cover
+            logger.debug(f"LLM alias extraction failed: {e}")
+            return None
+
+    def _attach_alias_map_to_script(
+        self, conn: sqlite3.Connection, script_id: int, alias_map: dict
+    ) -> None:
+        """Store alias map under scripts.metadata['bible']['characters']."""
+        cur = conn.execute("SELECT metadata FROM scripts WHERE id = ?", (script_id,))
+        row = cur.fetchone()
+        try:
+            meta = json.loads(row[0]) if row and row[0] else {}
+        except Exception:  # pragma: no cover
+            meta = {}
+        # Store under dotted key to match index/analyzer consumers
+        meta["bible.characters"] = alias_map
+        conn.execute(
+            (
+                "UPDATE scripts SET metadata = ?, "
+                "updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+            ),
+            (json.dumps(meta), script_id),
+        )
+
+    def _attach_aliases_to_characters(
+        self, conn: sqlite3.Connection, script_id: int, alias_map: dict
+    ) -> None:
+        """If 'aliases' column exists, update characters' aliases by canonical match."""
+        # Check schema for aliases column
+        try:
+            has_aliases = False
+            for row in conn.execute("PRAGMA table_info(characters)"):
+                if (row[1] if isinstance(row, tuple) else row["name"]) == "aliases":
+                    has_aliases = True
+                    break
+            if not has_aliases:
+                return
+
+            # Build canonical->aliases
+            canonical_to_aliases: dict[str, list[str]] = {}
+            for entry in alias_map.get("characters") or []:
+                canonical = (entry.get("canonical") or "").strip().upper()
+                aliases = [
+                    (a or "").strip().upper() for a in (entry.get("aliases") or []) if a
+                ]
+                if canonical:
+                    canonical_to_aliases[canonical] = sorted(dict.fromkeys(aliases))
+
+            if not canonical_to_aliases:
+                return
+
+            # Fetch character IDs and names for this script
+            for row in conn.execute(
+                "SELECT id, name FROM characters WHERE script_id = ?", (script_id,)
+            ):
+                cid = row[0]
+                name = (row[1] or "").strip().upper()
+                if name in canonical_to_aliases:
+                    conn.execute(
+                        "UPDATE characters SET aliases = ? WHERE id = ?",
+                        (json.dumps(canonical_to_aliases[name]), cid),
+                    )
+        except Exception as e:  # pragma: no cover
+            logger.debug(f"Skipping character alias attachment: {e}")
 
     async def _insert_bible(
         self,

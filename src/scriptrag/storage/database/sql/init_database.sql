@@ -58,6 +58,8 @@ CREATE TABLE IF NOT EXISTS characters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     script_id INTEGER NOT NULL,
     name TEXT NOT NULL,
+    -- JSON array of uppercase alias strings, stored as TEXT for compatibility
+    aliases TEXT,
     description TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -178,7 +180,7 @@ CREATE TABLE IF NOT EXISTS schema_version (
 
 -- Insert initial schema version
 INSERT INTO schema_version (version, description)
-VALUES (3, 'ScriptRAG schema with file_path uniqueness and series metadata');
+VALUES (4, 'ScriptRAG schema with Bible-driven character aliases support');
 
 -- Create triggers to update timestamps
 CREATE TRIGGER IF NOT EXISTS update_scripts_timestamp

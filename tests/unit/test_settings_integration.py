@@ -219,19 +219,25 @@ debug = true
         )
         assert str(settings.log_file) == str(Path("/custom/dir/app.log").resolve())
 
-    def test_missing_config_file(self, tmp_path):
+    def test_missing_config_file(self, tmp_path, caplog):
         """Test error handling for missing config files."""
+        import logging
+
         missing_file = tmp_path / "missing.yml"
 
         with pytest.raises(FileNotFoundError, match="Configuration file not found"):
             ScriptRAGSettings.from_file(missing_file)
 
-        # from_multiple_sources should skip missing files
-        settings = ScriptRAGSettings.from_multiple_sources(
-            config_files=[missing_file],
-        )
+        # from_multiple_sources should skip missing files with a warning
+        with caplog.at_level(logging.WARNING):
+            settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=[missing_file],
+            )
         # Should use defaults
         assert settings.app_name == "scriptrag"
+        # Should have logged a warning
+        assert len(caplog.records) == 1
+        assert "Configuration file not found" in caplog.records[0].message
 
     def test_unsupported_config_format(self, tmp_path):
         """Test error for unsupported config file format."""

@@ -241,6 +241,23 @@ class ScriptRAGSettings(BaseSettings):
         """Create settings from environment variables."""
         return cls()
 
+    @field_validator("llm_model", "llm_embedding_model", mode="before")
+    @classmethod
+    def normalize_llm_models(cls, v: Any) -> Any:
+        """Normalize sentinel values for LLM model fields.
+
+        Treat common placeholders like "default", "auto", empty strings,
+        and "none" (any casing/whitespace) as unset (None) so that the
+        application can auto-select appropriate models at runtime.
+        """
+        if v is None:
+            return None
+        if isinstance(v, str):
+            normalized = v.strip().lower()
+            if normalized in {"", "default", "auto", "none"}:
+                return None
+        return v
+
     @classmethod
     def from_file(cls, config_path: Path | str) -> "ScriptRAGSettings":
         """Load settings from a configuration file.
@@ -322,7 +339,14 @@ class ScriptRAGSettings(BaseSettings):
                     file_data = file_settings.model_dump()
                     data.update(file_data)
                 except FileNotFoundError:
-                    # Skip missing config files
+                    # Log warning when config file is not found
+                    from scriptrag.config import get_logger
+
+                    logger = get_logger(__name__)
+                    logger.warning(
+                        "Configuration file not found, using defaults",
+                        config_file=str(config_file),
+                    )
                     pass
 
         # Create settings with env vars and .env file

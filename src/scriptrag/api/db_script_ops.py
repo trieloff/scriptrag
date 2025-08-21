@@ -74,17 +74,18 @@ class ScriptOperations:
         Returns:
             ID of the inserted or updated script
         """
-        metadata = script.metadata.copy() if script.metadata else {}
-        metadata["last_indexed"] = datetime.now().isoformat()
+        # Start from the script-provided metadata
+        new_metadata = script.metadata.copy() if script.metadata else {}
+        new_metadata["last_indexed"] = datetime.now().isoformat()
 
         # Extract series/episode info from metadata if available
         # Ensure we have safe defaults for all fields
         title = script.title or "Untitled"
         author = script.author or "Unknown"
-        project_title = metadata.get("project_title") or title
-        series_title = metadata.get("series_title")
-        season = metadata.get("season")
-        episode = metadata.get("episode")
+        project_title = new_metadata.get("project_title") or title
+        series_title = new_metadata.get("series_title")
+        season = new_metadata.get("season")
+        episode = new_metadata.get("episode")
 
         # Use separate SELECT/UPDATE/INSERT for compatibility
         # This works with older SQLite versions that don't support ON CONFLICT RETURNING
@@ -94,6 +95,36 @@ class ScriptOperations:
         existing = cursor.fetchone()
 
         if existing:
+            # Merge with existing metadata to preserve authored info (e.g., bible)
+            try:
+                row = conn.execute(
+                    "SELECT metadata FROM scripts WHERE file_path = ?",
+                    (str(file_path),),
+                ).fetchone()
+                existing_meta = json.loads(row[0]) if row and row[0] else {}
+            except Exception:  # pragma: no cover
+                existing_meta = {}
+
+            # Shallow merge, with special handling for nested 'bible'
+            merged_meta = {**existing_meta, **new_metadata}
+            if isinstance(existing_meta.get("bible"), dict) or isinstance(
+                new_metadata.get("bible"), dict
+            ):
+                # Handle cases where existing or new bible metadata might not be dicts
+                existing_bible = existing_meta.get("bible") or {}
+                new_bible = new_metadata.get("bible") or {}
+
+                # Only merge if both are dicts, otherwise use the dict one or new one
+                if isinstance(existing_bible, dict) and isinstance(new_bible, dict):
+                    merged_meta["bible"] = {**existing_bible, **new_bible}
+                elif isinstance(new_bible, dict):
+                    merged_meta["bible"] = new_bible
+                elif isinstance(existing_bible, dict):
+                    merged_meta["bible"] = existing_bible
+                else:
+                    # Both are non-dicts, prefer new
+                    merged_meta["bible"] = new_bible
+
             # Update existing script
             conn.execute(
                 """
@@ -110,7 +141,7 @@ class ScriptOperations:
                     series_title,
                     season,
                     episode,
-                    json.dumps(metadata),
+                    json.dumps(merged_meta),
                     str(file_path),
                 ),
             )
@@ -133,7 +164,7 @@ class ScriptOperations:
                     series_title,
                     season,
                     episode,
-                    json.dumps(metadata),
+                    json.dumps(new_metadata),
                 ),
             )
             script_id = cursor.lastrowid

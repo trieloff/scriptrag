@@ -1,7 +1,10 @@
-"""SQLite VSS service using sqlite-vec for vector similarity search."""
+"""SQLite VSS service using sqlite-vec for vector similarity search.
+
+This module exposes the public ``VSSService`` while delegating heavy lifting to
+focused helper modules to keep file size and complexity in check.
+"""
 
 import sqlite3
-import struct
 from pathlib import Path
 from typing import Any, TypeAlias
 
@@ -12,6 +15,22 @@ from sqlite_vec import serialize_float32
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.exceptions import DatabaseError
+
+from .vss_admin import get_embedding_stats as admin_stats
+from .vss_admin import migrate_from_blob_storage as admin_migrate
+from .vss_bible_ops import (
+    search_similar_bible_chunks as bible_search,
+)
+from .vss_bible_ops import (
+    store_bible_embedding as bible_store,
+)
+from .vss_scene_ops import (
+    search_similar_scenes as scene_search,
+)
+from .vss_scene_ops import (
+    store_scene_embedding as scene_store,
+)
+from .vss_setup import initialize_vss_tables
 
 logger = get_logger(__name__)
 
@@ -50,33 +69,14 @@ class VSSService:
                 self._initialize_vss_tables(conn)
 
     def _initialize_vss_tables(self, conn: sqlite3.Connection) -> None:
-        """Initialize VSS virtual tables.
-
-        Args:
-            conn: Database connection
-        """
-        # Read and execute migration SQL
-        migration_path: Path = (
-            Path(__file__).parent / "database" / "sql" / "vss_migration.sql"
-        )
-        if migration_path.exists():
-            migration_sql: str = migration_path.read_text()
-            # Execute statements one by one (skip .load command)
-            for statement in migration_sql.split(";"):
-                statement = statement.strip()
-                if (
-                    statement
-                    and not statement.startswith("--")
-                    and ".load" not in statement
-                ):
-                    try:
-                        conn.execute(statement)
-                    except sqlite3.OperationalError as e:
-                        # Skip if table already exists
-                        if "already exists" not in str(e):
-                            logger.warning(f"Migration statement failed: {e}")
-            conn.commit()
+        """Initialize VSS virtual tables via migration helper."""
+        try:
+            initialize_vss_tables(conn)
             logger.info("VSS tables initialized successfully")
+        except sqlite3.OperationalError as e:
+            # Keep previous behavior of logging and continuing on benign errors
+            if "already exists" not in str(e):
+                logger.warning(f"Migration statement failed: {e}")
 
     def get_connection(self) -> sqlite3.Connection:
         """Get a database connection with sqlite-vec loaded.
@@ -125,33 +125,13 @@ class VSSService:
             close_conn = False
 
         try:
-            # Use sqlite-vec's serialization
-            embedding_blob: bytes | FloatArray
-            if isinstance(embedding, list):
-                embedding_blob = serialize_float32(embedding)
-            else:
-                # NumPy arrays work directly via Buffer protocol
-                embedding_blob = embedding.astype(np.float32)
-
-            # Store in VSS table
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO scene_embeddings
-                (scene_id, embedding_model, embedding)
-                VALUES (?, ?, ?)
-                """,
-                (scene_id, model, embedding_blob),
-            )
-
-            # Update metadata
-            dimensions: int = len(embedding)
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO embedding_metadata
-                (entity_type, entity_id, embedding_model, dimensions)
-                VALUES ('scene', ?, ?, ?)
-                """,
-                (scene_id, model, dimensions),
+            # Delegate to ops
+            scene_store(
+                conn,
+                scene_id,
+                embedding,
+                model,
+                serializer=serialize_float32,
             )
 
             conn.commit()
@@ -195,66 +175,15 @@ class VSSService:
             close_conn = False
 
         try:
-            # Use sqlite-vec's serialization
-            if isinstance(query_embedding, list):
-                query_blob = serialize_float32(query_embedding)
-            else:
-                # NumPy arrays work directly via Buffer protocol
-                query_blob = query_embedding.astype(np.float32)
-
-            # Build query based on script_id filter
-            params: tuple[Any, ...]
-            query: str
-            if script_id:
-                query = """
-                    SELECT
-                        s.*,
-                        se.scene_id,
-                        se.distance
-                    FROM scene_embeddings se
-                    JOIN scenes s ON s.id = se.scene_id
-                    WHERE se.embedding_model = ?
-                    AND s.script_id = ?
-                    AND se.embedding MATCH ?
-                    ORDER BY se.distance
-                    LIMIT ?
-                """
-                params = (
-                    model,
-                    script_id,
-                    query_blob,
-                    limit,
-                )
-            else:
-                query = """
-                    SELECT
-                        s.*,
-                        se.scene_id,
-                        se.distance
-                    FROM scene_embeddings se
-                    JOIN scenes s ON s.id = se.scene_id
-                    WHERE se.embedding_model = ?
-                    AND se.embedding MATCH ?
-                    ORDER BY se.distance
-                    LIMIT ?
-                """
-                params = (
-                    model,
-                    query_blob,
-                    limit,
-                )
-
-            cursor = conn.execute(query, params)
-
-            results: list[dict[str, Any]] = []
-            for row in cursor:
-                result: dict[str, Any] = dict(row)
-                # Convert distance to similarity score (1 - normalized_distance)
-                # Assuming cosine distance, convert to similarity
-                result["similarity_score"] = 1.0 - (result.pop("distance", 0) / 2.0)
-                results.append(result)
-
-            return results
+            # Delegate to ops
+            return scene_search(
+                conn,
+                query_embedding,
+                model,
+                limit=limit,
+                script_id=script_id,
+                serializer=serialize_float32,
+            )
 
         except Exception as e:
             raise DatabaseError(
@@ -288,33 +217,13 @@ class VSSService:
             close_conn = False
 
         try:
-            # Use sqlite-vec's serialization
-            embedding_blob: bytes | FloatArray
-            if isinstance(embedding, list):
-                embedding_blob = serialize_float32(embedding)
-            else:
-                # NumPy arrays work directly via Buffer protocol
-                embedding_blob = embedding.astype(np.float32)
-
-            # Store in VSS table
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO bible_embeddings
-                (chunk_id, embedding_model, embedding)
-                VALUES (?, ?, ?)
-                """,
-                (chunk_id, model, embedding_blob),
-            )
-
-            # Update metadata
-            dimensions: int = len(embedding)
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO embedding_metadata
-                (entity_type, entity_id, embedding_model, dimensions)
-                VALUES ('bible_chunk', ?, ?, ?)
-                """,
-                (chunk_id, model, dimensions),
+            # Delegate to ops
+            bible_store(
+                conn,
+                chunk_id,
+                embedding,
+                model,
+                serializer=serialize_float32,
             )
 
             conn.commit()
@@ -360,72 +269,15 @@ class VSSService:
             close_conn = False
 
         try:
-            # Use sqlite-vec's serialization
-            query_blob: bytes | FloatArray
-            if isinstance(query_embedding, list):
-                query_blob = serialize_float32(query_embedding)
-            else:
-                # NumPy arrays work directly via Buffer protocol
-                query_blob = query_embedding.astype(np.float32)
-
-            # Build query based on script_id filter
-            params: tuple[Any, ...]
-            query: str
-            if script_id:
-                query = """
-                    SELECT
-                        bc.*,
-                        sb.title as bible_title,
-                        sb.script_id,
-                        be.chunk_id,
-                        be.distance
-                    FROM bible_embeddings be
-                    JOIN bible_chunks bc ON bc.id = be.chunk_id
-                    JOIN script_bibles sb ON bc.bible_id = sb.id
-                    WHERE be.embedding_model = ?
-                    AND sb.script_id = ?
-                    AND be.embedding MATCH ?
-                    ORDER BY be.distance
-                    LIMIT ?
-                """
-                params = (
-                    model,
-                    script_id,
-                    query_blob,
-                    limit,
-                )
-            else:
-                query = """
-                    SELECT
-                        bc.*,
-                        sb.title as bible_title,
-                        sb.script_id,
-                        be.chunk_id,
-                        be.distance
-                    FROM bible_embeddings be
-                    JOIN bible_chunks bc ON bc.id = be.chunk_id
-                    JOIN script_bibles sb ON bc.bible_id = sb.id
-                    WHERE be.embedding_model = ?
-                    AND be.embedding MATCH ?
-                    ORDER BY be.distance
-                    LIMIT ?
-                """
-                params = (
-                    model,
-                    query_blob,
-                    limit,
-                )
-
-            cursor = conn.execute(query, params)
-
-            results: list[dict[str, Any]] = []
-            for row in cursor:
-                result: dict[str, Any] = dict(row)
-                # Convert distance to similarity score
-                result["similarity_score"] = 1.0 - (result.pop("distance", 0) / 2.0)
-                results.append(result)
-
-            return results
+            # Delegate to ops
+            return bible_search(
+                conn,
+                query_embedding,
+                model,
+                limit=limit,
+                script_id=script_id,
+                serializer=serialize_float32,
+            )
 
         except Exception as e:
             raise DatabaseError(
@@ -455,43 +307,7 @@ class VSSService:
             close_conn = False
 
         try:
-            stats: dict[str, Any] = {}
-
-            # Count scene embeddings
-            cursor = conn.execute(
-                "SELECT COUNT(*) as count, embedding_model "
-                "FROM scene_embeddings GROUP BY embedding_model"
-            )
-            stats["scene_embeddings"] = {
-                row["embedding_model"]: row["count"] for row in cursor
-            }
-
-            # Count bible embeddings
-            cursor = conn.execute(
-                "SELECT COUNT(*) as count, embedding_model "
-                "FROM bible_embeddings GROUP BY embedding_model"
-            )
-            stats["bible_embeddings"] = {
-                row["embedding_model"]: row["count"] for row in cursor
-            }
-
-            # Get metadata stats
-            cursor = conn.execute(
-                """
-                SELECT entity_type, COUNT(*) as count, AVG(dimensions) as avg_dims
-                FROM embedding_metadata
-                GROUP BY entity_type
-                """
-            )
-            stats["metadata"] = {
-                row["entity_type"]: {
-                    "count": row["count"],
-                    "avg_dimensions": row["avg_dims"],
-                }
-                for row in cursor
-            }
-
-            return stats
+            return admin_stats(conn)
 
         finally:
             if close_conn:
@@ -514,80 +330,32 @@ class VSSService:
         else:
             close_conn = False
 
-        scenes_migrated: int = 0
-        bible_migrated: int = 0
-
         try:
-            # Check if old embeddings table exists
-            cursor = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' "
-                "AND name='embeddings_old'"
+            # Provide wrappers so tests can patch our public methods
+            def _store_scene(
+                conn_: sqlite3.Connection,
+                entity_id: int,
+                values: list[float],
+                model: str,
+                _serializer: Any,
+            ) -> None:
+                return self.store_scene_embedding(entity_id, values, model, conn=conn_)
+
+            def _store_bible(
+                conn_: sqlite3.Connection,
+                entity_id: int,
+                values: list[float],
+                model: str,
+                _serializer: Any,
+            ) -> None:
+                return self.store_bible_embedding(entity_id, values, model, conn=conn_)
+
+            scenes_migrated, bible_migrated = admin_migrate(
+                conn,
+                serializer=serialize_float32,
+                store_scene_fn=_store_scene,
+                store_bible_fn=_store_bible,
             )
-            if not cursor.fetchone():
-                logger.info("No old embeddings table to migrate from")
-                return (0, 0)
-
-            # Migrate scene embeddings
-            cursor = conn.execute(
-                """
-                SELECT entity_id, embedding_model, embedding
-                FROM embeddings_old
-                WHERE entity_type = 'scene' AND embedding IS NOT NULL
-                """
-            )
-
-            for row in cursor:
-                try:
-                    # Decode the binary embedding
-                    data: bytes = row["embedding"]
-                    dimension: int = struct.unpack("<I", data[:4])[0]
-                    format_str: str = f"<{dimension}f"
-                    values: tuple[float, ...] = struct.unpack(
-                        format_str, data[4 : 4 + dimension * 4]
-                    )
-
-                    # Store in VSS
-                    self.store_scene_embedding(
-                        row["entity_id"], list(values), row["embedding_model"], conn
-                    )
-                    scenes_migrated += 1
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to migrate scene embedding {row['entity_id']}: {e}"
-                    )
-
-            # Migrate bible chunk embeddings
-            cursor = conn.execute(
-                """
-                SELECT entity_id, embedding_model, embedding
-                FROM embeddings_old
-                WHERE entity_type = 'bible_chunk' AND embedding IS NOT NULL
-                """
-            )
-
-            for row in cursor:
-                try:
-                    # Decode the binary embedding
-                    bible_data: bytes = row["embedding"]
-                    bible_dimension: int = struct.unpack("<I", bible_data[:4])[0]
-                    bible_format_str: str = f"<{bible_dimension}f"
-                    bible_values: tuple[float, ...] = struct.unpack(
-                        bible_format_str, bible_data[4 : 4 + bible_dimension * 4]
-                    )
-
-                    # Store in VSS
-                    self.store_bible_embedding(
-                        row["entity_id"],
-                        list(bible_values),
-                        row["embedding_model"],
-                        conn,
-                    )
-                    bible_migrated += 1
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to migrate bible embedding {row['entity_id']}: {e}"
-                    )
-
             logger.info(
                 f"Migrated {scenes_migrated} scene embeddings and "
                 f"{bible_migrated} bible embeddings"

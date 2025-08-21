@@ -109,7 +109,7 @@ class TestAnalyzeCommandMarkdownAgents:
         with (
             patch(
                 "scriptrag.analyzers.builtin.BUILTIN_ANALYZERS",
-                {"builtin-test": lambda: mock_builtin},
+                {"builtin-test": lambda _config=None: mock_builtin},
             ),
             patch("scriptrag.agents.AgentLoader") as mock_loader_class,
         ):
@@ -144,7 +144,7 @@ class TestAnalyzeCommandMarkdownAgents:
         # Test case 1: Built-in analyzer found
         with patch(
             "scriptrag.analyzers.builtin.BUILTIN_ANALYZERS",
-            {"test1": lambda: MagicMock(name="test1")},
+            {"test1": lambda _config=None: MagicMock(name="test1")},
         ):
             analyze_cmd.load_analyzer("test1")
             assert len(analyze_cmd.analyzers) == 1

@@ -134,47 +134,33 @@ class BibleIndexer:
         script_id: int,
         force: bool = False,
     ) -> BibleIndexResult:
-        """Index a single script Bible document into the database.
+        """Index a script Bible document into the database.
 
-        Orchestrates the complete Bible indexing pipeline including parsing,
-        database storage, embedding generation, and character alias extraction.
-        Handles both new Bible files and updates to existing ones.
+        Orchestrates the Bible indexing pipeline: parsing, storage,
+        embedding generation, and character alias extraction.
 
-        The indexing process:
-        1. Parse Bible markdown file using BibleParser
-        2. Check for existing Bible record and compare file hashes
-        3. Insert new or update existing Bible metadata
-        4. Index all content chunks with hierarchical relationships
-        5. Generate embeddings for semantic search (if configured)
-        6. Extract character aliases via LLM (if configured)
-        7. Link aliases to script metadata and character records
+        Processing steps:
+        1. Parse Bible markdown file
+        2. Check existing records and file hashes
+        3. Store Bible metadata and content chunks
+        4. Generate embeddings for semantic search
+        5. Extract character aliases via LLM
+        6. Link aliases to script and character records
 
         Args:
-            bible_path: Path to the Bible markdown file to index. Must be
-                       accessible and contain valid markdown content.
-            script_id: Database ID of the associated script that this Bible
-                      document provides reference material for
-            force: If True, re-process the Bible even if the file hash
-                  indicates it hasn't changed since last indexing
+            bible_path: Path to Bible markdown file
+            script_id: Database ID of associated script
+            force: Re-process even if file unchanged
 
         Returns:
-            BibleIndexResult containing outcome details including database IDs,
-            processing counts, and any error information.
+            BibleIndexResult with processing counts and errors
 
         Example:
-            >>> indexer = BibleIndexer()
             >>> result = await indexer.index_bible(
-            ...     Path("script_bible.md"), script_id=42
+            ...     Path("bible.md"), script_id=42
             ... )
-            >>> if result.error:
-            ...     print(f"Indexing failed: {result.error}")
-            ... else:
-            ...     print(f"Success: {result.chunks_indexed} chunks indexed")
-
-        Note:
-            All errors are caught and returned in the result object rather than
-            raised, allowing batch indexing operations to continue processing
-            other files even if one fails.
+            >>> if not result.error:
+            ...     print(f"Indexed {result.chunks_indexed} chunks")
         """
         result = BibleIndexResult(path=bible_path)
 
@@ -693,7 +679,7 @@ class BibleIndexer:
                         )
                         break  # Give up on this chunk
 
-                    # Calculate exponential backoff delay
+                    # Exponential backoff: 1s, 2s, 4s, 8s, 16s (max ~31s total)
                     delay = base_delay * (2 ** (retry_count - 1))
                     logger.warning(
                         f"Embedding generation failed for chunk {chunk_id}, "

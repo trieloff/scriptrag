@@ -355,9 +355,11 @@ class BibleCharacterExtractor:
                      formatting that needs to be stripped
 
         Returns:
-            List of dictionaries representing character data, or empty list
-            if no valid JSON array could be extracted. Each dictionary should
-            contain 'canonical', 'aliases', and optionally 'tags' and 'notes'.
+            List of character data dictionaries with schema:
+            - canonical (str): Required canonical character name
+            - aliases (list[str]): Required list of aliases
+            - tags (list[str] | None): Optional character tags
+            - notes (str | None): Optional character notes
 
         Example:
             >>> response = '```json\n[{"canonical": "JANE", "aliases": ["J"]}]\n```'

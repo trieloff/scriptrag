@@ -72,8 +72,23 @@ class ModelDiscoveryCache:
         # Check in-memory cache first
         if self.provider_name in self._memory_cache:
             entry = self._memory_cache[self.provider_name]
-            # Entry shape with namespace: (timestamp, models, cache_dir)
-            if isinstance(entry, tuple) and len(entry) == 3:
+
+            # Type guard: handle non-tuple case first
+            if not isinstance(entry, tuple):
+                # Invalid cache entry - clear it
+                logger.warning(
+                    f"Invalid cache entry for {self.provider_name}, clearing",
+                    entry_type=type(entry).__name__,
+                    entry_len="N/A",
+                )
+                del self._memory_cache[self.provider_name]
+                return None
+
+            # Now we know it's a tuple, check length once
+            entry_len = len(entry)
+
+            if entry_len == 3:
+                # Entry shape with namespace: (timestamp, models, cache_dir)
                 timestamp = cast(float, entry[0])
                 models = cast(list[Model], entry[1])
                 cache_dir = cast(str, entry[2])
@@ -101,7 +116,7 @@ class ModelDiscoveryCache:
                         f"In-memory cache expired for {self.provider_name}",
                         age=int(time.time() - timestamp),
                     )
-            elif isinstance(entry, tuple) and len(entry) == 2:
+            elif entry_len == 2:
                 # Backward-compat: older 2-tuple shape (timestamp, models)
                 timestamp = cast(float, entry[0])
                 models = cast(list[Model], entry[1])
@@ -116,11 +131,11 @@ class ModelDiscoveryCache:
                 del self._memory_cache[self.provider_name]
                 logger.debug(f"In-memory cache expired for {self.provider_name}")
             else:
-                # Invalid cache entry - clear it
+                # Invalid tuple length - clear it
                 logger.warning(
                     f"Invalid cache entry for {self.provider_name}, clearing",
                     entry_type=type(entry).__name__,
-                    entry_len=len(entry) if isinstance(entry, tuple) else "N/A",
+                    entry_len=entry_len,
                 )
                 del self._memory_cache[self.provider_name]
 

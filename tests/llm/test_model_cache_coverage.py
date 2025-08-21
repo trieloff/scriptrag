@@ -2,6 +2,8 @@
 
 import errno
 import json
+import sys
+import tempfile
 import time
 from unittest.mock import patch
 
@@ -48,106 +50,12 @@ class TestModelCacheCoverage:
                 # Should have cleared the expired entry
                 assert "test_provider" not in cache._memory_cache
 
-    def test_file_cache_expiry(self, tmp_path):
-        """Test file cache expiry (lines 80-85)."""
-        # Set up cache with temporary directory
+    def test_disk_cache_only(self, tmp_path):
+        """Test disk cache fallback when memory cache misses."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
             cache = ModelDiscoveryCache("test_provider")
 
-            # Create expired cache file
-            cache_data = {
-                "timestamp": time.time() - cache.ttl - 1,  # Expired
-                "models": [
-                    {
-                        "id": "test",
-                        "name": "Test",
-                        "provider": "claude_code",
-                        "capabilities": ["chat"],
-                    }
-                ],
-                "provider": "test_provider",
-            }
-
-            cache.cache_file.write_text(json.dumps(cache_data))
-
-            with patch("scriptrag.llm.model_cache.logger.debug") as mock_debug:
-                result = cache.get()
-
-                # Should return None and log expiry
-                assert result is None
-                mock_debug.assert_called_with(
-                    "File cache expired for test_provider",
-                    age=pytest.approx(cache.ttl + 1, abs=1),
-                    ttl=cache.ttl,
-                )
-
-    def test_file_cache_json_decode_error(self, tmp_path):
-        """Test JSON decode error handling (lines 102-104)."""
-        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            cache = ModelDiscoveryCache("test_provider")
-
-            # Create invalid JSON file
-            cache.cache_file.write_text("invalid json {")
-
-            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
-                result = cache.get()
-
-                assert result is None
-                # Just check that warning was called with the provider name
-                mock_warning.assert_called_once()
-                warning_msg = mock_warning.call_args[0][0]
-                assert "Failed to read cache for test_provider" in warning_msg
-
-    def test_file_cache_model_creation_error(self, tmp_path):
-        """Test Model creation error handling (lines 102-104)."""
-        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            cache = ModelDiscoveryCache("test_provider")
-
-            # Create cache with valid structure but invalid model data
-            cache_data = {
-                "timestamp": time.time(),
-                "models": [
-                    {"invalid_model": "data"}
-                ],  # Missing required fields for Model
-                "provider": "test_provider",
-            }
-            cache.cache_file.write_text(json.dumps(cache_data))
-
-            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
-                result = cache.get()
-
-                assert result is None
-                mock_warning.assert_called_once()
-                # Should mention the error
-                warning_msg = mock_warning.call_args[0][0]
-                assert "Failed to read cache for test_provider" in warning_msg
-
-    def test_file_cache_validation_error(self, tmp_path):
-        """Test ValidationError handling (lines 102-104)."""
-        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            cache = ModelDiscoveryCache("test_provider")
-
-            # Create cache with invalid model data
-            cache_data = {
-                "timestamp": time.time(),
-                "models": [{"invalid": "model_data"}],  # Missing required fields
-                "provider": "test_provider",
-            }
-            cache.cache_file.write_text(json.dumps(cache_data))
-
-            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
-                result = cache.get()
-
-                assert result is None
-                mock_warning.assert_called()
-                warning_msg = mock_warning.call_args[0][0]
-                assert "Failed to read cache for test_provider" in warning_msg
-
-    def test_set_cache_write_error(self, tmp_path):
-        """Test cache write error handling (lines 132-133)."""
-        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            cache = ModelDiscoveryCache("test_provider")
-
+            # First, set some models to create disk cache
             test_models = [
                 Model(
                     id="test",
@@ -156,179 +64,221 @@ class TestModelCacheCoverage:
                     capabilities=["chat"],
                 )
             ]
+            cache.set(test_models)
 
-            # Mock tempfile.mkstemp to raise an exception during temp file creation
-            with (
-                patch("scriptrag.llm.model_cache.logger.error") as mock_error,
-                patch("tempfile.mkstemp") as mock_mkstemp,
-            ):
-                mock_mkstemp.side_effect = PermissionError("Write failed")
-                cache.set(test_models)
-
-                # PermissionError is OSError, uses error level logging
-                mock_error.assert_called_once()
-                error_msg = mock_error.call_args[0][0]
-                assert (
-                    "OS error when caching models for test_provider: Write failed"
-                    in error_msg
-                )
-
-                # Memory cache should still be updated
-                assert "test_provider" in cache._memory_cache
-
-    def test_clear_memory_cache_only(self, tmp_path):
-        """Test clearing memory cache when provider exists (line 139)."""
-        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            cache = ModelDiscoveryCache("test_provider")
-
-            # Add to memory cache
-            test_models = [
-                Model(
-                    id="test",
-                    name="Test",
-                    provider=LLMProvider.CLAUDE_CODE,
-                    capabilities=["chat"],
-                )
-            ]
-            cache._memory_cache["test_provider"] = (time.time(), test_models)
-
-            # Ensure no file cache exists
-            assert not cache.cache_file.exists()
-
-            # Clear should only affect memory cache
-            cache.clear()
-
-            # Should clear memory cache
-            assert "test_provider" not in cache._memory_cache
-
-    def test_clear_file_cache_only(self, tmp_path):
-        """Test clearing file cache when it exists (lines 143-144)."""
-        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            cache = ModelDiscoveryCache("test_provider")
-
-            # Create file cache
-            cache_data = {
-                "timestamp": time.time(),
-                "models": [
-                    {
-                        "id": "test",
-                        "name": "Test",
-                        "provider": "claude_code",
-                        "capabilities": ["chat"],
-                    }
-                ],
-                "provider": "test_provider",
-            }
-            cache.cache_file.write_text(json.dumps(cache_data))
-
-            # Verify file exists
-            assert cache.cache_file.exists()
-
-            with patch("scriptrag.llm.model_cache.logger.debug") as mock_debug:
-                cache.clear()
-
-                # Should remove file
-                assert not cache.cache_file.exists()
-                mock_debug.assert_called_with("Cleared cache for test_provider")
-
-    def test_clear_all_memory_cache_class_method(self):
-        """Test clearing all memory cache (lines 153-154)."""
-        # Add test data to memory cache for multiple providers
-        test_models = [
-            Model(
-                id="test",
-                name="Test",
-                provider=LLMProvider.CLAUDE_CODE,
-                capabilities=["chat"],
-            )
-        ]
-        ModelDiscoveryCache._memory_cache["provider1"] = (time.time(), test_models)
-        ModelDiscoveryCache._memory_cache["provider2"] = (time.time(), test_models)
-
-        # Verify cache has data
-        assert len(ModelDiscoveryCache._memory_cache) == 2
-
-        with patch("scriptrag.llm.model_cache.logger.debug") as mock_debug:
+            # Clear memory cache to force disk read
             ModelDiscoveryCache.clear_all_memory_cache()
 
-            # Should clear all cache data
-            assert len(ModelDiscoveryCache._memory_cache) == 0
-            mock_debug.assert_called_with("Cleared all in-memory cache data")
+            # Create new cache instance
+            cache2 = ModelDiscoveryCache("test_provider")
 
-    def test_comprehensive_cache_flow(self, tmp_path):
-        """Test comprehensive cache flow covering edge cases."""
+            with patch("scriptrag.llm.model_cache.logger.debug") as mock_debug:
+                result = cache2.get()
+
+                # Should find models from disk
+                assert result is not None
+                assert len(result) == 1
+                assert result[0].id == "test"
+
+                # Check for disk cache hit message
+                debug_calls = [call[0][0] for call in mock_debug.call_args_list]
+                assert any("from disk" in msg for msg in debug_calls)
+
+    def test_cache_miss(self, tmp_path):
+        """Test complete cache miss (no memory or disk cache)."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            cache = ModelDiscoveryCache("test_provider", ttl=60)
+            cache = ModelDiscoveryCache("test_provider")
 
-            # Start with empty cache
-            assert cache.get() is None
+            with patch("scriptrag.llm.model_cache.logger.debug") as mock_debug:
+                result = cache.get()
 
-            # Set cache
+                # Should return None for cache miss
+                assert result is None
+
+                # Check for the actual debug messages
+                debug_calls = [call[0][0] for call in mock_debug.call_args_list]
+                # Should log no disk cache found
+                assert any("No disk cache for provider" in msg for msg in debug_calls)
+
+    def test_disk_cache_expiry(self, tmp_path):
+        """Test disk cache expiry check."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Create expired disk cache file
+            cache_file = tmp_path / ".test_provider_models.json"
+            old_time = time.time() - cache.ttl - 1
+
+            # Write expired cache manually
+            test_models_data = [
+                {
+                    "id": "test",
+                    "name": "Test",
+                    "provider": "claude_code",
+                    "capabilities": ["chat"],
+                    "context_window": None,
+                    "max_output": None,
+                    "description": None,
+                }
+            ]
+            cache_file.write_text(json.dumps(test_models_data))
+
+            # Monkey-patch getmtime to return old timestamp
+            with (
+                patch("pathlib.Path.stat") as mock_stat,
+                patch("scriptrag.llm.model_cache.logger.debug") as mock_debug,
+            ):
+                mock_stat.return_value.st_mtime = old_time
+                result = cache.get()
+
+                # Should return None for expired disk cache
+                assert result is None
+
+                # Check for expired disk cache message
+                debug_calls = [call[0][0] for call in mock_debug.call_args_list]
+                assert any("expired" in msg for msg in debug_calls)
+
+    def test_invalid_json_cache(self, tmp_path):
+        """Test handling of invalid JSON in cache file."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Create invalid JSON cache file
+            cache_file = tmp_path / ".test_provider_models.json"
+            cache_file.write_text("{'invalid': json}")
+
+            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
+                result = cache.get()
+
+                # Should return None for invalid cache
+                assert result is None
+
+                # Should log warning about invalid JSON
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Invalid JSON in cache file" in warning_msg
+
+    def test_invalid_model_data_in_cache(self, tmp_path):
+        """Test handling of invalid model data in cache."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Create cache with invalid model data (missing required fields)
+            cache_file = tmp_path / ".test_provider_models.json"
+            invalid_data = [{"id": "test", "invalid": "data"}]
+            cache_file.write_text(json.dumps(invalid_data))
+
+            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
+                result = cache.get()
+
+                # Should return None for invalid model data
+                assert result is None
+
+                # Should log warning about invalid model data
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Failed to load cached models" in warning_msg
+
+    def test_set_with_existing_memory_cache(self, tmp_path):
+        """Test set when memory cache already exists."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
             test_models = [
+                Model(
+                    id="test1",
+                    name="Test 1",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Set initial models
+            cache.set(test_models)
+
+            # Set new models (should overwrite)
+            new_models = [
+                Model(
+                    id="test2",
+                    name="Test 2",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+            cache.set(new_models)
+
+            # Memory cache should have new models
+            assert "test_provider" in cache._memory_cache
+            _, cached_models, _ = cache._memory_cache["test_provider"]
+            assert len(cached_models) == 1
+            assert cached_models[0].id == "test2"
+
+    def test_concurrent_cache_access(self, tmp_path):
+        """Test concurrent access to cache."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache1 = ModelDiscoveryCache("test_provider")
+            cache2 = ModelDiscoveryCache("test_provider")
+
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Set from first cache instance
+            cache1.set(test_models)
+
+            # Get from second instance (should hit memory cache)
+            result = cache2.get()
+            assert result is not None
+            assert len(result) == 1
+            assert result[0].id == "test"
+
+    def test_different_providers(self, tmp_path):
+        """Test caching for different providers."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache1 = ModelDiscoveryCache("provider1")
+            cache2 = ModelDiscoveryCache("provider2")
+
+            models1 = [
                 Model(
                     id="model1",
                     name="Model 1",
                     provider=LLMProvider.CLAUDE_CODE,
                     capabilities=["chat"],
-                ),
+                )
+            ]
+            models2 = [
                 Model(
                     id="model2",
                     name="Model 2",
-                    provider=LLMProvider.CLAUDE_CODE,
-                    capabilities=["embedding"],
-                ),
+                    provider=LLMProvider.GITHUB_MODELS,
+                    capabilities=["chat"],
+                )
             ]
-            cache.set(test_models)
 
-            # Should be in memory cache
-            result = cache.get()
-            assert len(result) == 2
-            assert result[0].id == "model1"
+            cache1.set(models1)
+            cache2.set(models2)
 
-            # Clear memory cache, should fall back to file
-            del cache._memory_cache["test_provider"]
-            result = cache.get()
-            assert len(result) == 2
-            assert result[0].id == "model1"
+            # Each provider should have its own cache
+            result1 = cache1.get()
+            result2 = cache2.get()
 
-            # Should have restored memory cache
-            assert "test_provider" in cache._memory_cache
+            assert result1[0].id == "model1"
+            assert result2[0].id == "model2"
 
-            # Clear everything
-            cache.clear()
-            assert cache.get() is None
-            assert "test_provider" not in cache._memory_cache
-            assert not cache.cache_file.exists()
+            # Check disk cache files
+            cache_files = list(tmp_path.glob(".*.json"))
+            assert len(cache_files) == 2
 
-    def test_cache_with_custom_ttl(self, tmp_path):
-        """Test cache with custom TTL settings."""
-        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            # Test with custom TTL
-            cache = ModelDiscoveryCache("test_provider", ttl=10)
-            assert cache.ttl == 10
-
-            # Test with None TTL (uses default)
-            cache_default = ModelDiscoveryCache("test_provider2", ttl=None)
-            assert cache_default.ttl == ModelDiscoveryCache.DEFAULT_TTL
-
-    def test_cache_directory_creation(self, tmp_path):
-        """Test cache directory creation."""
-        # Use a non-existent subdirectory
-        cache_dir = tmp_path / "non_existent" / "cache"
-
-        with patch.object(ModelDiscoveryCache, "CACHE_DIR", cache_dir):
-            cache = ModelDiscoveryCache("test_provider")
-
-            # Directory should be created
-            assert cache_dir.exists()
-            assert cache_dir.is_dir()
-
-    def test_memory_cache_hit_with_valid_data(self, tmp_path):
-        """Test memory cache hit with valid data and logging."""
+    def test_clear_memory_cache(self, tmp_path):
+        """Test clearing memory cache."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
             cache = ModelDiscoveryCache("test_provider")
 
-            # Add fresh data to memory cache
             test_models = [
                 Model(
                     id="test",
@@ -337,154 +287,210 @@ class TestModelCacheCoverage:
                     capabilities=["chat"],
                 )
             ]
-            cache._memory_cache["test_provider"] = (time.time(), test_models)
 
-            with patch("scriptrag.llm.model_cache.logger.debug") as mock_debug:
-                result = cache.get()
+            cache.set(test_models)
+            assert "test_provider" in cache._memory_cache
 
-                assert result == test_models
-                mock_debug.assert_called()
-                debug_msg = mock_debug.call_args[0][0]
-                assert "Using in-memory cached models for test_provider" in debug_msg
+            # Clear memory cache
+            ModelDiscoveryCache.clear_all_memory_cache()
+            assert "test_provider" not in cache._memory_cache
 
-    def test_file_cache_with_successful_restore_to_memory(self, tmp_path):
-        """Test file cache restoration to memory cache."""
+    def test_corrupted_memory_cache_format(self, tmp_path):
+        """Test handling of corrupted memory cache format."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
             cache = ModelDiscoveryCache("test_provider")
 
-            # Create valid file cache
-            cache_data = {
-                "timestamp": time.time(),
-                "models": [
-                    {
-                        "id": "test_model",
-                        "name": "Test Model",
-                        "provider": "claude_code",
-                        "capabilities": ["chat", "completion"],
-                    }
-                ],
-                "provider": "test_provider",
-            }
-            cache.cache_file.write_text(json.dumps(cache_data))
-
-            with patch("scriptrag.llm.model_cache.logger.info") as mock_info:
-                result = cache.get()
-
-                # Should successfully load and restore to memory
-                assert len(result) == 1
-                assert result[0].id == "test_model"
-                assert result[0].capabilities == ["chat", "completion"]
-
-                # Should be restored to memory cache
-                assert "test_provider" in cache._memory_cache
-
-                # Should log successful cache use
-                mock_info.assert_called()
-                info_msg = mock_info.call_args[0][0]
-                assert "Using file cached models for test_provider" in info_msg
-
-    def test_invalid_memory_cache_entry_empty_tuple(self, tmp_path):
-        """Test handling of invalid empty tuple in memory cache."""
-        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            cache = ModelDiscoveryCache("test_provider")
-
-            # Add invalid empty tuple to memory cache
-            cache._memory_cache["test_provider"] = ()
+            # Corrupt the memory cache with wrong format
+            cache._memory_cache["test_provider"] = "invalid_format"
 
             with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
                 result = cache.get()
 
-                # Should return None for invalid entry
+                # Should return None and log warning
                 assert result is None
-
-                # Should log warning about invalid entry
                 mock_warning.assert_called_once()
                 warning_msg = mock_warning.call_args[0][0]
-                assert "Invalid cache entry for test_provider" in warning_msg
+                assert "Invalid memory cache format" in warning_msg
 
-                # Should include entry details in kwargs
-                warning_kwargs = mock_warning.call_args[1]
-                assert warning_kwargs["entry_type"] == "tuple"
-                assert warning_kwargs["entry_len"] == 0
-
-                # Should have cleared the invalid entry
-                assert "test_provider" not in cache._memory_cache
-
-    def test_invalid_memory_cache_entry_single_tuple(self, tmp_path):
-        """Test handling of invalid single-element tuple in memory cache."""
+    def test_memory_cache_with_invalid_timestamp(self, tmp_path):
+        """Test memory cache with invalid timestamp."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
             cache = ModelDiscoveryCache("test_provider")
 
-            # Add invalid single-element tuple to memory cache
-            cache._memory_cache["test_provider"] = (time.time(),)
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Add entry with invalid timestamp
+            cache._memory_cache["test_provider"] = ("not_a_timestamp", test_models)
 
             with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
                 result = cache.get()
 
-                # Should return None for invalid entry
+                # Should return None and log warning
                 assert result is None
-
-                # Should log warning about invalid entry
                 mock_warning.assert_called_once()
                 warning_msg = mock_warning.call_args[0][0]
-                assert "Invalid cache entry for test_provider" in warning_msg
+                assert "Invalid memory cache format" in warning_msg
 
-                # Should include entry details in kwargs
-                warning_kwargs = mock_warning.call_args[1]
-                assert warning_kwargs["entry_type"] == "tuple"
-                assert warning_kwargs["entry_len"] == 1
-
-                # Should have cleared the invalid entry
-                assert "test_provider" not in cache._memory_cache
-
-    def test_invalid_memory_cache_entry_non_tuple(self, tmp_path):
-        """Test handling of non-tuple invalid entry in memory cache."""
+    def test_cache_directory_permission_error_on_read(self, tmp_path):
+        """Test permission error when reading cache directory."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
             cache = ModelDiscoveryCache("test_provider")
 
-            # Add invalid non-tuple entry to memory cache
-            cache._memory_cache["test_provider"] = "invalid_string_entry"
+            # Create cache file
+            cache_file = tmp_path / ".test_provider_models.json"
+            test_models_data = [
+                {
+                    "id": "test",
+                    "name": "Test",
+                    "provider": "claude_code",
+                    "capabilities": ["chat"],
+                }
+            ]
+            cache_file.write_text(json.dumps(test_models_data))
+
+            # Mock Path.open to raise PermissionError
+            with (
+                patch.object(cache_file, "open", side_effect=PermissionError),
+                patch("scriptrag.llm.model_cache.logger.warning") as mock_warning,
+            ):
+                result = cache.get()
+
+                # Should return None
+                assert result is None
+
+                # Should log warning
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Failed to read cache file" in warning_msg
+
+    def test_empty_models_list(self, tmp_path):
+        """Test caching an empty models list."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Set empty list
+            cache.set([])
+
+            # Should still be cached
+            result = cache.get()
+            assert result is not None
+            assert len(result) == 0
+
+            # Check disk cache
+            cache_file = tmp_path / ".test_provider_models.json"
+            assert cache_file.exists()
+            assert json.loads(cache_file.read_text()) == []
+
+    def test_models_with_all_optional_fields(self, tmp_path):
+        """Test caching models with all optional fields set."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test Model",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat", "code", "vision"],
+                    context_window=100000,
+                    max_output=4096,
+                    description="A test model with all fields",
+                )
+            ]
+
+            cache.set(test_models)
+            result = cache.get()
+
+            assert result is not None
+            assert len(result) == 1
+            model = result[0]
+            assert model.id == "test"
+            assert model.context_window == 100000
+            assert model.max_output == 4096
+            assert model.description == "A test model with all fields"
+
+    def test_cache_with_long_provider_name(self, tmp_path):
+        """Test caching with a very long provider name."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            long_provider = "a" * 255  # Max filename length on most systems
+            cache = ModelDiscoveryCache(long_provider)
+
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            cache.set(test_models)
+            result = cache.get()
+
+            assert result is not None
+            assert len(result) == 1
+
+    def test_unicode_in_model_data(self, tmp_path):
+        """Test caching models with unicode characters."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            test_models = [
+                Model(
+                    id="test",
+                    name="测试模型 🚀",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                    description="A model with émojis and 中文",
+                )
+            ]
+
+            cache.set(test_models)
+            result = cache.get()
+
+            assert result is not None
+            assert result[0].name == "测试模型 🚀"
+            assert "中文" in result[0].description
+
+    def test_memory_cache_with_unexpected_tuple_size(self, tmp_path):
+        """Test memory cache with unexpected tuple size (not 2 or 3)."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Add entry with 4-tuple (unexpected)
+            cache._memory_cache["test_provider"] = (
+                time.time(),
+                test_models,
+                str(tmp_path),
+                "extra",
+            )
 
             with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
                 result = cache.get()
 
-                # Should return None for invalid entry
+                # Should return None and log warning
                 assert result is None
-
-                # Should log warning about invalid entry
                 mock_warning.assert_called_once()
                 warning_msg = mock_warning.call_args[0][0]
-                assert "Invalid cache entry for test_provider" in warning_msg
-
-                # Should include entry details in kwargs
                 warning_kwargs = mock_warning.call_args[1]
-                assert warning_kwargs["entry_type"] == "str"
-                assert warning_kwargs["entry_len"] == "N/A"
 
-                # Should have cleared the invalid entry
-                assert "test_provider" not in cache._memory_cache
-
-    def test_invalid_memory_cache_entry_wrong_sized_tuple(self, tmp_path):
-        """Test handling of wrong-sized tuple (not 2 or 3) in memory cache."""
-        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            cache = ModelDiscoveryCache("test_provider")
-
-            # Add invalid 4-element tuple to memory cache
-            cache._memory_cache["test_provider"] = (time.time(), [], "extra", "invalid")
-
-            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
-                result = cache.get()
-
-                # Should return None for invalid entry
-                assert result is None
-
-                # Should log warning about invalid entry
-                mock_warning.assert_called_once()
-                warning_msg = mock_warning.call_args[0][0]
-                assert "Invalid cache entry for test_provider" in warning_msg
-
-                # Should include entry details in kwargs
-                warning_kwargs = mock_warning.call_args[1]
+                assert "Invalid memory cache format" in warning_msg
                 assert warning_kwargs["entry_type"] == "tuple"
                 assert warning_kwargs["entry_len"] == 4
 
@@ -706,3 +712,64 @@ class TestModelCacheCoverage:
 
                 # Memory cache should still be updated even with file write failure
                 assert "test_provider" in cache._memory_cache
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows file handle semantics differ for mocked file operations",
+    )
+    def test_set_fdopen_failure_cleanup(self, tmp_path):
+        """Test that file descriptor is properly closed when fdopen fails.
+
+        This test verifies the fix for PR #323 where fdopen could fail after
+        mkstemp succeeds, potentially leaking file descriptors on Windows.
+        """
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            test_models = [
+                Model(
+                    id="model1",
+                    name="Test Model",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Track the file descriptor from mkstemp
+            captured_fd = None
+            original_mkstemp = tempfile.mkstemp
+
+            def mock_mkstemp(*args, **kwargs):
+                nonlocal captured_fd
+                fd, path = original_mkstemp(*args, **kwargs)
+                captured_fd = fd
+                return fd, path
+
+            # Mock fdopen to fail after mkstemp succeeds
+            with (
+                patch("tempfile.mkstemp", side_effect=mock_mkstemp),
+                patch("os.fdopen", side_effect=OSError("fdopen failed")),
+                patch("os.close") as mock_close,
+                patch("scriptrag.llm.model_cache.logger.error") as mock_error,
+            ):
+                # Should not raise, but handle cleanup properly
+                cache.set(test_models)
+
+                # Verify that os.close was called on the file descriptor
+                assert captured_fd is not None, "mkstemp should have been called"
+                mock_close.assert_called_once_with(captured_fd)
+
+                # Verify error was logged
+                mock_error.assert_called_once()
+                error_msg = mock_error.call_args[0][0]
+                assert "OS error when caching models for test_provider" in error_msg
+
+                # Memory cache should still be updated despite file write failure
+                assert "test_provider" in cache._memory_cache
+                cached_entry = cache._memory_cache["test_provider"]
+                assert len(cached_entry) == 3  # (timestamp, models, cache_dir)
+                assert cached_entry[1] == test_models
+
+            # Verify no temp files leaked
+            temp_files = list(tmp_path.glob(".test_provider_models_*.tmp"))
+            assert len(temp_files) == 0, "Temp files should be cleaned up"

@@ -183,7 +183,7 @@ class TestLLMMetricsCoverage:
         assert result["successful_requests"] == 2
         assert result["failed_requests"] == 1
         assert result["retry_attempts"] == 1
-        assert result["provider_successes"]["provider1"] == 1
-        assert result["provider_successes"]["provider2"] == 1
-        assert len(result["provider_failures"]["provider1"]) == 1
-        assert len(result["fallback_chains"]) == 1
+        assert result["providers"]["provider1"]["success_count"] == 1
+        assert result["providers"]["provider2"]["success_count"] == 1
+        assert result["providers"]["provider1"]["failure_count"] == 1
+        assert result["fallback_attempts"] == 1

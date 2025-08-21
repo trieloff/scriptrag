@@ -271,7 +271,16 @@ class TestOpenAICompatibleProvider:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
-                "choices": [{"message": {"content": f"Response {len(call_times)}"}}],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": f"Response {len(call_times)}",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
                 "usage": {},
             }
             return mock_response
@@ -313,7 +322,13 @@ class TestOpenAICompatibleProvider:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
-                "choices": [{"message": {"content": "Response"}}],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 "usage": {},
             }
             return mock_response
@@ -345,7 +360,16 @@ class TestOpenAICompatibleProvider:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
-                "choices": [{"message": {"content": '{"result": "test"}'}}],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": '{"result": "test"}',
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
                 "usage": {},
             }
             return mock_response
@@ -445,7 +469,13 @@ class TestOpenAICompatibleProvider:
             mock_response = MagicMock()
             mock_response.status_code = 200
             mock_response.json.return_value = {
-                "choices": [{"message": {"content": "Response"}}],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 "usage": {"total_tokens": 100},
             }
             return mock_response

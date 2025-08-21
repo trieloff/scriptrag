@@ -13,9 +13,11 @@ from scriptrag.llm.models import EmbeddingResponse
 def mock_llm_client():
     """Create a mock LLM client."""
     client = AsyncMock()
-    # Mock embedding response
+    # Mock embedding response - needs to support both attribute and subscript access
     mock_embedding = Mock()
     mock_embedding.embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
+    mock_embedding.get = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
+    mock_embedding.__getitem__ = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
 
     response = Mock(spec=EmbeddingResponse)
     response.data = [mock_embedding]

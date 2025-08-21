@@ -20,7 +20,31 @@ logger = get_logger(__name__)
 
 @dataclass
 class BibleIndexResult:
-    """Result from indexing a single bible document."""
+    """Result data from indexing a single script Bible document.
+
+    Tracks the outcome of indexing operations including success/failure status,
+    database IDs, and counts of processed elements. This information is used
+    for reporting and debugging indexing operations.
+
+    Attributes:
+        path: Path to the Bible file that was processed
+        bible_id: Database ID of the Bible record, if successfully created/found
+        indexed: True if this was a new Bible file that was indexed
+        updated: True if this was an existing Bible file that was updated
+        chunks_indexed: Number of content chunks successfully indexed
+        embeddings_created: Number of embeddings generated for chunks
+        error: Error message if indexing failed, None if successful
+
+    Example:
+        >>> result = BibleIndexResult(
+        ...     path=Path("my_bible.md"),
+        ...     bible_id=123,
+        ...     indexed=True,
+        ...     chunks_indexed=15,
+        ...     embeddings_created=15
+        ... )
+        >>> print(f"Indexed {result.chunks_indexed} chunks")
+    """
 
     path: Path
     bible_id: int | None = None
@@ -32,7 +56,26 @@ class BibleIndexResult:
 
 
 class BibleIndexer:
-    """Handles indexing of script bible documents."""
+    """Indexes script Bible documents into the ScriptRAG database.
+
+    Manages the complete process of parsing Bible markdown files, extracting
+    structured content, storing it in the database, generating embeddings for
+    semantic search, and extracting character alias information via LLM.
+
+    The indexing process includes:
+    1. Parsing markdown files into structured chunks
+    2. Storing Bible metadata and chunks in the database
+    3. Generating embeddings for semantic search (if configured)
+    4. Extracting character aliases via LLM (if configured)
+    5. Linking extracted aliases to script character records
+
+    Example:
+        >>> indexer = BibleIndexer()
+        >>> result = await indexer.index_bible(
+        ...     Path("my_bible.md"), script_id=123
+        ... )
+        >>> print(f"Indexed {result.chunks_indexed} chunks")
+    """
 
     def __init__(
         self,
@@ -52,7 +95,26 @@ class BibleIndexer:
         self.alias_extractor = BibleAliasExtractor(self.settings)
 
     async def initialize_embedding_analyzer(self) -> None:
-        """Initialize the embedding analyzer for bible chunks."""
+        """Initialize the embedding analyzer for Bible chunk processing.
+
+        Sets up the SceneEmbeddingAnalyzer with configuration specific to
+        Bible content processing. The analyzer handles generating vector
+        embeddings for Bible chunks to enable semantic search capabilities.
+
+        The configuration includes:
+        - LFS storage path for embedding files
+        - Repository root path for Git LFS integration
+        - Embedding model selection from settings
+
+        Raises:
+            Exception: If embedding analyzer initialization fails due to
+                      LLM configuration issues or storage path problems
+
+        Note:
+            This method is called lazily when embeddings are needed, allowing
+            the indexer to function even when embeddings are not configured.
+            The analyzer is cached after first initialization.
+        """
         if self.embedding_analyzer is None:
             # Configure for bible embeddings using settings
             config = {
@@ -73,15 +135,33 @@ class BibleIndexer:
         script_id: int,
         force: bool = False,
     ) -> BibleIndexResult:
-        """Index a single bible document.
+        """Index a script Bible document into the database.
+
+        Orchestrates the Bible indexing pipeline: parsing, storage,
+        embedding generation, and character alias extraction.
+
+        Processing steps:
+        1. Parse Bible markdown file
+        2. Check existing records and file hashes
+        3. Store Bible metadata and content chunks
+        4. Generate embeddings for semantic search
+        5. Extract character aliases via LLM
+        6. Link aliases to script and character records
 
         Args:
-            bible_path: Path to the bible markdown file
-            script_id: ID of the associated script
-            force: Force re-indexing even if unchanged
+            bible_path: Path to Bible markdown file
+            script_id: Database ID of associated script
+            force: Re-process even if file unchanged
 
         Returns:
-            BibleIndexResult with indexing details
+            BibleIndexResult with processing counts and errors
+
+        Example:
+            >>> result = await indexer.index_bible(
+            ...     Path("bible.md"), script_id=42
+            ... )
+            >>> if not result.error:
+            ...     print(f"Indexed {result.chunks_indexed} chunks")
         """
         result = BibleIndexResult(path=bible_path)
 
@@ -373,7 +453,7 @@ class BibleIndexer:
                         )
                         break  # Give up on this chunk
 
-                    # Calculate exponential backoff delay
+                    # Exponential backoff: 1s, 2s, 4s, 8s, 16s (max ~31s total)
                     delay = base_delay * (2 ** (retry_count - 1))
                     logger.warning(
                         f"Embedding generation failed for chunk {chunk_id}, "

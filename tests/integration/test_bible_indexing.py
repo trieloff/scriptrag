@@ -5,7 +5,8 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-from scriptrag.api.bible_index import BibleAutoDetector, BibleIndexer
+from scriptrag.api.bible_detector import BibleAutoDetector
+from scriptrag.api.bible_index import BibleIndexer
 from scriptrag.api.database import DatabaseInitializer
 from scriptrag.api.index import IndexCommand
 from scriptrag.parser.bible_parser import BibleParser

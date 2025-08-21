@@ -13,6 +13,7 @@ from rich.syntax import Syntax
 
 from scriptrag.api.scene_management import SceneManagementAPI
 from scriptrag.api.scene_models import SceneIdentifier
+from scriptrag.cli.commands.scene_config import load_config_with_validation
 from scriptrag.config import get_logger
 
 logger = get_logger(__name__)
@@ -66,21 +67,8 @@ def read_scene(
         scriptrag scene read --project "inception" --bible-name "world_bible.md"
     """
     try:
-        from scriptrag.config import get_settings
-        from scriptrag.config.settings import ScriptRAGSettings
-
         # Load settings with proper precedence
-        if config:
-            if not config.exists():
-                console.print(f"[red]Error: Config file not found: {config}[/red]")
-                raise typer.Exit(1)
-
-            settings = ScriptRAGSettings.from_multiple_sources(
-                config_files=[config],
-            )
-        else:
-            # Use default settings
-            settings = get_settings()
+        settings = load_config_with_validation(config)
 
         # Initialize API
         api = SceneManagementAPI(settings=settings)
@@ -278,21 +266,8 @@ def add_scene(
             episode=episode,
         )
 
-        from scriptrag.config import get_settings
-        from scriptrag.config.settings import ScriptRAGSettings
-
         # Load settings with proper precedence
-        if config:
-            if not config.exists():
-                console.print(f"[red]Error: Config file not found: {config}[/red]")
-                raise typer.Exit(1)
-
-            settings = ScriptRAGSettings.from_multiple_sources(
-                config_files=[config],
-            )
-        else:
-            # Use default settings
-            settings = get_settings()
+        settings = load_config_with_validation(config)
 
         # Initialize API
         api = SceneManagementAPI(settings=settings)
@@ -415,21 +390,8 @@ def update_scene(
                 console.print("[dim]Use ISO format: YYYY-MM-DDTHH:MM:SS[/dim]")
                 raise typer.Exit(1) from e
 
-        from scriptrag.config import get_settings
-        from scriptrag.config.settings import ScriptRAGSettings
-
         # Load settings with proper precedence
-        if config:
-            if not config.exists():
-                console.print(f"[red]Error: Config file not found: {config}[/red]")
-                raise typer.Exit(1)
-
-            settings = ScriptRAGSettings.from_multiple_sources(
-                config_files=[config],
-            )
-        else:
-            # Use default settings
-            settings = get_settings()
+        settings = load_config_with_validation(config)
 
         # Initialize API
         api = SceneManagementAPI(settings=settings)
@@ -506,21 +468,8 @@ def delete_scene(
             episode=episode,
         )
 
-        from scriptrag.config import get_settings
-        from scriptrag.config.settings import ScriptRAGSettings
-
         # Load settings with proper precedence
-        if config:
-            if not config.exists():
-                console.print(f"[red]Error: Config file not found: {config}[/red]")
-                raise typer.Exit(1)
-
-            settings = ScriptRAGSettings.from_multiple_sources(
-                config_files=[config],
-            )
-        else:
-            # Use default settings
-            settings = get_settings()
+        settings = load_config_with_validation(config)
 
         # Initialize API
         api = SceneManagementAPI(settings=settings)

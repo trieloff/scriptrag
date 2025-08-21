@@ -1,16 +1,16 @@
 """Script index API module for ScriptRAG."""
 
-import json
-import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.embedding_service import EmbeddingService
+from scriptrag.api.index_bible_aliases import IndexBibleAliasApplicator
+from scriptrag.api.index_embeddings import IndexEmbeddingProcessor
 from scriptrag.api.list import FountainMetadata, ScriptLister
 from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
-from scriptrag.parser import FountainParser, Scene, Script
+from scriptrag.parser import FountainParser, Script
 
 logger = get_logger(__name__)
 
@@ -92,6 +92,11 @@ class IndexCommand:
         self.lister = ScriptLister()
         self.embedding_service = embedding_service
         self.generate_embeddings = generate_embeddings
+        self.embedding_processor = IndexEmbeddingProcessor(
+            db_ops=self.db_ops,
+            embedding_service=embedding_service,
+            generate_embeddings=generate_embeddings,
+        )
 
     @classmethod
     def from_config(cls) -> "IndexCommand":
@@ -320,7 +325,9 @@ class IndexCommand:
                         conn, script_id, all_characters
                     )
                     # Apply Bible aliases if available
-                    await self._apply_bible_aliases(conn, script_id, character_map)
+                    await IndexBibleAliasApplicator.apply_bible_aliases(
+                        conn, script_id, character_map
+                    )
 
                 # Process scenes
                 total_dialogues = 0
@@ -350,7 +357,9 @@ class IndexCommand:
                         total_actions += action_count
 
                     # Process embeddings from boneyard metadata
-                    await self._process_scene_embeddings(conn, scene, scene_id)
+                    await self.embedding_processor.process_scene_embeddings(
+                        conn, scene, scene_id
+                    )
 
                 # Get final stats
                 stats = self.db_ops.get_script_stats(conn, script_id)
@@ -369,130 +378,6 @@ class IndexCommand:
         except Exception as e:
             logger.error(f"Error indexing {file_path}: {e}")
             raise
-
-    async def _process_scene_embeddings(
-        self, conn: sqlite3.Connection, scene: Scene, scene_id: int
-    ) -> None:
-        """Process and store embeddings for a scene.
-
-        This method handles both existing embeddings from boneyard metadata
-        and generates new embeddings if enabled.
-
-        Args:
-            conn: Database connection
-            scene: Scene object with potential embedding metadata
-            scene_id: Database ID of the scene
-        """
-        embedding_stored = False
-
-        # First check for existing embeddings in boneyard metadata
-        if scene.boneyard_metadata:
-            # Check for embedding analyzer results
-            analyzers = scene.boneyard_metadata.get("analyzers", {})
-            embedding_data = analyzers.get("scene_embeddings", {})
-
-            if embedding_data and "result" in embedding_data:
-                result = embedding_data.get("result", {})
-                if "error" not in result:
-                    # Extract embedding information
-                    embedding_path = result.get("embedding_path")
-                    model = result.get("model", "unknown")
-
-                    if embedding_path:
-                        # Check if embedding file exists and load it
-                        try:
-                            import git
-                            import numpy as np
-
-                            # Get the repository root
-                            repo = git.Repo(
-                                (
-                                    scene.file_path.parent
-                                    if hasattr(scene, "file_path")
-                                    else "."
-                                ),
-                                search_parent_directories=True,
-                            )
-                            repo_root = Path(repo.working_dir)
-                            full_embedding_path = repo_root / embedding_path
-
-                            if full_embedding_path.exists():
-                                # Load embedding from file
-                                embedding_array = np.load(full_embedding_path)
-                                # Convert to bytes for database storage
-                                embedding_bytes = embedding_array.tobytes()
-
-                                # Store in database
-                                self.db_ops.upsert_embedding(
-                                    conn,
-                                    entity_type="scene",
-                                    entity_id=scene_id,
-                                    embedding_model=model,
-                                    embedding_data=embedding_bytes,
-                                    embedding_path=embedding_path,
-                                )
-                                embedding_stored = True
-                                logger.info(
-                                    f"Stored embedding for scene {scene_id} "
-                                    f"from {embedding_path}"
-                                )
-                            else:
-                                # Store reference path - downloaded from LFS when needed
-                                self.db_ops.upsert_embedding(
-                                    conn,
-                                    entity_type="scene",
-                                    entity_id=scene_id,
-                                    embedding_model=model,
-                                    embedding_path=embedding_path,
-                                )
-                                embedding_stored = True
-                                logger.info(
-                                    f"Stored embedding reference for scene "
-                                    f"{scene_id}: {embedding_path}"
-                                )
-                        except Exception as e:
-                            logger.error(
-                                f"Failed to process embedding for scene {scene_id}: {e}"
-                            )
-
-        # Generate new embedding if enabled and not already stored
-        if self.generate_embeddings and self.embedding_service and not embedding_stored:
-            try:
-                # Generate embedding for the scene
-                embedding = await self.embedding_service.generate_scene_embedding(
-                    scene.content, scene.heading
-                )
-
-                # Save to Git LFS
-                lfs_path = self.embedding_service.save_embedding_to_lfs(
-                    embedding,
-                    "scene",
-                    scene_id,
-                    self.embedding_service.default_model,
-                )
-
-                # Encode for database storage
-                embedding_bytes = self.embedding_service.encode_embedding_for_db(
-                    embedding
-                )
-
-                # Store in database
-                self.db_ops.upsert_embedding(
-                    conn,
-                    entity_type="scene",
-                    entity_id=scene_id,
-                    embedding_model=self.embedding_service.default_model,
-                    embedding_data=embedding_bytes,
-                    embedding_path=str(lfs_path),
-                )
-
-                logger.info(
-                    f"Generated and stored embedding for scene {scene_id}",
-                    model=self.embedding_service.default_model,
-                    lfs_path=str(lfs_path),
-                )
-            except Exception as e:
-                logger.error(f"Failed to generate embedding for scene {scene_id}: {e}")
 
     async def _dry_run_analysis(self, script: Script, file_path: Path) -> IndexResult:
         """Analyze what would be indexed without making changes.
@@ -524,53 +409,3 @@ class IndexCommand:
             dialogues_indexed=dialogues,  # Preview: number of dialogues
             actions_indexed=actions,  # Preview: number of actions
         )
-
-    async def _apply_bible_aliases(
-        self, conn: sqlite3.Connection, script_id: int, character_map: dict[str, int]
-    ) -> None:
-        """Apply Bible-extracted aliases to characters.
-
-        Args:
-            conn: Database connection
-            script_id: ID of the script
-            character_map: Map of character names to IDs
-        """
-        try:
-            cursor = conn.cursor()
-
-            # Get Bible metadata from script
-            cursor.execute("SELECT metadata FROM scripts WHERE id = ?", (script_id,))
-            row = cursor.fetchone()
-
-            if not row or not row[0]:
-                return
-
-            metadata = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-            bible_characters = metadata.get("bible.characters")
-
-            if not bible_characters or not bible_characters.get("characters"):
-                return
-
-            # Apply aliases to matching characters
-            for char_data in bible_characters["characters"]:
-                canonical = char_data.get("canonical", "").upper()
-                aliases = char_data.get("aliases", [])
-
-                if not canonical or not aliases:
-                    continue
-
-                # Find matching character ID
-                char_id = character_map.get(canonical)
-                if char_id:
-                    # Update character with aliases
-                    aliases_json = json.dumps([alias.upper() for alias in aliases])
-                    cursor.execute(
-                        "UPDATE characters SET aliases = ? WHERE id = ?",
-                        (aliases_json, char_id),
-                    )
-                    logger.debug(
-                        f"Applied {len(aliases)} aliases to character {canonical}"
-                    )
-
-        except Exception as e:
-            logger.warning(f"Failed to apply Bible aliases: {e}")

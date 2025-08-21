@@ -614,11 +614,6 @@ class TestConfigOptionSearchCommand:
                 ["search", "--config", config_path, "test query"],
             )
 
-            # Debug output if test fails
-            if result.exit_code != 0:
-                print("Output:", result.output)
-                print("Exception:", result.exception)
-
             assert result.exit_code == 0
             mock_settings_class.from_multiple_sources.assert_called_once()
         finally:

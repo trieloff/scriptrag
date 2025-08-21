@@ -4,7 +4,7 @@ import json
 import os
 import re
 import time
-from typing import Any, ClassVar, Literal, TypedDict
+from typing import Any, ClassVar, Literal, TypedDict, cast
 
 import httpx
 
@@ -291,7 +291,7 @@ class GitHubModelsProvider(BaseLLMProvider):
 
         # Prepare OpenAI-compatible request
         # GitHub Models API expects specific model IDs
-        payload = {
+        payload: dict[str, Any] = {
             "model": request.model,
             "messages": request.messages,
             "temperature": request.temperature,
@@ -303,7 +303,9 @@ class GitHubModelsProvider(BaseLLMProvider):
             payload["max_tokens"] = request.max_tokens
         if request.system:
             # Prepend system message
-            system_msg = [{"role": "system", "content": request.system}]
+            system_msg: list[dict[str, str]] = [
+                {"role": "system", "content": request.system}
+            ]
             payload["messages"] = system_msg + request.messages
 
         # Add response_format if specified (GitHub Models uses OpenAI-compatible API)
@@ -362,11 +364,11 @@ class GitHubModelsProvider(BaseLLMProvider):
                 )
                 raise ValueError(f"GitHub Models API error: {response.text}")
 
-            data = response.json()
+            data: dict[str, Any] = response.json()
 
             # Log successful response
-            choices = data.get("choices", [])
-            response_content = ""
+            choices: list[dict[str, Any]] = data.get("choices", [])
+            response_content: str = ""
             try:
                 if choices and len(choices) > 0:
                     response_content = (
@@ -387,8 +389,8 @@ class GitHubModelsProvider(BaseLLMProvider):
             )
 
             # Extract usage data, handling GitHub Models' nested structure
-            usage_data = data.get("usage", {})
-            usage = {
+            usage_data: dict[str, Any] = data.get("usage", {})
+            usage: dict[str, int] = {
                 "prompt_tokens": usage_data.get("prompt_tokens", 0),
                 "completion_tokens": usage_data.get("completion_tokens", 0),
                 "total_tokens": usage_data.get("total_tokens", 0),
@@ -413,25 +415,24 @@ class GitHubModelsProvider(BaseLLMProvider):
                 )
                 # Create a simple response that preserves the raw data
                 # Use typing.cast to explicitly handle the type conversion
-                from typing import cast
 
-                raw_response = type(
-                    "RawCompletionResponse",
-                    (),
-                    {
-                        "id": data.get("id", ""),
-                        "model": data.get("model", request.model),
-                        "choices": data.get("choices", []),
-                        "usage": usage,
-                        "provider": self.provider_type,
-                        "content": property(
-                            lambda self: self.choices[0]["message"]["content"]
+                class RawCompletionResponse:
+                    def __init__(self, provider_type: str) -> None:
+                        self.id: str = data.get("id", "")
+                        self.model: str = data.get("model", request.model)
+                        self.choices: list[dict[str, Any]] = data.get("choices", [])
+                        self.usage: dict[str, int] = usage
+                        self.provider: str = provider_type
+
+                    @property
+                    def content(self) -> str:
+                        return (
+                            self.choices[0]["message"]["content"]
                             if self.choices
                             else ""
-                        ),
-                    },
-                )()
+                        )
 
+                raw_response = RawCompletionResponse(self.provider_type)
                 return cast(CompletionResponse, raw_response)
 
         except httpx.HTTPError as e:
@@ -502,7 +503,7 @@ class GitHubModelsProvider(BaseLLMProvider):
 
                 raise ValueError(f"GitHub Models API error: {response.text}")
 
-            data = response.json()
+            data: dict[str, Any] = response.json()
             return EmbeddingResponse(
                 model=data.get("model", request.model),
                 data=data.get("data", []),

@@ -82,9 +82,9 @@ class SemanticSearchService:
 
         # Generate embedding for query with error handling
         try:
-            query_embedding = await self.embedding_service.generate_embedding(
-                query, model
-            )
+            query_embedding: list[
+                float
+            ] = await self.embedding_service.generate_embedding(query, model)
         except Exception as e:
             logger.error(
                 "Failed to generate embedding for query",
@@ -98,7 +98,7 @@ class SemanticSearchService:
 
         # Encode embedding for database storage
         try:
-            query_bytes = self.embedding_service.encode_embedding_for_db(
+            query_bytes: bytes = self.embedding_service.encode_embedding_for_db(
                 query_embedding
             )
         except Exception as e:
@@ -114,7 +114,7 @@ class SemanticSearchService:
         # Search in database
         with self.db_ops.transaction() as conn:
             # Get scenes with embeddings
-            scenes = self.db_ops.search_similar_scenes(
+            scenes: list[dict[str, Any]] = self.db_ops.search_similar_scenes(
                 conn,
                 query_bytes,
                 script_id,
@@ -123,15 +123,15 @@ class SemanticSearchService:
             )
 
             # Calculate similarities
-            results = []
+            results: list[SceneSearchResult] = []
             for scene in scenes:
                 # Decode scene embedding
-                scene_embedding = self.embedding_service.decode_embedding_from_db(
-                    scene["_embedding"]
+                scene_embedding: list[float] = (
+                    self.embedding_service.decode_embedding_from_db(scene["_embedding"])
                 )
 
                 # Calculate similarity
-                similarity = self.embedding_service.cosine_similarity(
+                similarity: float = self.embedding_service.cosine_similarity(
                     query_embedding, scene_embedding
                 )
 
@@ -178,7 +178,7 @@ class SemanticSearchService:
 
         with self.db_ops.transaction() as conn:
             # Get embedding for the source scene
-            source_embedding_bytes = self.db_ops.get_embedding(
+            source_embedding_bytes: bytes | None = self.db_ops.get_embedding(
                 conn, "scene", scene_id, model
             )
 
@@ -187,12 +187,12 @@ class SemanticSearchService:
                 return []
 
             # Decode source embedding
-            source_embedding = self.embedding_service.decode_embedding_from_db(
-                source_embedding_bytes
+            source_embedding: list[float] = (
+                self.embedding_service.decode_embedding_from_db(source_embedding_bytes)
             )
 
             # Get scenes with embeddings
-            scenes = self.db_ops.search_similar_scenes(
+            scenes: list[dict[str, Any]] = self.db_ops.search_similar_scenes(
                 conn,
                 source_embedding_bytes,
                 script_id,
@@ -201,19 +201,19 @@ class SemanticSearchService:
             )
 
             # Calculate similarities
-            results = []
+            results: list[SceneSearchResult] = []
             for scene in scenes:
                 # Skip the source scene itself
                 if scene["id"] == scene_id:
                     continue
 
                 # Decode scene embedding
-                scene_embedding = self.embedding_service.decode_embedding_from_db(
-                    scene["_embedding"]
+                scene_embedding: list[float] = (
+                    self.embedding_service.decode_embedding_from_db(scene["_embedding"])
                 )
 
                 # Calculate similarity
-                similarity = self.embedding_service.cosine_similarity(
+                similarity: float = self.embedding_service.cosine_similarity(
                     source_embedding, scene_embedding
                 )
 
@@ -253,12 +253,13 @@ class SemanticSearchService:
             Tuple of (scenes_processed, embeddings_generated)
         """
         model = model or self.embedding_service.default_model
-        scenes_processed = 0
-        embeddings_generated = 0
+        scenes_processed: int = 0
+        embeddings_generated: int = 0
 
         with self.db_ops.transaction() as conn:
             # Find scenes without embeddings
             params: tuple[Any, ...]
+            query: str
             if script_id:
                 query = """
                     SELECT s.id, s.heading, s.content
@@ -281,20 +282,20 @@ class SemanticSearchService:
                 params = (model,)
 
             cursor = conn.execute(query, params)
-            scenes = cursor.fetchall()
+            scenes: list[dict[str, Any]] = cursor.fetchall()
 
             # Process in batches
             for i in range(0, len(scenes), batch_size):
-                batch = scenes[i : i + batch_size]
+                batch: list[dict[str, Any]] = scenes[i : i + batch_size]
 
                 for scene in batch:
                     scenes_processed += 1
                     try:
                         # Generate embedding
-                        embedding = (
-                            await self.embedding_service.generate_scene_embedding(
-                                scene["content"], scene["heading"]
-                            )
+                        embedding: list[
+                            float
+                        ] = await self.embedding_service.generate_scene_embedding(
+                            scene["content"], scene["heading"]
                         )
 
                         # Save to Git LFS
@@ -307,7 +308,7 @@ class SemanticSearchService:
 
                         # Encode for database storage
                         try:
-                            embedding_bytes = (
+                            embedding_bytes: bytes = (
                                 self.embedding_service.encode_embedding_for_db(
                                     embedding
                                 )
@@ -366,9 +367,9 @@ class SemanticSearchService:
 
         # Generate embedding for query with error handling
         try:
-            query_embedding = await self.embedding_service.generate_embedding(
-                query, model
-            )
+            query_embedding: list[
+                float
+            ] = await self.embedding_service.generate_embedding(query, model)
         except Exception as e:
             logger.error(
                 "Failed to generate embedding for bible search query",
@@ -386,6 +387,7 @@ class SemanticSearchService:
         with self.db_ops.transaction() as conn:
             # Get bible chunks with embeddings from the embeddings table
             params: tuple[Any, ...]
+            query_sql: str
             if script_id:
                 query_sql = """
                     SELECT bc.*, sb.title as bible_title, sb.script_id, e.embedding
@@ -411,18 +413,18 @@ class SemanticSearchService:
                 params = (model,)
 
             cursor = conn.execute(query_sql, params)
-            chunks = cursor.fetchall()
+            chunks: list[dict[str, Any]] = cursor.fetchall()
 
             # Calculate similarities
-            results = []
+            results: list[BibleSearchResult] = []
             for chunk in chunks:
                 # Decode chunk embedding
-                chunk_embedding = self.embedding_service.decode_embedding_from_db(
-                    chunk["embedding"]
+                chunk_embedding: list[float] = (
+                    self.embedding_service.decode_embedding_from_db(chunk["embedding"])
                 )
 
                 # Calculate similarity
-                similarity = self.embedding_service.cosine_similarity(
+                similarity: float = self.embedding_service.cosine_similarity(
                     query_embedding, chunk_embedding
                 )
 
@@ -464,12 +466,13 @@ class SemanticSearchService:
             Tuple of (chunks_processed, embeddings_generated)
         """
         model = model or self.embedding_service.default_model
-        chunks_processed = 0
-        embeddings_generated = 0
+        chunks_processed: int = 0
+        embeddings_generated: int = 0
 
         with self.db_ops.transaction() as conn:
             # Find bible chunks without embeddings
             params: tuple[Any, ...]
+            query_sql: str
             if script_id:
                 query_sql = """
                     SELECT bc.id, bc.heading, bc.content
@@ -493,24 +496,24 @@ class SemanticSearchService:
                 params = (model,)
 
             cursor = conn.execute(query_sql, params)
-            chunks = cursor.fetchall()
+            chunks: list[dict[str, Any]] = cursor.fetchall()
 
             # Process in batches
             for i in range(0, len(chunks), batch_size):
-                batch = chunks[i : i + batch_size]
+                batch: list[dict[str, Any]] = chunks[i : i + batch_size]
 
                 for chunk in batch:
                     chunks_processed += 1
                     try:
                         # Combine heading and content for richer embedding
-                        text = chunk["content"]
+                        text: str = chunk["content"]
                         if chunk["heading"]:
                             text = f"{chunk['heading']}\n\n{text}"
 
                         # Generate embedding
-                        embedding = await self.embedding_service.generate_embedding(
-                            text, model
-                        )
+                        embedding: list[
+                            float
+                        ] = await self.embedding_service.generate_embedding(text, model)
 
                         # Save to Git LFS
                         lfs_path = self.embedding_service.save_embedding_to_lfs(
@@ -522,7 +525,7 @@ class SemanticSearchService:
 
                         # Encode for database storage
                         try:
-                            embedding_bytes = (
+                            embedding_bytes: bytes = (
                                 self.embedding_service.encode_embedding_for_db(
                                     embedding
                                 )

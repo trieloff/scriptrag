@@ -61,7 +61,7 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             # Check for list_models method (most likely interface if added)
             if hasattr(client, "list_models") and callable(client.list_models):
                 logger.info("Using Claude SDK list_models method")
-                models_data = await client.list_models()
+                models_data: Any = await client.list_models()
                 return self._parse_claude_models(models_data)
 
             # Check for models attribute (alternative interface)
@@ -75,7 +75,7 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             logger.debug(f"Error checking Claude Code SDK: {e}")
 
         # Try Anthropic API models endpoint if API key is available
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        api_key: str | None = os.environ.get("ANTHROPIC_API_KEY")
         if api_key:
             return await self._fetch_from_anthropic_api(api_key)
 
@@ -112,8 +112,8 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
                     )
                     return None
 
-                data = response.json()
-                models_list = data.get("data", [])
+                data: dict[str, Any] = response.json()
+                models_list: list[AnthropicModelInfo] = data.get("data", [])
 
                 if not models_list:
                     return None
@@ -142,22 +142,22 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             return None
 
         try:
-            models = []
+            models: list[Model] = []
             for model_info in models_data:
-                model_id = model_info.get("id")
+                model_id: str | None = model_info.get("id")
                 if not model_id:
                     continue
 
                 # Extract display name or use ID
-                name = model_info.get("display_name") or model_id
+                name: str = model_info.get("display_name") or model_id
 
                 # Default capabilities for Claude models
-                capabilities = ["completion", "chat"]
+                capabilities: list[str] = ["completion", "chat"]
 
                 # Default context window and output tokens for Claude models
                 # These may need adjustment based on actual API response
-                context_window = 200000
-                max_output = 8192
+                context_window: int = 200000
+                max_output: int = 8192
 
                 # Adjust for specific model types if needed
                 if "haiku" in model_id.lower() or "opus" in model_id.lower():
@@ -198,13 +198,15 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             return None
 
         try:
-            models = []
+            models: list[Model] = []
 
             # Handle list format (most likely format from SDK)
             if isinstance(models_data, list):
                 for model_info in models_data:
                     if isinstance(model_info, dict):
-                        model_id = model_info.get("id") or model_info.get("model_id")
+                        model_id: str | None = model_info.get("id") or model_info.get(
+                            "model_id"
+                        )
                         if model_id:
                             models.append(
                                 Model(
@@ -228,14 +230,18 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             # Handle dict format (models attribute might return dict)
             elif isinstance(models_data, dict):
                 for model_id, model_info in models_data.items():
+                    name: str
+                    capabilities: list[str]
+                    context_window: int
+                    max_output: int
                     if isinstance(model_info, dict):
                         name = model_info.get("name") or model_id
                         capabilities = model_info.get("capabilities") or [
                             "completion",
                             "chat",
                         ]
-                        context_window = model_info.get("context_window", 200000)
-                        max_output = model_info.get("max_tokens", 8192)
+                        context_window = model_info.get("context_window") or 200000
+                        max_output = model_info.get("max_tokens") or 8192
                     else:
                         # Simple value, use defaults
                         name = model_id
@@ -316,7 +322,7 @@ class GitHubModelsDiscovery(ModelDiscovery):
 
             if response.status_code == 429:
                 # Rate limited - extract wait time from headers or response
-                retry_after = response.headers.get("Retry-After")
+                retry_after: str | None = response.headers.get("Retry-After")
                 if retry_after:
                     logger.warning(
                         f"GitHub Models API rate limited, retry after {retry_after}s",
@@ -328,7 +334,7 @@ class GitHubModelsDiscovery(ModelDiscovery):
 
                     match = re.search(r"wait (\d+) seconds", response.text)
                     if match:
-                        wait_seconds = int(match.group(1))
+                        wait_seconds: int = int(match.group(1))
                         logger.warning(
                             f"GitHub Models API rate limited, wait {wait_seconds}s",
                             status_code=429,
@@ -432,7 +438,7 @@ class GitHubModelsDiscovery(ModelDiscovery):
             max_output: int = model_info.get("max_output_tokens", 4096)
 
             # Use mapped ID if available, otherwise use original ID
-            final_model_id = self.model_id_map.get(model_id, model_id)
+            final_model_id: str = self.model_id_map.get(model_id, model_id)
 
             models.append(
                 Model(

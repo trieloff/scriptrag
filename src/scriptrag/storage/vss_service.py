@@ -18,6 +18,7 @@ logger = get_logger(__name__)
 # Type aliases for clarity
 FloatArray: TypeAlias = npt.NDArray[np.float32]
 SearchResult: TypeAlias = dict[str, Any]
+EmbeddingVector: TypeAlias = list[float] | FloatArray
 
 
 class VSSService:
@@ -42,7 +43,7 @@ class VSSService:
                 "SELECT name FROM sqlite_master WHERE type='table' "
                 "AND name LIKE '%_embeddings'"
             )
-            tables = [row[0] for row in cursor]
+            tables: list[str] = [row[0] for row in cursor]
 
             if not any("scene_embeddings" in t for t in tables):
                 logger.info("Creating VSS tables for first time...")
@@ -55,11 +56,11 @@ class VSSService:
             conn: Database connection
         """
         # Read and execute migration SQL
-        migration_path = (
+        migration_path: Path = (
             Path(__file__).parent / "database" / "sql" / "vss_migration.sql"
         )
         if migration_path.exists():
-            migration_sql = migration_path.read_text()
+            migration_sql: str = migration_path.read_text()
             # Execute statements one by one (skip .load command)
             for statement in migration_sql.split(";"):
                 statement = statement.strip()
@@ -125,6 +126,7 @@ class VSSService:
 
         try:
             # Use sqlite-vec's serialization
+            embedding_blob: bytes | FloatArray
             if isinstance(embedding, list):
                 embedding_blob = serialize_float32(embedding)
             else:
@@ -142,7 +144,7 @@ class VSSService:
             )
 
             # Update metadata
-            dimensions = len(embedding)
+            dimensions: int = len(embedding)
             conn.execute(
                 """
                 INSERT OR REPLACE INTO embedding_metadata
@@ -202,6 +204,7 @@ class VSSService:
 
             # Build query based on script_id filter
             params: tuple[Any, ...]
+            query: str
             if script_id:
                 query = """
                     SELECT
@@ -243,9 +246,9 @@ class VSSService:
 
             cursor = conn.execute(query, params)
 
-            results = []
+            results: list[dict[str, Any]] = []
             for row in cursor:
-                result = dict(row)
+                result: dict[str, Any] = dict(row)
                 # Convert distance to similarity score (1 - normalized_distance)
                 # Assuming cosine distance, convert to similarity
                 result["similarity_score"] = 1.0 - (result.pop("distance", 0) / 2.0)
@@ -286,6 +289,7 @@ class VSSService:
 
         try:
             # Use sqlite-vec's serialization
+            embedding_blob: bytes | FloatArray
             if isinstance(embedding, list):
                 embedding_blob = serialize_float32(embedding)
             else:
@@ -303,7 +307,7 @@ class VSSService:
             )
 
             # Update metadata
-            dimensions = len(embedding)
+            dimensions: int = len(embedding)
             conn.execute(
                 """
                 INSERT OR REPLACE INTO embedding_metadata
@@ -357,6 +361,7 @@ class VSSService:
 
         try:
             # Use sqlite-vec's serialization
+            query_blob: bytes | FloatArray
             if isinstance(query_embedding, list):
                 query_blob = serialize_float32(query_embedding)
             else:
@@ -365,6 +370,7 @@ class VSSService:
 
             # Build query based on script_id filter
             params: tuple[Any, ...]
+            query: str
             if script_id:
                 query = """
                     SELECT
@@ -412,9 +418,9 @@ class VSSService:
 
             cursor = conn.execute(query, params)
 
-            results = []
+            results: list[dict[str, Any]] = []
             for row in cursor:
-                result = dict(row)
+                result: dict[str, Any] = dict(row)
                 # Convert distance to similarity score
                 result["similarity_score"] = 1.0 - (result.pop("distance", 0) / 2.0)
                 results.append(result)
@@ -449,7 +455,7 @@ class VSSService:
             close_conn = False
 
         try:
-            stats = {}
+            stats: dict[str, Any] = {}
 
             # Count scene embeddings
             cursor = conn.execute(
@@ -508,8 +514,8 @@ class VSSService:
         else:
             close_conn = False
 
-        scenes_migrated = 0
-        bible_migrated = 0
+        scenes_migrated: int = 0
+        bible_migrated: int = 0
 
         try:
             # Check if old embeddings table exists
@@ -533,10 +539,12 @@ class VSSService:
             for row in cursor:
                 try:
                     # Decode the binary embedding
-                    data = row["embedding"]
-                    dimension = struct.unpack("<I", data[:4])[0]
-                    format_str = f"<{dimension}f"
-                    values = struct.unpack(format_str, data[4 : 4 + dimension * 4])
+                    data: bytes = row["embedding"]
+                    dimension: int = struct.unpack("<I", data[:4])[0]
+                    format_str: str = f"<{dimension}f"
+                    values: tuple[float, ...] = struct.unpack(
+                        format_str, data[4 : 4 + dimension * 4]
+                    )
 
                     # Store in VSS
                     self.store_scene_embedding(
@@ -560,14 +568,19 @@ class VSSService:
             for row in cursor:
                 try:
                     # Decode the binary embedding
-                    data = row["embedding"]
-                    dimension = struct.unpack("<I", data[:4])[0]
-                    format_str = f"<{dimension}f"
-                    values = struct.unpack(format_str, data[4 : 4 + dimension * 4])
+                    bible_data: bytes = row["embedding"]
+                    bible_dimension: int = struct.unpack("<I", bible_data[:4])[0]
+                    bible_format_str: str = f"<{bible_dimension}f"
+                    bible_values: tuple[float, ...] = struct.unpack(
+                        bible_format_str, bible_data[4 : 4 + bible_dimension * 4]
+                    )
 
                     # Store in VSS
                     self.store_bible_embedding(
-                        row["entity_id"], list(values), row["embedding_model"], conn
+                        row["entity_id"],
+                        list(bible_values),
+                        row["embedding_model"],
+                        conn,
                     )
                     bible_migrated += 1
                 except Exception as e:

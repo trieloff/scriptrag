@@ -4,6 +4,7 @@ import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.embedding_service import EmbeddingService
@@ -385,11 +386,11 @@ class IndexCommand:
         # First check for existing embeddings in boneyard metadata
         if scene.boneyard_metadata:
             # Check for embedding analyzer results
-            analyzers = scene.boneyard_metadata.get("analyzers", {})
-            embedding_data = analyzers.get("scene_embeddings", {})
+            analyzers: dict[str, Any] = scene.boneyard_metadata.get("analyzers", {})
+            embedding_data: dict[str, Any] = analyzers.get("scene_embeddings", {})
 
             if embedding_data and "result" in embedding_data:
-                result = embedding_data.get("result", {})
+                result: dict[str, Any] = embedding_data.get("result", {})
                 if "error" not in result:
                     # Extract embedding information
                     embedding_path = result.get("embedding_path")

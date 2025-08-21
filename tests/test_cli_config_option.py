@@ -6,7 +6,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import yaml
-from typer.testing import CliRunner
 
 from scriptrag.api.scene_models import (
     AddSceneResult,
@@ -17,8 +16,9 @@ from scriptrag.api.scene_models import (
 )
 from scriptrag.cli.main import app
 from scriptrag.parser import Scene
+from tests.cli_fixtures import CleanCliRunner
 
-runner = CliRunner()
+runner = CleanCliRunner()
 
 
 class TestConfigOptionSceneCommands:
@@ -77,7 +77,7 @@ class TestConfigOptionSceneCommands:
                 ],
             )
 
-            assert result.exit_code == 0
+            result.assert_success()
             # Verify settings were loaded from config
             mock_settings_class.from_multiple_sources.assert_called_once_with(
                 config_files=[Path(config_path)]
@@ -128,7 +128,7 @@ class TestConfigOptionSceneCommands:
                 ],
             )
 
-            assert result.exit_code == 0
+            result.assert_success()
             # Verify custom settings were used
             mock_settings_class.from_multiple_sources.assert_called_once()
             mock_api_class.assert_called_once_with(settings=mock_settings)
@@ -176,7 +176,7 @@ class TestConfigOptionSceneCommands:
                 ],
             )
 
-            assert result.exit_code == 0
+            result.assert_success()
             mock_settings_class.from_multiple_sources.assert_called_once()
             mock_api_class.assert_called_once_with(settings=mock_settings)
         finally:
@@ -222,7 +222,7 @@ class TestConfigOptionSceneCommands:
                 ],
             )
 
-            assert result.exit_code == 0
+            result.assert_success()
             mock_settings_class.from_multiple_sources.assert_called_once()
             mock_api_class.assert_called_once_with(settings=mock_settings)
         finally:
@@ -268,7 +268,7 @@ class TestConfigOptionSceneCommands:
                 ],
             )
 
-            assert result.exit_code == 0
+            result.assert_success()
             mock_settings_class.from_multiple_sources.assert_called_once()
             mock_api_class.assert_called_once_with(settings=mock_settings)
         finally:
@@ -314,7 +314,7 @@ class TestConfigOptionAnalyzeCommand:
                     ["analyze", "--config", config_path],
                 )
 
-                assert result.exit_code == 0
+                result.assert_success()
                 # Verify settings were loaded from config
                 mock_settings_class.from_multiple_sources.assert_called_once_with(
                     config_files=[Path(config_path)]
@@ -361,7 +361,7 @@ class TestConfigOptionListCommand:
                     ["list", "--config", config_path],
                 )
 
-                assert result.exit_code == 0
+                result.assert_success()
                 mock_settings_class.from_multiple_sources.assert_called_once()
         finally:
             Path(config_path).unlink(missing_ok=True)
@@ -409,7 +409,7 @@ class TestConfigOptionIndexCommand:
                 ["index", "test.fountain", "--config", config_path],
             )
 
-            assert result.exit_code == 0
+            result.assert_success()
             mock_settings_class.from_multiple_sources.assert_called_once_with(
                 config_files=[Path(config_path)]
             )
@@ -438,8 +438,7 @@ class TestConfigOptionQueryCommand:
             )
 
             # Should show help (with available query commands)
-            assert "Usage:" in result.output
-            assert "query" in result.output
+            result.assert_contains("Usage:", "query")
 
             # Test with non-existent config
             result = runner.invoke(
@@ -447,7 +446,7 @@ class TestConfigOptionQueryCommand:
                 ["query", "--config", "/nonexistent.yaml", "--help"],
             )
             # Should still work with --help even with bad config
-            assert "Usage:" in result.output
+            result.assert_contains("Usage:")
         finally:
             Path(config_path).unlink(missing_ok=True)
 
@@ -472,8 +471,8 @@ class TestConfigOptionQueryCommand:
         )
 
         # Should fail with appropriate error
-        assert result.exit_code == 1
-        assert "Error: Config file not found" in result.output
+        result.assert_failure(exit_code=1)
+        result.assert_contains("Error: Config file not found")
 
     def test_scene_add_with_nonexistent_config(self):
         """Test scene add command with non-existent config file."""
@@ -496,8 +495,8 @@ class TestConfigOptionQueryCommand:
         )
 
         # Should fail with config file not found error
-        assert result.exit_code == 1
-        assert "Error: Config file not found" in result.output
+        result.assert_failure(exit_code=1)
+        result.assert_contains("Error: Config file not found")
 
     def test_scene_update_with_nonexistent_config(self):
         """Test scene update command with non-existent config file."""
@@ -519,8 +518,8 @@ class TestConfigOptionQueryCommand:
             ],
         )
 
-        assert result.exit_code == 1
-        assert "Error: Config file not found" in result.output
+        result.assert_failure(exit_code=1)
+        result.assert_contains("Error: Config file not found")
 
     def test_scene_delete_with_nonexistent_config(self):
         """Test scene delete command with non-existent config file."""
@@ -541,8 +540,8 @@ class TestConfigOptionQueryCommand:
             ],
         )
 
-        assert result.exit_code == 1
-        assert "Error: Config file not found" in result.output
+        result.assert_failure(exit_code=1)
+        result.assert_contains("Error: Config file not found")
 
     def test_scene_bible_with_nonexistent_config(self):
         """Test scene read_bible command with non-existent config file."""
@@ -561,8 +560,8 @@ class TestConfigOptionQueryCommand:
             ],
         )
 
-        assert result.exit_code == 1
-        assert "Error: Config file not found" in result.output
+        result.assert_failure(exit_code=1)
+        result.assert_contains("Error: Config file not found")
 
 
 class TestConfigOptionSearchCommand:
@@ -614,12 +613,7 @@ class TestConfigOptionSearchCommand:
                 ["search", "--config", config_path, "test query"],
             )
 
-            # Debug output if test fails
-            if result.exit_code != 0:
-                print("Output:", result.output)
-                print("Exception:", result.exception)
-
-            assert result.exit_code == 0
+            result.assert_success()
             mock_settings_class.from_multiple_sources.assert_called_once()
         finally:
             Path(config_path).unlink(missing_ok=True)
@@ -634,8 +628,8 @@ class TestConfigOptionSearchCommand:
             ["search", "test query", "--config", str(config_path)],
         )
 
-        assert result.exit_code == 1
-        assert "Error: Config file not found" in result.output
+        result.assert_failure(exit_code=1)
+        result.assert_contains("Error: Config file not found")
 
     def test_query_with_nonexistent_config(self):
         """Test query command with non-existent config file."""
@@ -657,8 +651,8 @@ class TestConfigOptionSearchCommand:
             ],
         )
 
-        assert result.exit_code == 1
-        assert "Error: Config file not found" in result.output
+        result.assert_failure(exit_code=1)
+        result.assert_contains("Error: Config file not found")
 
     def test_analyze_with_nonexistent_config(self):
         """Test analyze command with non-existent config file."""
@@ -670,8 +664,8 @@ class TestConfigOptionSearchCommand:
                 ["analyze", tmpdir, "--config", str(config_path)],
             )
 
-            assert result.exit_code == 1
-            assert "Error: Config file not found" in result.output
+            result.assert_failure(exit_code=1)
+            result.assert_contains("Error: Config file not found")
 
     def test_index_with_nonexistent_config(self):
         """Test index command with non-existent config file."""
@@ -687,8 +681,8 @@ class TestConfigOptionSearchCommand:
                 ["index", fountain_path, "--config", str(config_path)],
             )
 
-            assert result.exit_code == 1
-            assert "Error: Config file not found" in result.output
+            result.assert_failure(exit_code=1)
+            result.assert_contains("Error: Config file not found")
         finally:
             Path(fountain_path).unlink(missing_ok=True)
 
@@ -703,8 +697,8 @@ class TestConfigOptionSearchCommand:
                 ["init", "--db-path", str(db_path), "--config", str(config_path)],
             )
 
-            assert result.exit_code == 1
-            assert "Error: Config file not found" in result.output
+            result.assert_failure(exit_code=1)
+            result.assert_contains("Error: Config file not found")
 
     def test_list_with_nonexistent_config(self):
         """Test list command with non-existent config file."""
@@ -715,5 +709,5 @@ class TestConfigOptionSearchCommand:
             ["list", "--config", str(config_path)],
         )
 
-        assert result.exit_code == 1
-        assert "Error: Config file not found" in result.output
+        result.assert_failure(exit_code=1)
+        result.assert_contains("Error: Config file not found")

@@ -158,11 +158,17 @@ class ScriptRAGSettings(BaseSettings):
     )
     llm_model: str | None = Field(
         default=None,
-        description="Default model to use for completions",
+        description=(
+            "Default model to use for completions. "
+            "Use 'default', 'auto', 'none', or empty string for automatic selection."
+        ),
     )
     llm_embedding_model: str | None = Field(
         default=None,
-        description="Default model to use for embeddings",
+        description=(
+            "Default model to use for embeddings. "
+            "Use 'default', 'auto', 'none', or empty string for automatic selection."
+        ),
     )
     llm_embedding_dimensions: int | None = Field(
         default=None,
@@ -255,6 +261,16 @@ class ScriptRAGSettings(BaseSettings):
         if isinstance(v, str):
             normalized = v.strip().lower()
             if normalized in {"", "default", "auto", "none"}:
+                # Log normalization at debug level for troubleshooting
+                # Note: We can't use get_logger here since it's a class method
+                # executed during model validation before the instance exists
+                if os.getenv("SCRIPTRAG_DEBUG", "").lower() == "true":
+                    import sys
+
+                    print(
+                        f"DEBUG: Normalizing LLM model sentinel value '{v}' to None",
+                        file=sys.stderr,
+                    )
                 return None
         return v
 

@@ -36,3 +36,10 @@ def test_none_sentinel_and_whitespace(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SCRIPTRAG_LLM_EMBEDDING_MODEL", "  NoNe  ")
     settings = ScriptRAGSettings.from_env()
     assert settings.llm_embedding_model is None
+
+
+def test_non_string_value_passthrough_and_cast() -> None:
+    """Non-string values are passed through then cast by Pydantic."""
+    settings = ScriptRAGSettings(llm_model=42)
+    # Pydantic will coerce to string; validator should not force None
+    assert settings.llm_model == "42"

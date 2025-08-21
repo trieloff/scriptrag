@@ -221,3 +221,75 @@ def test_unicode_and_special_chars(monkeypatch: pytest.MonkeyPatch) -> None:
         assert settings.llm_model == model, (
             f"Special character model name was incorrectly handled: {model}"
         )
+
+
+def test_debug_logging_for_sentinel_normalization(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture
+) -> None:
+    """Test that debug logging occurs when SCRIPTRAG_DEBUG is enabled."""
+    # Enable debug mode
+    monkeypatch.setenv("SCRIPTRAG_DEBUG", "true")
+
+    # Test various sentinel values that should trigger debug logging
+    sentinel_values = ["default", "auto", "none", "  "]
+
+    for sentinel in sentinel_values:
+        # Clear any previous output
+        capsys.readouterr()
+
+        # Test llm_model
+        monkeypatch.setenv("SCRIPTRAG_LLM_MODEL", sentinel)
+        settings = ScriptRAGSettings.from_env()
+        assert settings.llm_model is None
+
+        # Capture stderr output
+        captured = capsys.readouterr()
+        assert "DEBUG: Normalizing LLM model sentinel value" in captured.err, (
+            f"Debug message not found for sentinel: {sentinel!r}"
+        )
+        # For whitespace-only values, check that something appears in the message
+        if sentinel.strip():
+            assert sentinel in captured.err, (
+                f"Sentinel value not in debug message: {sentinel!r}"
+            )
+
+        # Clear output before next test
+        capsys.readouterr()
+
+        # Test llm_embedding_model
+        monkeypatch.setenv("SCRIPTRAG_LLM_EMBEDDING_MODEL", sentinel)
+        settings = ScriptRAGSettings.from_env()
+        assert settings.llm_embedding_model is None
+
+        # Capture stderr output again
+        captured = capsys.readouterr()
+        assert "DEBUG: Normalizing LLM model sentinel value" in captured.err
+
+    # Clear any previous output
+    capsys.readouterr()
+
+    # Test that debug logging doesn't occur when disabled
+    monkeypatch.setenv("SCRIPTRAG_DEBUG", "false")
+    monkeypatch.setenv("SCRIPTRAG_LLM_MODEL", "default")
+    settings = ScriptRAGSettings.from_env()
+    assert settings.llm_model is None
+
+    captured = capsys.readouterr()
+    assert "DEBUG:" not in captured.err, "Debug logging should not occur when disabled"
+
+    # Clear output before next test
+    capsys.readouterr()
+
+    # Test that debug logging doesn't occur for valid model names
+    monkeypatch.setenv("SCRIPTRAG_DEBUG", "true")
+    monkeypatch.setenv("SCRIPTRAG_LLM_MODEL", "gpt-4o-mini")
+    # Explicitly set llm_embedding_model to a valid value to avoid leftover sentinel
+    monkeypatch.setenv("SCRIPTRAG_LLM_EMBEDDING_MODEL", "text-embedding-ada-002")
+    settings = ScriptRAGSettings.from_env()
+    assert settings.llm_model == "gpt-4o-mini"
+    assert settings.llm_embedding_model == "text-embedding-ada-002"
+
+    captured = capsys.readouterr()
+    assert "DEBUG:" not in captured.err, (
+        f"Debug logging should not occur for valid models. Output: {captured.err}"
+    )

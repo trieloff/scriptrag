@@ -113,12 +113,16 @@ class ScriptOperations:
         row = cursor.fetchone()
 
         if row:
+            # Type-safe row access
+            row_dict = dict(row)  # Convert Row to dict for type safety
             return ScriptRecord(
-                id=row["id"],
-                title=row["title"],
-                author=row["author"],
-                file_path=row["file_path"],
-                metadata=json.loads(row["metadata"]) if row["metadata"] else None,
+                id=row_dict["id"],
+                title=row_dict["title"],
+                author=row_dict["author"],
+                file_path=row_dict["file_path"],
+                metadata=json.loads(row_dict["metadata"])
+                if row_dict["metadata"]
+                else None,
             )
         return None
 

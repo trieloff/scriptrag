@@ -12,12 +12,15 @@ from scriptrag.config import get_logger
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.model_discovery import GitHubModelsDiscovery
 from scriptrag.llm.models import (
+    CompletionChoice,
+    CompletionMessage,
     CompletionRequest,
     CompletionResponse,
     EmbeddingRequest,
     EmbeddingResponse,
     LLMProvider,
     Model,
+    UsageInfo,
 )
 
 logger = get_logger(__name__)
@@ -36,14 +39,6 @@ class GitHubErrorResponse(TypedDict, total=False):
     """Type for GitHub API error response."""
 
     error: GitHubErrorInfo
-
-
-class CompletionChoice(TypedDict):
-    """Type for completion choice."""
-
-    index: int
-    message: dict[str, str]
-    finish_reason: Literal["stop", "length", "content_filter"]
 
 
 class CompletionUsage(TypedDict):
@@ -253,13 +248,13 @@ class GitHubModelsProvider(BaseLLMProvider):
         """
         try:
             # Parse JSON error response
-            error_data: dict[str, Any] = json.loads(error_text)
+            error_data: GitHubErrorResponse = json.loads(error_text)
             if "error" in error_data:
-                error_info = error_data["error"]
+                error_info: GitHubErrorInfo = error_data["error"]
                 if error_info.get("code") == "RateLimitReached":
                     # Extract wait time from message
                     # "Please wait 42911 seconds before retrying."
-                    message = error_info.get("message", "")
+                    message: str = error_info.get("message", "")
                     match = re.search(r"wait (\d+) seconds", message)
                     if match:
                         return int(match.group(1))
@@ -291,7 +286,7 @@ class GitHubModelsProvider(BaseLLMProvider):
 
         # Prepare OpenAI-compatible request
         # GitHub Models API expects specific model IDs
-        payload = {
+        payload: dict[str, Any] = {
             "model": request.model,
             "messages": request.messages,
             "temperature": request.temperature,
@@ -303,7 +298,9 @@ class GitHubModelsProvider(BaseLLMProvider):
             payload["max_tokens"] = request.max_tokens
         if request.system:
             # Prepend system message
-            system_msg = [{"role": "system", "content": request.system}]
+            system_msg: list[dict[str, str]] = [
+                {"role": "system", "content": request.system}
+            ]
             payload["messages"] = system_msg + request.messages
 
         # Add response_format if specified (GitHub Models uses OpenAI-compatible API)
@@ -362,11 +359,11 @@ class GitHubModelsProvider(BaseLLMProvider):
                 )
                 raise ValueError(f"GitHub Models API error: {response.text}")
 
-            data = response.json()
+            data: dict[str, Any] = response.json()
 
             # Log successful response
-            choices = data.get("choices", [])
-            response_content = ""
+            choices: list[dict[str, Any]] = data.get("choices", [])
+            response_content: str = ""
             try:
                 if choices and len(choices) > 0:
                     response_content = (
@@ -387,8 +384,8 @@ class GitHubModelsProvider(BaseLLMProvider):
             )
 
             # Extract usage data, handling GitHub Models' nested structure
-            usage_data = data.get("usage", {})
-            usage = {
+            usage_data: dict[str, Any] = data.get("usage", {})
+            usage: UsageInfo = {
                 "prompt_tokens": usage_data.get("prompt_tokens", 0),
                 "completion_tokens": usage_data.get("completion_tokens", 0),
                 "total_tokens": usage_data.get("total_tokens", 0),
@@ -404,35 +401,53 @@ class GitHubModelsProvider(BaseLLMProvider):
                 )
             except Exception as e:
                 # Handle cases where response data doesn't match expected structure
-                # Fall back to creating a mock response that preserves the original data
+                # Fall back to creating a proper CompletionResponse with sanitized data
                 logger.warning(
-                    "GitHub Models response validation failed, using raw data",
+                    "GitHub Models response validation failed, creating safe response",
                     error=str(e),
                     error_type=type(e).__name__,
                     choices_type=type(data.get("choices", [])).__name__,
                 )
-                # Create a simple response that preserves the raw data
-                # Use typing.cast to explicitly handle the type conversion
-                from typing import cast
 
-                raw_response = type(
-                    "RawCompletionResponse",
-                    (),
-                    {
-                        "id": data.get("id", ""),
-                        "model": data.get("model", request.model),
-                        "choices": data.get("choices", []),
-                        "usage": usage,
-                        "provider": self.provider_type,
-                        "content": property(
-                            lambda self: self.choices[0]["message"]["content"]
-                            if self.choices
-                            else ""
-                        ),
-                    },
-                )()
+                # Sanitize choices data to ensure proper structure
+                raw_choices = data.get("choices", [])
+                sanitized_choices: list[CompletionChoice] = []
 
-                return cast(CompletionResponse, raw_response)
+                for choice in raw_choices:
+                    if isinstance(choice, dict):
+                        # Ensure each choice has required fields
+                        message: CompletionMessage = {
+                            "role": choice.get("message", {}).get("role", "assistant"),
+                            "content": choice.get("message", {}).get("content") or "",
+                        }
+                        sanitized_choice: CompletionChoice = {
+                            "index": choice.get("index", 0),
+                            "message": message,
+                            "finish_reason": choice.get("finish_reason", "stop"),
+                        }
+                        sanitized_choices.append(sanitized_choice)
+
+                # If no valid choices, create a default empty response
+                if not sanitized_choices:
+                    default_message: CompletionMessage = {
+                        "role": "assistant",
+                        "content": "",
+                    }
+                    default_choice: CompletionChoice = {
+                        "index": 0,
+                        "message": default_message,
+                        "finish_reason": "stop",
+                    }
+                    sanitized_choices = [default_choice]
+
+                # Create proper CompletionResponse with sanitized data
+                return CompletionResponse(
+                    id=data.get("id", ""),
+                    model=data.get("model", request.model),
+                    choices=sanitized_choices,
+                    usage=usage,
+                    provider=self.provider_type,
+                )
 
         except httpx.HTTPError as e:
             # httpx.HTTPError: Base class for all httpx errors (network, timeout, etc.)
@@ -502,7 +517,7 @@ class GitHubModelsProvider(BaseLLMProvider):
 
                 raise ValueError(f"GitHub Models API error: {response.text}")
 
-            data = response.json()
+            data: dict[str, Any] = response.json()
             return EmbeddingResponse(
                 model=data.get("model", request.model),
                 data=data.get("data", []),

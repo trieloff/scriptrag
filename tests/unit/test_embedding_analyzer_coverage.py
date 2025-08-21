@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from scriptrag.analyzers.embedding import SceneEmbeddingAnalyzer
-from scriptrag.llm.models import EmbeddingResponse
+from scriptrag.llm.models import EmbeddingResponse, LLMProvider
 
 
 class TestSceneEmbeddingAnalyzerCoverage:
@@ -153,11 +153,12 @@ class TestSceneEmbeddingAnalyzerCoverage:
         analyzer = SceneEmbeddingAnalyzer(config)
         analyzer.llm_client = AsyncMock()
 
-        # Mock embedding response
-        mock_embedding = Mock()
-        mock_embedding.embedding = [0.1, 0.2, 0.3]
+        # Mock embedding response - use dict to make it subscriptable
+        mock_embedding = {"embedding": [0.1, 0.2, 0.3]}
         response = Mock(spec=EmbeddingResponse)
         response.data = [mock_embedding]
+        response.model = "test-embedding-model"
+        response.provider = LLMProvider.OPENAI_COMPATIBLE
         analyzer.llm_client.embed.return_value = response
 
         # Create corrupted embedding file
@@ -184,11 +185,12 @@ class TestSceneEmbeddingAnalyzerCoverage:
         analyzer = SceneEmbeddingAnalyzer(config)
         analyzer.llm_client = AsyncMock()
 
-        # Mock embedding response
-        mock_embedding = Mock()
-        mock_embedding.embedding = [0.1, 0.2, 0.3]
+        # Mock embedding response - use dict to make it subscriptable
+        mock_embedding = {"embedding": [0.1, 0.2, 0.3]}
         response = Mock(spec=EmbeddingResponse)
         response.data = [mock_embedding]
+        response.model = "test-embedding-model"
+        response.provider = LLMProvider.OPENAI_COMPATIBLE
         analyzer.llm_client.embed.return_value = response
 
         content_hash = "test_hash"
@@ -213,11 +215,12 @@ class TestSceneEmbeddingAnalyzerCoverage:
         analyzer = SceneEmbeddingAnalyzer(config)
         analyzer.llm_client = AsyncMock()
 
-        # Mock embedding response
-        mock_embedding = Mock()
-        mock_embedding.embedding = [0.1, 0.2, 0.3]
+        # Mock embedding response - use dict to make it subscriptable
+        mock_embedding = {"embedding": [0.1, 0.2, 0.3]}
         response = Mock(spec=EmbeddingResponse)
         response.data = [mock_embedding]
+        response.model = "test-embedding-model"
+        response.provider = LLMProvider.OPENAI_COMPATIBLE
         analyzer.llm_client.embed.return_value = response
 
         # Create embeddings directory
@@ -256,6 +259,8 @@ class TestSceneEmbeddingAnalyzerCoverage:
         # Mock response with dict format
         response = Mock(spec=EmbeddingResponse)
         response.data = [{"embedding": [0.5, 0.6, 0.7]}]
+        response.model = "test-embedding-model"
+        response.provider = LLMProvider.OPENAI_COMPATIBLE
         analyzer.llm_client.embed.return_value = response
 
         scene = {"content": "test scene"}
@@ -275,6 +280,8 @@ class TestSceneEmbeddingAnalyzerCoverage:
         # Mock response with empty data list - this will trigger fallback behavior
         response = Mock(spec=EmbeddingResponse)
         response.data = []
+        response.model = "test-embedding-model"
+        response.provider = LLMProvider.OPENAI_COMPATIBLE
         analyzer.llm_client.embed.return_value = response
 
         scene = {"content": "test scene"}

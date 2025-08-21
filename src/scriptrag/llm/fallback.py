@@ -2,8 +2,10 @@
 
 import time
 import traceback
-from collections.abc import Awaitable, Callable
-from typing import Any, TypeVar
+from collections.abc import Awaitable
+from typing import Protocol, TypeVar
+
+from typing_extensions import TypedDict
 
 from scriptrag.config import get_logger
 from scriptrag.exceptions import LLMFallbackError
@@ -16,12 +18,52 @@ from scriptrag.llm.models import (
     LLMProvider,
 )
 from scriptrag.llm.registry import ProviderRegistry
+from scriptrag.llm.types import ErrorDetails
 
 logger = get_logger(__name__)
 
 # Type variables for generic request/response handling
-T = TypeVar("T", CompletionRequest, EmbeddingRequest)
-U = TypeVar("U", CompletionResponse, EmbeddingResponse)
+T = TypeVar("T", CompletionRequest, EmbeddingRequest, contravariant=True)
+U = TypeVar("U", CompletionResponse, EmbeddingResponse, covariant=True)
+
+
+# Protocol types for callbacks
+class FallbackChainRecorder(Protocol):
+    """Protocol for recording fallback chain attempts."""
+
+    def __call__(self, chain: list[str]) -> None:
+        """Record the fallback chain."""
+        ...
+
+
+class TryProviderFunc(Protocol[T, U]):
+    """Protocol for provider operation functions."""
+
+    def __call__(self, provider: BaseLLMProvider, request: T) -> Awaitable[U]:
+        """Execute operation with provider."""
+        ...
+
+
+# Debug information structure
+class ProviderDebugInfo(TypedDict, total=False):
+    """Debug information for a single provider attempt."""
+
+    exception: Exception
+    stack_trace: str
+    timestamp: float
+
+
+class FallbackDebugInfo(TypedDict, total=False):
+    """Debug information collection for fallback operations."""
+
+    preferred_provider_error: ProviderDebugInfo
+    claude_code_error: ProviderDebugInfo
+    github_models_error: ProviderDebugInfo
+    openai_compatible_error: ProviderDebugInfo
+
+
+# Provider error tracking types
+ProviderErrorMap = dict[str, Exception]
 
 
 class FallbackHandler:
@@ -54,10 +96,8 @@ class FallbackHandler:
     async def complete_with_fallback(
         self,
         request: CompletionRequest,
-        try_provider_func: Callable[
-            [BaseLLMProvider, CompletionRequest], Awaitable[CompletionResponse]
-        ],
-        record_chain_func: Callable[[list[str]], None],
+        try_provider_func: TryProviderFunc[CompletionRequest, CompletionResponse],
+        record_chain_func: FallbackChainRecorder,
     ) -> CompletionResponse:
         """Try completion with providers in fallback order.
 
@@ -72,10 +112,10 @@ class FallbackHandler:
         Raises:
             LLMFallbackError: If all providers fail.
         """
-        provider_errors: dict[str, Exception] = {}
+        provider_errors: ProviderErrorMap = {}
         attempted_providers: list[str] = []
         fallback_chain: list[str] = []
-        debug_info: dict[str, Any] = {}
+        debug_info: FallbackDebugInfo = {}
         # Preserve the original request model so provider attempts don't
         # accidentally reuse a model selected by a previous provider.
         original_model = request.model
@@ -153,16 +193,14 @@ class FallbackHandler:
             provider_errors=provider_errors,
             attempted_providers=attempted_providers,
             fallback_chain=fallback_chain,
-            debug_info=debug_info if self.debug_mode else None,
+            debug_info=dict(debug_info) if self.debug_mode else None,
         )
 
     async def embed_with_fallback(
         self,
         request: EmbeddingRequest,
-        try_provider_func: Callable[
-            [BaseLLMProvider, EmbeddingRequest], Awaitable[EmbeddingResponse]
-        ],
-        record_chain_func: Callable[[list[str]], None],
+        try_provider_func: TryProviderFunc[EmbeddingRequest, EmbeddingResponse],
+        record_chain_func: FallbackChainRecorder,
     ) -> EmbeddingResponse:
         """Try embedding with providers in fallback order.
 
@@ -177,10 +215,10 @@ class FallbackHandler:
         Raises:
             LLMFallbackError: If all providers fail.
         """
-        provider_errors: dict[str, Exception] = {}
+        provider_errors: ProviderErrorMap = {}
         attempted_providers: list[str] = []
         fallback_chain: list[str] = []
-        debug_info: dict[str, Any] = {}
+        debug_info: FallbackDebugInfo = {}
         original_model = request.model
 
         # Build the complete fallback chain
@@ -236,17 +274,17 @@ class FallbackHandler:
             provider_errors=provider_errors,
             attempted_providers=attempted_providers,
             fallback_chain=fallback_chain,
-            debug_info=debug_info if self.debug_mode else None,
+            debug_info=dict(debug_info) if self.debug_mode else None,
         )
 
     async def _try_provider(
         self,
         provider_type: LLMProvider,
         request: T,
-        try_func: Callable[[BaseLLMProvider, T], Awaitable[U]],
-        provider_errors: dict[str, Exception],
+        try_func: TryProviderFunc[T, U],
+        provider_errors: ProviderErrorMap,
         attempted_providers: list[str],
-        debug_info: dict[str, Any],
+        debug_info: FallbackDebugInfo,
         provider_role: str,
     ) -> U | None:
         """Try a single provider for an operation.
@@ -293,19 +331,30 @@ class FallbackHandler:
             return await try_func(provider, request)
         except Exception as e:
             provider_errors[provider_name] = e
-            error_details = {
+            error_details: ErrorDetails = {
                 "provider": provider_name,
                 "error": str(e),
                 "error_type": type(e).__name__,
+                "model": request.model,
             }
 
             if self.debug_mode:
                 error_details["stack_trace"] = traceback.format_exc()
-                debug_info[f"{provider_type.value}_error"] = {
-                    "exception": e,
-                    "stack_trace": traceback.format_exc(),
-                    "timestamp": time.time(),
-                }
+
+                # Create provider debug info
+                provider_error = ProviderDebugInfo(
+                    exception=e,
+                    stack_trace=traceback.format_exc(),
+                    timestamp=time.time(),
+                )
+
+                # Assign to appropriate key based on provider type
+                if provider_type == LLMProvider.CLAUDE_CODE:
+                    debug_info["claude_code_error"] = provider_error
+                elif provider_type == LLMProvider.GITHUB_MODELS:
+                    debug_info["github_models_error"] = provider_error
+                elif provider_type == LLMProvider.OPENAI_COMPATIBLE:
+                    debug_info["openai_compatible_error"] = provider_error
 
             logger.warning(
                 f"{provider_role.capitalize()} provider failed", **error_details

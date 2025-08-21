@@ -366,6 +366,7 @@ class TestOpenAICompatibleProvider:
                 {
                     "index": 0,
                     "message": {"role": "assistant", "content": "Response"},
+                    "finish_reason": "stop",
                 }
             ],
             "usage": {"total_tokens": 20},
@@ -613,7 +614,13 @@ class TestLLMClient:
         mock_response = CompletionResponse(
             id="test",
             model="gpt-4",
-            choices=[{"message": {"content": "Test response"}}],
+            choices=[
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Test response"},
+                    "finish_reason": "stop",
+                }
+            ],
             provider=LLMProvider.GITHUB_MODELS,
         )
         mock_provider.complete = AsyncMock(return_value=mock_response)
@@ -656,7 +663,13 @@ class TestLLMClient:
             mock_response = CompletionResponse(
                 id="test",
                 model="gpt-4",
-                choices=[{"message": {"content": "Test"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Test"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
             mock_provider.complete = AsyncMock(return_value=mock_response)

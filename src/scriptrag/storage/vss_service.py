@@ -6,9 +6,10 @@ focused helper modules to keep file size and complexity in check.
 
 import sqlite3
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 import numpy as np
+import numpy.typing as npt
 import sqlite_vec
 from sqlite_vec import serialize_float32
 
@@ -33,6 +34,11 @@ from .vss_setup import initialize_vss_tables
 
 logger = get_logger(__name__)
 
+# Type aliases for clarity
+FloatArray: TypeAlias = npt.NDArray[np.float32]
+SearchResult: TypeAlias = dict[str, Any]
+EmbeddingVector: TypeAlias = list[float] | FloatArray
+
 
 class VSSService:
     """Service for managing vector similarity search using sqlite-vec."""
@@ -56,7 +62,7 @@ class VSSService:
                 "SELECT name FROM sqlite_master WHERE type='table' "
                 "AND name LIKE '%_embeddings'"
             )
-            tables = [row[0] for row in cursor]
+            tables: list[str] = [row[0] for row in cursor]
 
             if not any("scene_embeddings" in t for t in tables):
                 logger.info("Creating VSS tables for first time...")

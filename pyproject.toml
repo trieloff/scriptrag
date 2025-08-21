@@ -240,6 +240,7 @@ line-ending = "auto"
 
 [tool.mypy]
 python_version = "3.11"
+mypy_path = "stubs"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -300,7 +301,7 @@ color = true
 exclude = ["tests/", "docs/", ".venv/", "build/", "dist/"]
 min_confidence = 80
 paths = ["src/scriptrag"]
-ignore_names = ["sql"]  # Ignore Protocol method parameters
+ignore_names = ["sql", "texts"]  # Ignore Protocol method parameters
 
 [tool.pylint.messages_control]
 disable = [

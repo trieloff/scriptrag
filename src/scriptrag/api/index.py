@@ -3,6 +3,10 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, TypedDict
+
+if TYPE_CHECKING:
+    pass
 
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.embedding_service import EmbeddingService
@@ -13,6 +17,43 @@ from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 from scriptrag.parser import FountainParser, Script
 
 logger = get_logger(__name__)
+
+
+# Database operation result types
+class ScriptStatsDict(TypedDict):
+    """Statistics for a script in the database."""
+
+    scenes: int
+    characters: int
+    dialogues: int
+    actions: int
+
+
+class CharacterMapDict(TypedDict):
+    """Mapping of character names to database IDs."""
+
+    # Dynamic keys - character names map to their database IDs
+    pass
+
+
+class BoneyardAnalyzersDict(TypedDict, total=False):
+    """Structure for boneyard analyzers metadata."""
+
+    scene_embeddings: dict[str, Any]
+
+
+class BoneyardMetadataDict(TypedDict, total=False):
+    """Structure for boneyard metadata."""
+
+    analyzers: BoneyardAnalyzersDict
+
+
+class EmbeddingResultDict(TypedDict, total=False):
+    """Structure for embedding analyzer results."""
+
+    embedding_path: str
+    model: str
+    error: str
 
 
 @dataclass
@@ -205,7 +246,7 @@ class IndexCommand:
         Returns:
             List of discovered script metadata
         """
-        all_scripts = self.lister.list_scripts(path, recursive)
+        all_scripts: list[FountainMetadata] = self.lister.list_scripts(path, recursive)
 
         # Filter to only scripts with boneyard metadata for backwards compatibility
         # This ensures that only analyzed scripts are indexed
@@ -226,7 +267,7 @@ class IndexCommand:
         Returns:
             Filtered list of scripts that need indexing
         """
-        scripts_to_index = []
+        scripts_to_index: list[FountainMetadata] = []
 
         with self.db_ops.transaction() as conn:
             for script_meta in scripts:
@@ -237,8 +278,8 @@ class IndexCommand:
                     scripts_to_index.append(script_meta)
                 else:
                     # Check if script has been modified since last index
-                    metadata = existing.metadata or {}
-                    last_indexed = metadata.get("last_indexed")
+                    metadata: dict[str, Any] = existing.metadata or {}
+                    last_indexed: Any = metadata.get("last_indexed")
 
                     if last_indexed:
                         # Could compare with file modification time
@@ -261,11 +302,13 @@ class IndexCommand:
         Returns:
             List of index results
         """
-        results = []
+        results: list[IndexResult] = []
 
         for script_meta in scripts:
             try:
-                result = await self._index_single_script(script_meta.file_path, dry_run)
+                result: IndexResult = await self._index_single_script(
+                    script_meta.file_path, dry_run
+                )
                 results.append(result)
             except Exception as e:
                 logger.error(f"Failed to index {script_meta.file_path}: {e}")
@@ -293,7 +336,7 @@ class IndexCommand:
 
         try:
             # Parse the script
-            script = self.parser.parse_file(file_path)
+            script: Script = self.parser.parse_file(file_path)
 
             if dry_run:
                 # In dry run mode, just analyze what would be done
@@ -303,23 +346,23 @@ class IndexCommand:
             with self.db_ops.transaction() as conn:
                 # Check if script exists
                 existing = self.db_ops.get_existing_script(conn, file_path)
-                is_update = existing is not None
+                is_update: bool = existing is not None
 
                 # Always clear existing data when updating to ensure consistency
                 if existing and existing.id is not None:
                     self.db_ops.clear_script_data(conn, existing.id)
 
                 # Upsert script
-                script_id = self.db_ops.upsert_script(conn, script, file_path)
+                script_id: int = self.db_ops.upsert_script(conn, script, file_path)
 
                 # Extract all unique characters from all scenes
-                all_characters = set()
+                all_characters: set[str] = set()
                 for scene in script.scenes:
                     for dialogue in scene.dialogue_lines:
                         all_characters.add(dialogue.character)
 
                 # Upsert all characters
-                character_map = {}
+                character_map: dict[str, int] = {}
                 if all_characters:
                     character_map = self.db_ops.upsert_characters(
                         conn, script_id, all_characters
@@ -330,12 +373,14 @@ class IndexCommand:
                     )
 
                 # Process scenes
-                total_dialogues = 0
-                total_actions = 0
+                total_dialogues: int = 0
+                total_actions: int = 0
 
                 for scene in script.scenes:
                     # Clear existing scene content if updating
                     # Upsert scene and check if content changed
+                    scene_id: int
+                    content_changed: bool
                     scene_id, content_changed = self.db_ops.upsert_scene(
                         conn, scene, script_id
                     )
@@ -345,13 +390,13 @@ class IndexCommand:
                         self.db_ops.clear_scene_content(conn, scene_id)
 
                         # Insert dialogues
-                        dialogue_count = self.db_ops.insert_dialogues(
+                        dialogue_count: int = self.db_ops.insert_dialogues(
                             conn, scene_id, scene.dialogue_lines, character_map
                         )
                         total_dialogues += dialogue_count
 
                         # Insert actions
-                        action_count = self.db_ops.insert_actions(
+                        action_count: int = self.db_ops.insert_actions(
                             conn, scene_id, scene.action_lines
                         )
                         total_actions += action_count
@@ -362,7 +407,7 @@ class IndexCommand:
                     )
 
                 # Get final stats
-                stats = self.db_ops.get_script_stats(conn, script_id)
+                stats: dict[str, int] = self.db_ops.get_script_stats(conn, script_id)
 
                 return IndexResult(
                     path=file_path,
@@ -390,9 +435,9 @@ class IndexCommand:
             IndexResult with preview information
         """
         # Count entities that would be indexed
-        characters = set()
-        dialogues = 0
-        actions = 0
+        characters: set[str] = set()
+        dialogues: int = 0
+        actions: int = 0
 
         for scene in script.scenes:
             for dialogue in scene.dialogue_lines:

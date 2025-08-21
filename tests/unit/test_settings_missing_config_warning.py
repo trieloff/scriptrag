@@ -2,11 +2,21 @@
 
 import logging
 
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config import ScriptRAGSettings, get_logger
 
 
 class TestMissingConfigWarning:
     """Test missing config file warning behavior."""
+
+    def setup_method(self):
+        """Ensure logger is properly initialized before each test."""
+        # Force logger initialization to ensure caplog can capture structlog messages
+        # This ensures the logging configuration is applied before tests run
+        get_logger(__name__)
+
+        # Ensure the specific logger used by settings is set to the right level
+        settings_logger = logging.getLogger("scriptrag.config.settings")
+        settings_logger.setLevel(logging.WARNING)
 
     def test_missing_config_file_logs_warning(self, tmp_path, caplog):
         """Test that missing config files emit a warning log."""

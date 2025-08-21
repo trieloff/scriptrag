@@ -366,9 +366,14 @@ class TestGitHubModelsExceptions:
         mock_response.text = "Invalid response structure"
 
         with patch.object(provider.client, "post", return_value=mock_response):
-            # The provider will accept the response and pass it through
+            # The provider now sanitizes invalid responses and provides fallback data
             result = await provider.complete(request)
-            assert result.choices == "not a list"  # Provider doesn't validate type
+            # Should return a sanitized default response instead of invalid data
+            assert isinstance(result.choices, list)
+            assert len(result.choices) == 1
+            assert result.choices[0]["message"]["content"] == ""
+            assert result.choices[0]["message"]["role"] == "assistant"
+            assert result.choices[0]["finish_reason"] == "stop"
 
     @pytest.mark.asyncio
     async def test_embed_http_error(self):

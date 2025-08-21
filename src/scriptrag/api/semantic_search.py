@@ -98,9 +98,9 @@ class SemanticSearchService:
 
         # Generate embedding for query with error handling
         try:
-            query_embedding = await self.embedding_service.generate_embedding(
-                query, model
-            )
+            query_embedding: list[
+                float
+            ] = await self.embedding_service.generate_embedding(query, model)
         except Exception as e:
             logger.error(
                 "Failed to generate embedding for query",
@@ -114,7 +114,7 @@ class SemanticSearchService:
 
         # Encode embedding for database storage
         try:
-            query_bytes = self.embedding_service.encode_embedding_for_db(
+            query_bytes: bytes = self.embedding_service.encode_embedding_for_db(
                 query_embedding
             )
         except Exception as e:
@@ -129,11 +129,11 @@ class SemanticSearchService:
 
         # Search in database and process results
         with self.db_ops.transaction() as conn:
-            candidates = self.db_ops.search_similar_scenes(
+            candidates: list[dict[str, Any]] = self.db_ops.search_similar_scenes(
                 conn, query_bytes, script_id, model, limit=100
             )
 
-            results = _build_scene_results(
+            results: list[SceneSearchResult] = _build_scene_results(
                 candidates,
                 query_embedding=query_embedding,
                 embedding_service=self.embedding_service,
@@ -166,7 +166,7 @@ class SemanticSearchService:
 
         with self.db_ops.transaction() as conn:
             # Get embedding for the source scene
-            source_embedding_bytes = self.db_ops.get_embedding(
+            source_embedding_bytes: bytes | None = self.db_ops.get_embedding(
                 conn, "scene", scene_id, model
             )
 
@@ -175,16 +175,16 @@ class SemanticSearchService:
                 return []
 
             # Decode source embedding
-            source_embedding = self.embedding_service.decode_embedding_from_db(
-                source_embedding_bytes
+            source_embedding: list[float] = (
+                self.embedding_service.decode_embedding_from_db(source_embedding_bytes)
             )
 
             # Get scenes with embeddings
-            candidates = self.db_ops.search_similar_scenes(
+            candidates: list[dict[str, Any]] = self.db_ops.search_similar_scenes(
                 conn, source_embedding_bytes, script_id, model, limit=100
             )
 
-            results = _build_scene_results(
+            results: list[SceneSearchResult] = _build_scene_results(
                 candidates,
                 query_embedding=source_embedding,
                 embedding_service=self.embedding_service,
@@ -249,9 +249,9 @@ class SemanticSearchService:
 
         # Generate embedding for query with error handling
         try:
-            query_embedding = await self.embedding_service.generate_embedding(
-                query, model
-            )
+            query_embedding: list[
+                float
+            ] = await self.embedding_service.generate_embedding(query, model)
         except Exception as e:
             logger.error(
                 "Failed to generate embedding for bible search query",
@@ -293,9 +293,9 @@ class SemanticSearchService:
                 params = (model,)
 
             cursor = conn.execute(query_sql, params)
-            chunks = cursor.fetchall()
+            chunks: list[dict[str, Any]] = cursor.fetchall()
 
-            results = _build_bible_results(
+            results: list[BibleSearchResult] = _build_bible_results(
                 chunks,
                 query_embedding=query_embedding,
                 embedding_service=self.embedding_service,

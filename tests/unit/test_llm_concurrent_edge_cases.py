@@ -70,7 +70,16 @@ class TestConcurrentOperations:
             return CompletionResponse(
                 id=f"response-{id(request)}",
                 model=request.model,
-                choices=[{"message": {"content": f"Response for {request.model}"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": f"Response for {request.model}",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
 
@@ -121,7 +130,13 @@ class TestConcurrentOperations:
             return CompletionResponse(
                 id=f"github-{github_calls}",
                 model=request.model,
-                choices=[{"message": {"content": "GitHub response"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "GitHub response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
 
@@ -130,7 +145,13 @@ class TestConcurrentOperations:
             return CompletionResponse(
                 id=f"claude-{id(request)}",
                 model=request.model,
-                choices=[{"message": {"content": "Claude response"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Claude response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.CLAUDE_CODE,
             )
 
@@ -217,7 +238,13 @@ class TestConcurrentOperations:
             return CompletionResponse(
                 id=f"comp-{id(request)}",
                 model=request.model,
-                choices=[{"message": {"content": "Completion"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Completion"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
 
@@ -313,7 +340,13 @@ class TestConcurrentOperations:
             return CompletionResponse(
                 id=f"response-{call_count}",
                 model=request.model,
-                choices=[{"message": {"content": "Success"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Success"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
 
@@ -422,7 +455,13 @@ class TestEdgeCases:
             return CompletionResponse(
                 id="test",
                 model="test",
-                choices=[{"message": {"content": "Done"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Done"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
 
@@ -543,7 +582,13 @@ class TestEdgeCases:
             return_value=CompletionResponse(
                 id="unicode-test",
                 model="test",
-                choices=[{"message": {"content": unicode_content}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": unicode_content},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
         )
@@ -698,7 +743,13 @@ class TestEdgeCases:
             return_value=CompletionResponse(
                 id="p1",
                 model="test",
-                choices=[{"message": {"content": "Provider 1"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Provider 1"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
         )
@@ -708,7 +759,13 @@ class TestEdgeCases:
             return_value=CompletionResponse(
                 id="p2",
                 model="test",
-                choices=[{"message": {"content": "Provider 2"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Provider 2"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.CLAUDE_CODE,
             )
         )

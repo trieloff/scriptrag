@@ -214,8 +214,10 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
             # Extract embedding vector
             if response.data and len(response.data) > 0:
                 embedding_data = response.data[0]
-                if hasattr(embedding_data, "embedding"):
-                    return np.array(embedding_data.embedding, dtype=np.float32)
+                if hasattr(embedding_data, "embedding") and embedding_data.get(
+                    "embedding"
+                ):
+                    return np.array(embedding_data["embedding"], dtype=np.float32)
                 # Handle dict response
                 return np.array(embedding_data["embedding"], dtype=np.float32)
 

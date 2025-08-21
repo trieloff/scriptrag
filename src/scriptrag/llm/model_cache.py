@@ -89,9 +89,24 @@ class ModelDiscoveryCache:
 
             if entry_len == 3:
                 # Entry shape with namespace: (timestamp, models, cache_dir)
-                timestamp = cast(float, entry[0])
-                models = cast(list[Model], entry[1])
-                cache_dir = cast(str, entry[2])
+                timestamp = entry[0]
+                models = entry[1]
+                cache_dir = entry[2]
+
+                # Validate timestamp type
+                if not isinstance(timestamp, int | float):
+                    logger.warning(
+                        f"Invalid cache entry for {self.provider_name}, clearing",
+                        entry_type=type(entry).__name__,
+                        entry_len=entry_len,
+                        timestamp_type=type(timestamp).__name__,
+                    )
+                    del self._memory_cache[self.provider_name]
+                    return None
+
+                timestamp = cast(float, timestamp)
+                models = cast(list[Model], models)
+                cache_dir = cast(str, cache_dir)
                 same_namespace = str(Path(cache_dir)) == str(self.CACHE_DIR.resolve())
                 if not same_namespace:
                     logger.debug(
@@ -118,8 +133,22 @@ class ModelDiscoveryCache:
                     )
             elif entry_len == 2:
                 # Backward-compat: older 2-tuple shape (timestamp, models)
-                timestamp = cast(float, entry[0])
-                models = cast(list[Model], entry[1])
+                timestamp = entry[0]
+                models = entry[1]
+
+                # Validate timestamp type
+                if not isinstance(timestamp, int | float):
+                    logger.warning(
+                        f"Invalid cache entry for {self.provider_name}, clearing",
+                        entry_type=type(entry).__name__,
+                        entry_len=entry_len,
+                        timestamp_type=type(timestamp).__name__,
+                    )
+                    del self._memory_cache[self.provider_name]
+                    return None
+
+                timestamp = cast(float, timestamp)
+                models = cast(list[Model], models)
                 if time.time() - timestamp <= self.ttl:
                     logger.debug(
                         f"Using in-memory cached models for {self.provider_name}",
@@ -176,7 +205,14 @@ class ModelDiscoveryCache:
             )
             return cached_models
 
-        except (json.JSONDecodeError, KeyError, TypeError, ValidationError) as e:
+        except (
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+            ValidationError,
+            OSError,
+            PermissionError,
+        ) as e:
             logger.warning(f"Failed to read cache for {self.provider_name}: {e}")
             return None
 

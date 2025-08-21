@@ -72,7 +72,7 @@ class TestModelCacheCoverage:
             # Create new cache instance
             cache2 = ModelDiscoveryCache("test_provider")
 
-            with patch("scriptrag.llm.model_cache.logger.debug") as mock_debug:
+            with patch("scriptrag.llm.model_cache.logger.info") as mock_info:
                 result = cache2.get()
 
                 # Should find models from disk
@@ -80,9 +80,12 @@ class TestModelCacheCoverage:
                 assert len(result) == 1
                 assert result[0].id == "test"
 
-                # Check for disk cache hit message
-                debug_calls = [call[0][0] for call in mock_debug.call_args_list]
-                assert any("from disk" in msg for msg in debug_calls)
+                # Check for disk cache hit message - logs at INFO level
+                info_calls = [call[0][0] for call in mock_info.call_args_list]
+                assert any(
+                    "Using file cached models for test_provider" in msg
+                    for msg in info_calls
+                )
 
     def test_cache_miss(self, tmp_path):
         """Test complete cache miss (no memory or disk cache)."""
@@ -97,38 +100,40 @@ class TestModelCacheCoverage:
 
                 # Check for the actual debug messages
                 debug_calls = [call[0][0] for call in mock_debug.call_args_list]
-                # Should log no disk cache found
-                assert any("No disk cache for provider" in msg for msg in debug_calls)
+                # Should log no cache file found - new message format
+                assert any(
+                    "No cache file found for test_provider" in msg
+                    for msg in debug_calls
+                )
 
     def test_disk_cache_expiry(self, tmp_path):
         """Test disk cache expiry check."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
             cache = ModelDiscoveryCache("test_provider")
 
-            # Create expired disk cache file
-            cache_file = tmp_path / ".test_provider_models.json"
+            # Create expired disk cache file with new structured format
+            cache_file = tmp_path / "test_provider_models.json"
             old_time = time.time() - cache.ttl - 1
 
-            # Write expired cache manually
-            test_models_data = [
-                {
-                    "id": "test",
-                    "name": "Test",
-                    "provider": "claude_code",
-                    "capabilities": ["chat"],
-                    "context_window": None,
-                    "max_output": None,
-                    "description": None,
-                }
-            ]
-            cache_file.write_text(json.dumps(test_models_data))
+            # Write expired cache in new structured format
+            cache_data = {
+                "timestamp": old_time,
+                "models": [
+                    {
+                        "id": "test",
+                        "name": "Test",
+                        "provider": "claude_code",
+                        "capabilities": ["chat"],
+                        "context_window": None,
+                        "max_output_tokens": None,
+                        "description": None,
+                    }
+                ],
+                "provider": "test_provider",
+            }
+            cache_file.write_text(json.dumps(cache_data))
 
-            # Monkey-patch getmtime to return old timestamp
-            with (
-                patch("pathlib.Path.stat") as mock_stat,
-                patch("scriptrag.llm.model_cache.logger.debug") as mock_debug,
-            ):
-                mock_stat.return_value.st_mtime = old_time
+            with patch("scriptrag.llm.model_cache.logger.debug") as mock_debug:
                 result = cache.get()
 
                 # Should return None for expired disk cache
@@ -136,15 +141,17 @@ class TestModelCacheCoverage:
 
                 # Check for expired disk cache message
                 debug_calls = [call[0][0] for call in mock_debug.call_args_list]
-                assert any("expired" in msg for msg in debug_calls)
+                assert any(
+                    "File cache expired for test_provider" in msg for msg in debug_calls
+                )
 
     def test_invalid_json_cache(self, tmp_path):
         """Test handling of invalid JSON in cache file."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
             cache = ModelDiscoveryCache("test_provider")
 
-            # Create invalid JSON cache file
-            cache_file = tmp_path / ".test_provider_models.json"
+            # Create invalid JSON cache file with new filename format
+            cache_file = tmp_path / "test_provider_models.json"
             cache_file.write_text("{'invalid': json}")
 
             with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
@@ -153,20 +160,26 @@ class TestModelCacheCoverage:
                 # Should return None for invalid cache
                 assert result is None
 
-                # Should log warning about invalid JSON
+                # Should log warning about cache read failure - new message format
                 mock_warning.assert_called_once()
                 warning_msg = mock_warning.call_args[0][0]
-                assert "Invalid JSON in cache file" in warning_msg
+                assert "Failed to read cache for test_provider" in warning_msg
 
     def test_invalid_model_data_in_cache(self, tmp_path):
         """Test handling of invalid model data in cache."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
             cache = ModelDiscoveryCache("test_provider")
 
-            # Create cache with invalid model data (missing required fields)
-            cache_file = tmp_path / ".test_provider_models.json"
-            invalid_data = [{"id": "test", "invalid": "data"}]
-            cache_file.write_text(json.dumps(invalid_data))
+            # Create cache with invalid model data in new structured format
+            cache_file = tmp_path / "test_provider_models.json"
+            invalid_cache_data = {
+                "timestamp": time.time(),
+                "models": [
+                    {"id": "test", "invalid": "data"}
+                ],  # Missing required fields
+                "provider": "test_provider",
+            }
+            cache_file.write_text(json.dumps(invalid_cache_data))
 
             with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
                 result = cache.get()
@@ -174,10 +187,10 @@ class TestModelCacheCoverage:
                 # Should return None for invalid model data
                 assert result is None
 
-                # Should log warning about invalid model data
+                # Should log warning about cache read failure - new message format
                 mock_warning.assert_called_once()
                 warning_msg = mock_warning.call_args[0][0]
-                assert "Failed to load cached models" in warning_msg
+                assert "Failed to read cache for test_provider" in warning_msg
 
     def test_set_with_existing_memory_cache(self, tmp_path):
         """Test set when memory cache already exists."""
@@ -207,7 +220,7 @@ class TestModelCacheCoverage:
             ]
             cache.set(new_models)
 
-            # Memory cache should have new models
+            # Memory cache should have new models - now 3-tuple format
             assert "test_provider" in cache._memory_cache
             _, cached_models, _ = cache._memory_cache["test_provider"]
             assert len(cached_models) == 1
@@ -270,8 +283,8 @@ class TestModelCacheCoverage:
             assert result1[0].id == "model1"
             assert result2[0].id == "model2"
 
-            # Check disk cache files
-            cache_files = list(tmp_path.glob(".*.json"))
+            # Check disk cache files - new filename format without dot prefix
+            cache_files = list(tmp_path.glob("*_models.json"))
             assert len(cache_files) == 2
 
     def test_clear_memory_cache(self, tmp_path):
@@ -310,7 +323,7 @@ class TestModelCacheCoverage:
                 assert result is None
                 mock_warning.assert_called_once()
                 warning_msg = mock_warning.call_args[0][0]
-                assert "Invalid memory cache format" in warning_msg
+                assert "Invalid cache entry for test_provider, clearing" in warning_msg
 
     def test_memory_cache_with_invalid_timestamp(self, tmp_path):
         """Test memory cache with invalid timestamp."""
@@ -336,28 +349,35 @@ class TestModelCacheCoverage:
                 assert result is None
                 mock_warning.assert_called_once()
                 warning_msg = mock_warning.call_args[0][0]
-                assert "Invalid memory cache format" in warning_msg
+                assert "Invalid cache entry for test_provider, clearing" in warning_msg
 
     def test_cache_directory_permission_error_on_read(self, tmp_path):
         """Test permission error when reading cache directory."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
             cache = ModelDiscoveryCache("test_provider")
 
-            # Create cache file
-            cache_file = tmp_path / ".test_provider_models.json"
-            test_models_data = [
-                {
-                    "id": "test",
-                    "name": "Test",
-                    "provider": "claude_code",
-                    "capabilities": ["chat"],
-                }
-            ]
-            cache_file.write_text(json.dumps(test_models_data))
+            # Create cache file with new structured format
+            cache_file = tmp_path / "test_provider_models.json"
+            test_cache_data = {
+                "timestamp": time.time(),
+                "models": [
+                    {
+                        "id": "test",
+                        "name": "Test",
+                        "provider": "claude_code",
+                        "capabilities": ["chat"],
+                    }
+                ],
+                "provider": "test_provider",
+            }
+            cache_file.write_text(json.dumps(test_cache_data))
 
-            # Mock Path.open to raise PermissionError
+            # Clear memory cache to force disk read
+            ModelDiscoveryCache.clear_all_memory_cache()
+
+            # Mock pathlib.Path.open to raise PermissionError
             with (
-                patch.object(cache_file, "open", side_effect=PermissionError),
+                patch("pathlib.Path.open", side_effect=PermissionError),
                 patch("scriptrag.llm.model_cache.logger.warning") as mock_warning,
             ):
                 result = cache.get()
@@ -365,10 +385,10 @@ class TestModelCacheCoverage:
                 # Should return None
                 assert result is None
 
-                # Should log warning
+                # Should log warning with new message format
                 mock_warning.assert_called_once()
                 warning_msg = mock_warning.call_args[0][0]
-                assert "Failed to read cache file" in warning_msg
+                assert "Failed to read cache for test_provider" in warning_msg
 
     def test_empty_models_list(self, tmp_path):
         """Test caching an empty models list."""
@@ -383,10 +403,11 @@ class TestModelCacheCoverage:
             assert result is not None
             assert len(result) == 0
 
-            # Check disk cache
-            cache_file = tmp_path / ".test_provider_models.json"
+            # Check disk cache - new filename format and structured data
+            cache_file = tmp_path / "test_provider_models.json"
             assert cache_file.exists()
-            assert json.loads(cache_file.read_text()) == []
+            cache_data = json.loads(cache_file.read_text())
+            assert cache_data["models"] == []
 
     def test_models_with_all_optional_fields(self, tmp_path):
         """Test caching models with all optional fields set."""
@@ -400,8 +421,7 @@ class TestModelCacheCoverage:
                     provider=LLMProvider.CLAUDE_CODE,
                     capabilities=["chat", "code", "vision"],
                     context_window=100000,
-                    max_output=4096,
-                    description="A test model with all fields",
+                    max_output_tokens=4096,
                 )
             ]
 
@@ -413,8 +433,7 @@ class TestModelCacheCoverage:
             model = result[0]
             assert model.id == "test"
             assert model.context_window == 100000
-            assert model.max_output == 4096
-            assert model.description == "A test model with all fields"
+            assert model.max_output_tokens == 4096
 
     def test_cache_with_long_provider_name(self, tmp_path):
         """Test caching with a very long provider name."""
@@ -448,7 +467,6 @@ class TestModelCacheCoverage:
                     name="测试模型 🚀",
                     provider=LLMProvider.CLAUDE_CODE,
                     capabilities=["chat"],
-                    description="A model with émojis and 中文",
                 )
             ]
 
@@ -457,7 +475,6 @@ class TestModelCacheCoverage:
 
             assert result is not None
             assert result[0].name == "测试模型 🚀"
-            assert "中文" in result[0].description
 
     def test_memory_cache_with_unexpected_tuple_size(self, tmp_path):
         """Test memory cache with unexpected tuple size (not 2 or 3)."""
@@ -490,7 +507,7 @@ class TestModelCacheCoverage:
                 warning_msg = mock_warning.call_args[0][0]
                 warning_kwargs = mock_warning.call_args[1]
 
-                assert "Invalid memory cache format" in warning_msg
+                assert "Invalid cache entry for test_provider, clearing" in warning_msg
                 assert warning_kwargs["entry_type"] == "tuple"
                 assert warning_kwargs["entry_len"] == 4
 

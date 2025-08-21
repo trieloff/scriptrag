@@ -86,11 +86,12 @@ class AnalyzeCommand:
         """
         self._analyzer_registry[name] = analyzer_class
 
-    def load_analyzer(self, name: str) -> None:
+    def load_analyzer(self, name: str, config: dict[str, Any] | None = None) -> None:
         """Load and instantiate an analyzer by name.
 
         Args:
             name: Name of the analyzer to load
+            config: Optional configuration for the analyzer
 
         Raises:
             ValueError: If analyzer not found
@@ -107,7 +108,7 @@ class AnalyzeCommand:
 
                 if name in BUILTIN_ANALYZERS:
                     analyzer_class = BUILTIN_ANALYZERS[name]
-                    self.analyzers.append(analyzer_class())
+                    self.analyzers.append(analyzer_class(config))
                     logger.info(f"Loaded built-in analyzer: {name}")
                     return
             except ImportError:
@@ -241,6 +242,18 @@ class AnalyzeCommand:
                 # Set script context for MarkdownAgentAnalyzer
                 if hasattr(analyzer, "script"):
                     analyzer.script = script
+
+                # Pass Bible metadata to relationships analyzer
+                if (
+                    hasattr(analyzer, "name")
+                    and analyzer.name == "relationships"
+                    and hasattr(analyzer, "bible_characters")
+                    and not analyzer.bible_characters
+                ):
+                    bible_metadata = await self._load_bible_metadata(file_path)
+                    if bible_metadata and hasattr(analyzer, "_build_alias_index"):
+                        analyzer.bible_characters = bible_metadata
+                        analyzer._build_alias_index()
 
             # Initialize analyzers
             for analyzer in self.analyzers:
@@ -393,3 +406,43 @@ class AnalyzeCommand:
 
         # For now, consider up to date
         return False
+
+    async def _load_bible_metadata(self, script_path: Path) -> dict[str, Any] | None:
+        """Load Bible character metadata from database if available.
+
+        Args:
+            script_path: Path to the script file
+
+        Returns:
+            Bible character metadata or None
+        """
+        try:
+            # Try to load from database
+            import json
+
+            from scriptrag.api.database_operations import DatabaseOperations
+            from scriptrag.config import get_settings
+
+            settings = get_settings()
+            db_ops = DatabaseOperations(settings)
+
+            if not db_ops.check_database_exists():
+                return None
+
+            with db_ops.transaction() as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT metadata FROM scripts WHERE file_path = ?",
+                    (str(script_path),),
+                )
+                row = cursor.fetchone()
+
+                if row and row[0]:
+                    metadata = json.loads(row[0]) if isinstance(row[0], str) else row[0]
+                    bible_chars = metadata.get("bible.characters")
+                    return bible_chars if isinstance(bible_chars, dict) else None
+
+        except Exception as e:
+            logger.debug(f"Could not load Bible metadata: {e}")
+
+        return None

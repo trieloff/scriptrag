@@ -1,3 +1,5 @@
 embeddings/*.npy filter=lfs diff=lfs merge=lfs -text
 
 embeddings/bible/*.npy filter=lfs diff=lfs merge=lfs -text
+
+/tmp/embeddings/*.npy filter=lfs diff=lfs merge=lfs -text

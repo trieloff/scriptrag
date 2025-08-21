@@ -78,11 +78,17 @@ class TestInitCommand:
         # Check schema version
         cursor.execute("SELECT version, description FROM schema_version")
         version, description = cursor.fetchone()
-        assert version == 3
+        assert version == 4
         assert (
             description
-            == "ScriptRAG schema with file_path uniqueness and series metadata"
+            == "ScriptRAG schema with Bible-driven character aliases support"
         )
+
+        # Check characters table has aliases column
+        cursor.execute("PRAGMA table_info(characters)")
+        columns = cursor.fetchall()
+        column_names = [col[1] for col in columns]
+        assert "aliases" in column_names
 
         conn.close()
 

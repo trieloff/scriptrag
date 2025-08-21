@@ -6,7 +6,8 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from scriptrag.api.bible_index import BibleAutoDetector, BibleIndexer
+from scriptrag.api.bible_detector import BibleAutoDetector
+from scriptrag.api.bible_index import BibleIndexer
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.parser.bible_parser import BibleChunk, ParsedBible
 
@@ -187,8 +188,8 @@ class TestBibleIndexerEdgeCases:
                 indexer, "_index_chunks", new_callable=AsyncMock, return_value=2
             ) as mock_index_chunks,
             patch.object(
-                indexer,
-                "_extract_bible_aliases",
+                indexer.alias_extractor,
+                "extract_aliases",
                 new_callable=AsyncMock,
                 return_value=None,
             ),
@@ -242,13 +243,17 @@ class TestBibleIndexerEdgeCases:
                 indexer, "_generate_embeddings", new_callable=AsyncMock, return_value=2
             ) as mock_gen_embed,
             patch.object(
-                indexer,
-                "_extract_bible_aliases",
+                indexer.alias_extractor,
+                "extract_aliases",
                 new_callable=AsyncMock,
                 return_value={"test": "alias"},
             ),
-            patch.object(indexer, "_attach_alias_map_to_script") as mock_attach_aliases,
-            patch.object(indexer, "_attach_aliases_to_characters") as mock_attach_chars,
+            patch.object(
+                indexer.alias_extractor, "attach_alias_map_to_script"
+            ) as mock_attach_aliases,
+            patch.object(
+                indexer.alias_extractor, "attach_aliases_to_characters"
+            ) as mock_attach_chars,
         ):
             result = await indexer.index_bible(bible_path, script_id=1, force=False)
 
@@ -274,7 +279,7 @@ class TestBibleIndexerEdgeCases:
         mock_settings.llm_api_key = None
 
         indexer = BibleIndexer(settings=mock_settings)
-        result = await indexer._extract_bible_aliases(mock_parsed_bible)
+        result = await indexer.alias_extractor.extract_aliases(mock_parsed_bible)
 
         assert result is None
 
@@ -298,7 +303,7 @@ class TestBibleIndexerEdgeCases:
             return_value=mock_client,
         ):
             indexer = BibleIndexer(settings=mock_settings)
-            result = await indexer._extract_bible_aliases(mock_parsed_bible)
+            result = await indexer.alias_extractor.extract_aliases(mock_parsed_bible)
 
             assert result is not None
             assert result["version"] == 1
@@ -325,7 +330,7 @@ class TestBibleIndexerEdgeCases:
             return_value=mock_client,
         ):
             indexer = BibleIndexer(settings=mock_settings)
-            result = await indexer._extract_bible_aliases(mock_parsed_bible)
+            result = await indexer.alias_extractor.extract_aliases(mock_parsed_bible)
 
             assert result is not None
             assert result["version"] == 1
@@ -351,7 +356,7 @@ class TestBibleIndexerEdgeCases:
             return_value=mock_client,
         ):
             indexer = BibleIndexer(settings=mock_settings)
-            result = await indexer._extract_bible_aliases(mock_parsed_bible)
+            result = await indexer.alias_extractor.extract_aliases(mock_parsed_bible)
 
             assert result is not None
             # Should remove duplicates and canonical from aliases
@@ -371,7 +376,9 @@ class TestBibleIndexerEdgeCases:
             "characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}],
         }
 
-        indexer._attach_alias_map_to_script(mock_conn, script_id=1, alias_map=alias_map)
+        indexer.alias_extractor.attach_alias_map_to_script(
+            mock_conn, script_id=1, alias_map=alias_map
+        )
 
         # Should have called execute twice: SELECT and UPDATE
         assert mock_conn.execute.call_count == 2
@@ -389,7 +396,9 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
         alias_map = {"version": 1, "characters": []}
 
-        indexer._attach_alias_map_to_script(mock_conn, script_id=1, alias_map=alias_map)
+        indexer.alias_extractor.attach_alias_map_to_script(
+            mock_conn, script_id=1, alias_map=alias_map
+        )
 
         # Should handle no existing metadata
         assert mock_conn.execute.call_count == 2
@@ -406,7 +415,7 @@ class TestBibleIndexerEdgeCases:
         alias_map = {"characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}]}
 
         # Should return early without error
-        indexer._attach_aliases_to_characters(
+        indexer.alias_extractor.attach_aliases_to_characters(
             mock_conn, script_id=1, alias_map=alias_map
         )
 
@@ -424,7 +433,7 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
         alias_map = {"characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}]}
 
-        indexer._attach_aliases_to_characters(
+        indexer.alias_extractor.attach_aliases_to_characters(
             mock_conn, script_id=1, alias_map=alias_map
         )
 
@@ -574,8 +583,8 @@ class TestBibleIndexerEdgeCases:
                 indexer, "_index_chunks", new_callable=AsyncMock, return_value=2
             ) as mock_index_chunks,
             patch.object(
-                indexer,
-                "_extract_bible_aliases",
+                indexer.alias_extractor,
+                "extract_aliases",
                 new_callable=AsyncMock,
                 return_value=None,
             ),
@@ -640,7 +649,7 @@ class TestBibleIndexerEdgeCases:
             return_value=mock_client,
         ):
             indexer = BibleIndexer(settings=mock_settings)
-            result = await indexer._extract_bible_aliases(parsed_bible)
+            result = await indexer.alias_extractor.extract_aliases(parsed_bible)
 
             assert result is not None
             # Verify the chunking logic was exercised
@@ -649,7 +658,7 @@ class TestBibleIndexerEdgeCases:
     def test_attach_aliases_to_characters_successful_update(
         self, mock_settings: ScriptRAGSettings, tmp_path: Path
     ) -> None:
-        """Test _attach_aliases_to_characters with successful database operations."""
+        """Test attach_aliases_to_characters with successful database operations."""
         # Use real sqlite3 connection to test the actual logic
         import sqlite3
 
@@ -690,7 +699,7 @@ class TestBibleIndexerEdgeCases:
             }
 
             # This should exercise lines 285-310 including UPDATE statements
-            indexer._attach_aliases_to_characters(
+            indexer.alias_extractor.attach_aliases_to_characters(
                 conn, script_id=1, alias_map=alias_map
             )
 
@@ -726,7 +735,7 @@ class TestBibleIndexerEdgeCases:
         # Empty characters list should trigger early return
         alias_map = {"characters": []}
 
-        indexer._attach_aliases_to_characters(
+        indexer.alias_extractor.attach_aliases_to_characters(
             mock_conn, script_id=1, alias_map=alias_map
         )
 
@@ -946,7 +955,9 @@ class TestBibleIndexerEdgeCases:
         }
 
         # Should handle JSON error gracefully and create new metadata
-        indexer._attach_alias_map_to_script(mock_conn, script_id=1, alias_map=alias_map)
+        indexer.alias_extractor.attach_alias_map_to_script(
+            mock_conn, script_id=1, alias_map=alias_map
+        )
 
         # Should have called execute twice: SELECT and UPDATE
         assert mock_conn.execute.call_count == 2

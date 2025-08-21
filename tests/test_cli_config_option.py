@@ -25,7 +25,7 @@ class TestConfigOptionSceneCommands:
     """Test --config option for scene commands."""
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
-    @patch("scriptrag.config.settings.ScriptRAGSettings")
+    @patch("scriptrag.cli.commands.scene_config.ScriptRAGSettings")
     def test_scene_read_with_config(self, mock_settings_class, mock_api_class):
         """Test scene read with custom config file."""
         # Create a temporary config file
@@ -88,7 +88,7 @@ class TestConfigOptionSceneCommands:
             Path(config_path).unlink(missing_ok=True)
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
-    @patch("scriptrag.config.settings.ScriptRAGSettings")
+    @patch("scriptrag.cli.commands.scene_config.ScriptRAGSettings")
     def test_scene_add_with_config(self, mock_settings_class, mock_api_class):
         """Test scene add with custom config file."""
         with tempfile.NamedTemporaryFile(
@@ -136,7 +136,7 @@ class TestConfigOptionSceneCommands:
             Path(config_path).unlink(missing_ok=True)
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
-    @patch("scriptrag.config.settings.ScriptRAGSettings")
+    @patch("scriptrag.cli.commands.scene_config.ScriptRAGSettings")
     def test_scene_update_with_config(self, mock_settings_class, mock_api_class):
         """Test scene update with custom config file."""
         with tempfile.NamedTemporaryFile(
@@ -183,7 +183,7 @@ class TestConfigOptionSceneCommands:
             Path(config_path).unlink(missing_ok=True)
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
-    @patch("scriptrag.config.settings.ScriptRAGSettings")
+    @patch("scriptrag.cli.commands.scene_config.ScriptRAGSettings")
     def test_scene_delete_with_config(self, mock_settings_class, mock_api_class):
         """Test scene delete with custom config file."""
         with tempfile.NamedTemporaryFile(
@@ -229,7 +229,7 @@ class TestConfigOptionSceneCommands:
             Path(config_path).unlink(missing_ok=True)
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
-    @patch("scriptrag.config.settings.ScriptRAGSettings")
+    @patch("scriptrag.cli.commands.scene_config.ScriptRAGSettings")
     def test_scene_read_bible_with_config(self, mock_settings_class, mock_api_class):
         """Test reading bible files with custom config."""
         with tempfile.NamedTemporaryFile(

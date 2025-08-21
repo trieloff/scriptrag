@@ -371,6 +371,10 @@ class ContextResultFormatter:
         display_rows = rows[:max_rows] if len(rows) > max_rows else rows
         truncated = len(rows) > max_rows
 
+        # Handle edge case where max_rows is 0 or display_rows is empty
+        if not display_rows:
+            return "No results to display (max_rows limit reached)"
+
         # Get column names from first row
         columns = list(display_rows[0].keys())
 

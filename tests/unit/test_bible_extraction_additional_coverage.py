@@ -244,3 +244,38 @@ Camera angles and lighting setup.
         assert len(chunks) == 1
         assert "Main Cast" in chunks[0]
         assert "Jane is the protagonist." in chunks[0]
+
+    def test_extract_json_regex_match_but_invalid_json(self):
+        """Test JSON extraction when regex matches but JSON is invalid."""
+        extractor = BibleCharacterExtractor()
+
+        # Response that matches the regex pattern but contains invalid JSON
+        # This will match the regex but fail json.loads() - hitting lines 243-244
+        response = 'Here is the result: [{"canonical": "JANE", "invalid_json": }]'
+
+        result = extractor._extract_json(response)
+
+        # Should return empty list when regex matches but JSON is invalid
+        assert result == []
+
+    def test_extract_json_complex_invalid_patterns(self):
+        """Test JSON extraction with complex invalid patterns that match regex."""
+        extractor = BibleCharacterExtractor()
+
+        # Pattern that looks like valid JSON array but has syntax errors
+        test_cases = [
+            # Missing closing brace
+            '[{"canonical": "JANE", "aliases": ["J"]}',
+            # Extra comma
+            '[{"canonical": "JANE", "aliases": ["J"]},]',
+            # Unescaped quotes
+            '[{"canonical": "JA"NE", "aliases": ["J"]}]',
+            # Missing quotes
+            '[{canonical: "JANE", aliases: ["J"]}]',
+            # Invalid unicode escape
+            '[{"canonical": "JANE\\uXXXX", "aliases": ["J"]}]',
+        ]
+
+        for invalid_response in test_cases:
+            result = extractor._extract_json(invalid_response)
+            assert result == [], f"Failed for response: {invalid_response}"

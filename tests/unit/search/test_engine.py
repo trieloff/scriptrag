@@ -9,7 +9,7 @@ import pytest
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.exceptions import DatabaseError
 from scriptrag.search.engine import SearchEngine
-from scriptrag.search.models import SearchMode, SearchQuery
+from scriptrag.search.models import BibleSearchResult, SearchMode, SearchQuery
 
 
 class TestSearchEngine:
@@ -380,3 +380,366 @@ class TestSearchEngine:
         query = SearchQuery(raw_query="")
         match_type = engine._determine_match_type(query)
         assert match_type == "text"
+
+    def test_get_read_only_connection_non_path_validation_error(self, engine):
+        """Test that non-path-validation ValueErrors are re-raised as-is."""
+        # Mock get_read_only_connection to raise ValueError NOT about path validation
+        with patch("scriptrag.search.engine.get_read_only_connection") as mock_get_conn:
+            mock_get_conn.side_effect = ValueError("Some other error")
+
+            with pytest.raises(ValueError, match="Some other error"):
+                with engine.get_read_only_connection():
+                    pass
+
+    # Note: The complex threading scenarios (lines 96-128) are very difficult to test
+    # in isolation as they involve actual thread execution with complex closure state.
+    # Tests above provide excellent coverage of the main search functionality.
+
+    def test_search_database_hint_with_existing_scriptrag_db(self, engine, tmp_path):
+        """Test database not found hint when scriptrag.db exists in current dir."""
+        # Create an actual scriptrag.db file in the current working directory
+        original_cwd = Path.cwd()
+        scriptrag_db = original_cwd / "scriptrag.db"
+
+        try:
+            # Create the file temporarily
+            scriptrag_db.touch()
+
+            # Point engine to non-existent database
+            engine.db_path = tmp_path / "nonexistent.db"
+
+            query = SearchQuery(raw_query="test", text_query="test")
+
+            with pytest.raises(DatabaseError) as exc_info:
+                engine.search(query)
+
+            error = exc_info.value
+            assert "Found scriptrag.db here. Use --database scriptrag.db" in error.hint
+
+        finally:
+            # Clean up the temporary file
+            if scriptrag_db.exists():
+                scriptrag_db.unlink()
+
+    @patch("scriptrag.search.engine.get_read_only_connection")
+    def test_search_count_result_key_error(self, mock_conn, engine):
+        """Test search with count result that raises KeyError."""
+        # Mock database connection and cursor for main search
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = []
+
+        # Mock count cursor that raises KeyError when accessing 'total'
+        mock_count_cursor = MagicMock()
+        mock_count_result = {"not_total": 5}  # Missing 'total' key
+        mock_count_cursor.fetchone.return_value = mock_count_result
+
+        mock_db_conn = MagicMock()
+        mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
+        mock_conn.return_value.__enter__.return_value = mock_db_conn
+
+        # Mock query builder
+        engine.query_builder.build_search_query = MagicMock(
+            return_value=("SELECT * FROM test", {})
+        )
+        engine.query_builder.build_count_query = MagicMock(
+            return_value=("SELECT COUNT(*) as total", {})
+        )
+
+        engine.db_path = engine.settings.database_path
+        query = SearchQuery(raw_query="test", text_query="test")
+
+        response = engine.search(query)
+
+        # Should handle KeyError gracefully and set total_count to 0
+        assert response.total_count == 0
+
+    @patch("scriptrag.search.engine.get_read_only_connection")
+    def test_search_count_result_type_error(self, mock_conn, engine):
+        """Test search with count result that raises TypeError."""
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = []
+
+        # Mock count cursor that raises TypeError when accessing result
+        mock_count_cursor = MagicMock()
+        mock_count_cursor.fetchone.return_value = (
+            None  # This will cause TypeError when accessing ['total']
+        )
+
+        mock_db_conn = MagicMock()
+        mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
+        mock_conn.return_value.__enter__.return_value = mock_db_conn
+
+        engine.query_builder.build_search_query = MagicMock(
+            return_value=("SELECT * FROM test", {})
+        )
+        engine.query_builder.build_count_query = MagicMock(
+            return_value=("SELECT COUNT(*) as total", {})
+        )
+
+        engine.db_path = engine.settings.database_path
+        query = SearchQuery(raw_query="test", text_query="test")
+
+        response = engine.search(query)
+
+        # Should handle TypeError gracefully and set total_count to 0
+        assert response.total_count == 0
+
+    @patch("scriptrag.search.engine.get_read_only_connection")
+    def test_search_count_result_index_error(self, mock_conn, engine):
+        """Test search with count result that raises IndexError."""
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = []
+
+        # Mock count cursor that could raise IndexError
+        mock_count_cursor = MagicMock()
+        mock_count_result = []  # Empty list, accessing ['total'] would raise IndexError
+        mock_count_cursor.fetchone.return_value = mock_count_result
+
+        mock_db_conn = MagicMock()
+        mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
+        mock_conn.return_value.__enter__.return_value = mock_db_conn
+
+        engine.query_builder.build_search_query = MagicMock(
+            return_value=("SELECT * FROM test", {})
+        )
+        engine.query_builder.build_count_query = MagicMock(
+            return_value=("SELECT COUNT(*) as total", {})
+        )
+
+        engine.db_path = engine.settings.database_path
+        query = SearchQuery(raw_query="test", text_query="test")
+
+        response = engine.search(query)
+
+        # Should handle IndexError gracefully and set total_count to 0
+        assert response.total_count == 0
+
+    @patch("scriptrag.search.engine.get_read_only_connection")
+    def test_search_with_bible_semantic_results_deduplication(self, mock_conn, engine):
+        """Test search with bible semantic results that need deduplication."""
+        # Mock database connection
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = []
+
+        mock_count_cursor = MagicMock()
+        mock_count_cursor.fetchone.return_value = {"total": 0}
+
+        mock_db_conn = MagicMock()
+        mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
+        mock_conn.return_value.__enter__.return_value = mock_db_conn
+
+        engine.query_builder.build_search_query = MagicMock(
+            return_value=("SELECT * FROM test", {})
+        )
+        engine.query_builder.build_count_query = MagicMock(
+            return_value=("SELECT COUNT(*) as total", {})
+        )
+
+        # Mock existing bible results
+        existing_bible_result = BibleSearchResult(
+            script_id=1,
+            script_title="Test Script",
+            bible_id=1,
+            bible_title="Test Bible",
+            chunk_id=1,
+            chunk_heading="Test Heading",
+            chunk_level=1,
+            chunk_content="Test content",
+            match_type="text",
+        )
+
+        # Mock semantic bible results (one duplicate, one new)
+        semantic_bible_result_duplicate = BibleSearchResult(
+            script_id=1,
+            script_title="Test Script",
+            bible_id=1,
+            bible_title="Test Bible",
+            chunk_id=1,  # Same as existing - should be deduplicated
+            chunk_heading="Test Heading",
+            chunk_level=1,
+            chunk_content="Test content",
+            match_type="semantic",
+        )
+
+        semantic_bible_result_new = BibleSearchResult(
+            script_id=1,
+            script_title="Test Script",
+            bible_id=1,
+            bible_title="Test Bible",
+            chunk_id=2,  # Different chunk_id - should be added
+            chunk_heading="New Heading",
+            chunk_level=1,
+            chunk_content="New content",
+            match_type="semantic",
+        )
+
+        # Mock _search_bible_content to return existing results
+        with patch.object(engine, "_search_bible_content") as mock_bible_search:
+            mock_bible_search.return_value = ([existing_bible_result], 1)
+
+            # Mock semantic adapter to return semantic results
+            with patch.object(
+                engine.semantic_adapter, "enhance_results_with_semantic_search"
+            ) as mock_enhance:
+                mock_enhance.return_value = (
+                    [],
+                    [semantic_bible_result_duplicate, semantic_bible_result_new],
+                )
+
+                engine.db_path = engine.settings.database_path
+                query = SearchQuery(
+                    raw_query="test",
+                    text_query="test",
+                    include_bible=True,
+                    mode=SearchMode.FUZZY,
+                )
+
+                response = engine.search(query)
+
+                # Should have 2 bible results: 1 existing + 1 new (duplicates filtered)
+                assert len(response.bible_results) == 2
+                chunk_ids = {br.chunk_id for br in response.bible_results}
+                assert chunk_ids == {1, 2}  # Both chunk IDs present, no duplicates
+
+    @patch("scriptrag.search.engine.get_read_only_connection")
+    def test_search_semantic_search_exception_handling(self, mock_conn, engine):
+        """Test search with semantic search that raises an exception."""
+        # Mock database connection
+        mock_cursor = MagicMock()
+        mock_cursor.fetchall.return_value = []
+
+        mock_count_cursor = MagicMock()
+        mock_count_cursor.fetchone.return_value = {"total": 0}
+
+        mock_db_conn = MagicMock()
+        mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
+        mock_conn.return_value.__enter__.return_value = mock_db_conn
+
+        engine.query_builder.build_search_query = MagicMock(
+            return_value=("SELECT * FROM test", {})
+        )
+        engine.query_builder.build_count_query = MagicMock(
+            return_value=("SELECT COUNT(*) as total", {})
+        )
+
+        # Mock semantic adapter to raise exception
+        test_exception = RuntimeError("Semantic search failed")
+        with patch.object(
+            engine.semantic_adapter, "enhance_results_with_semantic_search"
+        ) as mock_enhance:
+            mock_enhance.side_effect = test_exception
+
+            engine.db_path = engine.settings.database_path
+            query = SearchQuery(
+                raw_query="test", text_query="test", mode=SearchMode.FUZZY
+            )
+
+            with patch("scriptrag.search.engine.logger") as mock_logger:
+                response = engine.search(query)
+
+                # Should continue with SQL results only and log error
+                assert "semantic" in response.search_methods  # Semantic was attempted
+                mock_logger.error.assert_called_with(
+                    "Semantic search failed, falling back to SQL results",
+                    error=str(test_exception),
+                    query="test",
+                    error_type="RuntimeError",
+                )
+
+    def test_search_bible_content_with_project_filter(self, engine, tmp_path):
+        """Test bible search with project filter."""
+        # Create test database with bible tables
+        db_path = tmp_path / "test_bible.db"
+        conn = sqlite3.connect(db_path)
+
+        # Create bible schema
+        conn.executescript("""
+            CREATE TABLE scripts (
+                id INTEGER PRIMARY KEY,
+                title TEXT,
+                author TEXT
+            );
+
+            CREATE TABLE script_bibles (
+                id INTEGER PRIMARY KEY,
+                script_id INTEGER,
+                title TEXT,
+                FOREIGN KEY (script_id) REFERENCES scripts(id)
+            );
+
+            CREATE TABLE bible_chunks (
+                id INTEGER PRIMARY KEY,
+                bible_id INTEGER,
+                chunk_number INTEGER,
+                heading TEXT,
+                level INTEGER,
+                content TEXT,
+                FOREIGN KEY (bible_id) REFERENCES script_bibles(id)
+            );
+
+            INSERT INTO scripts (id, title, author) VALUES
+                (1, 'Test Project', 'Test Author'),
+                (2, 'Other Project', 'Other Author');
+
+            INSERT INTO script_bibles (id, script_id, title) VALUES
+                (1, 1, 'Test Bible'),
+                (2, 2, 'Other Bible');
+
+            INSERT INTO bible_chunks (
+                id, bible_id, chunk_number, heading, level, content
+            ) VALUES
+                (1, 1, 1, 'Test Heading', 1, 'Test content for project'),
+                (2, 2, 1, 'Other Heading', 1, 'Other content for project');
+        """)
+        conn.commit()
+        conn.close()
+
+        engine.settings.database_path = db_path
+        engine.db_path = db_path
+
+        # Test with project filter
+        query = SearchQuery(
+            raw_query="project:Test Project content",
+            text_query="content",
+            project="Test Project",
+            include_bible=True,
+        )
+
+        with engine.get_read_only_connection() as conn:
+            bible_results, total_count = engine._search_bible_content(conn, query)
+
+            # Should only return results from "Test Project"
+            assert len(bible_results) == 1
+            assert bible_results[0].script_title == "Test Project"
+            assert total_count == 1
+
+    def test_search_bible_content_database_error(self, engine, tmp_path):
+        """Test bible search with database error."""
+        # Create minimal database
+        db_path = tmp_path / "test_error.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE test (id INTEGER)")
+        conn.commit()
+        conn.close()
+
+        engine.settings.database_path = db_path
+        engine.db_path = db_path
+
+        query = SearchQuery(raw_query="test", text_query="test", include_bible=True)
+
+        with engine.get_read_only_connection() as conn:
+            with patch("scriptrag.search.engine.logger") as mock_logger:
+                # This will cause a database error since bible tables don't exist
+                bible_results, total_count = engine._search_bible_content(conn, query)
+
+                # Should return empty results and log error
+                assert bible_results == []
+                assert total_count == 0
+
+                # Should log database error
+                mock_logger.error.assert_called_with(
+                    "Database error during bible search",
+                    error=mock_logger.error.call_args[1]["error"],
+                    query="test",
+                    project=None,
+                )

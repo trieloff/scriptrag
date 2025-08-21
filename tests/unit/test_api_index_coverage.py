@@ -1,5 +1,6 @@
 """Additional tests for API index module to improve coverage."""
 
+import json
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -826,3 +827,101 @@ This validates the comment behavior.
             result_existing.indexed is True
         )  # Successfully processed regardless of new/update
         assert result_existing.updated is True  # Only updated if it existed (it did)
+
+    @pytest.mark.asyncio
+    async def test_index_edge_case_empty_scripts_to_index(self):
+        """Test the case where discovered scripts becomes empty after filtering."""
+        settings = ScriptRAGSettings(
+            database_path=Path("test.db"),
+            skip_boneyard_filter=False,  # Enable boneyard filtering
+        )
+        mock_db_ops = Mock()
+        mock_db_ops.check_database_exists.return_value = True
+
+        indexer = IndexCommand(settings, mock_db_ops)
+
+        # Create scripts without boneyard metadata
+        from scriptrag.api.list import FountainMetadata
+
+        scripts_without_boneyard = [
+            FountainMetadata(
+                file_path=Path("no_boneyard.fountain"),
+                title="No Boneyard",
+                has_boneyard=False,
+            )
+        ]
+
+        # Mock lister to return scripts but _discover_scripts filters them out
+        with patch.object(
+            indexer.lister, "list_scripts", return_value=scripts_without_boneyard
+        ):
+            result = await indexer.index()
+
+        assert result.total_scripts_indexed == 0
+        assert len(result.errors) == 0
+        # This should trigger the "No scripts need indexing" path (lines 154-155)
+
+    @pytest.mark.asyncio
+    async def test_apply_bible_aliases_no_bible_characters_key(self):
+        """Test _apply_bible_aliases when metadata has no bible.characters key."""
+        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        cmd = IndexCommand(settings=settings)
+
+        mock_conn = Mock()
+        mock_cursor = Mock()
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock metadata with no bible.characters at all
+        metadata_no_bible = {"other_metadata": "value"}
+        mock_cursor.fetchone.return_value = (json.dumps(metadata_no_bible),)
+
+        # This should trigger the early return on line 552
+        await cmd._apply_bible_aliases(
+            mock_conn, script_id=1, character_map={"TEST": 1}
+        )
+
+        # Should only call SELECT, no UPDATE operations
+        mock_cursor.execute.assert_called_once_with(
+            "SELECT metadata FROM scripts WHERE id = ?", (1,)
+        )
+
+    @pytest.mark.asyncio
+    async def test_apply_bible_aliases_character_not_in_map(self):
+        """Test _apply_bible_aliases when character not found in character_map."""
+        settings = ScriptRAGSettings(database_path=Path("test.db"))
+        cmd = IndexCommand(settings=settings)
+
+        mock_conn = Mock()
+        mock_cursor = Mock()
+        mock_conn.cursor.return_value = mock_cursor
+
+        # Mock metadata with Bible characters
+        bible_metadata = {
+            "bible.characters": {
+                "characters": [
+                    {"canonical": "NONEXISTENT", "aliases": ["MISSING", "NOT_FOUND"]}
+                ]
+            }
+        }
+        mock_cursor.fetchone.return_value = (json.dumps(bible_metadata),)
+
+        # Character map that doesn't include "NONEXISTENT"
+        character_map = {"ALICE": 1, "BOB": 2}  # No "NONEXISTENT"
+
+        await cmd._apply_bible_aliases(
+            mock_conn, script_id=1, character_map=character_map
+        )
+
+        # Should call SELECT but no UPDATE since character not found
+        # This tests the branch where char_id is None (line 564->555)
+        mock_cursor.execute.assert_called_once_with(
+            "SELECT metadata FROM scripts WHERE id = ?", (1,)
+        )
+
+        # Verify no UPDATE was called
+        update_calls = [
+            call
+            for call in mock_cursor.execute.call_args_list
+            if "UPDATE characters" in str(call)
+        ]
+        assert len(update_calls) == 0

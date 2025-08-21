@@ -1,5 +1,6 @@
 """Comprehensive tests for Model Cache to achieve 99% coverage."""
 
+import errno
 import json
 import time
 from unittest.mock import patch
@@ -489,3 +490,219 @@ class TestModelCacheCoverage:
 
                 # Should have cleared the invalid entry
                 assert "test_provider" not in cache._memory_cache
+
+    def test_cache_dir_creation_os_error(self, tmp_path):
+        """Test OSError during cache directory creation (lines 62-64)."""
+        # Create a cache dir that already exists but as a file (not directory)
+        broken_cache_dir = tmp_path / "broken_cache"
+        broken_cache_dir.write_text("This is a file, not a directory")
+
+        with (
+            patch.object(ModelDiscoveryCache, "CACHE_DIR", broken_cache_dir),
+            patch("scriptrag.llm.model_cache.logger.error") as mock_error,
+            pytest.raises(OSError),
+        ):
+            ModelDiscoveryCache("test_provider")
+
+            # Should log the error
+            mock_error.assert_called_once()
+            error_msg = mock_error.call_args[0][0]
+            assert "Failed to create cache directory" in error_msg
+
+    def test_memory_cache_namespace_mismatch(self, tmp_path):
+        """Test namespace mismatch in memory cache (line 82)."""
+        cache_dir_1 = tmp_path / "cache1"
+        cache_dir_2 = tmp_path / "cache2"
+
+        # Create cache with first directory
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", cache_dir_1):
+            cache1 = ModelDiscoveryCache("test_provider")
+
+            # Add to memory cache with first namespace
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+            cache1._memory_cache["test_provider"] = (
+                time.time(),
+                test_models,
+                str(cache_dir_1.resolve()),
+            )
+
+        # Now create cache with different directory
+        with (
+            patch.object(ModelDiscoveryCache, "CACHE_DIR", cache_dir_2),
+            patch("scriptrag.llm.model_cache.logger.debug") as mock_debug,
+        ):
+            cache2 = ModelDiscoveryCache("test_provider")
+            result = cache2.get()
+
+            # Should return None due to namespace mismatch
+            assert result is None
+
+            # Should log the namespace mismatch
+            debug_calls = [call[0][0] for call in mock_debug.call_args_list]
+            assert any(
+                "Ignoring in-memory cache for provider due to different namespace"
+                in msg
+                for msg in debug_calls
+            )
+
+    def test_memory_cache_3_tuple_expiry(self, tmp_path):
+        """Test expiry handling for 3-tuple memory cache entries (lines 99-100)."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Add expired 3-tuple entry to memory cache
+            old_timestamp = time.time() - cache.ttl - 1
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+            cache._memory_cache["test_provider"] = (
+                old_timestamp,
+                test_models,
+                str(tmp_path.resolve()),
+            )
+
+            with patch("scriptrag.llm.model_cache.logger.debug") as mock_debug:
+                result = cache.get()
+
+                # Should return None and clear expired entry
+                assert result is None
+                assert "test_provider" not in cache._memory_cache
+
+                # Should log expiry
+                debug_calls = [call[0][0] for call in mock_debug.call_args_list]
+                assert any("expired" in msg for msg in debug_calls)
+
+    def test_temp_file_creation_exception_cleanup(self, tmp_path):
+        """Test exception cleanup in temp file creation (lines 222-233)."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Mock tempfile.mkstemp to succeed but os.fdopen to fail
+            mock_fd = 99  # Fake file descriptor
+            mock_temp_path = str(tmp_path / "fake_temp_file.tmp")
+
+            with (
+                patch("tempfile.mkstemp") as mock_mkstemp,
+                patch("os.fdopen") as mock_fdopen,
+                patch("os.close") as mock_close,
+                patch("pathlib.Path.unlink") as mock_unlink,
+            ):
+                mock_mkstemp.return_value = (mock_fd, mock_temp_path)
+                mock_fdopen.side_effect = Exception("Write failed")
+
+                # This should trigger cleanup of both fd and temp file
+                cache.set(test_models)
+
+                # Should have attempted to close the file descriptor
+                mock_close.assert_called_once_with(mock_fd)
+
+                # Should have attempted to unlink the temp file
+                mock_unlink.assert_called_once()
+
+    def test_disk_space_error_handling(self, tmp_path):
+        """Test specific ENOSPC error handling (line 238)."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Create an OSError with ENOSPC errno
+            disk_full_error = OSError(errno.ENOSPC, "No space left on device")
+
+            with (
+                patch("tempfile.mkstemp", side_effect=disk_full_error),
+                patch("scriptrag.llm.model_cache.logger.error") as mock_error,
+            ):
+                cache.set(test_models)
+
+                # Should log specific disk space error
+                mock_error.assert_called_once()
+                error_msg = mock_error.call_args[0][0]
+                assert "Insufficient disk space to cache models" in error_msg
+
+    def test_permission_denied_error_handling(self, tmp_path):
+        """Test specific EACCES error handling (line 242)."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Create an OSError with EACCES errno
+            permission_error = OSError(errno.EACCES, "Permission denied")
+
+            with (
+                patch("tempfile.mkstemp", side_effect=permission_error),
+                patch("scriptrag.llm.model_cache.logger.error") as mock_error,
+            ):
+                cache.set(test_models)
+
+                # Should log specific permission error
+                mock_error.assert_called_once()
+                error_msg = mock_error.call_args[0][0]
+                assert "Permission denied when caching models" in error_msg
+
+    def test_general_exception_handling_in_set(self, tmp_path):
+        """Test general Exception handling in set method (lines 249-250)."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Create a general exception (not OSError)
+            general_error = ValueError("Some random error")
+
+            with (
+                patch("json.dump", side_effect=general_error),
+                patch("scriptrag.llm.model_cache.logger.warning") as mock_warning,
+            ):
+                cache.set(test_models)
+
+                # Should log general exception warning
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Failed to cache models for test_provider" in warning_msg
+
+                # Memory cache should still be updated even with file write failure
+                assert "test_provider" in cache._memory_cache

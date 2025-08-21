@@ -536,6 +536,418 @@ class TestBibleIndexerEdgeCases:
 
         assert result == 0  # No embeddings created due to API error
 
+    @pytest.mark.asyncio
+    async def test_index_bible_without_embedding_model(
+        self,
+        mock_settings: ScriptRAGSettings,
+        mock_parsed_bible: ParsedBible,
+        tmp_path: Path,
+    ) -> None:
+        """Test indexing bible without embedding model configured (lines 127->134)."""
+        # Remove embedding model to test the else path
+        mock_settings.llm_embedding_model = None
+
+        bible_path = tmp_path / "bible.md"
+        bible_path.write_text("# Test")
+
+        # Mock database operations
+        mock_db_ops = Mock()
+        mock_conn = Mock()
+        mock_cursor = Mock()
+
+        # Mock no existing entry
+        mock_cursor.fetchone.return_value = None
+        mock_cursor.lastrowid = 123
+        mock_conn.cursor.return_value = mock_cursor
+        mock_db_ops.transaction.return_value.__enter__ = Mock(return_value=mock_conn)
+        mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
+
+        indexer = BibleIndexer(settings=mock_settings, db_ops=mock_db_ops)
+
+        # Mock methods
+        with (
+            patch.object(indexer.parser, "parse_file", return_value=mock_parsed_bible),
+            patch.object(
+                indexer, "_insert_bible", new_callable=AsyncMock, return_value=123
+            ) as mock_insert,
+            patch.object(
+                indexer, "_index_chunks", new_callable=AsyncMock, return_value=2
+            ) as mock_index_chunks,
+            patch.object(
+                indexer,
+                "_extract_bible_aliases",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+        ):
+            result = await indexer.index_bible(bible_path, script_id=1, force=False)
+
+            # Should skip embedding generation and succeed
+            assert result.indexed is True
+            assert result.bible_id == 123
+            assert result.chunks_indexed == 2
+            assert result.embeddings_created == 0  # No embeddings without model
+            mock_insert.assert_called_once()
+            mock_index_chunks.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_extract_bible_aliases_text_chunking_limits(
+        self, mock_settings: ScriptRAGSettings
+    ) -> None:
+        """Test _extract_bible_aliases with text chunking and size limits."""
+        # Create large chunks that exceed the 2000 char limit
+        large_content = "x" * 1500  # Large content
+        chunks = [
+            BibleChunk(
+                chunk_number=0,
+                heading="First Chapter",
+                level=1,
+                content=large_content,
+                content_hash="hash1",
+                metadata={},
+                parent_chunk_id=None,
+            ),
+            BibleChunk(
+                chunk_number=1,
+                heading="Second Chapter",
+                level=1,
+                content=large_content,
+                content_hash="hash2",
+                metadata={},
+                parent_chunk_id=None,
+            ),
+        ]
+        parsed_bible = ParsedBible(
+            file_path=Path("/test/bible.md"),
+            title="Test Bible",
+            file_hash="test_hash",
+            metadata={"test": "data"},
+            chunks=chunks,
+        )
+
+        # Mock LLM client and response
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.text = (
+            '{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
+            '"characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}]}'
+        )
+        mock_client.complete.return_value = mock_response
+
+        with patch(
+            "scriptrag.utils.get_default_llm_client",
+            new_callable=AsyncMock,
+            return_value=mock_client,
+        ):
+            indexer = BibleIndexer(settings=mock_settings)
+            result = await indexer._extract_bible_aliases(parsed_bible)
+
+            assert result is not None
+            # Verify the chunking logic was exercised
+            assert mock_client.complete.called
+
+    def test_attach_aliases_to_characters_successful_update(
+        self, mock_settings: ScriptRAGSettings
+    ) -> None:
+        """Test _attach_aliases_to_characters with successful database operations."""
+        # Use real sqlite3 connection to test the actual logic
+        import sqlite3
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".db") as tmp_db:
+            conn = sqlite3.connect(tmp_db.name)
+
+            # Create the characters table with aliases column
+            conn.execute("""
+                CREATE TABLE characters (
+                    id INTEGER PRIMARY KEY,
+                    script_id INTEGER,
+                    name TEXT,
+                    aliases TEXT
+                )
+            """)
+
+            # Insert test characters
+            conn.execute(
+                "INSERT INTO characters (script_id, name) VALUES (1, 'JANE SMITH')"
+            )
+            conn.execute(
+                "INSERT INTO characters (script_id, name) VALUES (1, 'JOHN DOE')"
+            )
+            conn.execute(
+                "INSERT INTO characters (script_id, name) VALUES (1, 'BOB WILSON')"
+            )
+            conn.commit()
+
+            indexer = BibleIndexer(settings=mock_settings)
+            alias_map = {
+                "characters": [
+                    {"canonical": "JANE SMITH", "aliases": ["JANE", "MS. SMITH"]},
+                    {"canonical": "JOHN DOE", "aliases": ["JOHN"]},
+                    # BOB WILSON not in alias map - should not be updated
+                ]
+            }
+
+            # This should exercise lines 285-310 including UPDATE statements
+            indexer._attach_aliases_to_characters(
+                conn, script_id=1, alias_map=alias_map
+            )
+
+            # Verify that aliases were set for matching characters
+            cursor = conn.execute(
+                "SELECT name, aliases FROM characters WHERE script_id = 1"
+            )
+            results = cursor.fetchall()
+
+            aliases_set = {name: aliases for name, aliases in results if aliases}
+            assert len(aliases_set) == 2  # Two characters should have aliases set
+            assert "JANE SMITH" in aliases_set
+            assert "JOHN DOE" in aliases_set
+
+            conn.close()
+
+    def test_attach_aliases_to_characters_no_matching_characters(
+        self, mock_settings: ScriptRAGSettings
+    ) -> None:
+        """Test _attach_aliases_to_characters when no canonical_to_aliases built."""
+        # Mock connection that has aliases column
+        mock_conn = Mock(spec=sqlite3.Connection)
+        pragma_result = [
+            ("id", "INTEGER", 0, None, 1),
+            ("name", "TEXT", 0, None, 0),
+            ("aliases", "TEXT", 0, None, 0),
+        ]
+        mock_conn.execute.return_value = pragma_result
+
+        indexer = BibleIndexer(settings=mock_settings)
+        # Empty characters list should trigger early return
+        alias_map = {"characters": []}
+
+        indexer._attach_aliases_to_characters(
+            mock_conn, script_id=1, alias_map=alias_map
+        )
+
+        # Should execute PRAGMA but return early before character queries
+        assert mock_conn.execute.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_insert_bible_method(
+        self, mock_settings: ScriptRAGSettings, mock_parsed_bible: ParsedBible
+    ) -> None:
+        """Test _insert_bible method directly (lines 333-347)."""
+        indexer = BibleIndexer(settings=mock_settings)
+
+        # Mock database connection and cursor
+        mock_conn = Mock(spec=sqlite3.Connection)
+        mock_cursor = Mock()
+        mock_cursor.lastrowid = 456
+        mock_conn.cursor.return_value = mock_cursor
+
+        result = await indexer._insert_bible(
+            mock_conn, script_id=1, parsed_bible=mock_parsed_bible
+        )
+
+        assert result == 456
+        mock_cursor.execute.assert_called_once()
+        # Verify SQL parameters
+        call_args = mock_cursor.execute.call_args
+        assert "INSERT INTO script_bibles" in call_args[0][0]
+        assert call_args[0][1][0] == 1  # script_id
+        assert call_args[0][1][1] == str(mock_parsed_bible.file_path)
+
+    @pytest.mark.asyncio
+    async def test_update_bible_method(
+        self, mock_settings: ScriptRAGSettings, mock_parsed_bible: ParsedBible
+    ) -> None:
+        """Test _update_bible method directly (lines 362-380)."""
+        indexer = BibleIndexer(settings=mock_settings)
+
+        # Mock database connection and cursor
+        mock_conn = Mock(spec=sqlite3.Connection)
+        mock_cursor = Mock()
+        mock_conn.cursor.return_value = mock_cursor
+
+        await indexer._update_bible(
+            mock_conn, bible_id=123, parsed_bible=mock_parsed_bible
+        )
+
+        # Should execute UPDATE and DELETE statements
+        assert mock_cursor.execute.call_count == 2
+
+        # Verify UPDATE call
+        update_call = mock_cursor.execute.call_args_list[0]
+        assert "UPDATE script_bibles" in update_call[0][0]
+        assert update_call[0][1][3] == 123  # bible_id
+
+        # Verify DELETE call
+        delete_call = mock_cursor.execute.call_args_list[1]
+        assert "DELETE FROM bible_chunks" in delete_call[0][0]
+        assert delete_call[0][1][0] == 123  # bible_id
+
+    @pytest.mark.asyncio
+    async def test_index_chunks_with_parent_relationships(
+        self, mock_settings: ScriptRAGSettings
+    ) -> None:
+        """Test _index_chunks method with parent-child relationships (lines 398-440)."""
+        # Create chunks with parent-child relationships
+        chunks = [
+            BibleChunk(
+                chunk_number=0,
+                heading="Chapter 1",
+                level=1,
+                content="Main chapter content",
+                content_hash="hash1",
+                metadata={"type": "chapter"},
+                parent_chunk_id=None,  # Top level
+            ),
+            BibleChunk(
+                chunk_number=1,
+                heading="Section 1.1",
+                level=2,
+                content="Sub-section content",
+                content_hash="hash2",
+                metadata={"type": "section"},
+                parent_chunk_id=0,  # Child of chunk 0
+            ),
+            BibleChunk(
+                chunk_number=2,
+                heading="Section 1.2",
+                level=2,
+                content="Another sub-section",
+                content_hash="hash3",
+                metadata={"type": "section"},
+                parent_chunk_id=0,  # Another child of chunk 0
+            ),
+        ]
+
+        parsed_bible = ParsedBible(
+            file_path=Path("/test/bible.md"),
+            title="Test Bible",
+            file_hash="test_hash",
+            metadata={"test": "data"},
+            chunks=chunks,
+        )
+
+        indexer = BibleIndexer(settings=mock_settings)
+
+        # Mock database connection and cursor
+        mock_conn = Mock(spec=sqlite3.Connection)
+        mock_cursor = Mock()
+
+        # Track execute calls and simulate lastrowid
+        execute_calls = []
+        lastrowid_sequence = [100, 101, 102]
+
+        def mock_execute(query, params=None):
+            execute_calls.append((query, params))
+            # Simulate lastrowid for INSERT operations
+            if "INSERT INTO bible_chunks" in query and lastrowid_sequence:
+                mock_cursor.lastrowid = lastrowid_sequence.pop(0)
+            else:
+                mock_cursor.lastrowid = None
+            return Mock()
+
+        mock_cursor.execute.side_effect = mock_execute
+        mock_conn.cursor.return_value = mock_cursor
+
+        result = await indexer._index_chunks(
+            mock_conn, bible_id=456, parsed_bible=parsed_bible
+        )
+
+        assert result == 3  # All chunks indexed
+        assert len(execute_calls) == 3  # One insert per chunk
+
+        # Verify the SQL calls included correct parameters
+        for i, (query, params) in enumerate(execute_calls):
+            assert "INSERT INTO bible_chunks" in query
+            assert params[0] == 456  # bible_id
+            assert params[1] == i  # chunk_number
+
+    def test_find_bible_files_exact_matches(self, tmp_path: Path) -> None:
+        """Test find_bible_files with files that should be included (lines 601-625)."""
+        # Create files that match patterns and keywords
+        script_dir = tmp_path / "project" / "scripts"
+        script_dir.mkdir(parents=True)
+
+        # Create script file
+        script_path = script_dir / "my_script.fountain"
+        script_path.touch()
+
+        # Create bible files in script directory that should be found
+        bible_files = [
+            "character_bible.md",
+            "world_notes.md",
+            "backstory_details.md",
+            "lore_reference.md",
+            "production_notes.md",
+            "reference_guide.md",
+        ]
+
+        for filename in bible_files:
+            (script_dir / filename).touch()
+
+        # Create file that shouldn't match
+        (script_dir / "random_file.md").touch()
+
+        result = BibleAutoDetector.find_bible_files(tmp_path, script_path)
+
+        # Should find the bible files but not the random file
+        found_names = {f.name for f in result}
+
+        # Check that keyword-matching files were found
+        expected_matches = {
+            "character_bible.md",
+            "world_notes.md",
+            "backstory_details.md",
+            "lore_reference.md",
+            "production_notes.md",
+            "reference_guide.md",
+        }
+
+        # At least some of the expected files should be found
+        matches_found = expected_matches.intersection(found_names)
+        assert len(matches_found) >= 3  # Should find several matches
+
+        # Random file should not be found
+        assert "random_file.md" not in found_names
+
+    def test_should_exclude_file_outside_project(self, tmp_path: Path) -> None:
+        """Test _should_exclude with file that can't be made relative to project."""
+        project_path = tmp_path / "project"
+        project_path.mkdir()
+
+        # Create a file outside the project structure
+        outside_path = tmp_path / "outside" / "file.md"
+        outside_path.parent.mkdir()
+        outside_path.touch()
+
+        # This should trigger the ValueError in relative_to and return True
+        result = BibleAutoDetector._should_exclude(outside_path, project_path)
+
+        assert result is True
+
+    def test_attach_alias_map_to_script_json_error(
+        self, mock_settings: ScriptRAGSettings
+    ) -> None:
+        """Test _attach_alias_map_to_script handles JSON parsing errors."""
+        # Mock connection and cursor with invalid JSON
+        mock_conn = Mock(spec=sqlite3.Connection)
+        mock_cursor = Mock()
+        mock_cursor.fetchone.return_value = ("invalid json {",)  # Malformed JSON
+        mock_conn.execute.return_value = mock_cursor
+
+        indexer = BibleIndexer(settings=mock_settings)
+        alias_map = {
+            "version": 1,
+            "characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}],
+        }
+
+        # Should handle JSON error gracefully and create new metadata
+        indexer._attach_alias_map_to_script(mock_conn, script_id=1, alias_map=alias_map)
+
+        # Should have called execute twice: SELECT and UPDATE
+        assert mock_conn.execute.call_count == 2
+
 
 class TestBibleAutoDetectorEdgeCases:
     """Test edge cases in BibleAutoDetector."""

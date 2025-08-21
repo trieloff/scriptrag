@@ -326,6 +326,167 @@ class TestScriptOperationsUpsertScript:
         metadata = json.loads(metadata_json)
         assert metadata["bible"]["new"] == "data"
 
+    def test_upsert_script_bible_both_non_dict(
+        self,
+        script_ops: ScriptOperations,
+        mock_connection: sqlite3.Connection,
+    ) -> None:
+        """Test bible metadata merging when both existing and new are non-dict types."""
+        # Test case where both bible values are non-dict (lines 120-122)
+        script = Mock()
+        script.title = "Test"
+        script.author = "Test Author"
+        script.metadata = {"bible": "new_string_value"}  # Non-dict bible
+
+        # Mock existing script where bible is also not a dict
+        existing_id = 456
+        mock_cursor = Mock()
+        mock_cursor.fetchone.side_effect = [
+            (existing_id,),
+            ('{"bible": "old_string_value"}',),  # Bible as string, not dict
+        ]
+        mock_connection.execute.return_value = mock_cursor
+
+        file_path = Path("/path/to/script.fountain")
+        script_id = script_ops.upsert_script(mock_connection, script, file_path)
+
+        assert script_id == existing_id
+
+        # Should prefer new bible value when both are non-dicts (line 122)
+        update_call_args = mock_connection.execute.call_args_list[2]
+        metadata_json = update_call_args[0][1][6]
+        metadata = json.loads(metadata_json)
+        assert metadata["bible"] == "new_string_value"
+
+    def test_upsert_script_bible_existing_dict_new_non_dict(
+        self,
+        script_ops: ScriptOperations,
+        mock_connection: sqlite3.Connection,
+    ) -> None:
+        """Test bible metadata merging when existing is dict and new is non-dict."""
+        # Test case for lines 118-119: existing bible is dict, new is not
+        script = Mock()
+        script.title = "Test"
+        script.author = "Test Author"
+        script.metadata = {"bible": "new_string_value"}  # Non-dict bible
+
+        # Mock existing script where bible is a dict
+        existing_id = 456
+        mock_cursor = Mock()
+        mock_cursor.fetchone.side_effect = [
+            (existing_id,),
+            ('{"bible": {"existing": "dict_value"}}',),  # Bible as dict
+        ]
+        mock_connection.execute.return_value = mock_cursor
+
+        file_path = Path("/path/to/script.fountain")
+        script_id = script_ops.upsert_script(mock_connection, script, file_path)
+
+        assert script_id == existing_id
+
+        # Should preserve existing dict when new is non-dict (line 119)
+        update_call_args = mock_connection.execute.call_args_list[2]
+        metadata_json = update_call_args[0][1][6]
+        metadata = json.loads(metadata_json)
+        assert metadata["bible"] == {"existing": "dict_value"}
+
+    def test_upsert_script_bible_new_dict_existing_non_dict(
+        self,
+        script_ops: ScriptOperations,
+        mock_connection: sqlite3.Connection,
+    ) -> None:
+        """Test bible metadata merging when new is dict and existing is non-dict."""
+        # Test case for lines 116-117: new bible is dict, existing is not
+        script = Mock()
+        script.title = "Test"
+        script.author = "Test Author"
+        script.metadata = {"bible": {"new": "dict_value"}}  # Dict bible
+
+        # Mock existing script where bible is not a dict
+        existing_id = 456
+        mock_cursor = Mock()
+        mock_cursor.fetchone.side_effect = [
+            (existing_id,),
+            ('{"bible": "existing_string_value"}',),  # Bible as string
+        ]
+        mock_connection.execute.return_value = mock_cursor
+
+        file_path = Path("/path/to/script.fountain")
+        script_id = script_ops.upsert_script(mock_connection, script, file_path)
+
+        assert script_id == existing_id
+
+        # Should use new dict when existing is non-dict (line 117)
+        update_call_args = mock_connection.execute.call_args_list[2]
+        metadata_json = update_call_args[0][1][6]
+        metadata = json.loads(metadata_json)
+        assert metadata["bible"] == {"new": "dict_value"}
+
+    def test_upsert_script_bible_missing_values(
+        self,
+        script_ops: ScriptOperations,
+        mock_connection: sqlite3.Connection,
+    ) -> None:
+        """Test bible metadata merging when bible values are missing/None."""
+        # Test case for lines 110-111: handling None/missing bible values
+        script = Mock()
+        script.title = "Test"
+        script.author = "Test Author"
+        script.metadata = {"bible": {"new": "value"}}  # Dict bible
+
+        # Mock existing script where bible is None/missing
+        existing_id = 456
+        mock_cursor = Mock()
+        mock_cursor.fetchone.side_effect = [
+            (existing_id,),
+            ("{}",),  # No bible metadata at all
+        ]
+        mock_connection.execute.return_value = mock_cursor
+
+        file_path = Path("/path/to/script.fountain")
+        script_id = script_ops.upsert_script(mock_connection, script, file_path)
+
+        assert script_id == existing_id
+
+        # Should handle missing existing bible properly (lines 110-111)
+        update_call_args = mock_connection.execute.call_args_list[2]
+        metadata_json = update_call_args[0][1][6]
+        metadata = json.loads(metadata_json)
+        assert metadata["bible"] == {"new": "value"}
+
+    def test_upsert_script_bible_both_none_or_empty(
+        self,
+        script_ops: ScriptOperations,
+        mock_connection: sqlite3.Connection,
+    ) -> None:
+        """Test bible metadata merging when both values are None or empty strings."""
+        # Test case: both existing and new bible are non-dict empty values
+        script = Mock()
+        script.title = "Test"
+        script.author = "Test Author"
+        script.metadata = {"bible": None}  # None is non-dict
+
+        # Mock existing script where bible is also None/empty
+        existing_id = 456
+        mock_cursor = Mock()
+        mock_cursor.fetchone.side_effect = [
+            (existing_id,),
+            ('{"bible": null}',),  # Bible as null in JSON
+        ]
+        mock_connection.execute.return_value = mock_cursor
+
+        file_path = Path("/path/to/script.fountain")
+        script_id = script_ops.upsert_script(mock_connection, script, file_path)
+
+        assert script_id == existing_id
+
+        # Should prefer new bible value when both are non-dicts (line 122)
+        update_call_args = mock_connection.execute.call_args_list[2]
+        metadata_json = update_call_args[0][1][6]
+        metadata = json.loads(metadata_json)
+        # The new value (None) should be preferred over existing (None)
+        assert metadata["bible"] is None
+
 
 class TestScriptOperationsClearScriptData:
     """Test clear_script_data method."""

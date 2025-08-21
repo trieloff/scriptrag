@@ -21,6 +21,40 @@ def clean_settings():
 class TestSettingsIntegration:
     """Test settings loading from multiple sources."""
 
+    def setup_method(self):
+        """Ensure logger is properly initialized before each test."""
+        # Force logger initialization to ensure caplog can capture structlog messages
+        import logging
+
+        from scriptrag.config import get_logger
+
+        get_logger(__name__)
+
+        # Ensure the specific logger used by settings is set to the right level
+        settings_logger = logging.getLogger("scriptrag.config.settings")
+        settings_logger.setLevel(logging.WARNING)
+
+        # Force structlog to properly integrate with standard logging
+        # This is critical for MacOS compatibility with caplog
+        import structlog
+
+        structlog.configure(
+            processors=[
+                structlog.stdlib.filter_by_level,
+                structlog.stdlib.add_logger_name,
+                structlog.stdlib.add_log_level,
+                structlog.stdlib.PositionalArgumentsFormatter(),
+                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.processors.StackInfoRenderer(),
+                structlog.processors.format_exc_info,
+                structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
+            ],
+            context_class=dict,
+            logger_factory=structlog.stdlib.LoggerFactory(),
+            wrapper_class=structlog.stdlib.BoundLogger,
+            cache_logger_on_first_use=True,
+        )
+
     def test_database_settings_defaults(self, monkeypatch):
         """Test default database settings."""
         # Clear any environment variables that could interfere with defaults

@@ -122,8 +122,8 @@ def migrate_from_blob_storage(
             logger.warning(
                 "Skipping corrupted scene embedding during migration",
                 extra={
-                    "entity_id": row.get("entity_id"),
-                    "model": row.get("embedding_model"),
+                    "entity_id": dict(row).get("entity_id"),
+                    "model": dict(row).get("embedding_model"),
                     "error": str(e),
                 },
             )
@@ -155,8 +155,8 @@ def migrate_from_blob_storage(
             logger.warning(
                 "Skipping corrupted bible embedding during migration",
                 extra={
-                    "entity_id": row.get("entity_id"),
-                    "model": row.get("embedding_model"),
+                    "entity_id": dict(row).get("entity_id"),
+                    "model": dict(row).get("embedding_model"),
                     "error": str(e),
                 },
             )

@@ -1,6 +1,8 @@
 """Comprehensive tests for Model Cache to achieve 99% coverage."""
 
 import json
+import sys
+import tempfile
 import time
 from unittest.mock import patch
 
@@ -489,3 +491,64 @@ class TestModelCacheCoverage:
 
                 # Should have cleared the invalid entry
                 assert "test_provider" not in cache._memory_cache
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows file handle semantics differ for mocked file operations",
+    )
+    def test_set_fdopen_failure_cleanup(self, tmp_path):
+        """Test that file descriptor is properly closed when fdopen fails.
+
+        This test verifies the fix for PR #323 where fdopen could fail after
+        mkstemp succeeds, potentially leaking file descriptors on Windows.
+        """
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            test_models = [
+                Model(
+                    id="model1",
+                    name="Test Model",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Track the file descriptor from mkstemp
+            captured_fd = None
+            original_mkstemp = tempfile.mkstemp
+
+            def mock_mkstemp(*args, **kwargs):
+                nonlocal captured_fd
+                fd, path = original_mkstemp(*args, **kwargs)
+                captured_fd = fd
+                return fd, path
+
+            # Mock fdopen to fail after mkstemp succeeds
+            with (
+                patch("tempfile.mkstemp", side_effect=mock_mkstemp),
+                patch("os.fdopen", side_effect=OSError("fdopen failed")),
+                patch("os.close") as mock_close,
+                patch("scriptrag.llm.model_cache.logger.error") as mock_error,
+            ):
+                # Should not raise, but handle cleanup properly
+                cache.set(test_models)
+
+                # Verify that os.close was called on the file descriptor
+                assert captured_fd is not None, "mkstemp should have been called"
+                mock_close.assert_called_once_with(captured_fd)
+
+                # Verify error was logged
+                mock_error.assert_called_once()
+                error_msg = mock_error.call_args[0][0]
+                assert "OS error when caching models for test_provider" in error_msg
+
+                # Memory cache should still be updated despite file write failure
+                assert "test_provider" in cache._memory_cache
+                cached_entry = cache._memory_cache["test_provider"]
+                assert len(cached_entry) == 3  # (timestamp, models, cache_dir)
+                assert cached_entry[1] == test_models
+
+            # Verify no temp files leaked
+            temp_files = list(tmp_path.glob(".test_provider_models_*.tmp"))
+            assert len(temp_files) == 0, "Temp files should be cleaned up"

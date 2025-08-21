@@ -22,3 +22,17 @@ def test_llm_model_auto_and_empty_normalized(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setenv("SCRIPTRAG_LLM_MODEL", "   ")
     settings = ScriptRAGSettings.from_env()
     assert settings.llm_model is None
+
+
+def test_non_sentinel_values_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Non-sentinel strings should pass through unchanged."""
+    monkeypatch.setenv("SCRIPTRAG_LLM_MODEL", "gpt-4o-mini")
+    settings = ScriptRAGSettings.from_env()
+    assert settings.llm_model == "gpt-4o-mini"
+
+
+def test_none_sentinel_and_whitespace(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The word 'none' (any casing/whitespace) should normalize to None."""
+    monkeypatch.setenv("SCRIPTRAG_LLM_EMBEDDING_MODEL", "  NoNe  ")
+    settings = ScriptRAGSettings.from_env()
+    assert settings.llm_embedding_model is None

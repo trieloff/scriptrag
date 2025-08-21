@@ -253,13 +253,13 @@ class GitHubModelsProvider(BaseLLMProvider):
         """
         try:
             # Parse JSON error response
-            error_data: dict[str, Any] = json.loads(error_text)
+            error_data: GitHubErrorResponse = json.loads(error_text)
             if "error" in error_data:
-                error_info = error_data["error"]
+                error_info: GitHubErrorInfo = error_data["error"]
                 if error_info.get("code") == "RateLimitReached":
                     # Extract wait time from message
                     # "Please wait 42911 seconds before retrying."
-                    message = error_info.get("message", "")
+                    message: str = error_info.get("message", "")
                     match = re.search(r"wait (\d+) seconds", message)
                     if match:
                         return int(match.group(1))

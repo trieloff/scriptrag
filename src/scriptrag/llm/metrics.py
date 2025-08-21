@@ -1,7 +1,34 @@
 """Metrics tracking for LLM operations."""
 
 import time
-from typing import Any
+from typing import Any, TypedDict
+
+
+class FailureEntry(TypedDict):
+    """Structure for recording failure details."""
+
+    error_type: str
+    error_message: str
+    timestamp: float
+
+
+class FallbackChain(TypedDict):
+    """Structure for recording fallback chain details."""
+
+    chain: list[str]
+    timestamp: float
+
+
+class ProviderMetrics(TypedDict):
+    """Structure for provider metrics data."""
+
+    total_requests: int
+    successful_requests: int
+    failed_requests: int
+    provider_successes: dict[str, int]
+    provider_failures: dict[str, list[FailureEntry]]
+    retry_attempts: int
+    fallback_chains: list[FallbackChain]
 
 
 class LLMMetrics:
@@ -14,20 +41,20 @@ class LLMMetrics:
 
     def __init__(self) -> None:
         """Initialize metrics tracker."""
-        self.provider_metrics: dict[str, Any] = {}
+        self.provider_metrics: ProviderMetrics
         self.reset()
 
     def reset(self) -> None:
         """Reset all metrics."""
-        self.provider_metrics = {
-            "total_requests": 0,
-            "successful_requests": 0,
-            "failed_requests": 0,
-            "provider_successes": {},
-            "provider_failures": {},
-            "retry_attempts": 0,
-            "fallback_chains": [],
-        }
+        self.provider_metrics = ProviderMetrics(
+            total_requests=0,
+            successful_requests=0,
+            failed_requests=0,
+            provider_successes={},
+            provider_failures={},
+            retry_attempts=0,
+            fallback_chains=[],
+        )
 
     def record_success(self, provider_name: str) -> None:
         """Record a successful request for a provider."""
@@ -45,13 +72,12 @@ class LLMMetrics:
             self.provider_metrics["provider_failures"][provider_name] = []
 
         failures = self.provider_metrics["provider_failures"][provider_name]
-        failures.append(
-            {
-                "error_type": type(error).__name__,
-                "error_message": str(error),
-                "timestamp": time.time(),
-            }
+        failure_entry = FailureEntry(
+            error_type=type(error).__name__,
+            error_message=str(error),
+            timestamp=time.time(),
         )
+        failures.append(failure_entry)
 
         # Implement sliding window to prevent unbounded memory growth
         if len(failures) > self.MAX_FAILURE_ENTRIES:
@@ -66,12 +92,11 @@ class LLMMetrics:
 
     def record_fallback_chain(self, chain: list[str]) -> None:
         """Record a fallback chain for analysis with sliding window."""
-        self.provider_metrics["fallback_chains"].append(
-            {
-                "chain": chain,
-                "timestamp": time.time(),
-            }
+        fallback_chain = FallbackChain(
+            chain=chain,
+            timestamp=time.time(),
         )
+        self.provider_metrics["fallback_chains"].append(fallback_chain)
 
         # Implement sliding window to prevent unbounded memory growth
         if len(self.provider_metrics["fallback_chains"]) > self.MAX_FALLBACK_CHAINS:
@@ -82,7 +107,7 @@ class LLMMetrics:
 
     def get_metrics(self) -> dict[str, Any]:
         """Get current provider metrics."""
-        return self.provider_metrics.copy()
+        return dict(self.provider_metrics)
 
     def cleanup_old_metrics(self, max_age_seconds: float = 3600) -> None:
         """Remove metrics older than specified age.

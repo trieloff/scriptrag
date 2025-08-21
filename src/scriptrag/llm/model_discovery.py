@@ -2,13 +2,41 @@
 
 import os
 import re
-from typing import Any
+from typing import Any, TypedDict
 
 from scriptrag.config import get_logger
 from scriptrag.llm.discovery_base import ModelDiscovery
 from scriptrag.llm.models import LLMProvider, Model
 
 logger = get_logger(__name__)
+
+
+class AnthropicModelInfo(TypedDict, total=False):
+    """Type for Anthropic API model information."""
+
+    id: str
+    display_name: str | None
+    created_at: str | None
+
+
+class ClaudeModelInfo(TypedDict, total=False):
+    """Type for Claude SDK model information."""
+
+    id: str | None
+    model_id: str | None
+    name: str | None
+    capabilities: list[str] | None
+    context_window: int | None
+    max_tokens: int | None
+
+
+class OpenAIModelInfo(TypedDict, total=False):
+    """Type for OpenAI-compatible model information."""
+
+    id: str
+    object: str
+    created: int | None
+    owned_by: str | None
 
 
 class ClaudeCodeModelDiscovery(ModelDiscovery):
@@ -100,7 +128,7 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             return None
 
     def _parse_anthropic_models(
-        self, models_data: list[dict[str, Any]]
+        self, models_data: list[AnthropicModelInfo]
     ) -> list[Model] | None:
         """Parse model data from Anthropic API into Model objects.
 
@@ -152,7 +180,9 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
             logger.warning(f"Failed to parse Anthropic models data: {e}")
             return None
 
-    def _parse_claude_models(self, models_data: Any) -> list[Model] | None:
+    def _parse_claude_models(
+        self, models_data: list[ClaudeModelInfo] | dict[str, ClaudeModelInfo]
+    ) -> list[Model] | None:
         """Parse model data from Claude SDK into Model objects.
 
         This method is retained for future compatibility if the Claude Code SDK
@@ -181,9 +211,11 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
                                     id=model_id,
                                     name=model_info.get("name") or model_id,
                                     provider=LLMProvider.CLAUDE_CODE,
-                                    capabilities=model_info.get(
-                                        "capabilities", ["completion", "chat"]
-                                    ),
+                                    capabilities=model_info.get("capabilities")
+                                    or [
+                                        "completion",
+                                        "chat",
+                                    ],
                                     context_window=model_info.get(
                                         "context_window", 200000
                                     ),
@@ -198,9 +230,10 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
                 for model_id, model_info in models_data.items():
                     if isinstance(model_info, dict):
                         name = model_info.get("name") or model_id
-                        capabilities = model_info.get(
-                            "capabilities", ["completion", "chat"]
-                        )
+                        capabilities = model_info.get("capabilities") or [
+                            "completion",
+                            "chat",
+                        ]
                         context_window = model_info.get("context_window", 200000)
                         max_output = model_info.get("max_tokens", 8192)
                     else:

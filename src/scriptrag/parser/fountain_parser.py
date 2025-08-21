@@ -57,7 +57,7 @@ class FountainParser:
                     break
 
         # Extract additional metadata
-        metadata = {}
+        metadata: dict[str, Any] = {}
         if doc.title_values:
             # Extract episode number
             if "episode" in doc.title_values:
@@ -182,7 +182,7 @@ class FountainParser:
                     break
 
         # Extract additional metadata
-        metadata = {}
+        metadata: dict[str, Any] = {}
         if doc.title_values:
             # Extract episode number
             if "episode" in doc.title_values:

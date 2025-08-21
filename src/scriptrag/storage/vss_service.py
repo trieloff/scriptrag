@@ -3,9 +3,10 @@
 import sqlite3
 import struct
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 import numpy as np
+import numpy.typing as npt
 import sqlite_vec
 from sqlite_vec import serialize_float32
 
@@ -13,6 +14,10 @@ from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.exceptions import DatabaseError
 
 logger = get_logger(__name__)
+
+# Type aliases for clarity
+FloatArray: TypeAlias = npt.NDArray[np.float32]
+SearchResult: TypeAlias = dict[str, Any]
 
 
 class VSSService:

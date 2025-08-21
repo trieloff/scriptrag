@@ -115,7 +115,12 @@ class LLMMetrics:
 
         provider_metrics: dict[str, ClientProviderMetrics] = {}
 
-        for provider_name in self.provider_metrics["provider_successes"]:
+        # Get all provider names from both successes and failures
+        all_providers = set(self.provider_metrics["provider_successes"].keys()) | set(
+            self.provider_metrics["provider_failures"].keys()
+        )
+
+        for provider_name in all_providers:
             success_count = self.provider_metrics["provider_successes"].get(
                 provider_name, 0
             )

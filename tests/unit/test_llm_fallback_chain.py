@@ -69,7 +69,13 @@ class TestFallbackChain:
         expected_response = CompletionResponse(
             id="test-id",
             model="test-model",
-            choices=[{"message": {"content": "Response"}}],
+            choices=[
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Response"},
+                    "finish_reason": "stop",
+                }
+            ],
             provider=LLMProvider.CLAUDE_CODE,
         )
 
@@ -118,7 +124,13 @@ class TestFallbackChain:
         expected_response = CompletionResponse(
             id="fallback-id",
             model="fallback-model",
-            choices=[{"message": {"content": "Fallback response"}}],
+            choices=[
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Fallback response"},
+                    "finish_reason": "stop",
+                }
+            ],
             provider=LLMProvider.GITHUB_MODELS,
         )
 
@@ -253,7 +265,13 @@ class TestFallbackChain:
         expected_response = CompletionResponse(
             id="github-id",
             model="github-model",
-            choices=[{"message": {"content": "GitHub response"}}],
+            choices=[
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "GitHub response"},
+                    "finish_reason": "stop",
+                }
+            ],
             provider=LLMProvider.GITHUB_MODELS,
         )
 
@@ -299,7 +317,13 @@ class TestFallbackChain:
         expected_response = CompletionResponse(
             id="github-id",
             model="github-model",
-            choices=[{"message": {"content": "GitHub response"}}],
+            choices=[
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "GitHub response"},
+                    "finish_reason": "stop",
+                }
+            ],
             provider=LLMProvider.GITHUB_MODELS,
         )
 
@@ -425,7 +449,13 @@ class TestFallbackChain:
                 return CompletionResponse(
                     id="test",
                     model="test",
-                    choices=[{"message": {"content": "Success"}}],
+                    choices=[
+                        {
+                            "index": 0,
+                            "message": {"role": "assistant", "content": "Success"},
+                            "finish_reason": "stop",
+                        }
+                    ],
                     provider=LLMProvider.OPENAI_COMPATIBLE,
                 )
             raise RuntimeError(f"Attempt {len(attempts)} failed")

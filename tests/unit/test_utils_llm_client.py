@@ -97,7 +97,13 @@ class TestClaudeCodeProvider:
             mock_complete.return_value = CompletionResponse(
                 id="test-id",
                 model="claude-3-opus",
-                choices=[{"message": {"content": "Test response"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Test response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.CLAUDE_CODE,
             )
 
@@ -221,7 +227,13 @@ class TestGitHubModelsProvider:
             mock_response.json.return_value = {
                 "id": "test-id",
                 "model": "gpt-4o",
-                "choices": [{"message": {"content": "Test response"}}],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Test response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 "usage": {"total_tokens": 100},
             }
             mock_client.post = AsyncMock(return_value=mock_response)
@@ -242,7 +254,13 @@ class TestGitHubModelsProvider:
             mock_response.json.return_value = {
                 "id": "test-id",
                 "model": "gpt-4o",
-                "choices": [{"message": {"content": "Test"}}],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Test"},
+                        "finish_reason": "stop",
+                    }
+                ],
             }
             mock_client.post = AsyncMock(return_value=mock_response)
 
@@ -368,7 +386,13 @@ class TestOpenAICompatibleProvider:
             mock_response.json.return_value = {
                 "id": "test-id",
                 "model": "custom-model",
-                "choices": [{"message": {"content": "Response"}}],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 "usage": {"total_tokens": 50},
             }
             mock_client.post = AsyncMock(return_value=mock_response)
@@ -475,7 +499,13 @@ class TestLLMClient:
             mock_complete.return_value = CompletionResponse(
                 id="test",
                 model="gpt-4",
-                choices=[{"message": {"content": "Response"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.GITHUB_MODELS,
             )
 
@@ -503,7 +533,16 @@ class TestLLMClient:
             mock_openai_complete.return_value = CompletionResponse(
                 id="test",
                 model="custom",
-                choices=[{"message": {"content": "Fallback response"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "Fallback response",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.OPENAI_COMPATIBLE,
             )
 
@@ -607,7 +646,13 @@ class TestLLMClient:
             mock_complete.return_value = CompletionResponse(
                 id="test",
                 model="custom",
-                choices=[{"message": {"content": "Forced response"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Forced response"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.OPENAI_COMPATIBLE,
             )
 

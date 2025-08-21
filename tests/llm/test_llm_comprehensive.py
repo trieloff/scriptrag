@@ -386,7 +386,13 @@ class TestGitHubModelsProviderExtended:
         mock_response.json.return_value = {
             "id": "chat-123",
             "model": "gpt-4",
-            "choices": [{"message": {"content": "Response"}}],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Response"},
+                    "finish_reason": "stop",
+                }
+            ],
         }
 
         request = CompletionRequest(

@@ -349,7 +349,64 @@ class TestModelCacheCoverage:
                 assert result is None
                 mock_warning.assert_called_once()
                 warning_msg = mock_warning.call_args[0][0]
-                assert "Invalid cache entry for test_provider, clearing" in warning_msg
+                assert "Invalid timestamp type for test_provider" in warning_msg
+
+    def test_memory_cache_with_invalid_models_type(self, tmp_path):
+        """Test memory cache with invalid models type (not a list)."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Add entry with valid timestamp but invalid models type
+            cache._memory_cache["test_provider"] = (time.time(), "not_a_list")
+
+            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
+                result = cache.get()
+
+                # Should return None and log warning
+                assert result is None
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Invalid models type for test_provider" in warning_msg
+
+    def test_memory_cache_3tuple_with_invalid_types(self, tmp_path):
+        """Test memory cache with 3-tuple having invalid types."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            # Add 3-tuple entry with invalid types
+            cache._memory_cache["test_provider"] = (time.time(), {"not": "a_list"}, 123)
+
+            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
+                result = cache.get()
+
+                # Should return None and log warning about invalid models type
+                assert result is None
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Invalid models type for test_provider" in warning_msg
+
+            # Test with valid timestamp and models but invalid cache_dir
+            cache._memory_cache["test_provider"] = (
+                time.time(),
+                [
+                    Model(
+                        id="test",
+                        name="Test",
+                        provider=LLMProvider.CLAUDE_CODE,
+                        capabilities=["chat"],
+                    )
+                ],
+                123,  # Invalid - should be string
+            )
+
+            with patch("scriptrag.llm.model_cache.logger.warning") as mock_warning:
+                result = cache.get()
+
+                # Should return None and log warning about invalid cache_dir type
+                assert result is None
+                mock_warning.assert_called_once()
+                warning_msg = mock_warning.call_args[0][0]
+                assert "Invalid cache_dir type for test_provider" in warning_msg
 
     def test_cache_directory_permission_error_on_read(self, tmp_path):
         """Test permission error when reading cache directory."""

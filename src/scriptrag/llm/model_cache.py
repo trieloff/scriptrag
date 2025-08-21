@@ -93,20 +93,35 @@ class ModelDiscoveryCache:
                 models = entry[1]
                 cache_dir = entry[2]
 
-                # Validate timestamp type
+                # Validate types before casting
                 if not isinstance(timestamp, int | float):
                     logger.warning(
-                        f"Invalid cache entry for {self.provider_name}, clearing",
-                        entry_type=type(entry).__name__,
-                        entry_len=entry_len,
-                        timestamp_type=type(timestamp).__name__,
+                        f"Invalid timestamp type for {self.provider_name}",
+                        expected="int or float",
+                        actual=type(timestamp).__name__,
+                    )
+                    del self._memory_cache[self.provider_name]
+                    return None
+                if not isinstance(models, list):
+                    logger.warning(
+                        f"Invalid models type for {self.provider_name}",
+                        expected="list",
+                        actual=type(models).__name__,
+                    )
+                    del self._memory_cache[self.provider_name]
+                    return None
+                if not isinstance(cache_dir, str):
+                    logger.warning(
+                        f"Invalid cache_dir type for {self.provider_name}",
+                        expected="str",
+                        actual=type(cache_dir).__name__,
                     )
                     del self._memory_cache[self.provider_name]
                     return None
 
                 timestamp = cast(float, timestamp)
                 models = cast(list[Model], models)
-                cache_dir = cast(str, cache_dir)
+                # cache_dir is already validated as str, no cast needed
                 same_namespace = str(Path(cache_dir)) == str(self.CACHE_DIR.resolve())
                 if not same_namespace:
                     logger.debug(
@@ -136,13 +151,20 @@ class ModelDiscoveryCache:
                 timestamp = entry[0]
                 models = entry[1]
 
-                # Validate timestamp type
+                # Validate types before casting
                 if not isinstance(timestamp, int | float):
                     logger.warning(
-                        f"Invalid cache entry for {self.provider_name}, clearing",
-                        entry_type=type(entry).__name__,
-                        entry_len=entry_len,
-                        timestamp_type=type(timestamp).__name__,
+                        f"Invalid timestamp type for {self.provider_name}",
+                        expected="int or float",
+                        actual=type(timestamp).__name__,
+                    )
+                    del self._memory_cache[self.provider_name]
+                    return None
+                if not isinstance(models, list):
+                    logger.warning(
+                        f"Invalid models type for {self.provider_name}",
+                        expected="list",
+                        actual=type(models).__name__,
                     )
                     del self._memory_cache[self.provider_name]
                     return None

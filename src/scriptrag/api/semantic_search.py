@@ -175,9 +175,19 @@ class SemanticSearchService:
                 return []
 
             # Decode source embedding
-            source_embedding: list[float] = (
-                self.embedding_service.decode_embedding_from_db(source_embedding_bytes)
-            )
+            try:
+                source_embedding: list[float] = (
+                    self.embedding_service.decode_embedding_from_db(
+                        source_embedding_bytes
+                    )
+                )
+            except ValueError as e:
+                logger.warning(
+                    "Failed to decode source scene embedding",
+                    scene_id=scene_id,
+                    error=str(e),
+                )
+                return []
 
             # Get scenes with embeddings
             candidates: list[dict[str, Any]] = self.db_ops.search_similar_scenes(

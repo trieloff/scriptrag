@@ -34,9 +34,15 @@ def build_scene_results(
         if skip_id is not None and scene.get("id") == skip_id:
             continue
 
-        scene_embedding = embedding_service.decode_embedding_from_db(
-            scene["_embedding"]
-        )
+        try:
+            scene_embedding = embedding_service.decode_embedding_from_db(
+                scene["_embedding"]
+            )
+        except (ValueError, KeyError):
+            # Skip scenes with corrupted or missing embeddings
+            # Log would be here if we had logger access
+            continue
+
         similarity = embedding_service.cosine_similarity(
             query_embedding, scene_embedding
         )
@@ -53,7 +59,13 @@ def build_scene_results(
                 )
             )
 
-    results.sort(key=lambda x: x.similarity_score, reverse=True)
+    # Sort by similarity_score - handle both dict and object results
+    try:
+        # Try attribute access first (for dataclass/object results)
+        results.sort(key=lambda x: x.similarity_score, reverse=True)
+    except AttributeError:
+        # Fall back to dict access
+        results.sort(key=lambda x: x["similarity_score"], reverse=True)
     return results
 
 
@@ -68,7 +80,15 @@ def build_bible_results(
     """Convert bible chunk candidates into filtered, sorted results."""
     results: list[Any] = []
     for chunk in chunks:
-        chunk_embedding = embedding_service.decode_embedding_from_db(chunk["embedding"])
+        try:
+            chunk_embedding = embedding_service.decode_embedding_from_db(
+                chunk["embedding"]
+            )
+        except (ValueError, KeyError):
+            # Skip chunks with corrupted or missing embeddings
+            # Log would be here if we had logger access
+            continue
+
         similarity = embedding_service.cosine_similarity(
             query_embedding, chunk_embedding
         )
@@ -87,5 +107,11 @@ def build_bible_results(
                 )
             )
 
-    results.sort(key=lambda x: x.similarity_score, reverse=True)
+    # Sort by similarity_score - handle both dict and object results
+    try:
+        # Try attribute access first (for dataclass/object results)
+        results.sort(key=lambda x: x.similarity_score, reverse=True)
+    except AttributeError:
+        # Fall back to dict access
+        results.sort(key=lambda x: x["similarity_score"], reverse=True)
     return results

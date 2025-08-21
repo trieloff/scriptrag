@@ -1,6 +1,7 @@
 """Comprehensive tests for Model Cache to achieve 99% coverage."""
 
 import json
+import sys
 import tempfile
 import time
 from unittest.mock import patch
@@ -491,6 +492,10 @@ class TestModelCacheCoverage:
                 # Should have cleared the invalid entry
                 assert "test_provider" not in cache._memory_cache
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Windows file handle semantics differ for mocked file operations",
+    )
     def test_set_fdopen_failure_cleanup(self, tmp_path):
         """Test that file descriptor is properly closed when fdopen fails.
 

@@ -69,7 +69,7 @@ class TestLLMTimeoutHandling:
 
         response = await provider.complete(request)
         assert response.id == "mock-completion-1"
-        assert "Mock response" in response.choices[0]["text"]
+        assert "Mock response" in response.choices[0]["message"]["content"]
 
     @pytest.mark.integration
     @pytest.mark.timeout(TIMEOUT_INTEGRATION)
@@ -266,7 +266,9 @@ class TestTimeoutConfiguration:
             mock_client = AsyncMock()
             mock_client.complete = AsyncMock(
                 return_value=type(
-                    "Response", (), {"choices": [{"text": "Mocked LLM response"}]}
+                    "Response",
+                    (),
+                    {"choices": [{"message": {"content": "Mocked LLM response"}}]},
                 )
             )
             mock_get_client.return_value = mock_client
@@ -278,4 +280,4 @@ class TestTimeoutConfiguration:
             response = await client.complete(
                 type("Request", (), {"prompt": "Test", "max_tokens": 10})
             )
-            assert response.choices[0]["text"] == "Mocked LLM response"
+            assert response.choices[0]["message"]["content"] == "Mocked LLM response"

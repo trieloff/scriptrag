@@ -154,20 +154,21 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                 logger.warning(f"Failed to list models: {response.status_code}")
                 return []
 
-            data = response.json()
+            data: dict[str, Any] = response.json()
 
             # Handle OpenAI response format
+            models_data: list[dict[str, Any]]
             if isinstance(data, dict) and "data" in data:
                 models_data = data["data"]
             else:
                 models_data = []
 
-            models = []
+            models: list[Model] = []
             for model_info in models_data:
-                model_id = model_info.get("id", "")
+                model_id: str = model_info.get("id", "")
 
                 # Determine capabilities
-                capabilities = ["completion", "chat"]
+                capabilities: list[str] = ["completion", "chat"]
                 if "embedding" in model_id.lower():
                     capabilities = ["embedding"]
 
@@ -217,7 +218,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                 "Content-Type": "application/json",
             }
 
-            payload = {
+            payload: dict[str, Any] = {
                 "model": request.model,
                 "messages": request.messages,
                 "temperature": request.temperature,
@@ -228,7 +229,9 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             if request.max_tokens:
                 payload["max_tokens"] = request.max_tokens
             if request.system:
-                system_msg = [{"role": "system", "content": request.system}]
+                system_msg: list[dict[str, str]] = [
+                    {"role": "system", "content": request.system}
+                ]
                 payload["messages"] = system_msg + request.messages
 
             # Add response_format if specified
@@ -271,11 +274,11 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                     )
                     raise ValueError(f"API error: {response.text}")
 
-                data = response.json()
+                data: dict[str, Any] = response.json()
 
                 # Log successful response
-                choices = data.get("choices", [])
-                response_content = ""
+                choices: list[dict[str, Any]] = data.get("choices", [])
+                response_content: str = ""
                 if choices and len(choices) > 0:
                     response_content = choices[0].get("message", {}).get("content", "")
 
@@ -347,7 +350,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             if response.status_code != 200:
                 raise ValueError(f"API error: {response.text}")
 
-            data = response.json()
+            data: dict[str, Any] = response.json()
             return EmbeddingResponse(
                 model=data.get("model", request.model),
                 data=data.get("data", []),

@@ -185,7 +185,10 @@ class MockLLMProvider(BaseLLMProvider):
             provider=self.provider_type,
             choices=[
                 {
-                    "text": f"Mock response for: {user_content}...",
+                    "message": {
+                        "role": "assistant",
+                        "content": f"Mock response for: {user_content}...",
+                    },
                     "index": 0,
                     "finish_reason": "stop",
                 }

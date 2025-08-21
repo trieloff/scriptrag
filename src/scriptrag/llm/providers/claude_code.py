@@ -5,18 +5,20 @@ import contextlib
 import json
 import os
 import time
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from scriptrag.config import get_logger, get_settings
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.model_discovery import ClaudeCodeModelDiscovery
 from scriptrag.llm.models import (
+    CompletionChoice,
     CompletionRequest,
     CompletionResponse,
     EmbeddingRequest,
     EmbeddingResponse,
     LLMProvider,
     Model,
+    UsageInfo,
 )
 from scriptrag.llm.providers.claude_schema import ClaudeSchemaHandler
 
@@ -207,7 +209,7 @@ class ClaudeCodeProvider(BaseLLMProvider):
             # If response_format is specified, add JSON instructions to the prompt
             if hasattr(request, "response_format") and request.response_format:
                 schema_info = self.schema_handler.extract_schema_info(
-                    request.response_format
+                    dict(request.response_format)
                 )
                 if schema_info:
                     prompt = self.schema_handler.add_json_instructions(
@@ -354,7 +356,7 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
                         # If we have a schema, validate against it
                         schema_info = self.schema_handler.extract_schema_info(
-                            request.response_format
+                            dict(request.response_format)
                         )
                         if schema_info and "schema" in schema_info:
                             # Basic validation - ensure required fields exist
@@ -398,12 +400,12 @@ class ClaudeCodeProvider(BaseLLMProvider):
                     # No response_format, accept any response
                     break
 
-            choice: dict[str, Any] = {
+            choice: CompletionChoice = {
                 "index": 0,
                 "message": {"role": "assistant", "content": response_text},
                 "finish_reason": "stop",
             }
-            usage: dict[str, int] = {
+            usage: UsageInfo = {
                 "prompt_tokens": 0,
                 "completion_tokens": 0,
                 "total_tokens": 0,

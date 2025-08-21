@@ -4,7 +4,7 @@ import asyncio
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any, Literal, TypedDict
 
 import typer
 from rich.console import Console
@@ -17,6 +17,43 @@ from scriptrag.config import get_logger
 
 logger = get_logger(__name__)
 console = Console()
+
+
+# TypedDict definitions for JSON output
+class SceneReadJsonOutput(TypedDict):
+    """JSON output format for scene read command."""
+
+    success: bool
+    scene_number: int
+    heading: str
+    content: str
+    last_read: str | None
+
+
+class BibleContentJsonOutput(TypedDict):
+    """JSON output format for bible content."""
+
+    success: bool
+    content: str
+
+
+class BibleListJsonOutput(TypedDict):
+    """JSON output format for bible file list."""
+
+    success: bool
+    bible_files: list[dict[str, Any]]
+
+
+class BibleFileInfo(TypedDict):
+    """Information about a bible file."""
+
+    name: str
+    path: str
+    size: int
+
+
+# Position type for scene operations
+PositionType = Literal["after", "before"]
 
 # Create scene subcommand app
 scene_app = typer.Typer(
@@ -83,12 +120,16 @@ def read_scene(
             settings = get_settings()
 
         # Initialize API
-        api = SceneManagementAPI(settings=settings)
+        api: SceneManagementAPI = SceneManagementAPI(settings=settings)
 
         # Check if reading bible content
         if bible or bible_name is not None:
             # Reading bible content
-            bible_result = asyncio.run(api.read_bible(project, bible_name))
+            from scriptrag.api.scene_models import BibleReadResult
+
+            bible_result: BibleReadResult = asyncio.run(
+                api.read_bible(project, bible_name)
+            )
 
             if not bible_result.success:
                 console.print(f"[red]Error: {bible_result.error}[/red]")
@@ -97,17 +138,18 @@ def read_scene(
             if json_output:
                 if bible_result.content:
                     # Specific bible content
-                    output = {
+                    bible_content_output: BibleContentJsonOutput = {
                         "success": True,
                         "content": bible_result.content,
                     }
+                    console.print_json(data=bible_content_output)
                 else:
                     # List of bible files
-                    output = {
+                    bible_list_output: BibleListJsonOutput = {
                         "success": True,
                         "bible_files": bible_result.bible_files,
                     }
-                console.print_json(data=output)
+                    console.print_json(data=bible_list_output)
             else:
                 if bible_result.content:
                     # Display bible content
@@ -125,7 +167,7 @@ def read_scene(
                         f"project '{project}':[/green]\n"
                     )
                     for bible_file in bible_result.bible_files:
-                        size_kb = bible_file["size"] / 1024
+                        size_kb: float = bible_file["size"] / 1024
                         console.print(
                             f"  • [cyan]{bible_file['name']}[/cyan] "
                             f"({bible_file['path']}) - {size_kb:.1f} KB"
@@ -144,7 +186,7 @@ def read_scene(
             raise typer.Exit(1)
 
         # Create scene identifier
-        scene_id = SceneIdentifier(
+        scene_id: SceneIdentifier = SceneIdentifier(
             project=project,
             scene_number=scene,
             season=season,
@@ -152,7 +194,9 @@ def read_scene(
         )
 
         # Read scene (run async operation)
-        result = asyncio.run(api.read_scene(scene_id))
+        from scriptrag.api.scene_models import ReadSceneResult
+
+        result: ReadSceneResult = asyncio.run(api.read_scene(scene_id))
 
         if not result.success:
             console.print(f"[red]Error: {result.error}[/red]")
@@ -160,7 +204,7 @@ def read_scene(
 
         if json_output:
             if result.scene:
-                output = {
+                scene_output: SceneReadJsonOutput = {
                     "success": True,
                     "scene_number": result.scene.number,
                     "heading": result.scene.heading,
@@ -169,7 +213,7 @@ def read_scene(
                     if result.last_read
                     else None,
                 }
-                console.print_json(data=output)
+                console.print_json(data=scene_output)
         else:
             # Display scene content
             if result.scene:
@@ -259,8 +303,8 @@ def add_scene(
 
         # Determine reference scene and position
         if after_scene is not None:
-            reference_scene = after_scene
-            position = "after"
+            reference_scene: int = after_scene
+            position: PositionType = "after"
         else:
             # At this point, before_scene must be not None due to validation above
             if before_scene is None:
@@ -271,7 +315,7 @@ def add_scene(
             position = "before"
 
         # Create scene identifier for reference
-        scene_id = SceneIdentifier(
+        scene_id: SceneIdentifier = SceneIdentifier(
             project=project,
             scene_number=reference_scene,
             season=season,
@@ -295,17 +339,19 @@ def add_scene(
             settings = get_settings()
 
         # Initialize API
-        api = SceneManagementAPI(settings=settings)
+        api: SceneManagementAPI = SceneManagementAPI(settings=settings)
 
         # Add scene
-        result = asyncio.run(api.add_scene(scene_id, content, position))
+        from scriptrag.api.scene_models import AddSceneResult
+
+        result: AddSceneResult = asyncio.run(api.add_scene(scene_id, content, position))
 
         if not result.success:
             console.print(f"[red]Error: {result.error}[/red]")
             raise typer.Exit(1)
 
         # Display success message
-        new_scene_id = SceneIdentifier(
+        new_scene_id: SceneIdentifier = SceneIdentifier(
             project=project,
             scene_number=(
                 reference_scene + 1 if position == "after" else reference_scene
@@ -390,7 +436,7 @@ def update_scene(
             content = sys.stdin.read()
 
         # Create scene identifier
-        scene_id = SceneIdentifier(
+        scene_id: SceneIdentifier = SceneIdentifier(
             project=project,
             scene_number=scene,
             season=season,
@@ -398,7 +444,7 @@ def update_scene(
         )
 
         # Parse last_read timestamp if provided
-        last_read_dt = None
+        last_read_dt: datetime | None = None
         if safe:
             if not last_read:
                 console.print(
@@ -432,10 +478,12 @@ def update_scene(
             settings = get_settings()
 
         # Initialize API
-        api = SceneManagementAPI(settings=settings)
+        api: SceneManagementAPI = SceneManagementAPI(settings=settings)
 
         # Update scene
-        result = asyncio.run(
+        from scriptrag.api.scene_models import UpdateSceneResult
+
+        result: UpdateSceneResult = asyncio.run(
             api.update_scene(
                 scene_id, content, check_conflicts=safe, last_read=last_read_dt
             )
@@ -499,7 +547,7 @@ def delete_scene(
 
     try:
         # Create scene identifier
-        scene_id = SceneIdentifier(
+        scene_id: SceneIdentifier = SceneIdentifier(
             project=project,
             scene_number=scene,
             season=season,
@@ -523,10 +571,14 @@ def delete_scene(
             settings = get_settings()
 
         # Initialize API
-        api = SceneManagementAPI(settings=settings)
+        api: SceneManagementAPI = SceneManagementAPI(settings=settings)
 
         # Delete scene
-        result = asyncio.run(api.delete_scene(scene_id, confirm=True))
+        from scriptrag.api.scene_models import DeleteSceneResult
+
+        result: DeleteSceneResult = asyncio.run(
+            api.delete_scene(scene_id, confirm=True)
+        )
 
         if not result.success:
             console.print(f"[red]Error: {result.error}[/red]")

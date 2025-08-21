@@ -44,8 +44,11 @@ class TestVectorSearchEngine:
 
         # Mock embedding response
         embedding_response = MagicMock()
-        embedding_data = MagicMock()
-        embedding_data.embedding = sample_embedding.tolist()
+        # Create proper dictionary-style embedding data to match EmbeddingData TypedDict
+        embedding_data = {
+            "embedding": sample_embedding.tolist(),
+            "index": 0,
+        }
         embedding_response.data = [embedding_data]
 
         client.embed = AsyncMock(return_value=embedding_response)

@@ -17,6 +17,7 @@ from scriptrag.llm.models import (
 )
 from scriptrag.llm.registry import ProviderRegistry
 from scriptrag.llm.retry_strategy import RetryStrategy
+from scriptrag.llm.types import ClientMetrics, ErrorDetails
 
 logger = get_logger(__name__)
 
@@ -109,7 +110,7 @@ class LLMClient:
 
         # Provider selection is done lazily via ensure_provider()
 
-    def get_metrics(self) -> dict[str, Any]:
+    def get_metrics(self) -> ClientMetrics:
         """Get current provider metrics."""
         return self.metrics.get_metrics()
 
@@ -377,7 +378,7 @@ class LLMClient:
             )
             return cast(CompletionResponse, response)
         except Exception as e:
-            error_details = {
+            error_details: ErrorDetails = {
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "model": request.model,
@@ -470,7 +471,7 @@ class LLMClient:
             )
             return cast(EmbeddingResponse, response)
         except Exception as e:
-            error_details = {
+            error_details: ErrorDetails = {
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "model": request.model,
@@ -515,6 +516,11 @@ class LLMClient:
         """Enter async context manager."""
         return self
 
-    async def __aexit__(self, *_: Any) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
         """Exit async context manager and cleanup."""
         await self.cleanup()

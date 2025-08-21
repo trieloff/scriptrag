@@ -157,7 +157,13 @@ class TestLLMClientErrorHandling:
             return CompletionResponse(
                 id="test",
                 model="claude-model",
-                choices=[{"message": {"content": "Success"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Success"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.CLAUDE_CODE,
             )
 
@@ -228,7 +234,13 @@ class TestLLMClientErrorHandling:
             return CompletionResponse(
                 id="test",
                 model="claude-model",
-                choices=[{"message": {"content": "Success"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": "Success"},
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.CLAUDE_CODE,
             )
 
@@ -332,10 +344,10 @@ class TestLLMClientErrorHandling:
         assert metrics["total_requests"] == 3
         assert metrics["successful_requests"] == 2
         assert metrics["failed_requests"] == 1
-        assert metrics["provider_successes"]["provider1"] == 2
-        assert len(metrics["provider_failures"]["provider2"]) == 1
+        assert metrics["providers"]["provider1"]["success_count"] == 2
+        assert metrics["providers"]["provider2"]["failure_count"] == 1
         assert metrics["retry_attempts"] == 1
-        assert len(metrics["fallback_chains"]) == 1
+        assert metrics["fallback_attempts"] == 1
 
     @pytest.mark.asyncio
     async def test_embedding_fallback_error(self, mock_registry):
@@ -501,7 +513,16 @@ class TestLLMClientErrorHandling:
             return CompletionResponse(
                 id="test",
                 model="claude-model",
-                choices=[{"message": {"content": "Success after retry"}}],
+                choices=[
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "Success after retry",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
                 provider=LLMProvider.CLAUDE_CODE,
             )
 

@@ -139,7 +139,13 @@ class TestLLMClientCoverage:
         mock_response = CompletionResponse(
             id="test",
             model="gpt-4",
-            choices=[{"index": 0, "message": {"role": "assistant", "content": "Hi"}}],
+            choices=[
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Hi"},
+                    "finish_reason": "stop",
+                }
+            ],
             provider=LLMProvider.CLAUDE_CODE,
         )
         client.fallback_handler.complete_with_fallback = AsyncMock(

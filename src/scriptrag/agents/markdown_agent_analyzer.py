@@ -297,14 +297,18 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
             )
 
             # Build the completion request
-            from scriptrag.llm.models import CompletionRequest
+            from typing import cast
+
+            from scriptrag.llm.models import CompletionRequest, ResponseFormat
 
             request = CompletionRequest(
                 model="",  # Let client auto-select
                 messages=[{"role": "user", "content": prompt}],
                 temperature=temperature,
                 max_tokens=10000,
-                response_format=response_format,
+                response_format=cast(ResponseFormat, response_format)
+                if response_format
+                else None,
             )
 
             # Call the LLM client

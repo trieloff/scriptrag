@@ -386,7 +386,13 @@ class TestGitHubModelsProviderExtended:
         mock_response.json.return_value = {
             "id": "chat-123",
             "model": "gpt-4",
-            "choices": [{"message": {"content": "Response"}}],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Response"},
+                    "finish_reason": "stop",
+                }
+            ],
         }
 
         request = CompletionRequest(
@@ -584,7 +590,13 @@ class TestOpenAICompatibleProviderExtended:
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "completion-1",
-            "choices": [{"message": {"content": "Response"}}],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Response"},
+                    "finish_reason": "stop",
+                }
+            ],
         }
 
         request = CompletionRequest(

@@ -272,12 +272,44 @@ class EmbeddingService:
 
         Returns:
             Embedding vector
+
+        Raises:
+            ValueError: If data is malformed or corrupted
         """
+        # Validate minimum data length
+        if len(data) < 4:
+            raise ValueError(
+                f"Embedding data too short: expected at least 4 bytes, got {len(data)}"
+            )
+
         # First 4 bytes are the dimension count
         dimension = struct.unpack("<I", data[:4])[0]
+
+        # Validate dimension is reasonable (embeddings typically 128-4096 dimensions)
+        max_dimension = 10000  # Safety limit to prevent memory issues
+        if dimension == 0:
+            raise ValueError("Embedding dimension cannot be zero")
+        if dimension > max_dimension:
+            raise ValueError(
+                f"Embedding dimension {dimension} exceeds "
+                f"maximum allowed {max_dimension}"
+            )
+
+        # Validate data length matches expected size
+        expected_size = 4 + dimension * 4  # 4 bytes for dimension + 4 bytes per float
+        if len(data) < expected_size:
+            raise ValueError(
+                f"Embedding data truncated: expected {expected_size} bytes, "
+                f"got {len(data)}"
+            )
+
+        # Unpack the float values
         format_str = f"<{dimension}f"
-        values = struct.unpack(format_str, data[4 : 4 + dimension * 4])
-        return list(values)
+        try:
+            values = struct.unpack(format_str, data[4 : 4 + dimension * 4])
+            return list(values)
+        except struct.error as e:
+            raise ValueError(f"Failed to decode embedding data: {e}") from e
 
     def cosine_similarity(self, vec1: list[float], vec2: list[float]) -> float:
         """Calculate cosine similarity between two vectors.

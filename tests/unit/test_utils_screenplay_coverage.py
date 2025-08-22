@@ -2,7 +2,7 @@
 
 import hashlib
 
-from scriptrag.utils.screenplay import ScreenplayUtils
+from scriptrag.utils import ScreenplayUtils
 
 
 class TestScreenplayUtilsCoverage:

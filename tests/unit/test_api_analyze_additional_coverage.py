@@ -8,6 +8,7 @@ import pytest
 
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.api.analyze import AnalyzeCommand
+from scriptrag.api.analyze_helpers import load_bible_metadata
 from scriptrag.parser import Scene, Script
 
 
@@ -73,7 +74,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 )
                 mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result == bible_metadata
                 mock_cursor.execute.assert_called_once_with(
@@ -94,7 +95,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 mock_db_ops = mock_db_ops_class.return_value
                 mock_db_ops.check_database_exists.return_value = False
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result is None
 
@@ -121,7 +122,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 )
                 mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result is None
 
@@ -151,7 +152,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 )
                 mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result is None
 
@@ -168,7 +169,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 mock_db_ops = mock_db_ops_class.return_value
                 mock_db_ops.check_database_exists.side_effect = Exception("DB Error")
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result is None
 
@@ -476,7 +477,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 )
                 mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result == bible_metadata
 

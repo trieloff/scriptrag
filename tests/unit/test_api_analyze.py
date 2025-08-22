@@ -7,6 +7,7 @@ import pytest
 
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.api.analyze import AnalyzeCommand
+from scriptrag.api.analyze_helpers import scene_needs_update
 from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 
 
@@ -476,12 +477,12 @@ class TestAnalyzeCommandBranchCoverage:
         )
 
     def test_scene_needs_update_non_scene(self, analyze_command):
-        """Test _scene_needs_update with non-Scene object."""
+        """Test scene_needs_update with non-Scene object."""
         # Should return False for non-Scene objects
-        assert analyze_command._scene_needs_update("not a scene") is False
+        assert scene_needs_update("not a scene", analyze_command.analyzers) is False
 
     def test_scene_needs_update_no_analyzers_in_metadata(self, analyze_command):
-        """Test _scene_needs_update when metadata has no analyzers key."""
+        """Test scene_needs_update when metadata has no analyzers key."""
         from scriptrag.parser import Scene
 
         analyze_command.analyzers.append(MockAnalyzer())
@@ -496,7 +497,7 @@ class TestAnalyzeCommandBranchCoverage:
         )
 
         # Should return False since there's no analyzers key to check
-        assert analyze_command._scene_needs_update(scene) is False
+        assert scene_needs_update(scene, analyze_command.analyzers) is False
 
     def test_load_analyzer_import_error(self, analyze_command, monkeypatch):
         """Test load_analyzer when builtin analyzers can't be imported."""

@@ -172,7 +172,7 @@ class TestAnalyzeCommand:
         """Test that analyze displays errors correctly."""
         from unittest.mock import AsyncMock, MagicMock
 
-        from scriptrag.api.analyze import AnalyzeResult, FileResult
+        from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 
         # Create a mock result with errors
         mock_result = AnalyzeResult(
@@ -330,7 +330,7 @@ class TestAnalyzeCommand:
         """Test analyze displays relative paths when possible."""
         from unittest.mock import AsyncMock, MagicMock
 
-        from scriptrag.api.analyze import AnalyzeResult, FileResult
+        from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 
         # Use monkeypatch.chdir for safer directory change
         monkeypatch.chdir(temp_fountain_files)
@@ -371,7 +371,7 @@ class TestAnalyzeCommand:
         """Test analyze falls back to absolute path when relative not possible."""
         from unittest.mock import AsyncMock, MagicMock
 
-        from scriptrag.api.analyze import AnalyzeResult, FileResult
+        from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 
         # Create a mock result with a file in a different directory
         mock_result = AnalyzeResult(

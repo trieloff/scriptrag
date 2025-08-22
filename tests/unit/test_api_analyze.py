@@ -6,7 +6,8 @@ from unittest.mock import patch
 import pytest
 
 from scriptrag.analyzers.base import BaseSceneAnalyzer
-from scriptrag.api.analyze import AnalyzeCommand, AnalyzeResult, FileResult
+from scriptrag.api.analyze import AnalyzeCommand
+from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 
 
 class MockAnalyzer(BaseSceneAnalyzer):

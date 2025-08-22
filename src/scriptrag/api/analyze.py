@@ -1,130 +1,25 @@
 """Script analyze API module for ScriptRAG."""
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from scriptrag.analyzers.base import BaseSceneAnalyzer
 
+from scriptrag.api.analyze_helpers import (
+    file_needs_update,
+    load_bible_metadata,
+    scene_needs_update,
+)
+from scriptrag.api.analyze_protocols import SceneAnalyzer
+from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 from scriptrag.api.list import ScriptLister
 from scriptrag.config import get_logger
-from scriptrag.parser import FountainParser, Scene, Script
+from scriptrag.parser import FountainParser
 
 logger = get_logger(__name__)
-
-
-@dataclass
-class FileResult:
-    """Result data from analyzing a single screenplay file.
-
-    Tracks the outcome of processing one Fountain file through the analysis
-    pipeline, including whether any scenes were updated and error information.
-    Used for reporting and debugging analysis operations.
-
-    Attributes:
-        path: Path to the Fountain file that was processed
-        updated: True if any scenes in the file were updated with new analysis
-        scenes_updated: Count of individual scenes that received new metadata
-        error: Error message if processing failed, None if successful
-
-    Example:
-        >>> result = FileResult(
-        ...     path=Path("my_script.fountain"),
-        ...     updated=True,
-        ...     scenes_updated=15
-        ... )
-        >>> print(f"Updated {result.scenes_updated} scenes")
-    """
-
-    path: Path
-    updated: bool
-    scenes_updated: int = 0
-    error: str | None = None
-
-
-@dataclass
-class AnalyzeResult:
-    """Aggregated results from analyzing multiple screenplay files.
-
-    Contains outcome data from processing one or more Fountain files through
-    the analysis pipeline. Provides both individual file results and summary
-    statistics for batch operations.
-
-    Attributes:
-        files: List of FileResult objects, one for each processed file
-        errors: List of error messages from failed operations that couldn't
-               be attributed to specific files
-
-    Properties:
-        total_files_updated: Count of files that had at least one scene updated
-        total_scenes_updated: Sum of all scenes updated across all files
-
-    Example:
-        >>> result = AnalyzeResult()
-        >>> result.files.append(FileResult(Path("script1.fountain"), True, 10))
-        >>> result.total_files_updated
-        1
-        >>> result.total_scenes_updated
-        10
-    """
-
-    files: list[FileResult] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
-
-    @property
-    def total_files_updated(self) -> int:
-        """Count of files that were updated."""
-        return sum(1 for f in self.files if f.updated)
-
-    @property
-    def total_scenes_updated(self) -> int:
-        """Total count of scenes updated across all files."""
-        return sum(f.scenes_updated for f in self.files)
-
-
-class SceneAnalyzer(Protocol):
-    """Protocol defining the interface for scene analysis components.
-
-    Defines the contract that all scene analyzers must implement to participate
-    in the analysis pipeline. Analyzers receive scene data and return metadata
-    that gets attached to scenes in the Fountain file's boneyard comments.
-
-    The protocol enables pluggable analyzers for different types of scene
-    analysis: character relationships, embeddings, themes, etc.
-
-    Example:
-        >>> class MyAnalyzer:
-        ...     @property
-        ...     def name(self) -> str:
-        ...         return "my_analyzer"
-        ...
-        ...     async def analyze(self, scene: dict) -> dict:
-        ...         return {"analysis": "completed"}
-    """
-
-    async def analyze(self, scene: dict[str, Any]) -> dict[str, Any]:
-        """Analyze a scene and return analysis metadata.
-
-        Args:
-            scene: Dictionary containing scene data with keys like 'content',
-                  'heading', 'dialogue', 'action', 'characters'
-
-        Returns:
-            Dictionary containing analysis results to be stored in scene metadata
-        """
-        ...
-
-    @property
-    def name(self) -> str:
-        """Unique identifier for this analyzer.
-
-        Returns:
-            String name used for metadata storage and analyzer registration
-        """
-        ...
 
 
 class AnalyzeCommand:
@@ -389,7 +284,7 @@ class AnalyzeCommand:
             script = parser.parse_file(file_path)
 
             # Check if file needs processing
-            if not force and not self._file_needs_update(file_path, script):
+            if not force and not file_needs_update(script, self.analyzers, file_path):
                 return FileResult(path=file_path, updated=False)
 
             # Pass script context to analyzers that support it
@@ -405,7 +300,7 @@ class AnalyzeCommand:
                     and hasattr(analyzer, "bible_characters")
                     and not analyzer.bible_characters
                 ):
-                    bible_metadata = await self._load_bible_metadata(file_path)
+                    bible_metadata = await load_bible_metadata(file_path)
                     if bible_metadata and hasattr(analyzer, "_build_alias_index"):
                         analyzer.bible_characters = bible_metadata
                         analyzer._build_alias_index()
@@ -421,7 +316,7 @@ class AnalyzeCommand:
             # In dry run mode, skip all processing entirely
             if dry_run:
                 for scene in script.scenes:
-                    if force or self._scene_needs_update(scene):
+                    if force or scene_needs_update(scene, self.analyzers):
                         updated_scenes.append(scene)
                 # Clean up and return early
                 for analyzer in self.analyzers:
@@ -436,7 +331,7 @@ class AnalyzeCommand:
 
             # Normal processing (not dry run)
             for scene in script.scenes:
-                if force or self._scene_needs_update(scene):
+                if force or scene_needs_update(scene, self.analyzers):
                     # Build scene data for analyzers (only if not dry run)
                     scene_data = {
                         "content": scene.content,
@@ -509,142 +404,3 @@ class AnalyzeCommand:
         except Exception as e:
             logger.error(f"Error processing {file_path}: {e}")
             raise
-
-    def _file_needs_update(self, _file_path: Path, script: Script) -> bool:
-        """Determine if a screenplay file needs analysis processing.
-
-        Checks whether any scenes in the script need analysis by examining
-        existing metadata and comparing with currently loaded analyzers.
-        Used to skip files that are already up-to-date unless force mode.
-
-        Args:
-            _file_path: Path to the file (parameter preserved for compatibility
-                       but not currently used in the logic)
-            script: Parsed Script object containing scenes with potential metadata
-
-        Returns:
-            True if the file contains scenes that need processing by current
-            analyzers, False if all scenes are up-to-date
-
-        Note:
-            Currently checks all scenes in the script. A file needs updating
-            if any scene needs updating according to _scene_needs_update().
-        """
-        # Check if any scene needs updating
-        if isinstance(script, Script):
-            for scene in script.scenes:
-                if self._scene_needs_update(scene):
-                    return True
-
-        return False
-
-    def _scene_needs_update(self, scene: Scene) -> bool:
-        """Determine if a scene needs analysis processing.
-
-        Checks scene metadata to decide whether analysis should be performed:
-        1. Scenes without any metadata need processing
-        2. Scenes missing 'analyzed_at' timestamp need processing
-        3. Scenes missing results from currently loaded analyzers need processing
-
-        This enables incremental analysis where only new or changed scenes
-        are processed, and new analyzers are run on existing scenes.
-
-        Args:
-            scene: Scene object that may contain existing analysis metadata
-                  in its boneyard_metadata attribute
-
-        Returns:
-            True if the scene should be processed by the analysis pipeline,
-            False if it's already up-to-date with current analyzer set
-
-        Example:
-            A scene with relationship analysis but no embedding analysis
-            would return True if an embedding analyzer is loaded, enabling
-            incremental processing of just the missing analysis type.
-        """
-        if not isinstance(scene, Scene):
-            return False
-
-        # No metadata yet
-        if scene.boneyard_metadata is None:
-            return True
-
-        # Check if metadata is outdated (e.g., missing analyzer results)
-        metadata = scene.boneyard_metadata
-
-        # Check if analyzed_at exists and is recent
-        if "analyzed_at" not in metadata:
-            return True
-
-        # Check if all registered analyzers have been run
-        if "analyzers" in metadata:
-            existing_analyzers = set(metadata["analyzers"].keys())
-            current_analyzers = {a.name for a in self.analyzers}
-            if current_analyzers - existing_analyzers:
-                # New analyzers to run
-                return True
-
-        # For now, consider up to date
-        return False
-
-    async def _load_bible_metadata(self, script_path: Path) -> dict[str, Any] | None:
-        """Load Bible character metadata from database for analyzer context.
-
-        Retrieves character alias data that may have been extracted from
-        script Bible files and stored in the database. This metadata is used
-        by analyzers like the relationships analyzer to identify characters
-        mentioned in scenes.
-
-        The method looks for character data stored under 'bible.characters'
-        in the script's metadata column, which contains the output from
-        Bible character extraction operations.
-
-        Args:
-            script_path: Path to the script file to look up in database
-
-        Returns:
-            Dictionary containing Bible character metadata if found and valid,
-            None if script not in database, no metadata exists, or database
-            errors occur. The format matches BibleCharacterExtractor output.
-
-        Example:
-            >>> metadata = await command._load_bible_metadata(Path("script.fountain"))
-            >>> if metadata:
-            ...     char_count = len(metadata.get("characters", []))
-            ...     print(f"Found {char_count} Bible characters")
-
-        Note:
-            All database errors are caught and logged as debug messages.
-            Returns None gracefully to allow analysis to continue without
-            Bible character data if database issues occur.
-        """
-        try:
-            # Try to load from database
-            import json
-
-            from scriptrag.api.database_operations import DatabaseOperations
-            from scriptrag.config import get_settings
-
-            settings = get_settings()
-            db_ops = DatabaseOperations(settings)
-
-            if not db_ops.check_database_exists():
-                return None
-
-            with db_ops.transaction() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT metadata FROM scripts WHERE file_path = ?",
-                    (str(script_path),),
-                )
-                row = cursor.fetchone()
-
-                if row and row[0]:
-                    metadata = json.loads(row[0]) if isinstance(row[0], str) else row[0]
-                    bible_chars = metadata.get("bible.characters")
-                    return bible_chars if isinstance(bible_chars, dict) else None
-
-        except Exception as e:
-            logger.debug(f"Could not load Bible metadata: {e}")
-
-        return None

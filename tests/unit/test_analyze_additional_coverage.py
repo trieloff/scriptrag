@@ -6,12 +6,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from scriptrag.api.analyze import (
-    AnalyzeCommand,
-    AnalyzeResult,
-    FileResult,
-    SceneAnalyzer,
-)
+from scriptrag.api.analyze import AnalyzeCommand
+from scriptrag.api.analyze_protocols import SceneAnalyzer
+from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 from scriptrag.api.list import FountainMetadata
 from scriptrag.parser import Scene, Script
 

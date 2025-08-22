@@ -511,3 +511,37 @@ class TestSemanticSearchIntegration:
                 assert "semantic" in result.search_methods  # Line 272 still adds it
                 assert result.results == []  # Fell back to empty SQL results
                 assert len(result.bible_results) == 0
+
+
+class TestSearchThreadTimeout:
+    """Test configurable search thread timeout."""
+
+    def test_default_timeout_setting(self):
+        """Test that default search thread timeout is 300 seconds."""
+        settings = ScriptRAGSettings()
+        assert settings.search_thread_timeout == 300.0
+
+    def test_custom_timeout_setting(self):
+        """Test that custom search thread timeout can be configured."""
+        settings = ScriptRAGSettings(search_thread_timeout=120.0)
+        assert settings.search_thread_timeout == 120.0
+
+    def test_engine_uses_configured_timeout(self):
+        """Test that SearchEngine uses the configured timeout value."""
+        settings = ScriptRAGSettings(search_thread_timeout=60.0)
+        engine = SearchEngine(settings)
+        assert engine.settings.search_thread_timeout == 60.0
+
+    def test_timeout_minimum_value(self):
+        """Test that timeout has a minimum value of 1.0 second."""
+        # This should raise a validation error since ge=1.0 is set
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError) as exc_info:
+            ScriptRAGSettings(search_thread_timeout=0.5)
+
+        # Check that the error is about the constraint
+        errors = exc_info.value.errors()
+        assert len(errors) > 0
+        # Check that at least one error is about the search_thread_timeout field
+        assert any(error.get("loc") == ("search_thread_timeout",) for error in errors)

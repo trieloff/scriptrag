@@ -118,11 +118,14 @@ class SearchEngine:
 
             thread = threading.Thread(target=run_in_new_loop)
             thread.start()
-            thread.join(timeout=300)  # 5 minute timeout
+            thread.join(timeout=self.settings.search_thread_timeout)
 
             # Check if thread is still alive (timeout occurred)
             if thread.is_alive():
-                logger.error("Search thread timed out after 300 seconds")
+                logger.error(
+                    "Search thread timed out after %s seconds",
+                    self.settings.search_thread_timeout,
+                )
                 raise RuntimeError("Search operation timed out")
 
             if exception:

@@ -13,7 +13,7 @@ from jouvence.document import (
 
 from scriptrag.config import get_logger
 from scriptrag.parser.fountain_models import Dialogue, Scene
-from scriptrag.utils.screenplay import ScreenplayUtils
+from scriptrag.utils import ScreenplayUtils
 
 logger = get_logger(__name__)
 

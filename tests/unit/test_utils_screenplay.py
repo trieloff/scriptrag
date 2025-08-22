@@ -1,6 +1,6 @@
 """Tests for screenplay utilities."""
 
-from scriptrag.utils.screenplay import ScreenplayUtils
+from scriptrag.utils import ScreenplayUtils
 
 
 class TestScreenplayUtils:

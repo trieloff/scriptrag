@@ -272,6 +272,7 @@ class TestSemanticSearchIntegration:
             database_path=db_path,
             search_vector_result_limit_factor=0.8,
             search_vector_min_results=5,
+            search_vector_threshold=8,  # Lower threshold to trigger vector search
         )
         engine = SearchEngine(settings)
 
@@ -367,12 +368,18 @@ class TestSemanticSearchIntegration:
             database_path=db_path,
             search_vector_result_limit_factor=0.9,
             search_vector_min_results=3,
+            search_vector_threshold=8,  # Lower threshold to ensure trigger
         )
         engine = SearchEngine(settings)
 
+        # Ensure query has >8 words to trigger vector search
+        long_query = (
+            "this is a very long semantic query that triggers "
+            "vector search with many descriptive words"
+        )
         query = SearchQuery(
-            raw_query="long semantic query triggers vector search with many words",
-            text_query="long semantic query triggers vector search with many words",
+            raw_query=long_query,
+            text_query=long_query,
             limit=5,
             include_bible=True,
         )
@@ -463,13 +470,16 @@ class TestSemanticSearchIntegration:
         db_path = tmp_path / "test.db"
         db_path.write_text("")
 
-        settings = ScriptRAGSettings(database_path=db_path)
+        settings = ScriptRAGSettings(
+            database_path=db_path,
+            search_vector_threshold=3,  # Very low threshold
+        )
         engine = SearchEngine(settings)
 
         # Use FUZZY mode to force semantic search even with short query
         query = SearchQuery(
-            raw_query="short query",
-            text_query="short query",
+            raw_query="short query that triggers search",
+            text_query="short query that triggers search",
             mode=SearchMode.FUZZY,
             limit=5,
         )

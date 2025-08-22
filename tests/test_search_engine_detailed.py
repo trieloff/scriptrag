@@ -34,7 +34,7 @@ class TestSearchEngineInit:
         engine = SearchEngine(settings)
 
         assert engine.settings is settings
-        assert engine.db_path == test_path
+        assert engine.db_path.resolve() == test_path.resolve()
         assert engine.query_builder is not None
         assert engine.semantic_adapter is not None
 
@@ -42,7 +42,8 @@ class TestSearchEngineInit:
         """Test initialization without settings (covers lines 36, 38)."""
         # Mock get_settings in the config module that gets imported
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = ScriptRAGSettings(database_path=Path("/tmp/mock.db"))
+            mock_path = Path("/tmp/mock.db")
+            mock_settings = ScriptRAGSettings(database_path=mock_path)
             mock_get_settings.return_value = mock_settings
 
             # This covers the import on line 36 and get_settings() call on line 38
@@ -52,7 +53,7 @@ class TestSearchEngineInit:
             # once for SemanticSearchAdapter
             assert mock_get_settings.call_count >= 1
             assert engine.settings is mock_settings
-            assert engine.db_path == Path("/tmp/mock.db")
+            assert engine.db_path.resolve() == mock_path.resolve()
 
 
 class TestSearchEngineConnectionManager:

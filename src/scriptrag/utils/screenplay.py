@@ -72,6 +72,9 @@ class ScreenplayUtils:
             return None
 
         heading_upper = heading.upper()
+        last_part = heading_upper.rsplit(" - ", 1)[-1]
+        if re.search(r"\bMIDNIGHT\b", last_part):
+            return "NIGHT"
         time_indicators = [
             "DAY",
             "NIGHT",
@@ -86,16 +89,10 @@ class ScreenplayUtils:
             "SUNSET",
             "SUNRISE",
             "NOON",
-            "MIDNIGHT",
         ]
 
-        # Check if heading ends with time indicator
         for indicator in time_indicators:
-            if heading_upper.endswith(indicator):
-                return indicator
-            if f"- {indicator}" in heading_upper:
-                return indicator
-            if f" {indicator}" in heading_upper.split(" - ")[-1]:
+            if re.search(rf"\b{re.escape(indicator)}\b", last_part):
                 return indicator
 
         return None

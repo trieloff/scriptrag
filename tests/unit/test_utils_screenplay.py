@@ -112,6 +112,10 @@ class TestScreenplayUtils:
         assert ScreenplayUtils.extract_time("INT. OFFICE - THE NEXT DAY") == "DAY"
         assert ScreenplayUtils.extract_time("EXT. STREET - THAT NIGHT") == "NIGHT"
 
+    def test_extract_time_ignores_location_words(self):
+        """Time indicators embedded in locations should not be detected."""
+        assert ScreenplayUtils.extract_time("INT. SCHOOL - DAYCARE") is None
+
     def test_parse_scene_heading_empty(self):
         """Test parsing empty scene heading."""
         assert ScreenplayUtils.parse_scene_heading("") == ("", None, None)

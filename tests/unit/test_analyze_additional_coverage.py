@@ -7,6 +7,11 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from scriptrag.api.analyze import AnalyzeCommand
+from scriptrag.api.analyze_helpers import (
+    file_needs_update,
+    load_bible_metadata,
+    scene_needs_update,
+)
 from scriptrag.api.analyze_protocols import SceneAnalyzer
 from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 from scriptrag.api.list import FountainMetadata
@@ -343,7 +348,7 @@ class TestAnalyzeCommand:
 
         with (
             patch("scriptrag.api.analyze.FountainParser") as mock_parser_class,
-            patch.object(command, "_file_needs_update", return_value=False),
+            patch("scriptrag.api.analyze.file_needs_update", return_value=False),
         ):
             mock_parser = Mock()
             mock_parser.parse_file.return_value = sample_script
@@ -368,8 +373,8 @@ class TestAnalyzeCommand:
 
         with (
             patch("scriptrag.api.analyze.FountainParser") as mock_parser_class,
-            patch.object(command, "_file_needs_update", return_value=True),
-            patch.object(command, "_scene_needs_update", return_value=True),
+            patch("scriptrag.api.analyze.file_needs_update", return_value=True),
+            patch("scriptrag.api.analyze.scene_needs_update", return_value=True),
         ):
             mock_parser = Mock()
             mock_parser.parse_file.return_value = sample_script
@@ -395,8 +400,8 @@ class TestAnalyzeCommand:
 
         with (
             patch("scriptrag.api.analyze.FountainParser") as mock_parser_class,
-            patch.object(command, "_file_needs_update", return_value=True),
-            patch.object(command, "_scene_needs_update", return_value=False),
+            patch("scriptrag.api.analyze.file_needs_update", return_value=True),
+            patch("scriptrag.api.analyze.scene_needs_update", return_value=False),
         ):
             mock_parser = Mock()
             mock_parser.parse_file.return_value = sample_script
@@ -430,11 +435,10 @@ class TestAnalyzeCommand:
 
         with (
             patch("scriptrag.api.analyze.FountainParser") as mock_parser_class,
-            patch.object(command, "_file_needs_update", return_value=True),
-            patch.object(command, "_scene_needs_update", return_value=False),
-            patch.object(
-                command,
-                "_load_bible_metadata",
+            patch("scriptrag.api.analyze.file_needs_update", return_value=True),
+            patch("scriptrag.api.analyze.scene_needs_update", return_value=False),
+            patch(
+                "scriptrag.api.analyze.load_bible_metadata",
                 new_callable=AsyncMock,
                 return_value=bible_metadata,
             ),
@@ -467,8 +471,8 @@ class TestAnalyzeCommand:
 
         with (
             patch("scriptrag.api.analyze.FountainParser") as mock_parser_class,
-            patch.object(command, "_file_needs_update", return_value=True),
-            patch.object(command, "_scene_needs_update", return_value=False),
+            patch("scriptrag.api.analyze.file_needs_update", return_value=True),
+            patch("scriptrag.api.analyze.scene_needs_update", return_value=False),
         ):
             mock_parser = Mock()
             mock_parser.parse_file.return_value = sample_script
@@ -492,8 +496,8 @@ class TestAnalyzeCommand:
 
         with (
             patch("scriptrag.api.analyze.FountainParser") as mock_parser_class,
-            patch.object(command, "_file_needs_update", return_value=True),
-            patch.object(command, "_scene_needs_update", return_value=True),
+            patch("scriptrag.api.analyze.file_needs_update", return_value=True),
+            patch("scriptrag.api.analyze.scene_needs_update", return_value=True),
         ):
             mock_parser = Mock()
             mock_parser.parse_file.return_value = sample_script
@@ -509,42 +513,36 @@ class TestAnalyzeCommand:
             assert result.scenes_updated == 1
 
     def test_file_needs_update_not_script(self) -> None:
-        """Test _file_needs_update with non-Script object."""
-        command = AnalyzeCommand()
-
+        """Test file_needs_update with non-Script object."""
         # Pass non-Script object
-        result = command._file_needs_update(Path("/test"), "not a script")
+        result = file_needs_update("not a script", [], Path("/test"))
         assert result is False
 
     def test_file_needs_update_script_needs_update(self, sample_script: Script) -> None:
-        """Test _file_needs_update when script has scenes needing update."""
-        command = AnalyzeCommand()
-
-        with patch.object(command, "_scene_needs_update", return_value=True):
-            result = command._file_needs_update(Path("/test"), sample_script)
+        """Test file_needs_update when script has scenes needing update."""
+        with patch(
+            "scriptrag.api.analyze_helpers.scene_needs_update", return_value=True
+        ):
+            result = file_needs_update(sample_script, [], Path("/test"))
             assert result is True
 
     def test_file_needs_update_script_no_update_needed(
         self, sample_script: Script
     ) -> None:
-        """Test _file_needs_update when script doesn't need update."""
-        command = AnalyzeCommand()
-
-        with patch.object(command, "_scene_needs_update", return_value=False):
-            result = command._file_needs_update(Path("/test"), sample_script)
+        """Test file_needs_update when script doesn't need update."""
+        with patch(
+            "scriptrag.api.analyze_helpers.scene_needs_update", return_value=False
+        ):
+            result = file_needs_update(sample_script, [], Path("/test"))
             assert result is False
 
     def test_scene_needs_update_not_scene(self) -> None:
-        """Test _scene_needs_update with non-Scene object."""
-        command = AnalyzeCommand()
-
-        result = command._scene_needs_update("not a scene")
+        """Test scene_needs_update with non-Scene object."""
+        result = scene_needs_update("not a scene", [])
         assert result is False
 
     def test_scene_needs_update_no_metadata(self) -> None:
-        """Test _scene_needs_update with scene having no metadata."""
-        command = AnalyzeCommand()
-
+        """Test scene_needs_update with scene having no metadata."""
         scene = Scene(
             number=1,
             heading="INT. TEST - DAY",
@@ -554,13 +552,11 @@ class TestAnalyzeCommand:
         )
         scene.boneyard_metadata = None
 
-        result = command._scene_needs_update(scene)
+        result = scene_needs_update(scene, [])
         assert result is True
 
     def test_scene_needs_update_no_analyzed_at(self) -> None:
-        """Test _scene_needs_update with metadata missing analyzed_at."""
-        command = AnalyzeCommand()
-
+        """Test scene_needs_update with metadata missing analyzed_at."""
         scene = Scene(
             number=1,
             heading="INT. TEST - DAY",
@@ -570,15 +566,13 @@ class TestAnalyzeCommand:
         )
         scene.boneyard_metadata = {"some": "data"}
 
-        result = command._scene_needs_update(scene)
+        result = scene_needs_update(scene, [])
         assert result is True
 
     def test_scene_needs_update_missing_analyzers(
         self, mock_scene_analyzer: Mock
     ) -> None:
-        """Test _scene_needs_update when current analyzers missing from metadata."""
-        command = AnalyzeCommand(analyzers=[mock_scene_analyzer])
-
+        """Test scene_needs_update when current analyzers missing from metadata."""
         scene = Scene(
             number=1,
             heading="INT. TEST - DAY",
@@ -591,15 +585,13 @@ class TestAnalyzeCommand:
             "analyzers": {"other-analyzer": {}},
         }
 
-        result = command._scene_needs_update(scene)
+        result = scene_needs_update(scene, [mock_scene_analyzer])
         assert result is True  # test-analyzer is missing
 
     def test_scene_needs_update_all_analyzers_present(
         self, mock_scene_analyzer: Mock
     ) -> None:
-        """Test _scene_needs_update when all analyzers are present."""
-        command = AnalyzeCommand(analyzers=[mock_scene_analyzer])
-
+        """Test scene_needs_update when all analyzers are present."""
         scene = Scene(
             number=1,
             heading="INT. TEST - DAY",
@@ -612,14 +604,12 @@ class TestAnalyzeCommand:
             "analyzers": {"test-analyzer": {}},
         }
 
-        result = command._scene_needs_update(scene)
+        result = scene_needs_update(scene, [mock_scene_analyzer])
         assert result is False
 
     @pytest.mark.asyncio
     async def test_load_bible_metadata_no_database(self) -> None:
         """Test loading bible metadata when database doesn't exist."""
-        command = AnalyzeCommand()
-
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_class:
@@ -627,14 +617,12 @@ class TestAnalyzeCommand:
             mock_db.check_database_exists.return_value = False
             mock_db_class.return_value = mock_db
 
-            result = await command._load_bible_metadata(Path("/test.fountain"))
+            result = await load_bible_metadata(Path("/test.fountain"))
             assert result is None
 
     @pytest.mark.asyncio
     async def test_load_bible_metadata_no_script_record(self) -> None:
         """Test loading bible metadata when script record not found."""
-        command = AnalyzeCommand()
-
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_class:
@@ -649,14 +637,12 @@ class TestAnalyzeCommand:
             mock_db.transaction.return_value.__exit__ = Mock(return_value=None)
             mock_db_class.return_value = mock_db
 
-            result = await command._load_bible_metadata(Path("/test.fountain"))
+            result = await load_bible_metadata(Path("/test.fountain"))
             assert result is None
 
     @pytest.mark.asyncio
     async def test_load_bible_metadata_success(self) -> None:
         """Test successfully loading bible metadata."""
-        command = AnalyzeCommand()
-
         bible_data = {"version": 1, "characters": []}
         metadata = {"bible.characters": bible_data}
 
@@ -674,18 +660,16 @@ class TestAnalyzeCommand:
             mock_db.transaction.return_value.__exit__ = Mock(return_value=None)
             mock_db_class.return_value = mock_db
 
-            result = await command._load_bible_metadata(Path("/test.fountain"))
+            result = await load_bible_metadata(Path("/test.fountain"))
             assert result == bible_data
 
     @pytest.mark.asyncio
     async def test_load_bible_metadata_exception(self) -> None:
         """Test loading bible metadata with exception."""
-        command = AnalyzeCommand()
-
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_class:
             mock_db_class.side_effect = Exception("Database error")
 
-            result = await command._load_bible_metadata(Path("/test.fountain"))
+            result = await load_bible_metadata(Path("/test.fountain"))
             assert result is None

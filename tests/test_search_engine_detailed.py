@@ -309,7 +309,7 @@ class TestSearchAsyncDatabaseErrors:
                 return mock_path
 
             mock_path_cls.side_effect = mock_path_constructor
-            mock_path_cls.cwd.return_value = Mock(__str__=lambda: "/current/dir")
+            mock_path_cls.cwd.return_value = Mock(__str__=lambda self: "/current/dir")  # noqa: ARG005
 
             # Also need to mock self.db_path.exists() which is called first
             with patch.object(type(engine.db_path), "exists", return_value=False):

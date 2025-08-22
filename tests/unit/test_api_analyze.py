@@ -6,7 +6,9 @@ from unittest.mock import patch
 import pytest
 
 from scriptrag.analyzers.base import BaseSceneAnalyzer
-from scriptrag.api.analyze import AnalyzeCommand, AnalyzeResult, FileResult
+from scriptrag.api.analyze import AnalyzeCommand
+from scriptrag.api.analyze_helpers import file_needs_update, scene_needs_update
+from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 
 
 class MockAnalyzer(BaseSceneAnalyzer):
@@ -238,7 +240,7 @@ class TestAnalyzeCommand:
             boneyard_metadata=None,
         )
 
-        assert analyze_command._scene_needs_update(scene) is True
+        assert scene_needs_update(scene, analyze_command.analyzers) is True
 
     def test_scene_needs_update_missing_analyzed_at(self, analyze_command):
         """Test _scene_needs_update with missing analyzed_at."""
@@ -253,7 +255,7 @@ class TestAnalyzeCommand:
             boneyard_metadata={"some": "data"},
         )
 
-        assert analyze_command._scene_needs_update(scene) is True
+        assert scene_needs_update(scene, analyze_command.analyzers) is True
 
     def test_scene_needs_update_new_analyzer(self, analyze_command):
         """Test _scene_needs_update with new analyzer."""
@@ -273,7 +275,7 @@ class TestAnalyzeCommand:
             },
         )
 
-        assert analyze_command._scene_needs_update(scene) is True
+        assert scene_needs_update(scene, analyze_command.analyzers) is True
 
     def test_scene_needs_update_up_to_date(self, analyze_command):
         """Test _scene_needs_update with up-to-date scene."""
@@ -293,7 +295,7 @@ class TestAnalyzeCommand:
             },
         )
 
-        assert analyze_command._scene_needs_update(scene) is False
+        assert scene_needs_update(scene, analyze_command.analyzers) is False
 
 
 class TestAnalyzeResult:
@@ -440,7 +442,10 @@ class TestAnalyzeCommandBranchCoverage:
         )
 
         # Should return True because scene1 needs update
-        assert analyze_command._file_needs_update(Path("test.fountain"), script) is True
+        assert (
+            file_needs_update(script, analyze_command.analyzers, Path("test.fountain"))
+            is True
+        )
 
     def test_file_needs_update_all_scenes_updated(self, analyze_command):
         """Test _file_needs_update when all scenes are up to date."""
@@ -463,24 +468,27 @@ class TestAnalyzeCommandBranchCoverage:
 
         # Should return False because all scenes are up to date
         assert (
-            analyze_command._file_needs_update(Path("test.fountain"), script) is False
+            file_needs_update(script, analyze_command.analyzers, Path("test.fountain"))
+            is False
         )
 
     def test_file_needs_update_non_script(self, analyze_command):
         """Test _file_needs_update with non-Script object."""
         # Should return False for non-Script objects
         assert (
-            analyze_command._file_needs_update(Path("test.fountain"), "not a script")
+            file_needs_update(
+                "not a script", analyze_command.analyzers, Path("test.fountain")
+            )
             is False
         )
 
     def test_scene_needs_update_non_scene(self, analyze_command):
-        """Test _scene_needs_update with non-Scene object."""
+        """Test scene_needs_update with non-Scene object."""
         # Should return False for non-Scene objects
-        assert analyze_command._scene_needs_update("not a scene") is False
+        assert scene_needs_update("not a scene", analyze_command.analyzers) is False
 
     def test_scene_needs_update_no_analyzers_in_metadata(self, analyze_command):
-        """Test _scene_needs_update when metadata has no analyzers key."""
+        """Test scene_needs_update when metadata has no analyzers key."""
         from scriptrag.parser import Scene
 
         analyze_command.analyzers.append(MockAnalyzer())
@@ -495,7 +503,7 @@ class TestAnalyzeCommandBranchCoverage:
         )
 
         # Should return False since there's no analyzers key to check
-        assert analyze_command._scene_needs_update(scene) is False
+        assert scene_needs_update(scene, analyze_command.analyzers) is False
 
     def test_load_analyzer_import_error(self, analyze_command, monkeypatch):
         """Test load_analyzer when builtin analyzers can't be imported."""

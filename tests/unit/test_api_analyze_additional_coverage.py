@@ -8,6 +8,7 @@ import pytest
 
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.api.analyze import AnalyzeCommand
+from scriptrag.api.analyze_helpers import load_bible_metadata, scene_needs_update
 from scriptrag.parser import Scene, Script
 
 
@@ -73,7 +74,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 )
                 mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result == bible_metadata
                 mock_cursor.execute.assert_called_once_with(
@@ -94,7 +95,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 mock_db_ops = mock_db_ops_class.return_value
                 mock_db_ops.check_database_exists.return_value = False
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result is None
 
@@ -121,7 +122,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 )
                 mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result is None
 
@@ -151,7 +152,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 )
                 mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result is None
 
@@ -168,7 +169,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 mock_db_ops = mock_db_ops_class.return_value
                 mock_db_ops.check_database_exists.side_effect = Exception("DB Error")
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result is None
 
@@ -194,7 +195,9 @@ class TestAnalyzeCommandAdditionalCoverage:
             "characters": [{"canonical": "JANE", "aliases": ["MS. JANE"]}],
         }
 
-        with patch.object(cmd, "_load_bible_metadata", return_value=bible_metadata):
+        with patch(
+            "scriptrag.api.analyze.load_bible_metadata", return_value=bible_metadata
+        ):
             result = await cmd.analyze(path=temp_fountain_file.parent, force=True)
 
             # Analyzer should have received bible metadata
@@ -294,7 +297,9 @@ class TestAnalyzeCommandAdditionalCoverage:
             "characters": [{"canonical": "JANE", "aliases": ["MS. JANE"]}],
         }
 
-        with patch.object(cmd, "_load_bible_metadata", return_value=bible_metadata):
+        with patch(
+            "scriptrag.api.analyze.load_bible_metadata", return_value=bible_metadata
+        ):
             result = await cmd.analyze(path=temp_fountain_file.parent, force=True)
 
             # Bible metadata should be loaded but NOT assigned to analyzer
@@ -417,7 +422,7 @@ class TestAnalyzeCommandAdditionalCoverage:
         analyzer = RelationshipsAnalyzerWithData()
         cmd = AnalyzeCommand(analyzers=[analyzer])
 
-        with patch.object(cmd, "_load_bible_metadata") as mock_load:
+        with patch("scriptrag.api.analyze.load_bible_metadata") as mock_load:
             result = await cmd.analyze(path=temp_fountain_file.parent, force=True)
 
             # _load_bible_metadata not called since bible_characters already exists
@@ -426,11 +431,11 @@ class TestAnalyzeCommandAdditionalCoverage:
             assert result.files[0].updated
 
     def test_scene_needs_update_edge_cases(self):
-        """Test _scene_needs_update method edge cases for complete coverage."""
+        """Test scene_needs_update function edge cases for complete coverage."""
         cmd = AnalyzeCommand()
 
         # Test with None scene
-        assert cmd._scene_needs_update(None) is False
+        assert scene_needs_update(None, cmd.analyzers) is False
 
         # Test with empty metadata dict but no analyzed_at
         scene_no_analyzed_at = Scene(
@@ -441,7 +446,7 @@ class TestAnalyzeCommandAdditionalCoverage:
             content_hash="hash123",
             boneyard_metadata={},  # Empty dict, no analyzed_at
         )
-        assert cmd._scene_needs_update(scene_no_analyzed_at) is True
+        assert scene_needs_update(scene_no_analyzed_at, cmd.analyzers) is True
 
     @pytest.mark.asyncio
     async def test_load_bible_metadata_with_dict_metadata(self, tmp_path):
@@ -476,7 +481,7 @@ class TestAnalyzeCommandAdditionalCoverage:
                 )
                 mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
-                result = await cmd._load_bible_metadata(script_path)
+                result = await load_bible_metadata(script_path)
 
                 assert result == bible_metadata
 

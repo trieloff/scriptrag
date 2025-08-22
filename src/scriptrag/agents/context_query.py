@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 from scriptrag.query import ParamSpec, QueryEngine, QuerySpec
-from scriptrag.utils.screenplay import ScreenplayUtils
+from scriptrag.utils import ScreenplayUtils
 
 if TYPE_CHECKING:
     from scriptrag.parser import Script

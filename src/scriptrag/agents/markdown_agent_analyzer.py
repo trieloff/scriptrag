@@ -17,8 +17,7 @@ from scriptrag.agents.context_query import (
 )
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.config import get_logger
-from scriptrag.utils import get_default_llm_client
-from scriptrag.utils.screenplay import ScreenplayUtils
+from scriptrag.utils import ScreenplayUtils, get_default_llm_client
 
 if TYPE_CHECKING:
     from scriptrag.llm.client import LLMClient

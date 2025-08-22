@@ -13,7 +13,7 @@ from scriptrag.api.scene_models import (
 )
 from scriptrag.cli.main import app
 from scriptrag.parser import Scene
-from tests.cli_fixtures import strip_ansi_codes
+from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
 

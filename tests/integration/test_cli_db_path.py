@@ -82,7 +82,7 @@ class TestDbPathOption:
 
     def test_help_shows_db_path_option(self):
         """Test that help text shows --db-path option for all commands."""
-        from tests.cli_fixtures import strip_ansi_codes
+        from tests.utils import strip_ansi_codes
 
         # Test init command help
         result = runner.invoke(app, ["init", "--help"])

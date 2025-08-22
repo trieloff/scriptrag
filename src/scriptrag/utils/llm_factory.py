@@ -70,7 +70,7 @@ def create_llm_client(
         "Creating LLM client",
         preferred_provider=provider_enum.value if provider_enum else "auto",
         fallback_order=[p.value for p in fallback_enums]
-        if fallback_enums
+        if fallback_enums is not None
         else "default",
         has_github_token=bool(github_token),
         openai_endpoint=openai_endpoint if openai_endpoint else "not configured",

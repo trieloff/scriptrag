@@ -10,7 +10,6 @@ the uncovered lines identified in the coverage analysis:
 """
 
 import asyncio
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
@@ -230,10 +229,13 @@ class TestSearchEngineAsyncContextExecution:
 class TestSearchEngineAsyncDatabaseError:
     """Test database error path in search_async (line 185)."""
 
-    def test_database_not_found_hint_generation_line_185(self, tmp_path):
+    def test_database_not_found_hint_generation_line_185(self, tmp_path, monkeypatch):
         """Test database error path with scriptrag.db hint (line 185)."""
+        # Change to temp directory to avoid conflicts
+        monkeypatch.chdir(tmp_path)
+
         # Setup: Create scriptrag.db in current directory to trigger hint
-        scriptrag_db = Path.cwd() / "scriptrag.db"
+        scriptrag_db = tmp_path / "scriptrag.db"
         scriptrag_db.write_text("")
 
         try:

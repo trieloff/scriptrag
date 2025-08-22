@@ -195,7 +195,9 @@ class TestAnalyzeCommandAdditionalCoverage:
             "characters": [{"canonical": "JANE", "aliases": ["MS. JANE"]}],
         }
 
-        with patch.object(cmd, "_load_bible_metadata", return_value=bible_metadata):
+        with patch(
+            "scriptrag.api.analyze.load_bible_metadata", return_value=bible_metadata
+        ):
             result = await cmd.analyze(path=temp_fountain_file.parent, force=True)
 
             # Analyzer should have received bible metadata
@@ -295,7 +297,9 @@ class TestAnalyzeCommandAdditionalCoverage:
             "characters": [{"canonical": "JANE", "aliases": ["MS. JANE"]}],
         }
 
-        with patch.object(cmd, "_load_bible_metadata", return_value=bible_metadata):
+        with patch(
+            "scriptrag.api.analyze.load_bible_metadata", return_value=bible_metadata
+        ):
             result = await cmd.analyze(path=temp_fountain_file.parent, force=True)
 
             # Bible metadata should be loaded but NOT assigned to analyzer
@@ -418,7 +422,7 @@ class TestAnalyzeCommandAdditionalCoverage:
         analyzer = RelationshipsAnalyzerWithData()
         cmd = AnalyzeCommand(analyzers=[analyzer])
 
-        with patch.object(cmd, "_load_bible_metadata") as mock_load:
+        with patch("scriptrag.api.analyze.load_bible_metadata") as mock_load:
             result = await cmd.analyze(path=temp_fountain_file.parent, force=True)
 
             # _load_bible_metadata not called since bible_characters already exists

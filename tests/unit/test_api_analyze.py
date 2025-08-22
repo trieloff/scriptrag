@@ -7,7 +7,7 @@ import pytest
 
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.api.analyze import AnalyzeCommand
-from scriptrag.api.analyze_helpers import scene_needs_update
+from scriptrag.api.analyze_helpers import file_needs_update, scene_needs_update
 from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 
 
@@ -240,7 +240,7 @@ class TestAnalyzeCommand:
             boneyard_metadata=None,
         )
 
-        assert analyze_command._scene_needs_update(scene) is True
+        assert scene_needs_update(scene, analyze_command.analyzers) is True
 
     def test_scene_needs_update_missing_analyzed_at(self, analyze_command):
         """Test _scene_needs_update with missing analyzed_at."""
@@ -255,7 +255,7 @@ class TestAnalyzeCommand:
             boneyard_metadata={"some": "data"},
         )
 
-        assert analyze_command._scene_needs_update(scene) is True
+        assert scene_needs_update(scene, analyze_command.analyzers) is True
 
     def test_scene_needs_update_new_analyzer(self, analyze_command):
         """Test _scene_needs_update with new analyzer."""
@@ -275,7 +275,7 @@ class TestAnalyzeCommand:
             },
         )
 
-        assert analyze_command._scene_needs_update(scene) is True
+        assert scene_needs_update(scene, analyze_command.analyzers) is True
 
     def test_scene_needs_update_up_to_date(self, analyze_command):
         """Test _scene_needs_update with up-to-date scene."""
@@ -295,7 +295,7 @@ class TestAnalyzeCommand:
             },
         )
 
-        assert analyze_command._scene_needs_update(scene) is False
+        assert scene_needs_update(scene, analyze_command.analyzers) is False
 
 
 class TestAnalyzeResult:
@@ -442,7 +442,10 @@ class TestAnalyzeCommandBranchCoverage:
         )
 
         # Should return True because scene1 needs update
-        assert analyze_command._file_needs_update(Path("test.fountain"), script) is True
+        assert (
+            file_needs_update(script, analyze_command.analyzers, Path("test.fountain"))
+            is True
+        )
 
     def test_file_needs_update_all_scenes_updated(self, analyze_command):
         """Test _file_needs_update when all scenes are up to date."""

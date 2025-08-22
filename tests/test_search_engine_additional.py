@@ -277,9 +277,13 @@ class TestSemanticSearchIntegration:
 
         # Create query that needs vector search (long query triggers semantic search)
         # Need >10 words to trigger vector search in AUTO mode
+        long_query = (
+            "this is a very long query that triggers semantic search "
+            "exceeding the word count threshold"
+        )
         query = SearchQuery(
-            raw_query="very long query triggers semantic search exceeding threshold",
-            text_query="very long query triggers semantic search exceeding threshold",
+            raw_query=long_query,
+            text_query=long_query,
             limit=10,
             include_bible=True,
         )

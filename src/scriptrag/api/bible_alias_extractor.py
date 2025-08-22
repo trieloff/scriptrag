@@ -57,9 +57,9 @@ class BibleAliasExtractor:
             client = await get_default_llm_client()
 
             # Concatenate relevant chunks into a single prompt context (bounded)
-            # Keep it lightweight: headings + first 2000 chars
+            # Keep it lightweight: headings + first N chars (configurable)
             chunks_text = []
-            limit = 2000
+            limit = self.settings.bible_llm_context_limit
             total = 0
             for ch in parsed_bible.chunks:
                 frag = f"# {ch.heading or ''}\n\n{ch.content}\n\n"

@@ -204,6 +204,13 @@ class ScriptRAGSettings(BaseSettings):
         description="Maximum size for bible files in bytes",
         gt=0,
     )
+    bible_llm_context_limit: int = Field(
+        default=2000,
+        description=(
+            "Maximum character limit for LLM context when extracting bible aliases"
+        ),
+        gt=0,
+    )
 
     @field_validator("database_path", "log_file", mode="before")
     @classmethod

@@ -322,7 +322,9 @@ class TestSearchAsyncDatabaseErrors:
                 error = exc_info.value
                 assert "Database not found at" in str(error)
                 assert "Found scriptrag.db here" in error.hint
-                assert error.details["searched_path"] == "/nonexistent/test.db"
+                # Cross-platform path comparison: normalize separators
+                actual_path = error.details["searched_path"].replace("\\", "/")
+                assert actual_path.endswith("/nonexistent/test.db")
                 assert "current_dir" in error.details
                 assert error.details["env_var"] == "custom_path"
 

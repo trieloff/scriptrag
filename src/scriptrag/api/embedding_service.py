@@ -297,10 +297,10 @@ class EmbeddingService:
 
         # Validate data length matches expected size
         expected_size = 4 + dimension * 4  # 4 bytes for dimension + 4 bytes per float
-        if len(data) < expected_size:
+        if len(data) != expected_size:
             raise ValueError(
-                f"Embedding data truncated: expected {expected_size} bytes, "
-                f"got {len(data)}"
+                f"Embedding data size mismatch: expected exactly "
+                f"{expected_size} bytes, got {len(data)}"
             )
 
         # Unpack the float values

@@ -8,7 +8,7 @@ import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
-from tests.utils import strip_ansi_codes
+from tests.cli_fixtures import strip_ansi_codes
 
 runner = CliRunner()
 

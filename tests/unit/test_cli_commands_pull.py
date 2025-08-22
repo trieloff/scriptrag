@@ -294,7 +294,7 @@ class TestPullCommand:
         result = runner.invoke(app, ["pull"])
 
         # Verify completion despite errors
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert result.exit_code == 0
@@ -569,7 +569,7 @@ class TestPullCommand:
         result = runner.invoke(app, ["pull"])
 
         # Verify error display
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert result.exit_code == 0

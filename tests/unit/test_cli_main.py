@@ -84,7 +84,7 @@ class TestCommandRegistration:
     )
     def test_command_help_accessible(self, command):
         """Test that help is accessible for all commands."""
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         runner = CliRunner()
         result = runner.invoke(app, [command, "--help"])

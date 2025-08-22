@@ -100,7 +100,7 @@ class TestWatchCommand:
         )
 
         # Verify timeout behavior
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert "Watch timeout reached (3s)" in output
@@ -535,7 +535,7 @@ class TestWatchCommand:
                 )
 
                 # Verify timeout message
-                from tests.utils import strip_ansi_codes
+                from tests.cli_fixtures import strip_ansi_codes
 
                 output = strip_ansi_codes(result.output)
                 assert "Watch timeout reached (4s)" in output
@@ -633,7 +633,7 @@ class TestWatchCommand:
         tmp_path,
     ):
         """Test watch command with non-existent config file."""
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         # Use non-existent config file
         config_file = tmp_path / "nonexistent.yaml"

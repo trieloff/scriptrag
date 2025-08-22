@@ -50,7 +50,7 @@ class TestAnalyzeCommand:
         result = runner.invoke(app, ["analyze", "--help"])
         assert result.exit_code == 0
         # Strip ANSI codes for help output checks
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert "Analyze Fountain files and update their metadata" in output
@@ -85,7 +85,7 @@ class TestAnalyzeCommand:
         result = runner.invoke(app, ["analyze"])
 
         # Verify success - strip ANSI codes for consistent testing
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert result.exit_code == 0
@@ -276,7 +276,7 @@ class TestAnalyzeCommand:
         result = runner.invoke(app, ["analyze", "--analyzer", "bad-analyzer"])
 
         # Verify command still succeeds but shows warning - strip ANSI codes
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert result.exit_code == 0
@@ -336,7 +336,7 @@ class TestAnalyzeCommand:
         result = runner.invoke(app, ["analyze"])
 
         # Verify success with appropriate messaging - strip ANSI codes
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert result.exit_code == 0
@@ -368,7 +368,7 @@ class TestAnalyzeCommand:
         result = runner.invoke(app, ["analyze"])
 
         # Verify command completes successfully despite errors
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
 
@@ -398,7 +398,7 @@ class TestAnalyzeCommand:
         result = runner.invoke(app, ["analyze"])
 
         # Verify error summary
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
 
@@ -437,7 +437,7 @@ class TestAnalyzeCommand:
         # Verify path display - strip ANSI codes and handle Windows paths
         import os
 
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert result.exit_code == 0
@@ -542,7 +542,7 @@ class TestAnalyzeCommand:
         result = runner.invoke(app, ["analyze"])
 
         # Verify spinner was shown (progress task created) - strip ANSI codes
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert result.exit_code == 0

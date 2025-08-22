@@ -7,15 +7,37 @@ to the new cli_fixtures module for automatic ANSI stripping.
 import contextlib
 import json
 import sqlite3
+
+# Import strip_ansi_codes from the new module for consistency
+import warnings
 from pathlib import Path
 from typing import Any
 
 from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
+from tests.cli_fixtures import strip_ansi_codes as _strip_ansi_codes
 
-# Import strip_ansi_codes from the new module for consistency
-from tests.cli_fixtures import strip_ansi_codes
+
+def strip_ansi_codes(text: str) -> str:
+    """Strip ANSI escape codes from text.
+
+    DEPRECATED: Import directly from tests.cli_fixtures instead.
+    This wrapper will be removed in a future version.
+
+    Args:
+        text: Text containing ANSI escape codes
+
+    Returns:
+        Text with ANSI codes removed
+    """
+    warnings.warn(
+        "Importing strip_ansi_codes from tests.utils is deprecated. "
+        "Please import directly from tests.cli_fixtures instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return _strip_ansi_codes(text)
 
 
 class CLITestHelper:
@@ -38,7 +60,7 @@ class CLITestHelper:
             Tuple of (exit_code, cleaned_output)
         """
         result = self.runner.invoke(app, ["init", "--db-path", str(self.db_path)])
-        return result.exit_code, strip_ansi_codes(result.stdout)
+        return result.exit_code, _strip_ansi_codes(result.stdout)
 
     def analyze_scripts(
         self, script_dir: Path, analyzer: str | None = None, force: bool = False
@@ -60,7 +82,7 @@ class CLITestHelper:
             args.append("--force")
 
         result = self.runner.invoke(app, args)
-        return result.exit_code, strip_ansi_codes(result.stdout)
+        return result.exit_code, _strip_ansi_codes(result.stdout)
 
     def index_scripts(self, script_dir: Path) -> tuple[int, str]:
         """Run the index command on a directory.
@@ -72,7 +94,7 @@ class CLITestHelper:
             Tuple of (exit_code, cleaned_output)
         """
         result = self.runner.invoke(app, ["index", str(script_dir)])
-        return result.exit_code, strip_ansi_codes(result.stdout)
+        return result.exit_code, _strip_ansi_codes(result.stdout)
 
     def search(self, query: str, **kwargs) -> tuple[int, str, dict[str, Any] | None]:
         """Run a search query.
@@ -93,7 +115,7 @@ class CLITestHelper:
             args.extend(["--offset", str(kwargs["offset"])])
 
         result = self.runner.invoke(app, args)
-        output = strip_ansi_codes(result.stdout)
+        output = _strip_ansi_codes(result.stdout)
 
         json_data = None
         if kwargs.get("json") and result.exit_code == 0:

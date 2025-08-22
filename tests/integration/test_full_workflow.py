@@ -19,13 +19,13 @@ from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
 from scriptrag.config import set_settings
+from tests.cli_fixtures import strip_ansi_codes
 from tests.llm_fixtures import create_llm_completion_response
 from tests.llm_test_utils import (
     TIMEOUT_INTEGRATION,
     TIMEOUT_LLM,
     retry_flaky_test,
 )
-from tests.utils import strip_ansi_codes
 
 runner = CliRunner()
 

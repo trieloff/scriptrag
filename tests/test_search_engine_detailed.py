@@ -300,7 +300,12 @@ class TestSearchAsyncDatabaseErrors:
                     mock_path.exists.return_value = True
                 else:
                     mock_path.exists.return_value = False
-                mock_path.__str__ = lambda _: str(path_str)
+
+                # Create a bound method for __str__
+                def path_str_method():
+                    return str(path_str)
+
+                mock_path.__str__ = path_str_method
                 return mock_path
 
             mock_path_cls.side_effect = mock_path_constructor

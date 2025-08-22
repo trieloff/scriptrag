@@ -19,7 +19,7 @@ Tests that work perfectly in local development may fail in CI because:
 **Always use the `strip_ansi_codes()` utility function when testing CLI output:**
 
 ```python
-from tests.utils import strip_ansi_codes
+from tests.cli_fixtures import strip_ansi_codes
 
 def test_cli_command(self):
     result = runner.invoke(app, ["command", "--help"])
@@ -33,7 +33,7 @@ def test_cli_command(self):
 ```
 
 ### The Utility
-The `strip_ansi_codes()` function is available in `tests/utils.py`:
+The `strip_ansi_codes()` function is available in `tests/cli_fixtures.py`:
 - Removes all ANSI escape sequences using regex pattern `\x1b\[[0-9;]*m`
 - Returns clean text suitable for string matching
 - Shared across all test files to avoid duplication

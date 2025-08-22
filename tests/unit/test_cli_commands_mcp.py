@@ -32,7 +32,7 @@ class TestMCPCommand:
         assert result.exit_code == 0
 
         # Strip ANSI codes for help output checks
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
         assert "Run the ScriptRAG MCP (Model Context Protocol) server" in output
@@ -363,7 +363,7 @@ class TestMCPCommandIntegration:
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
 
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
 

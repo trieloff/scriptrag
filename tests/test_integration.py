@@ -14,7 +14,7 @@ from typer.testing import CliRunner
 from scriptrag.cli.main import app
 from scriptrag.config import ScriptRAGSettings, set_settings
 from scriptrag.parser import FountainParser
-from tests.utils import strip_ansi_codes
+from tests.cli_fixtures import strip_ansi_codes
 
 runner = CliRunner()
 

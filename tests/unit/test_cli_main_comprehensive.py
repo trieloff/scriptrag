@@ -33,7 +33,7 @@ class TestCLIMainApp:
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
 
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
 
@@ -63,7 +63,7 @@ class TestCLIMainApp:
 
         # Test more safely by checking it doesn't appear in main help
         result = runner.invoke(app, ["--help"])
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
 
@@ -77,7 +77,7 @@ class TestCLIMainApp:
         result = runner.invoke(app, ["query", "--help"])
         assert result.exit_code == 0
 
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
 
@@ -150,7 +150,7 @@ class TestCLIMainModuleIntegration:
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
 
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
 
@@ -174,7 +174,7 @@ class TestCLIMainModuleIntegration:
             result = runner.invoke(app, [command, "--help"])
             # Some commands might exit with code != 0 due to missing deps,
             # but help should generally work
-            from tests.utils import strip_ansi_codes
+            from tests.cli_fixtures import strip_ansi_codes
 
             output = strip_ansi_codes(result.output)
 
@@ -240,7 +240,7 @@ class TestCLIMainEdgeCases:
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
 
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
 
@@ -287,7 +287,7 @@ class TestCLIMainEdgeCases:
     def test_command_name_consistency(self, runner):
         """Test that command names are consistent."""
         result = runner.invoke(app, ["--help"])
-        from tests.utils import strip_ansi_codes
+        from tests.cli_fixtures import strip_ansi_codes
 
         output = strip_ansi_codes(result.output)
 

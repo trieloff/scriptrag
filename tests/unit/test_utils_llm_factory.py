@@ -179,6 +179,38 @@ class TestCreateLLMClient:
         )
 
     @patch("scriptrag.utils.llm_factory.get_settings")
+    @patch("scriptrag.utils.llm_factory.logger")
+    def test_create_with_all_invalid_fallback_order(
+        self, mock_logger, mock_get_settings, mock_llm_client
+    ):
+        """Test creating client with all invalid fallback order."""
+        mock_settings = MagicMock()
+        mock_settings.llm_provider = None
+        mock_settings.llm_endpoint = None
+        mock_settings.llm_api_key = None
+        mock_get_settings.return_value = mock_settings
+
+        # All invalid providers should result in empty list
+        fallback_order = ["invalid1", "invalid2", "invalid3"]
+        client = create_llm_client(fallback_order=fallback_order)
+
+        # Should be called with empty list, not None
+        mock_llm_client.assert_called_once_with(
+            preferred_provider=None,
+            fallback_order=[],  # Empty list, not None
+            github_token=None,
+            openai_endpoint=None,
+            openai_api_key=None,
+            timeout=30.0,
+        )
+
+        # Check that logging shows empty list, not "default"
+        mock_logger.info.assert_called_once()
+        call_args = mock_logger.info.call_args
+        # The fallback_order in the log should be [], not "default"
+        assert call_args[1]["fallback_order"] == []
+
+    @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_github_token(self, mock_get_settings, mock_llm_client):
         """Test creating client with GitHub token."""
         mock_settings = MagicMock()

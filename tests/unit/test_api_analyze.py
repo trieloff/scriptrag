@@ -468,14 +468,17 @@ class TestAnalyzeCommandBranchCoverage:
 
         # Should return False because all scenes are up to date
         assert (
-            analyze_command._file_needs_update(Path("test.fountain"), script) is False
+            file_needs_update(script, analyze_command.analyzers, Path("test.fountain"))
+            is False
         )
 
     def test_file_needs_update_non_script(self, analyze_command):
         """Test _file_needs_update with non-Script object."""
         # Should return False for non-Script objects
         assert (
-            analyze_command._file_needs_update(Path("test.fountain"), "not a script")
+            file_needs_update(
+                "not a script", analyze_command.analyzers, Path("test.fountain")
+            )
             is False
         )
 

@@ -8,7 +8,7 @@ import pytest
 
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.api.analyze import AnalyzeCommand
-from scriptrag.api.analyze_helpers import load_bible_metadata
+from scriptrag.api.analyze_helpers import load_bible_metadata, scene_needs_update
 from scriptrag.parser import Scene, Script
 
 
@@ -431,11 +431,11 @@ class TestAnalyzeCommandAdditionalCoverage:
             assert result.files[0].updated
 
     def test_scene_needs_update_edge_cases(self):
-        """Test _scene_needs_update method edge cases for complete coverage."""
+        """Test scene_needs_update function edge cases for complete coverage."""
         cmd = AnalyzeCommand()
 
         # Test with None scene
-        assert cmd._scene_needs_update(None) is False
+        assert scene_needs_update(None, cmd.analyzers) is False
 
         # Test with empty metadata dict but no analyzed_at
         scene_no_analyzed_at = Scene(
@@ -446,7 +446,7 @@ class TestAnalyzeCommandAdditionalCoverage:
             content_hash="hash123",
             boneyard_metadata={},  # Empty dict, no analyzed_at
         )
-        assert cmd._scene_needs_update(scene_no_analyzed_at) is True
+        assert scene_needs_update(scene_no_analyzed_at, cmd.analyzers) is True
 
     @pytest.mark.asyncio
     async def test_load_bible_metadata_with_dict_metadata(self, tmp_path):

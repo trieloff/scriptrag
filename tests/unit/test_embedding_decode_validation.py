@@ -67,7 +67,7 @@ class TestEmbeddingDecodeValidation:
             f"<{len(truncated_floats)}f", *truncated_floats
         )
 
-        with pytest.raises(ValueError, match="Embedding data truncated"):
+        with pytest.raises(ValueError, match="Embedding data size mismatch"):
             embedding_service.decode_embedding_from_db(data)
 
     def test_decode_corrupted_float_data(
@@ -78,8 +78,8 @@ class TestEmbeddingDecodeValidation:
         dimension = 2
         data = struct.pack("<I", dimension) + b"invalid"  # Only 7 extra bytes, need 8
 
-        # This will trigger the truncated data check first
-        with pytest.raises(ValueError, match="Embedding data truncated"):
+        # This will trigger the size mismatch check first
+        with pytest.raises(ValueError, match="Embedding data size mismatch"):
             embedding_service.decode_embedding_from_db(data)
 
     def test_decode_large_valid_embedding(

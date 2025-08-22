@@ -105,6 +105,15 @@ class SearchEngine:
                 except Exception as e:
                     exception = e
                 finally:
+                    # Cancel all pending tasks before closing the loop
+                    pending = asyncio.all_tasks(new_loop)
+                    for task in pending:
+                        task.cancel()
+                    # Run the loop one more time to let tasks handle cancellation
+                    if pending:
+                        new_loop.run_until_complete(
+                            asyncio.gather(*pending, return_exceptions=True)
+                        )
                     new_loop.close()
 
             thread = threading.Thread(target=run_in_new_loop)
@@ -139,6 +148,15 @@ class SearchEngine:
                 )
                 raise
             finally:
+                # Cancel all pending tasks before closing the loop
+                pending = asyncio.all_tasks(loop)
+                for task in pending:
+                    task.cancel()
+                # Run the loop one more time to let tasks handle cancellation
+                if pending:
+                    loop.run_until_complete(
+                        asyncio.gather(*pending, return_exceptions=True)
+                    )
                 loop.close()
 
     async def search_async(self, query: SearchQuery) -> SearchResponse:

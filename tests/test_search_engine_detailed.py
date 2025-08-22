@@ -300,7 +300,7 @@ class TestSearchAsyncDatabaseErrors:
                     mock_path.exists.return_value = True
                 else:
                     mock_path.exists.return_value = False
-                mock_path.__str__ = lambda: str(path_str)
+                mock_path.__str__ = lambda _: str(path_str)
                 return mock_path
 
             mock_path_cls.side_effect = mock_path_constructor

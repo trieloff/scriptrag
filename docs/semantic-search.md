@@ -380,18 +380,26 @@ class CustomEmbeddingService(EmbeddingService):
 
 ### Vector Database Integration
 
-For production deployments with millions of scenes, consider integrating a dedicated vector database:
+ScriptRAG's semantic search uses an embedded SQLite database with vector similarity search capabilities. The architecture is designed to be extensible for future integration with dedicated vector databases:
 
 ```python
-# Future support for vector databases
-from scriptrag.vector_db import ChromaDBAdapter, PineconeAdapter
+# Current semantic search implementation
+from scriptrag.api.semantic_search import SemanticSearchService
+from scriptrag.config import get_settings
 
-# Configure vector database
-vector_db = ChromaDBAdapter(
-    collection="screenplay_scenes",
-    distance_metric="cosine"
+# Configure semantic search service
+settings = get_settings()
+search_service = SemanticSearchService(settings)
+
+# Search for similar scenes
+results = await search_service.search_similar_scenes(
+    query="scenes about betrayal",
+    top_k=10,
+    threshold=0.5
 )
 ```
+
+For production deployments with millions of scenes, future releases may support dedicated vector databases like ChromaDB or Pinecone through the extensible `SemanticSearchService` interface.
 
 ## Conclusion
 

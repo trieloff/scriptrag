@@ -1,10 +1,6 @@
 """Utility type definitions."""
 
-import logging
 from typing import Any, TypeAlias
-
-# Logger types
-Logger: TypeAlias = logging.Logger
 
 # Generic utility types
 JSONData: TypeAlias = dict[str, Any]

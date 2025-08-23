@@ -258,7 +258,9 @@ class TestVSSServiceExtended:
             # Configure mock to handle the query
             def mock_execute(query, params):
                 if (
-                    "MATCH" in query and "bible_embeddings" in query and params[1] == 10
+                    "MATCH" in query
+                    and "bible_chunk_embeddings" in query
+                    and params[1] == 10
                 ):  # script_id filter
                     return mock_cursor
                 return MagicMock()

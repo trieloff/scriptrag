@@ -173,7 +173,7 @@ class TestVSSService:
         with service.get_connection() as conn:
             cursor = conn.execute(
                 "SELECT chunk_id, embedding_model "
-                "FROM bible_embeddings WHERE chunk_id = ?",
+                "FROM bible_chunk_embeddings WHERE chunk_id = ?",
                 (1,),
             )
             result = cursor.fetchone()
@@ -231,16 +231,16 @@ class TestVSSService:
 
         assert stats is not None
         assert "scene_embeddings" in stats
-        assert "bible_embeddings" in stats
+        assert "bible_chunk_embeddings" in stats
         assert "metadata" in stats
 
         # Check scene embeddings
         assert "text-embedding-3-small" in stats["scene_embeddings"]
         assert stats["scene_embeddings"]["text-embedding-3-small"] == 3
 
-        # Check bible embeddings
-        assert "text-embedding-3-small" in stats["bible_embeddings"]
-        assert stats["bible_embeddings"]["text-embedding-3-small"] == 2
+        # Check bible chunk embeddings
+        assert "text-embedding-3-small" in stats["bible_chunk_embeddings"]
+        assert stats["bible_chunk_embeddings"]["text-embedding-3-small"] == 2
 
         # Check metadata
         assert "scene" in stats["metadata"]

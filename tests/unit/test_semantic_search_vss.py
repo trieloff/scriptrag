@@ -338,7 +338,7 @@ class TestSemanticSearchVSS:
         """Test getting embedding statistics."""
         mock_stats = {
             "scene_embeddings": {"model1": 10, "model2": 5},
-            "bible_embeddings": {"model1": 3},
+            "bible_chunk_embeddings": {"model1": 3},
             "metadata": {
                 "scene": {"count": 15, "avg_dimensions": 1536},
                 "bible_chunk": {"count": 3, "avg_dimensions": 1536},

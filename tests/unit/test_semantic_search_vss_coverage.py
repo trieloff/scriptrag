@@ -51,7 +51,7 @@ class TestSemanticSearchVSSExtended:
         # Mock stats
         mock_stats = {
             "scene_embeddings": {"test-model": 10},
-            "bible_embeddings": {"test-model": 5},
+            "bible_chunk_embeddings": {"test-model": 5},
         }
         mock_vss_service.get_embedding_stats.return_value = mock_stats
 

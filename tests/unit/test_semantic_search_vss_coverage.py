@@ -51,7 +51,7 @@ class TestSemanticSearchVSSExtended:
         # Mock stats
         mock_stats = {
             "scene_embeddings": {"test-model": 10},
-            "bible_embeddings": {"test-model": 5},
+            "bible_chunk_embeddings": {"test-model": 5},
         }
         mock_vss_service.get_embedding_stats.return_value = mock_stats
 
@@ -61,33 +61,16 @@ class TestSemanticSearchVSSExtended:
         assert stats == mock_stats
         mock_vss_service.get_embedding_stats.assert_called_once()
 
-    @pytest.mark.asyncio
-    async def test_migrate_to_vss_success(self, search_service, mock_vss_service):
-        """Test successful migration to VSS."""
-        # Mock successful migration
-        mock_vss_service.migrate_from_blob_storage.return_value = (10, 5)
 
-        # Run migration
-        scenes, bible = await search_service.migrate_to_vss()
+# Migration tests removed - migration function no longer exists
+# @pytest.mark.asyncio
+# async def test_migrate_to_vss_success(self, search_service, mock_vss_service):
+#     pass
+#
+# @pytest.mark.asyncio
+# async def test_migrate_to_vss_with_error(self, search_service, mock_vss_service):
+#     pass
 
-        assert scenes == 10
-        assert bible == 5
-        mock_vss_service.migrate_from_blob_storage.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_migrate_to_vss_with_error(self, search_service, mock_vss_service):
-        """Test migration error handling."""
-        # Mock migration error
-        mock_vss_service.migrate_from_blob_storage.side_effect = Exception(
-            "Migration failed"
-        )
-
-        # migrate_to_vss propagates the exception
-        with pytest.raises(Exception) as exc_info:
-            await search_service.migrate_to_vss()
-
-        assert "Migration failed" in str(exc_info.value)
-
-    # NOTE: The main search and find methods require complex setup with real database
-    # connections and proper data structures. They are tested in integration tests.
-    # These unit tests focus on simpler method coverage.
+# NOTE: The main search and find methods require complex setup with real database
+# connections and proper data structures. They are tested in integration tests.
+# These unit tests focus on simpler method coverage.

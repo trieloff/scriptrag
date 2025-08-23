@@ -451,20 +451,6 @@ class SemanticSearchVSS:
 
         return chunks_processed, embeddings_generated
 
-    async def migrate_to_vss(self) -> tuple[int, int]:
-        """Migrate existing embeddings from BLOB storage to VSS.
-
-        Returns:
-            Tuple of (scenes_migrated, bible_chunks_migrated)
-        """
-        logger.info("Starting migration to VSS...")
-        scenes_migrated, bible_migrated = self.vss.migrate_from_blob_storage()
-        logger.info(
-            f"Migration complete: {scenes_migrated} scenes, "
-            f"{bible_migrated} bible chunks"
-        )
-        return scenes_migrated, bible_migrated
-
     def get_embedding_stats(self) -> dict[str, Any]:
         """Get statistics about VSS embeddings.
 

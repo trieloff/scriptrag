@@ -301,7 +301,7 @@ color = true
 exclude = ["tests/", "docs/", ".venv/", "build/", "dist/"]
 min_confidence = 80
 paths = ["src/scriptrag"]
-ignore_names = ["sql", "texts"]  # Ignore Protocol method parameters
+ignore_names = ["sql", "texts", "exc_type", "exc_val", "exc_tb"]  # Ignore Protocol method parameters and context manager args
 
 [tool.pylint.messages_control]
 disable = [

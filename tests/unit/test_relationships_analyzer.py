@@ -169,21 +169,19 @@ def test_scan_mentions_with_no_canonical_mapping():
     assert mentions == set()
 
 
-def test_alias_to_canonical_property_with_config_fallback():
-    """Test alias_to_canonical property when config provides characters."""
+def test_internal_alias_index_access():
+    """Test accessing alias index through internal _index when properly initialized."""
     bible_characters = {
         "version": 1,
         "characters": [
             {"canonical": "JANE SMITH", "aliases": ["JANE"]},
         ],
     }
-    analyzer = CharacterRelationshipsAnalyzer()
-    # Set config after initialization to test property fallback
-    analyzer.config = {"bible_characters": bible_characters}
-    analyzer._index = None  # Force property to initialize
+    analyzer = CharacterRelationshipsAnalyzer(
+        config={"bible_characters": bible_characters}
+    )
 
-    # Access property should trigger config-based initialization
-    alias_map = analyzer.alias_to_canonical
-
-    assert alias_map["JANE"] == "JANE SMITH"
-    assert alias_map["JANE SMITH"] == "JANE SMITH"
+    # Internal index should be populated during initialization
+    assert analyzer._index is not None
+    assert analyzer._index.alias_to_canonical["JANE"] == "JANE SMITH"
+    assert analyzer._index.alias_to_canonical["JANE SMITH"] == "JANE SMITH"

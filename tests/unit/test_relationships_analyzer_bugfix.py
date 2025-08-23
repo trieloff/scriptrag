@@ -7,7 +7,9 @@ compatibility with legacy code that relies on this attribute.
 
 import pytest
 
-from scriptrag.analyzers.relationships import CharacterRelationshipsAnalyzer
+from tests.unit.helpers.relationship_test_utils import (
+    RelationshipTestHelpers,
+)
 
 
 class TestRelationshipsAnalyzerBugfix:
@@ -21,7 +23,8 @@ class TestRelationshipsAnalyzerBugfix:
         The bug would cause _find_mentions_in_text to fail because it relies on
         self.alias_patterns being populated.
         """
-        # Create analyzer with bible characters config
+        # Create analyzer with test data - using slightly different names
+        # to ensure we're testing the specific bug fix behavior
         bible_characters = {
             "version": 1,
             "characters": [
@@ -30,9 +33,7 @@ class TestRelationshipsAnalyzerBugfix:
             ],
         }
 
-        analyzer = CharacterRelationshipsAnalyzer(
-            config={"bible_characters": bible_characters}
-        )
+        analyzer = RelationshipTestHelpers.create_analyzer_with_config(bible_characters)
 
         # Important: Do NOT call initialize() or analyze() first
         # We want to test the property access path specifically
@@ -85,9 +86,7 @@ class TestRelationshipsAnalyzerBugfix:
             ],
         }
 
-        analyzer = CharacterRelationshipsAnalyzer(
-            config={"bible_characters": bible_characters}
-        )
+        analyzer = RelationshipTestHelpers.create_analyzer_with_config(bible_characters)
 
         # Access property to trigger initialization
         _ = analyzer.alias_to_canonical
@@ -107,7 +106,7 @@ class TestRelationshipsAnalyzerBugfix:
 
         This ensures the bug fix doesn't break the fallback path.
         """
-        analyzer = CharacterRelationshipsAnalyzer()
+        analyzer = RelationshipTestHelpers.create_analyzer_with_config(None)
 
         # Access property without any config
         alias_map = analyzer.alias_to_canonical
@@ -132,9 +131,7 @@ class TestRelationshipsAnalyzerBugfix:
             ],
         }
 
-        analyzer = CharacterRelationshipsAnalyzer(
-            config={"bible_characters": bible_characters}
-        )
+        analyzer = RelationshipTestHelpers.create_analyzer_with_config(bible_characters)
 
         # Access property first
         alias_map = analyzer.alias_to_canonical
@@ -163,14 +160,14 @@ class TestRelationshipsAnalyzerBugfix:
         }
 
         # Analyzer 1: Initialize via property access (bug fix path)
-        analyzer1 = CharacterRelationshipsAnalyzer(
-            config={"bible_characters": bible_characters}
+        analyzer1 = RelationshipTestHelpers.create_analyzer_with_config(
+            bible_characters
         )
         _ = analyzer1.alias_to_canonical  # Trigger via property
 
         # Analyzer 2: Initialize via normal path
-        analyzer2 = CharacterRelationshipsAnalyzer(
-            config={"bible_characters": bible_characters}
+        analyzer2 = RelationshipTestHelpers.create_analyzer_with_config(
+            bible_characters
         )
         # This will populate via __init__ since config is provided
 

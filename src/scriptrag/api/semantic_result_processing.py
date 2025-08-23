@@ -11,6 +11,10 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Any
 
+from scriptrag.config import get_logger
+
+logger = get_logger(__name__)
+
 
 def build_scene_results(
     candidates: Iterable[dict[str, Any]],
@@ -38,9 +42,16 @@ def build_scene_results(
             scene_embedding = embedding_service.decode_embedding_from_db(
                 scene["_embedding"]
             )
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
             # Skip scenes with corrupted or missing embeddings
-            # Log would be here if we had logger access
+            logger.warning(
+                "Skipping scene with corrupted or missing embedding",
+                scene_id=scene.get("id"),
+                script_id=scene.get("script_id"),
+                heading=scene.get("heading"),
+                error_type=type(e).__name__,
+                error=str(e),
+            )
             continue
 
         similarity = embedding_service.cosine_similarity(
@@ -84,9 +95,18 @@ def build_bible_results(
             chunk_embedding = embedding_service.decode_embedding_from_db(
                 chunk["embedding"]
             )
-        except (ValueError, KeyError):
+        except (ValueError, KeyError) as e:
             # Skip chunks with corrupted or missing embeddings
-            # Log would be here if we had logger access
+            logger.warning(
+                "Skipping bible chunk with corrupted or missing embedding",
+                chunk_id=chunk.get("id"),
+                bible_id=chunk.get("bible_id"),
+                script_id=chunk.get("script_id"),
+                bible_title=chunk.get("bible_title"),
+                heading=chunk.get("heading"),
+                error_type=type(e).__name__,
+                error=str(e),
+            )
             continue
 
         similarity = embedding_service.cosine_similarity(

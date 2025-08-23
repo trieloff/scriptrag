@@ -4,6 +4,8 @@ This module provides both code-based analyzers and markdown-based agent specific
 for screenplay analysis.
 """
 
-from .loader import AgentLoader, AgentSpec, MarkdownAgentAnalyzer
+from .agent_loader import AgentLoader
+from .agent_spec import AgentSpec
+from .markdown_agent_analyzer import MarkdownAgentAnalyzer
 
 __all__ = ["AgentLoader", "AgentSpec", "MarkdownAgentAnalyzer"]

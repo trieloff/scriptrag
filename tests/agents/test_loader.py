@@ -9,7 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from jsonschema import ValidationError
 
-from scriptrag.agents.loader import AgentLoader, AgentSpec, MarkdownAgentAnalyzer
+from scriptrag.agents.agent_loader import AgentLoader
+from scriptrag.agents.agent_spec import AgentSpec
+from scriptrag.agents.markdown_agent_analyzer import MarkdownAgentAnalyzer
 from scriptrag.llm.models import LLMProvider
 
 if TYPE_CHECKING:

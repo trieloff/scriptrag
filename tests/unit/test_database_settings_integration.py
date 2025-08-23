@@ -47,7 +47,9 @@ class TestDatabaseSettingsIntegration:
         def mock_read_side_effect(filename):
             if "bible" in filename:
                 return "-- Bible schema (mocked)"
-            return "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+            if "vss" in filename:
+                return "-- VSS schema (mocked)"
+            return "CREATE TABLE test_pragmas (id INTEGER PRIMARY KEY);"
 
         with patch.object(initializer, "_read_sql_file") as mock_read:
             mock_read.side_effect = mock_read_side_effect
@@ -92,7 +94,9 @@ class TestDatabaseSettingsIntegration:
         def mock_read_side_effect(filename):
             if "bible" in filename:
                 return "-- Bible schema (mocked)"
-            return "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+            if "vss" in filename:
+                return "-- VSS schema (mocked)"
+            return "CREATE TABLE test_wal (id INTEGER PRIMARY KEY);"
 
         with patch.object(initializer, "_read_sql_file") as mock_read:
             mock_read.side_effect = mock_read_side_effect
@@ -122,7 +126,9 @@ class TestDatabaseSettingsIntegration:
         def mock_read_side_effect(filename):
             if "bible" in filename:
                 return "-- Bible schema (mocked)"
-            return "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+            if "vss" in filename:
+                return "-- VSS schema (mocked)"
+            return "CREATE TABLE test_foreign_keys (id INTEGER PRIMARY KEY);"
 
         with patch.object(initializer, "_read_sql_file") as mock_read:
             mock_read.side_effect = mock_read_side_effect
@@ -152,7 +158,9 @@ class TestDatabaseSettingsIntegration:
         def mock_read_side_effect(filename):
             if "bible" in filename:
                 return "-- Bible schema (mocked)"
-            return "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+            if "vss" in filename:
+                return "-- VSS schema (mocked)"
+            return "CREATE TABLE test_cli (id INTEGER PRIMARY KEY);"
 
         with patch.object(initializer, "_read_sql_file") as mock_read:
             mock_read.side_effect = mock_read_side_effect
@@ -184,7 +192,9 @@ class TestDatabaseSettingsIntegration:
         def mock_read_side_effect(filename):
             if "bible" in filename:
                 return "-- Bible schema (mocked)"
-            return "CREATE TABLE test (id INTEGER PRIMARY KEY);"
+            if "vss" in filename:
+                return "-- VSS schema (mocked)"
+            return "CREATE TABLE test_logging (id INTEGER PRIMARY KEY);"
 
         with patch.object(initializer, "_read_sql_file") as mock_read:
             mock_read.side_effect = mock_read_side_effect

@@ -57,13 +57,16 @@ class TestInitCommand:
 
         expected_tables = [
             "actions",
+            "bible_chunk_embeddings",
             "bible_chunks",
             "bible_embeddings",
             "bible_references",
             "character_relationships",
             "characters",
             "dialogues",
+            "embedding_metadata",
             "embeddings",
+            "scene_embeddings",
             "scene_graph_edges",
             "scenes",
             "schema_version",

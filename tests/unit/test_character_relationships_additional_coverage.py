@@ -97,11 +97,14 @@ class TestCharacterRelationshipsAdditionalCoverage:
 
         # Valid canonical and aliases should be in alias mapping
         # Note: The code continues to process even empty canonicals if they exist
-        assert "VALID" in analyzer.alias_to_canonical
+        assert analyzer._index is not None
+        assert "VALID" in analyzer._index.alias_to_canonical
         # Based on actual code behavior, whitespace-only canonical is processed
         expected_keys = {"VALID", "ALIAS3"}
         # Empty string canonical is skipped but whitespace may not be
-        actual_non_empty_keys = {k for k in analyzer.alias_to_canonical if k.strip()}
+        actual_non_empty_keys = {
+            k for k in analyzer._index.alias_to_canonical if k.strip()
+        }
         assert expected_keys.issubset(actual_non_empty_keys)
 
     def test_build_alias_index_with_empty_aliases(self):
@@ -125,10 +128,11 @@ class TestCharacterRelationshipsAdditionalCoverage:
         analyzer = CharacterRelationshipsAnalyzer(config)
 
         # Test that non-empty aliases are processed
+        assert analyzer._index is not None
         valid_aliases = [
             alias
-            for alias in analyzer.alias_to_canonical
-            if analyzer.alias_to_canonical[alias] == "JANE SMITH"
+            for alias in analyzer._index.alias_to_canonical
+            if analyzer._index.alias_to_canonical[alias] == "JANE SMITH"
         ]
         assert "JANE SMITH" in valid_aliases  # Canonical maps to itself
         assert "JANE" in valid_aliases

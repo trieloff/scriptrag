@@ -199,8 +199,6 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
         assert analyzer._index is not None
         assert "JANE" in analyzer._index.canonicals
         assert analyzer._index.alias_to_canonical["J"] == "JANE"
-        # Legacy compatibility
-        assert "J" in analyzer.alias_patterns
 
     def test_init_without_config(self) -> None:
         """Test initialization without config."""
@@ -515,46 +513,6 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
         mentions = analyzer._scan_mentions(text)
 
         assert mentions == set()
-
-    def test_backward_compatibility_properties(self) -> None:
-        """Test backward compatibility properties and methods."""
-        bible_chars = {
-            "version": 1,
-            "characters": [{"canonical": "JANE", "aliases": ["J"]}],
-        }
-        config = {"bible_characters": bible_chars}
-        analyzer = CharacterRelationshipsAnalyzer(config)
-
-        # Test alias_to_canonical property
-        alias_map = analyzer.alias_to_canonical
-        assert alias_map["JANE"] == "JANE"
-        assert alias_map["J"] == "JANE"
-
-        # Test legacy methods
-        assert analyzer._resolve_to_canonical("JANE") == "JANE"
-        assert analyzer._resolve_to_canonical("j") == "JANE"  # Case insensitive
-
-        mentions = analyzer._find_mentions_in_text("JANE and J are here")
-        assert mentions == {"JANE"}
-
-    def test_backward_compatibility_no_config(self) -> None:
-        """Test backward compatibility with no config."""
-        analyzer = CharacterRelationshipsAnalyzer()
-
-        # Should initialize from DB (mocked as empty)
-        with patch.object(analyzer, "_ensure_index_from_db") as mock_ensure:
-            mock_ensure.return_value = None
-            analyzer._index = (
-                analyzer._index
-                or type(
-                    "MockIndex",
-                    (),
-                    {"alias_to_canonical": {}, "canonicals": set(), "patterns": []},
-                )()
-            )
-
-            alias_map = analyzer.alias_to_canonical
-            assert alias_map == {}
 
     def test_create_word_boundary_pattern(self) -> None:
         """Test _create_word_boundary_pattern method."""

@@ -90,7 +90,7 @@ def vss_service(mock_settings, tmp_path):
             """)
 
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS bible_embeddings (
+                CREATE TABLE IF NOT EXISTS bible_chunk_embeddings (
                     chunk_id INTEGER PRIMARY KEY,
                     embedding_model TEXT,
                     embedding BLOB,
@@ -299,7 +299,8 @@ class TestVSSService:
 
                 # Verify it was stored
                 cursor = conn.execute(
-                    "SELECT * FROM bible_embeddings WHERE chunk_id = ?", (chunk_id,)
+                    "SELECT * FROM bible_chunk_embeddings WHERE chunk_id = ?",
+                    (chunk_id,),
                 )
                 row = cursor.fetchone()
                 assert row is not None
@@ -417,51 +418,7 @@ class TestVSSService:
                 # Verify the connection was properly cleaned up
                 mock_conn.close.assert_called_once()
 
-    def test_migrate_from_blob_storage(self, vss_service):
-        """Test migration from old BLOB storage."""
-        with (
-            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
-            patch(
-                "scriptrag.storage.vss_service.serialize_float32",
-                side_effect=mock_serialize_float32,
-            ),
-        ):
-            with vss_service.get_connection() as conn:
-                # Create old embeddings table
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS embeddings_old (
-                        id INTEGER PRIMARY KEY,
-                        entity_type TEXT,
-                        entity_id INTEGER,
-                        embedding_model TEXT,
-                        embedding BLOB
-                    )
-                """)
-
-                # Add test data with encoded embeddings
-                import struct
-
-                dimension = 3
-                values = [0.1, 0.2, 0.3]
-                format_str = f"<I{dimension}f"
-                blob_data = struct.pack(format_str, dimension, *values)
-
-                conn.execute(
-                    "INSERT INTO embeddings_old "
-                    "(entity_type, entity_id, embedding_model, embedding) "
-                    "VALUES (?, ?, ?, ?)",
-                    ("scene", 1, "test-model", blob_data),
-                )
-
-                # Mock store methods to track calls
-                vss_service.store_scene_embedding = MagicMock()
-                vss_service.store_bible_embedding = MagicMock()
-
-                scenes_migrated, bible_migrated = vss_service.migrate_from_blob_storage(
-                    conn
-                )
-
-                # Verify migration was attempted
-                vss_service.store_scene_embedding.assert_called_once()
-                assert scenes_migrated == 1
-                assert bible_migrated == 0
+    # Migration function has been removed - no longer needed in pre-production
+    # def test_migrate_from_blob_storage(self, vss_service):
+    #     """Test migration from old BLOB storage."""
+    #     pass

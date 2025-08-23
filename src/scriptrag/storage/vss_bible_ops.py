@@ -28,7 +28,7 @@ def store_bible_embedding(
 
     conn.execute(
         """
-        INSERT OR REPLACE INTO bible_embeddings
+        INSERT OR REPLACE INTO bible_chunk_embeddings
         (chunk_id, embedding_model, embedding)
         VALUES (?, ?, ?)
         """,
@@ -66,7 +66,7 @@ def search_similar_bible_chunks(
                 sb.script_id,
                 be.chunk_id,
                 be.distance
-            FROM bible_embeddings be
+            FROM bible_chunk_embeddings be
             JOIN bible_chunks bc ON bc.id = be.chunk_id
             JOIN script_bibles sb ON bc.bible_id = sb.id
             WHERE be.embedding_model = ?
@@ -84,7 +84,7 @@ def search_similar_bible_chunks(
                 sb.script_id,
                 be.chunk_id,
                 be.distance
-            FROM bible_embeddings be
+            FROM bible_chunk_embeddings be
             JOIN bible_chunks bc ON bc.id = be.chunk_id
             JOIN script_bibles sb ON bc.bible_id = sb.id
             WHERE be.embedding_model = ?

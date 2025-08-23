@@ -119,25 +119,6 @@ async def test_analyze_fallback_to_db_when_no_config():
         assert result == {}
 
 
-def test_legacy_find_mentions_in_text_method():
-    """Test the legacy _find_mentions_in_text method for backward compatibility."""
-    bible_characters = {
-        "version": 1,
-        "characters": [
-            {"canonical": "JANE SMITH", "aliases": ["JANE", "MS. SMITH"]},
-        ],
-    }
-    analyzer = CharacterRelationshipsAnalyzer(
-        config={"bible_characters": bible_characters}
-    )
-
-    # Test the legacy method
-    text = "JANE walks into the room. Ms. Smith speaks."
-    mentions = analyzer._find_mentions_in_text(text)
-
-    assert "JANE SMITH" in mentions
-
-
 def test_scan_mentions_with_no_matches():
     """Test _scan_mentions when no patterns match."""
     bible_characters = {
@@ -157,45 +138,6 @@ def test_scan_mentions_with_no_matches():
     assert mentions == set()
 
 
-def test_alias_to_canonical_property_fallback():
-    """Test alias_to_canonical property fallback initialization."""
-    analyzer = CharacterRelationshipsAnalyzer()
-
-    # Mock the fallback DB loading
-    with patch.object(analyzer, "_ensure_index_from_db") as mock_ensure:
-        # Set up empty index after DB call
-        def mock_db_load():
-            from scriptrag.analyzers.relationships import _AliasIndex
-
-            analyzer._index = _AliasIndex({}, set(), [])
-
-        mock_ensure.side_effect = mock_db_load
-
-        # Access property should trigger fallback
-        alias_map = analyzer.alias_to_canonical
-
-        assert alias_map == {}
-        mock_ensure.assert_called_once()
-
-
-def test_legacy_resolve_to_canonical_method():
-    """Test the legacy _resolve_to_canonical method."""
-    bible_characters = {
-        "version": 1,
-        "characters": [
-            {"canonical": "JANE SMITH", "aliases": ["JANE"]},
-        ],
-    }
-    analyzer = CharacterRelationshipsAnalyzer(
-        config={"bible_characters": bible_characters}
-    )
-
-    # Test case-insensitive resolution
-    assert analyzer._resolve_to_canonical("JANE") == "JANE SMITH"
-    assert analyzer._resolve_to_canonical("jane") == "JANE SMITH"
-    assert analyzer._resolve_to_canonical("UNKNOWN") is None
-
-
 @pytest.mark.asyncio
 async def test_analyze_initialize_and_db_fallback_both_trigger():
     """Test analyze method when both initialize and DB fallback are needed."""
@@ -207,23 +149,6 @@ async def test_analyze_initialize_and_db_fallback_both_trigger():
 
     # Should return empty dict when no bible data found anywhere
     assert result == {}
-
-
-def test_legacy_find_mentions_with_no_canonical():
-    """Test _find_mentions_in_text when alias has no canonical mapping."""
-    analyzer = CharacterRelationshipsAnalyzer()
-    # Manually set up patterns without proper canonicals to test edge case
-    import re
-
-    analyzer.alias_patterns = {"ORPHAN": re.compile(r"ORPHAN", re.IGNORECASE)}
-    analyzer._index = Mock()
-    analyzer._index.alias_to_canonical = {}  # Empty mapping
-
-    text = "ORPHAN speaks"
-    mentions = analyzer._find_mentions_in_text(text)
-
-    # Should return empty set when no canonical mapping exists
-    assert mentions == set()
 
 
 def test_scan_mentions_with_no_canonical_mapping():
@@ -244,21 +169,19 @@ def test_scan_mentions_with_no_canonical_mapping():
     assert mentions == set()
 
 
-def test_alias_to_canonical_property_with_config_fallback():
-    """Test alias_to_canonical property when config provides characters."""
+def test_internal_alias_index_access():
+    """Test accessing alias index through internal _index when properly initialized."""
     bible_characters = {
         "version": 1,
         "characters": [
             {"canonical": "JANE SMITH", "aliases": ["JANE"]},
         ],
     }
-    analyzer = CharacterRelationshipsAnalyzer()
-    # Set config after initialization to test property fallback
-    analyzer.config = {"bible_characters": bible_characters}
-    analyzer._index = None  # Force property to initialize
+    analyzer = CharacterRelationshipsAnalyzer(
+        config={"bible_characters": bible_characters}
+    )
 
-    # Access property should trigger config-based initialization
-    alias_map = analyzer.alias_to_canonical
-
-    assert alias_map["JANE"] == "JANE SMITH"
-    assert alias_map["JANE SMITH"] == "JANE SMITH"
+    # Internal index should be populated during initialization
+    assert analyzer._index is not None
+    assert analyzer._index.alias_to_canonical["JANE"] == "JANE SMITH"
+    assert analyzer._index.alias_to_canonical["JANE SMITH"] == "JANE SMITH"

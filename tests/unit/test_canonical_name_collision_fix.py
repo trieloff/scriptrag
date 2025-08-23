@@ -5,6 +5,7 @@ even when they appear as aliases for other characters.
 """
 
 from scriptrag.analyzers.relationships import _build_alias_index
+from tests.unit.helpers.relationship_test_utils import RelationshipTestData
 
 
 class TestCanonicalNameCollisionFix:
@@ -18,6 +19,7 @@ class TestCanonicalNameCollisionFix:
         incorrectly.
         """
         # Setup: JOHNNY is both an alias for JOHN and a canonical name itself
+        # This specific test case must remain as-is to test the exact bug scenario
         bible_characters = {
             "version": 1,
             "characters": [
@@ -42,14 +44,8 @@ class TestCanonicalNameCollisionFix:
 
     def test_multiple_overlapping_canonicals(self):
         """Test with multiple characters where canonicals overlap with aliases."""
-        bible_characters = {
-            "version": 1,
-            "characters": [
-                {"canonical": "ROBERT", "aliases": ["BOB", "BOBBY", "ROB"]},
-                {"canonical": "BOB", "aliases": ["BOBBY", "B"]},
-                {"canonical": "BOBBY", "aliases": ["B-MAN"]},
-            ],
-        }
+        # Use the collision test data from our shared utilities
+        bible_characters = RelationshipTestData.collision_bible_characters()
 
         alias_to_canonical, canonicals = _build_alias_index(bible_characters)
 
@@ -57,14 +53,19 @@ class TestCanonicalNameCollisionFix:
         assert alias_to_canonical["ROBERT"] == "ROBERT"
         assert alias_to_canonical["BOB"] == "BOB"
         assert alias_to_canonical["BOBBY"] == "BOBBY"
+        assert alias_to_canonical["JOHN"] == "JOHN"
+        assert alias_to_canonical["JOHNNY"] == "JOHNNY"
 
         # Non-conflicting aliases should work
         assert alias_to_canonical["ROB"] == "ROBERT"
         assert alias_to_canonical["B"] == "BOB"
         assert alias_to_canonical["B-MAN"] == "BOBBY"
+        assert alias_to_canonical["J"] == "JOHN"
+        assert alias_to_canonical["JOHNNY BOY"] == "JOHNNY"
+        assert alias_to_canonical["J-DAWG"] == "JOHNNY"
 
         # All canonicals should be present
-        assert canonicals == {"ROBERT", "BOB", "BOBBY"}
+        assert canonicals == {"ROBERT", "BOB", "BOBBY", "JOHN", "JOHNNY"}
 
     def test_canonical_self_reference_in_aliases(self):
         """Test when a canonical name explicitly lists itself as an alias."""

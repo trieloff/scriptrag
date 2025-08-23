@@ -81,15 +81,6 @@ def vss_service(mock_settings):
             )
         """)
         conn.execute("""
-            CREATE TABLE IF NOT EXISTS bible_embeddings (
-                chunk_id INTEGER PRIMARY KEY,
-                embedding_model TEXT NOT NULL,
-                embedding BLOB NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (chunk_id) REFERENCES bible_chunks(id) ON DELETE CASCADE
-            )
-        """)
-        conn.execute("""
             CREATE TABLE IF NOT EXISTS bible_chunk_embeddings (
                 chunk_id INTEGER PRIMARY KEY,
                 embedding_model TEXT NOT NULL,

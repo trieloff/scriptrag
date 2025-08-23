@@ -17,7 +17,6 @@ from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.exceptions import DatabaseError
 
 from .vss_admin import get_embedding_stats as admin_stats
-from .vss_admin import migrate_from_blob_storage as admin_migrate
 from .vss_bible_ops import (
     search_similar_bible_chunks as bible_search,
 )
@@ -308,59 +307,6 @@ class VSSService:
 
         try:
             return admin_stats(conn)
-
-        finally:
-            if close_conn:
-                conn.close()
-
-    def migrate_from_blob_storage(
-        self, conn: sqlite3.Connection | None = None
-    ) -> tuple[int, int]:
-        """Migrate existing BLOB embeddings to VSS tables.
-
-        Args:
-            conn: Optional database connection
-
-        Returns:
-            Tuple of (scenes_migrated, bible_chunks_migrated)
-        """
-        if conn is None:
-            conn = self.get_connection()
-            close_conn = True
-        else:
-            close_conn = False
-
-        try:
-            # Provide wrappers so tests can patch our public methods
-            def _store_scene(
-                conn_: sqlite3.Connection,
-                entity_id: int,
-                values: list[float],
-                model: str,
-                _serializer: Any,
-            ) -> None:
-                return self.store_scene_embedding(entity_id, values, model, conn=conn_)
-
-            def _store_bible(
-                conn_: sqlite3.Connection,
-                entity_id: int,
-                values: list[float],
-                model: str,
-                _serializer: Any,
-            ) -> None:
-                return self.store_bible_embedding(entity_id, values, model, conn=conn_)
-
-            scenes_migrated, bible_migrated = admin_migrate(
-                conn,
-                serializer=serialize_float32,
-                store_scene_fn=_store_scene,
-                store_bible_fn=_store_bible,
-            )
-            logger.info(
-                f"Migrated {scenes_migrated} scene embeddings and "
-                f"{bible_migrated} bible embeddings"
-            )
-            return (scenes_migrated, bible_migrated)
 
         finally:
             if close_conn:

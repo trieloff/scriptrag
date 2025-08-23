@@ -1,7 +1,6 @@
 """Additional tests for VSS service to improve coverage."""
 
 import sqlite3
-import struct
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
@@ -87,7 +86,7 @@ def vss_service(mock_settings, tmp_path):
             """)
 
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS bible_embeddings (
+                CREATE TABLE IF NOT EXISTS bible_chunk_embeddings (
                     chunk_id INTEGER PRIMARY KEY,
                     embedding_model TEXT,
                     embedding BLOB,
@@ -322,118 +321,15 @@ class TestVSSServiceExtended:
                 )
             assert "Failed to search similar bible chunks" in str(exc_info.value)
 
-    def test_migrate_no_old_table(self, vss_service):
-        """Test migration when no old embeddings table exists."""
-        with (
-            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
-            patch(
-                "scriptrag.storage.vss_service.serialize_float32",
-                side_effect=mock_serialize_float32,
-            ),
-        ):
-            # Should return (0, 0) when no old table exists
-            scenes_migrated, bible_migrated = vss_service.migrate_from_blob_storage()
-            assert scenes_migrated == 0
-            assert bible_migrated == 0
+    # Migration tests removed - migration function no longer exists
+    # def test_migrate_no_old_table(self, vss_service):
+    #     pass
 
-    def test_migrate_with_bible_chunks(self, vss_service):
-        """Test migration with bible chunk embeddings."""
-        with (
-            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
-            patch(
-                "scriptrag.storage.vss_service.serialize_float32",
-                side_effect=mock_serialize_float32,
-            ),
-        ):
-            with vss_service.get_connection() as conn:
-                # Create old embeddings table
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS embeddings_old (
-                        id INTEGER PRIMARY KEY,
-                        entity_type TEXT,
-                        entity_id INTEGER,
-                        embedding_model TEXT,
-                        embedding BLOB
-                    )
-                """)
+    # def test_migrate_with_bible_chunks(self, vss_service):
+    #     pass
 
-                # Add test data with encoded embeddings
-                dimension = 3
-                values = [0.1, 0.2, 0.3]
-                format_str = f"<I{dimension}f"
-                blob_data = struct.pack(format_str, dimension, *values)
-
-                # Add both scene and bible chunk embeddings
-                conn.execute(
-                    "INSERT INTO embeddings_old "
-                    "(entity_type, entity_id, embedding_model, embedding) "
-                    "VALUES (?, ?, ?, ?)",
-                    ("scene", 1, "test-model", blob_data),
-                )
-                conn.execute(
-                    "INSERT INTO embeddings_old "
-                    "(entity_type, entity_id, embedding_model, embedding) "
-                    "VALUES (?, ?, ?, ?)",
-                    ("bible_chunk", 1, "test-model", blob_data),
-                )
-
-                # Mock store methods to track calls
-                vss_service.store_scene_embedding = MagicMock()
-                vss_service.store_bible_embedding = MagicMock()
-
-                scenes_migrated, bible_migrated = vss_service.migrate_from_blob_storage(
-                    conn
-                )
-
-                # Verify migration was attempted
-                vss_service.store_scene_embedding.assert_called_once()
-                vss_service.store_bible_embedding.assert_called_once()
-                assert scenes_migrated == 1
-                assert bible_migrated == 1
-
-    def test_migrate_with_corrupted_data(self, vss_service):
-        """Test migration with corrupted embedding data."""
-        with (
-            patch("scriptrag.storage.vss_service.sqlite_vec.load"),
-            patch(
-                "scriptrag.storage.vss_service.serialize_float32",
-                side_effect=mock_serialize_float32,
-            ),
-        ):
-            with vss_service.get_connection() as conn:
-                # Create old embeddings table
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS embeddings_old (
-                        id INTEGER PRIMARY KEY,
-                        entity_type TEXT,
-                        entity_id INTEGER,
-                        embedding_model TEXT,
-                        embedding BLOB
-                    )
-                """)
-
-                # Add corrupted data
-                conn.execute(
-                    "INSERT INTO embeddings_old "
-                    "(entity_type, entity_id, embedding_model, embedding) "
-                    "VALUES (?, ?, ?, ?)",
-                    ("scene", 1, "test-model", b"corrupted"),
-                )
-                conn.execute(
-                    "INSERT INTO embeddings_old "
-                    "(entity_type, entity_id, embedding_model, embedding) "
-                    "VALUES (?, ?, ?, ?)",
-                    ("bible_chunk", 1, "test-model", b"also_corrupted"),
-                )
-
-                # Should handle errors gracefully
-                scenes_migrated, bible_migrated = vss_service.migrate_from_blob_storage(
-                    conn
-                )
-
-                # Should skip corrupted entries
-                assert scenes_migrated == 0
-                assert bible_migrated == 0
+    # def test_migrate_with_corrupted_data(self, vss_service):
+    #     pass
 
     def test_initialize_vss_tables_with_migration_file(self, mock_settings, tmp_path):
         """Test VSS table initialization with migration file."""

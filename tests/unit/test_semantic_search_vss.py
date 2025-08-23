@@ -330,15 +330,9 @@ class TestSemanticSearchVSS:
         assert mock_vss_service.store_bible_embedding.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_migrate_to_vss(self, semantic_search_vss, mock_vss_service):
-        """Test migrating to VSS."""
-        mock_vss_service.migrate_from_blob_storage.return_value = (10, 5)
-
-        scenes_migrated, bible_migrated = await semantic_search_vss.migrate_to_vss()
-
-        assert scenes_migrated == 10
-        assert bible_migrated == 5
-        mock_vss_service.migrate_from_blob_storage.assert_called_once()
+    # Migration test removed - migration function no longer exists
+    # async def test_migrate_to_vss(self, semantic_search_vss, mock_vss_service):
+    #     pass
 
     def test_get_embedding_stats(self, semantic_search_vss, mock_vss_service):
         """Test getting embedding statistics."""

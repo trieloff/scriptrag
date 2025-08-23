@@ -3,28 +3,15 @@
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
 
 
 def initialize_vss_tables(conn: sqlite3.Connection) -> None:
-    """Initialize VSS-related virtual tables if migration SQL exists.
+    """Initialize VSS-related virtual tables.
 
-    Executes statements found in ``database/sql/vss_migration.sql`` adjacent to
-    this module, skipping comments and any ``.load`` directives.
+    This is now a no-op as VSS tables are created directly in the main
+    database initialization via vss_schema.sql. This function is kept
+    for backward compatibility.
     """
-    migration_path = Path(__file__).parent / "database" / "sql" / "vss_migration.sql"
-    if not migration_path.exists():
-        return
-
-    migration_sql = migration_path.read_text()
-    for statement in migration_sql.split(";"):
-        stmt = statement.strip()
-        if not stmt or stmt.startswith("--") or ".load" in stmt:
-            continue
-        try:
-            conn.execute(stmt)
-        except sqlite3.OperationalError as e:
-            if "already exists" in str(e):
-                continue
-            raise
-    conn.commit()
+    # Tables are now created directly in database initialization
+    # via src/scriptrag/storage/database/sql/vss_schema.sql
+    pass

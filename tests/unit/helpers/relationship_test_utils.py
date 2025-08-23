@@ -5,6 +5,7 @@ used across multiple relationship analyzer test files to reduce duplication
 and improve maintainability.
 """
 
+import json
 from datetime import datetime
 from typing import Any
 from unittest.mock import Mock
@@ -186,8 +187,6 @@ class RelationshipTestHelpers:
         mock_cursor = Mock()
 
         if bible_characters:
-            import json
-
             mock_cursor.fetchone.return_value = (json.dumps(bible_characters),)
         else:
             mock_cursor.fetchone.return_value = None

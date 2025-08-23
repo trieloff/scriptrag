@@ -442,8 +442,13 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
             provided = self.config.get("bible_characters") if self.config else None
             if provided:
                 alias_to_canonical, canonicals = _build_alias_index(provided)
-                patterns = _compile_alias_patterns(list(alias_to_canonical.keys()))
+                patterns = _compile_alias_patterns(list(alias_to_canonical))
                 self._index = _AliasIndex(alias_to_canonical, canonicals, patterns)
+                # Populate legacy attributes for backward compatibility
+                self.alias_patterns = {
+                    alias: self._create_word_boundary_pattern(alias)
+                    for alias in alias_to_canonical
+                }
             else:
                 # Fallback to DB loading
                 self._ensure_index_from_db()

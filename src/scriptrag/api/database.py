@@ -155,6 +155,15 @@ class DatabaseInitializer:
             logger.info("Bible schema initialized successfully")
         except FileNotFoundError:
             logger.debug("No bible schema file found, skipping")
+
+        # Read and execute VSS schema SQL if it exists
+        try:
+            vss_sql = self._read_sql_file("vss_schema.sql")
+            conn.executescript(vss_sql)
+            logger.info("VSS schema initialized successfully")
+        except FileNotFoundError:
+            logger.debug("No VSS schema file found, skipping")
+
         conn.commit()
 
         logger.debug("Database schema created successfully")

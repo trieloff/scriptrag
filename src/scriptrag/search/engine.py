@@ -73,6 +73,20 @@ class SearchEngine:
                 # Re-raise other ValueErrors as-is
                 raise
 
+    def _cleanup_event_loop(self, loop: asyncio.AbstractEventLoop) -> None:
+        """Clean up an event loop by cancelling pending tasks.
+
+        Args:
+            loop: The event loop to clean up
+        """
+        # Cancel all pending tasks before closing the loop
+        pending = asyncio.all_tasks(loop)
+        for task in pending:
+            task.cancel()
+        # Run the loop one more time to let tasks handle cancellation
+        if pending:
+            loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+
     def search(self, query: SearchQuery) -> SearchResponse:
         """Execute a search query (synchronous wrapper).
 
@@ -105,15 +119,7 @@ class SearchEngine:
                 except Exception as e:
                     exception = e
                 finally:
-                    # Cancel all pending tasks before closing the loop
-                    pending = asyncio.all_tasks(new_loop)
-                    for task in pending:
-                        task.cancel()
-                    # Run the loop one more time to let tasks handle cancellation
-                    if pending:
-                        new_loop.run_until_complete(
-                            asyncio.gather(*pending, return_exceptions=True)
-                        )
+                    self._cleanup_event_loop(new_loop)
                     new_loop.close()
 
             thread = threading.Thread(target=run_in_new_loop)
@@ -148,15 +154,7 @@ class SearchEngine:
                 )
                 raise
             finally:
-                # Cancel all pending tasks before closing the loop
-                pending = asyncio.all_tasks(loop)
-                for task in pending:
-                    task.cancel()
-                # Run the loop one more time to let tasks handle cancellation
-                if pending:
-                    loop.run_until_complete(
-                        asyncio.gather(*pending, return_exceptions=True)
-                    )
+                self._cleanup_event_loop(loop)
                 loop.close()
 
     async def search_async(self, query: SearchQuery) -> SearchResponse:

@@ -142,6 +142,11 @@ class ScriptRAGSettings(BaseSettings):
         description="Minimum number of vector results to fetch",
         ge=1,
     )
+    search_thread_timeout: float = Field(
+        default=300.0,
+        description="Timeout in seconds for search thread execution",
+        ge=1.0,
+    )
 
     # LLM settings
     llm_provider: str | None = Field(

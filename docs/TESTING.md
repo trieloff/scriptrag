@@ -24,7 +24,7 @@ tests/
 ├── fixtures/       # Test data files (NEVER modify directly!)
 ├── agents/         # Agent-specific tests
 ├── llm/           # LLM provider tests
-└── utils.py       # Common test utilities
+└── cli_fixtures.py  # Common CLI test utilities and fixtures
 ```
 
 ### Test Naming Conventions
@@ -78,7 +78,7 @@ def test_workflow(cli_helper):
 For existing tests or when not using fixtures:
 
 ```python
-from tests.utils import strip_ansi_codes  # or from tests.cli_fixtures
+from tests.cli_fixtures import strip_ansi_codes
 
 def test_cli_output(runner):
     result = runner.invoke(app, ["command"])
@@ -180,13 +180,13 @@ content = content.replace('\r\n', '\n')
 
 ### Using CLITestHelper
 
-The project provides a `CLITestHelper` class for common CLI testing patterns:
+The project provides an `EnhancedCLITestHelper` class for common CLI testing patterns:
 
 ```python
-from tests.utils import CLITestHelper
+from tests.cli_fixtures import EnhancedCLITestHelper
 
 def test_workflow(tmp_path):
-    helper = CLITestHelper(tmp_path)
+    helper = EnhancedCLITestHelper(tmp_path)
 
     # Initialize database
     exit_code, output = helper.init_database()
@@ -267,8 +267,7 @@ def test_good(tmp_path, fixtures_dir):
 ### Creating Test Databases
 
 ```python
-from tests.utils import verify_database_structure
-
+# Example pattern for database testing
 def test_database_operations(tmp_path):
     db_path = tmp_path / "test.db"
 
@@ -276,30 +275,40 @@ def test_database_operations(tmp_path):
     init_command = DatabaseInitializer(db_path)
     init_command.initialize_database()
 
-    # Verify structure
-    structure = verify_database_structure(db_path)
-    assert "scripts" in structure
-    assert "scenes" in structure
+    # Verify structure (implement as needed)
+    # You can create your own database verification functions
+    import sqlite3
+    conn = sqlite3.connect(str(db_path))
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    tables = {row[0] for row in cursor.fetchall()}
+    assert "scripts" in tables
+    assert "scenes" in tables
 ```
 
 ### Asserting Database Content
 
 ```python
-from tests.utils import assert_scene_in_database, count_database_records
-
+# Example patterns for database assertions
 def test_indexing(tmp_path):
     # ... perform indexing ...
 
-    # Check specific scene exists
-    scene = assert_scene_in_database(
-        db_path=tmp_path / "test.db",
-        scene_heading="INT. COFFEE SHOP - DAY",
-        script_title="Test Script"
-    )
-    assert scene["scene_number"] == 1
+    # Check specific scene exists (implement as needed)
+    import sqlite3
+    conn = sqlite3.connect(str(tmp_path / "test.db"))
+    cursor = conn.cursor()
 
-    # Check record counts
-    count = count_database_records(tmp_path / "test.db", "scenes")
+    # Example: Check for specific scene
+    cursor.execute(
+        "SELECT * FROM scenes WHERE scene_heading = ? AND script_title = ?",
+        ("INT. COFFEE SHOP - DAY", "Test Script")
+    )
+    scene = cursor.fetchone()
+    assert scene is not None
+
+    # Example: Count records
+    cursor.execute("SELECT COUNT(*) FROM scenes")
+    count = cursor.fetchone()[0]
     assert count == 3
 ```
 
@@ -341,22 +350,26 @@ def test_with_llm(monkeypatch):
 ### Creating Test Screenplays
 
 ```python
-from tests.utils import create_test_screenplay
-
+# Example pattern for creating test screenplays
 def test_with_screenplay(tmp_path):
-    # Use default content
-    script = create_test_screenplay(tmp_path)
+    # Create a test screenplay file
+    script_path = tmp_path / "test.fountain"
+    script_path.write_text("""Title: Test Script
+Author: Test Author
 
-    # Or provide custom content
-    script = create_test_screenplay(
-        tmp_path,
-        filename="custom.fountain",
-        content="""Title: Custom Script
+INT. COFFEE SHOP - DAY
+
+Some action here.
+""")
+
+    # Or create with custom content
+    custom_path = tmp_path / "custom.fountain"
+    custom_path.write_text("""Title: Custom Script
 
 INT. LOCATION - DAY
 
-Action here."""
-    )
+Action here.
+""")
 ```
 
 ### Testing JSON Output
@@ -505,7 +518,7 @@ open htmlcov/index.html
 4. **Test both success and failure** conditions
 5. **Mark LLM tests** with `@pytest.mark.requires_llm`
 6. **Handle rate limits gracefully** with pytest.skip()
-7. **Use test utilities** from `tests/utils.py` for common patterns
+7. **Use test utilities** from `tests/cli_fixtures.py` for common patterns
 8. **Maintain test isolation** - each test should be independent
 9. **Keep tests fast** - mock external dependencies in unit tests
 10. **Document complex test logic** with clear comments

@@ -18,8 +18,7 @@ from scriptrag.api.db_script_ops import ScriptOperations, ScriptRecord
 from scriptrag.config import ScriptRAGSettings
 from scriptrag.parser import Dialogue, Scene, Script
 
-# Re-export ScriptRecord for backward compatibility
-__all__ = ["DatabaseOperations", "ScriptRecord"]
+__all__ = ["DatabaseOperations"]
 
 
 class DatabaseOperations:

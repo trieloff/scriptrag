@@ -35,7 +35,7 @@ class QueryLoader:
             file_extension="sql",
         )
 
-        # For backward compatibility
+        # Initialize query directory for tests
         self._query_dir = self._get_query_directory()
 
     def _get_query_directory(self) -> Path:
@@ -69,7 +69,7 @@ class QueryLoader:
         return default_path
 
     def _is_query_dir_explicitly_set(self) -> bool:
-        """Check if _query_dir was explicitly overridden (e.g., by tests).
+        """Check if _query_dir was explicitly overridden by tests.
 
         Returns:
             True if _query_dir was set to something other than the default resolver path

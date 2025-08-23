@@ -392,7 +392,7 @@ Another action line.
         mock_ie_scene.header = "I/E. VEHICLE - DAY"
         mock_ie_scene.paragraphs = []
 
-        ie_scene = parser._process_jouvence_scene(
+        ie_scene = parser.processor.process_jouvence_scene(
             1, mock_ie_scene, "I/E. VEHICLE - DAY\n\nTest content."
         )
 
@@ -406,7 +406,7 @@ Another action line.
         mock_no_prefix_scene.header = "SOMEWHERE - DAY"
         mock_no_prefix_scene.paragraphs = []
 
-        no_prefix_scene = parser._process_jouvence_scene(
+        no_prefix_scene = parser.processor.process_jouvence_scene(
             1, mock_no_prefix_scene, "SOMEWHERE - DAY\n\nTest content."
         )
 
@@ -428,7 +428,7 @@ Another action line.
         mock_int_ext_scene.header = "INT./EXT. BEDROOM - NIGHT"
         mock_int_ext_scene.paragraphs = []
 
-        scene = parser._process_jouvence_scene(
+        scene = parser.processor.process_jouvence_scene(
             1, mock_int_ext_scene, "INT./EXT. BEDROOM - NIGHT"
         )
 
@@ -593,23 +593,23 @@ The evidence is clear.
     def test_is_character_line_method(self, parser):
         """Test the _is_character_line helper method."""
         # Valid character lines
-        assert parser._is_character_line("JOHN")
-        assert parser._is_character_line("MARY JANE")
-        assert parser._is_character_line("COP 1")
-        assert parser._is_character_line("GUARD #2")
-        assert parser._is_character_line("CHARACTER'S VOICE")
-        assert parser._is_character_line("MR. SMITH")
-        assert parser._is_character_line("CHARACTER (V.O.)")
-        assert parser._is_character_line("CHARACTER (CONT'D)")
-        assert parser._is_character_line("DR. SMITH-JONES")
+        assert parser.processor._is_character_line("JOHN")
+        assert parser.processor._is_character_line("MARY JANE")
+        assert parser.processor._is_character_line("COP 1")
+        assert parser.processor._is_character_line("GUARD #2")
+        assert parser.processor._is_character_line("CHARACTER'S VOICE")
+        assert parser.processor._is_character_line("MR. SMITH")
+        assert parser.processor._is_character_line("CHARACTER (V.O.)")
+        assert parser.processor._is_character_line("CHARACTER (CONT'D)")
+        assert parser.processor._is_character_line("DR. SMITH-JONES")
 
         # Invalid character lines
-        assert not parser._is_character_line("")
-        assert not parser._is_character_line("INT. ROOM - DAY")
-        assert not parser._is_character_line("EXT. PARK - NIGHT")
-        assert not parser._is_character_line("INT./EXT. BEDROOM - NIGHT")
-        assert not parser._is_character_line("not uppercase")
-        assert not parser._is_character_line("Mixed Case")
+        assert not parser.processor._is_character_line("")
+        assert not parser.processor._is_character_line("INT. ROOM - DAY")
+        assert not parser.processor._is_character_line("EXT. PARK - NIGHT")
+        assert not parser.processor._is_character_line("INT./EXT. BEDROOM - NIGHT")
+        assert not parser.processor._is_character_line("not uppercase")
+        assert not parser.processor._is_character_line("Mixed Case")
 
     def test_action_lines_preserved(self, parser):
         """Test that action lines are preserved and not mistaken for characters."""
@@ -918,7 +918,9 @@ I object!
         ]
 
         for char in valid_characters:
-            assert parser._is_character_line(char), f"Should be valid character: {char}"
+            assert parser.processor._is_character_line(char), (
+                f"Should be valid character: {char}"
+            )
 
         # Test cases that should NOT be valid characters
         invalid_characters = [
@@ -939,6 +941,6 @@ I object!
         ]
 
         for char in invalid_characters:
-            assert not parser._is_character_line(char), (
+            assert not parser.processor._is_character_line(char), (
                 f"Should NOT be valid character: {char}"
             )

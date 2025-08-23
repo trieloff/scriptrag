@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from scriptrag.api.database_operations import DatabaseOperations, ScriptRecord
+from scriptrag.api.database_operations import DatabaseOperations
+from scriptrag.api.db_script_ops import ScriptRecord
 from scriptrag.config import ScriptRAGSettings
 
 

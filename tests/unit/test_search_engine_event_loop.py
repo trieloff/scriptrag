@@ -28,6 +28,8 @@ class TestSearchEngineEventLoop:
         settings.search_vector_similarity_threshold = 0.5
         settings.search_vector_threshold = 10
         settings.llm_model_cache_ttl = 3600
+        # Add search thread timeout setting
+        settings.search_thread_timeout = 300.0
         return settings
 
     @pytest.fixture

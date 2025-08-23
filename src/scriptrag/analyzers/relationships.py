@@ -89,8 +89,8 @@ def _build_alias_index(
             if not a:
                 continue
             alias_to_canonical[a] = canonical
-        # Ensure canonical maps to itself as a fallback
-        alias_to_canonical.setdefault(canonical, canonical)
+        # Ensure canonical maps to itself (override any alias mapping)
+        alias_to_canonical[canonical] = canonical
 
     return alias_to_canonical, canonicals
 

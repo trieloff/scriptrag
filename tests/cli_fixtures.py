@@ -366,7 +366,7 @@ def with_clean_output(func: Callable) -> Callable:
     return wrapper
 
 
-# Export the strip_ansi_codes function for backward compatibility
+# Export public test fixtures and utilities
 __all__ = [
     "CleanCliRunner",
     "CleanResult",

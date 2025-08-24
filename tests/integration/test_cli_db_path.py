@@ -1,10 +1,23 @@
 """Integration tests for --db-path option across CLI commands."""
 
+import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
 
 runner = CliRunner()
+
+
+@pytest.fixture(autouse=True)
+def reset_connection_manager():
+    """Reset connection manager before and after each test."""
+    from scriptrag.database.connection_manager import close_connection_manager
+
+    # Close before test
+    close_connection_manager()
+    yield
+    # Close after test
+    close_connection_manager()
 
 
 class TestDbPathOption:

@@ -49,12 +49,19 @@ def initialized_db_settings(tmp_path):
 @pytest.fixture
 def initialized_db(initialized_db_settings):
     """Create an initialized test database."""
+    # Force close any existing connection manager to ensure clean state
+    from scriptrag.database.connection_manager import close_connection_manager
+
+    close_connection_manager()
+
     # Initialize database with schema
     from scriptrag.api.database import DatabaseInitializer
 
     db_ops = DatabaseOperations(initialized_db_settings)
     initializer = DatabaseInitializer()
-    initializer.initialize_database(db_path=db_ops.db_path, force=True)
+    initializer.initialize_database(
+        db_path=db_ops.db_path, settings=initialized_db_settings, force=True
+    )
     return db_ops
 
 

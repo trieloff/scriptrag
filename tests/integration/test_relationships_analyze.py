@@ -32,9 +32,15 @@ def _script_with_mentions(tmp_path: Path) -> Path:
 async def test_analyze_relationships_persists_scene_metadata(tmp_path: Path) -> None:
     # Init DB and settings
     db_path = tmp_path / "test.db"
-    DatabaseInitializer().initialize_database(db_path, force=True)
     settings = ScriptRAGSettings(database_path=db_path)
     set_settings(settings)
+
+    # Force close any existing connection manager to ensure clean state
+    from scriptrag.database.connection_manager import close_connection_manager
+
+    close_connection_manager()
+
+    DatabaseInitializer().initialize_database(db_path, settings=settings, force=True)
 
     # Create script and index it
     script_path = _script_with_mentions(tmp_path)

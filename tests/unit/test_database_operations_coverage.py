@@ -16,13 +16,21 @@ class TestDatabaseOperationsCoverage:
     def initialized_db_ops(self, tmp_path):
         """Create initialized database operations."""
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
+
+        # Force close any existing connection manager to ensure clean state
+        from scriptrag.database.connection_manager import close_connection_manager
+
+        close_connection_manager()
+
         db_ops = DatabaseOperations(settings)
 
         # Initialize database
         from scriptrag.api.database import DatabaseInitializer
 
         initializer = DatabaseInitializer()
-        initializer.initialize_database(db_path=db_ops.db_path, force=True)
+        initializer.initialize_database(
+            db_path=db_ops.db_path, settings=settings, force=True
+        )
 
         return db_ops
 

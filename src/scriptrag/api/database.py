@@ -93,6 +93,13 @@ class DatabaseInitializer:
         # 3. Default (already in settings)
         if db_path is None:
             db_path = settings.database_path
+        else:
+            # If db_path is provided and different from settings, update settings
+            if db_path != settings.database_path:
+                # Create new settings with the updated database path
+                settings_dict = settings.model_dump()
+                settings_dict["database_path"] = db_path
+                settings = type(settings)(**settings_dict)
 
         # Resolve to absolute path
         db_path = db_path.resolve()
@@ -107,6 +114,13 @@ class DatabaseInitializer:
             # In API layer, we don't do interactive confirmation
             # That's the CLI's responsibility
             logger.warning("Removing existing database", path=str(db_path))
+
+            # Close the connection manager to release any open connections
+            # before deleting the database file
+            from scriptrag.database.connection_manager import close_connection_manager
+
+            close_connection_manager()
+
             db_path.unlink()
 
         # Create parent directories if needed
@@ -115,14 +129,28 @@ class DatabaseInitializer:
         # Initialize database
         try:
             if connection is None:
-                # Create new connection with timeout from settings
-                conn = sqlite3.connect(str(db_path), timeout=settings.database_timeout)
+                # Use centralized connection manager for initialization
+                # Note: We get a raw connection for schema creation, not a transaction
+                from scriptrag.database.connection_manager import (
+                    close_connection_manager,
+                    get_connection_manager,
+                )
+
+                # If we're initializing a database at a different path than the
+                # current manager is using, close existing manager and create new one
+                existing_manager = get_connection_manager(settings, force_new=False)
+                if existing_manager.db_path != db_path:
+                    close_connection_manager()
+
+                # Now get the manager (will create new one if we just closed it)
+                manager = get_connection_manager(settings)
+                conn = manager.get_connection()
                 try:
                     # Configure connection with settings
                     self._configure_connection(conn, settings)
                     self._initialize_with_connection(conn)  # type: ignore[arg-type]
                 finally:
-                    conn.close()
+                    manager.release_connection(conn)
             else:
                 # Use provided connection (for testing)
                 self._initialize_with_connection(connection)

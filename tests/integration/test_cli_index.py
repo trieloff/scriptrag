@@ -47,6 +47,11 @@ def initialized_db(tmp_path, monkeypatch):
     settings = ScriptRAGSettings(database_path=db_path)
     set_settings(settings)
 
+    # Force close any existing connection manager to ensure clean state
+    from scriptrag.database.connection_manager import close_connection_manager
+
+    close_connection_manager()
+
     # Initialize database
     result = runner.invoke(app, ["init", "--db-path", str(db_path), "--force"])
     assert result.exit_code == 0

@@ -60,7 +60,9 @@ class TestSceneFormatter:
             sample_scene, scene_id, last_read, json_output=False
         )
 
-        output = console_output.getvalue()
+        from tests.cli_fixtures import strip_ansi_codes
+
+        output = strip_ansi_codes(console_output.getvalue())
         assert "Scene test_project:042" in output
         assert "INT. OFFICE - DAY" in output
         assert "John enters the office" in output
@@ -80,7 +82,9 @@ class TestSceneFormatter:
             sample_scene, scene_id, last_read, json_output=True
         )
 
-        output = console_output.getvalue()
+        from tests.cli_fixtures import strip_ansi_codes
+
+        output = strip_ansi_codes(console_output.getvalue())
         assert '"success": true' in output
         assert '"scene_number": 42' in output
         assert '"heading": "INT. OFFICE - DAY"' in output
@@ -119,7 +123,9 @@ class TestSceneFormatter:
             None, bible_files, "test_project", None, json_output=False
         )
 
-        output = console_output.getvalue()
+        from tests.cli_fixtures import strip_ansi_codes
+
+        output = strip_ansi_codes(console_output.getvalue())
         assert "Available bible files" in output
         assert "test_project" in output
         assert "characters.md" in output
@@ -138,7 +144,9 @@ class TestSceneFormatter:
 
         formatter.format_operation_result("add", True, scene_id, details=details)
 
-        output = console_output.getvalue()
+        from tests.cli_fixtures import strip_ansi_codes
+
+        output = strip_ansi_codes(console_output.getvalue())
         assert "✓" in output
         assert "Scene added: test_project:042" in output
         assert "Renumbered scenes: 43, 44, 45" in output
@@ -171,7 +179,9 @@ class TestSceneFormatter:
 
         formatter.format_validation_errors(errors, warnings, suggestions)
 
-        output = console_output.getvalue()
+        from tests.cli_fixtures import strip_ansi_codes
+
+        output = strip_ansi_codes(console_output.getvalue())
         assert "Validation errors:" in output
         assert "Missing scene heading" in output
         assert "Warnings:" in output
@@ -221,7 +231,9 @@ class TestSceneFormatter:
 
         formatter.format_scene_list(scenes, "test_project", json_output=True)
 
-        output = console_output.getvalue()
+        from tests.cli_fixtures import strip_ansi_codes
+
+        output = strip_ansi_codes(console_output.getvalue())
         assert '"project": "test_project"' in output
         assert '"scenes":' in output
         assert '"number": 1' in output
@@ -238,7 +250,9 @@ class TestSceneFormatter:
 
         formatter.format_conflict_error(scene_id, last_modified, last_read)
 
-        output = console_output.getvalue()
+        from tests.cli_fixtures import strip_ansi_codes
+
+        output = strip_ansi_codes(console_output.getvalue())
         assert "Conflict detected" in output
         assert "test_project:042" in output
         assert "2024-01-15T11:00:00" in output

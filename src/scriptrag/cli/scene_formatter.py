@@ -86,7 +86,19 @@ class SceneFormatter:
             details: Optional additional details
         """
         if success:
-            self.console.print(f"[green]✓[/green] Scene {operation}d: {scene_id.key}")
+            # Handle operation name formatting correctly
+            if operation == "add":
+                operation_text = "added"
+            elif operation == "update":
+                operation_text = "updated"
+            elif operation == "delete":
+                operation_text = "deleted"
+            else:
+                operation_text = f"{operation}d"  # fallback
+
+            self.console.print(
+                f"[green]✓[/green] Scene {operation_text}: {scene_id.key}"
+            )
             if details:
                 self._display_operation_details(details)
         else:

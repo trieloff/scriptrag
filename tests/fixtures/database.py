@@ -94,8 +94,7 @@ def fast_db_settings(tmp_path: Path) -> ScriptRAGSettings:
     settings = ScriptRAGSettings(
         database_path=db_path,
         database_timeout=5.0,  # Faster timeout for tests
-        database_wal_mode=False,  # WAL not needed for in-memory
-        database_journal_mode="MEMORY",  # Fastest journal mode
+        database_journal_mode="MEMORY",  # Fastest journal mode for in-memory DB
         database_synchronous="OFF",  # Fastest sync mode (OK for tests)
         database_cache_size=-8000,  # Larger cache for performance
         database_temp_store="MEMORY",  # Use memory for temp tables

@@ -84,7 +84,6 @@ class TestDatabaseSettingsIntegration:
         settings = ScriptRAGSettings(
             _env_file=None,
             database_path=tmp_path / "test.db",
-            database_wal_mode=True,
             database_journal_mode="WAL",
         )
 

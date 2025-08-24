@@ -262,7 +262,7 @@ class TestInitConfigGeneration:
         # Check various value types are formatted correctly
         assert 'database_path: "scriptrag.db"' in template  # String with quotes
         assert "database_timeout: 30.0" in template  # Float
-        assert "database_wal_mode: true" in template  # Boolean lowercase
+        assert "database_foreign_keys: true" in template  # Boolean lowercase
         assert "database_cache_size: -2000" in template  # Negative integer
         assert "# llm_api_key: ${GITHUB_TOKEN}" in template  # Env var without quotes
 

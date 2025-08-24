@@ -71,6 +71,30 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest.fixture(autouse=True)
+def cleanup_singletons():
+    """Ensure singletons are cleaned up between tests to prevent contamination."""
+    yield
+
+    # Clean up connection manager after each test to prevent cross-test contamination
+    try:
+        from scriptrag.database.connection_manager import close_connection_manager
+
+        close_connection_manager()
+    except Exception:
+        # Ignore cleanup errors - they shouldn't fail tests
+        pass
+
+    # Clean up settings cache after each test
+    try:
+        import scriptrag.config.settings as settings_module
+
+        settings_module._settings = None
+    except Exception:
+        # Ignore cleanup errors - they shouldn't fail tests
+        pass
+
+
+@pytest.fixture(autouse=True)
 def isolated_test_environment(request, tmp_path, monkeypatch):
     """Ensure unit tests run with isolated database and settings.
 

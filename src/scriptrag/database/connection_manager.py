@@ -554,19 +554,35 @@ def get_connection_manager(
     """
     global _manager_instance
 
-    if force_new or _manager_instance is None:
+    # Get settings if not provided
+    if settings is None:
+        from scriptrag.config import get_settings
+
+        settings = get_settings()
+
+    # Check if we need to create a new manager
+    needs_new_manager = (
+        force_new
+        or _manager_instance is None
+        or _manager_instance.db_path != settings.database_path
+    )
+
+    if needs_new_manager:
         with _manager_lock:
-            if force_new or _manager_instance is None:
-                if settings is None:
-                    from scriptrag.config import get_settings
-
-                    settings = get_settings()
-
+            # Double-check with lock held
+            if (
+                force_new
+                or _manager_instance is None
+                or _manager_instance.db_path != settings.database_path
+            ):
                 if _manager_instance:
                     _manager_instance.close()
 
                 _manager_instance = DatabaseConnectionManager(settings)
 
+    if _manager_instance is None:
+        # This should never happen, but satisfies type checker
+        _manager_instance = DatabaseConnectionManager(settings)
     return _manager_instance
 
 

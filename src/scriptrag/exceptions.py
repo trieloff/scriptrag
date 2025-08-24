@@ -250,6 +250,48 @@ class SearchError(ScriptRAGError):
     pass
 
 
+class EmbeddingError(ScriptRAGError):
+    """Errors related to embedding generation and storage."""
+
+    pass
+
+
+class EmbeddingLoadError(EmbeddingError):
+    """Error loading saved embeddings from disk."""
+
+    pass
+
+
+class EmbeddingGenerationError(EmbeddingError):
+    """Error generating embeddings with the LLM."""
+
+    pass
+
+
+class AnalyzerError(ScriptRAGError):
+    """Base error for scene analyzer failures."""
+
+    pass
+
+
+class AnalyzerInitializationError(AnalyzerError):
+    """Error initializing an analyzer."""
+
+    pass
+
+
+class AnalyzerExecutionError(AnalyzerError):
+    """Error during analyzer execution on a scene."""
+
+    pass
+
+
+class FileSystemError(ScriptRAGError):
+    """File system operation errors."""
+
+    pass
+
+
 def check_database_path(db_path: Any, default_paths: list[Any] | None = None) -> None:
     """Check for common database path issues and provide helpful errors.
 

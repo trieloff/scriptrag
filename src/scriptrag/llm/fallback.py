@@ -329,7 +329,14 @@ class FallbackHandler:
 
         try:
             return await try_func(provider, request)
-        except Exception as e:
+        except (
+            AttributeError,
+            KeyError,
+            TypeError,
+            ValueError,
+            RuntimeError,
+            OSError,
+        ) as e:
             provider_errors[provider_name] = e
             error_details: ErrorDetails = {
                 "provider": provider_name,

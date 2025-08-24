@@ -178,7 +178,7 @@ class FountainParser:
         parser = JouvenceParser()
         try:
             doc = parser.parseString(cleaned_content)
-        except Exception as e:
+        except (ValueError, TypeError, AttributeError, RuntimeError) as e:
             logger.error(f"Jouvence parser failed: {e}")
             raise ParseError(
                 message=f"Failed to parse Fountain file: {file_path}",

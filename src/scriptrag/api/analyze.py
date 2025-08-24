@@ -17,6 +17,12 @@ from scriptrag.api.analyze_protocols import SceneAnalyzer
 from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 from scriptrag.api.list import ScriptLister
 from scriptrag.config import get_logger
+from scriptrag.exceptions import (
+    AnalyzerError,
+    AnalyzerExecutionError,
+    ParseError,
+    ScriptRAGError,
+)
 from scriptrag.parser import FountainParser
 
 logger = get_logger(__name__)
@@ -207,7 +213,7 @@ class AnalyzeCommand:
                         brittle=brittle,
                     )
                     result.files.append(file_result)
-                except Exception as e:
+                except (ParseError, AnalyzerError, ScriptRAGError) as e:
                     if brittle:
                         logger.error(
                             f"Failed to process {script_meta.file_path}: {e!s} "
@@ -223,11 +229,41 @@ class AnalyzeCommand:
                         )
                     )
                     result.errors.append(f"{script_meta.file_path}: {e}")
+                except (OSError, ValueError) as e:
+                    # Handle file system and value errors
+                    if brittle:
+                        logger.error(
+                            f"System error processing {script_meta.file_path}: {e!s} "
+                            "(brittle mode - stopping)"
+                        )
+                        raise AnalyzerError(
+                            message=f"Failed to process {script_meta.file_path}",
+                            hint="Check file permissions and path validity",
+                            details={
+                                "file": str(script_meta.file_path),
+                                "error": str(e),
+                            },
+                        ) from e
+                    logger.error(
+                        f"System error processing {script_meta.file_path}: {e!s}"
+                    )
+                    result.files.append(
+                        FileResult(
+                            path=script_meta.file_path,
+                            updated=False,
+                            error=str(e),
+                        )
+                    )
+                    result.errors.append(f"{script_meta.file_path}: {e}")
 
-        except Exception as e:
+        except (OSError, ValueError, RuntimeError) as e:
             if brittle:
                 logger.error(f"Analyze operation failed: {e!s} (brittle mode)")
-                raise
+                raise AnalyzerError(
+                    message="Analyze operation failed",
+                    hint="Check directory permissions and available analyzers",
+                    details={"error_type": type(e).__name__, "error": str(e)},
+                ) from e
             logger.error(f"Analyze operation failed: {e!s}")
             result.errors.append(f"Analyze failed: {e!s}")
 
@@ -361,7 +397,8 @@ class AnalyzeCommand:
                             if hasattr(analyzer, "version"):  # pragma: no cover
                                 analyzer_result["version"] = analyzer.version
                             metadata["analyzers"][analyzer.name] = analyzer_result
-                        except Exception as e:  # pragma: no cover
+                        except (AnalyzerError, ScriptRAGError) as e:  # pragma: no cover
+                            # Re-raise our specific exceptions in brittle mode
                             if brittle:
                                 logger.error(
                                     f"Analyzer {analyzer.name} failed on scene "
@@ -372,6 +409,29 @@ class AnalyzeCommand:
                                 f"Analyzer {analyzer.name} failed on scene "
                                 f"{scene.number}: {e} (skipping)"
                             )
+                        except (
+                            AttributeError,
+                            KeyError,
+                            TypeError,
+                            ValueError,
+                        ) as e:  # pragma: no cover
+                            # Handle data structure errors
+                            error_msg = (
+                                f"Analyzer {analyzer.name} encountered data error "
+                                f"on scene {scene.number}: {e}"
+                            )
+                            if brittle:
+                                logger.error(f"{error_msg} (brittle mode - stopping)")
+                                raise AnalyzerExecutionError(
+                                    message=error_msg,
+                                    hint="Check scene data structure and requirements",
+                                    details={
+                                        "analyzer": analyzer.name,
+                                        "scene": scene.number,
+                                        "error_type": type(e).__name__,
+                                    },
+                                ) from e
+                            logger.warning(f"{error_msg} (skipping)")
 
                     # Update scene metadata
                     scene.update_boneyard(metadata)
@@ -401,6 +461,13 @@ class AnalyzeCommand:
                 scenes_updated=len(updated_scenes),
             )
 
-        except Exception as e:
-            logger.error(f"Error processing {file_path}: {e}")
+        except (ParseError, AnalyzerError, ScriptRAGError):
+            # Re-raise our specific exceptions
             raise
+        except (OSError, ValueError, RuntimeError) as e:
+            logger.error(f"Error processing {file_path}: {e}")
+            raise AnalyzerError(
+                message=f"Error processing {file_path}",
+                hint="Check file format and permissions",
+                details={"file": str(file_path), "error_type": type(e).__name__},
+            ) from e

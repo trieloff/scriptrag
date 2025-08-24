@@ -4,6 +4,7 @@ import traceback
 from typing import Any, cast
 
 from scriptrag.config import get_logger, get_settings
+from scriptrag.exceptions import LLMError, LLMProviderError
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.fallback import FallbackHandler
 from scriptrag.llm.metrics import LLMMetrics
@@ -177,7 +178,7 @@ class LLMClient:
             if provider_instance and await provider_instance.is_available():
                 try:
                     return await provider_instance.list_models()
-                except Exception as e:
+                except (AttributeError, ValueError, RuntimeError, OSError) as e:
                     logger.debug(f"Failed to list models from {provider.value}: {e}")
             return []
 
@@ -188,7 +189,7 @@ class LLMClient:
                 if await provider_instance.is_available():
                     models = await provider_instance.list_models()
                     all_models.extend(models)
-            except Exception as e:
+            except (AttributeError, ValueError, RuntimeError, OSError) as e:
                 logger.debug(f"Failed to list models from {provider_type.value}: {e}")
 
         return all_models
@@ -377,7 +378,10 @@ class LLMClient:
                 response_length=len(response.content),
             )
             return cast(CompletionResponse, response)
-        except Exception as e:
+        except LLMError:
+            # Re-raise our specific LLM errors
+            raise
+        except (AttributeError, KeyError, TypeError, ValueError, RuntimeError) as e:
             error_details: ErrorDetails = {
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -391,7 +395,11 @@ class LLMClient:
             logger.error(
                 f"Provider {provider_name} failed to complete request", **error_details
             )
-            raise
+            raise LLMProviderError(
+                message=f"Failed to complete prompt: {e}",
+                hint="Check provider configuration and request format",
+                details=dict(error_details),
+            ) from e
 
     async def embed(
         self,
@@ -470,7 +478,10 @@ class LLMClient:
                 embedding_count=len(response.data),
             )
             return cast(EmbeddingResponse, response)
-        except Exception as e:
+        except LLMError:
+            # Re-raise our specific LLM errors
+            raise
+        except (AttributeError, KeyError, TypeError, ValueError, RuntimeError) as e:
             error_details: ErrorDetails = {
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -484,7 +495,11 @@ class LLMClient:
             logger.error(
                 f"Provider {provider_name} failed to embed text", **error_details
             )
-            raise
+            raise LLMProviderError(
+                message=f"Failed to generate embeddings: {e}",
+                hint="Check provider configuration and embedding request format",
+                details=dict(error_details),
+            ) from e
 
     def get_current_provider(self) -> LLMProvider | None:
         """Get the currently active provider type."""

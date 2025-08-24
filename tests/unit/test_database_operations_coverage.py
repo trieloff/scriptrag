@@ -22,17 +22,16 @@ class TestDatabaseOperationsCoverage:
 
         close_connection_manager()
 
-        db_ops = DatabaseOperations(settings)
-
         # Initialize database
         from scriptrag.api.database import DatabaseInitializer
 
         initializer = DatabaseInitializer()
         initializer.initialize_database(
-            db_path=db_ops.db_path, settings=settings, force=True
+            db_path=settings.database_path, settings=settings, force=True
         )
 
-        return db_ops
+        # Create DatabaseOperations after initialization to get fresh connection pool
+        return DatabaseOperations(settings)
 
     def test_script_record_with_none_metadata(self):
         """Test ScriptRecord with None metadata."""

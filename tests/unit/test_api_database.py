@@ -105,7 +105,13 @@ class TestDatabaseInitializer:
     def test_initialize_database_exists_no_force(self, tmp_path):
         """Test that existing database without force raises error."""
         db_path = tmp_path / "existing.db"
-        db_path.touch()
+        # Create a database with a schema
+        import sqlite3
+
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE scripts (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        conn.close()
 
         initializer = DatabaseInitializer()
         with pytest.raises(FileExistsError) as exc_info:

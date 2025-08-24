@@ -170,6 +170,30 @@ repos:
           fi'
         language: system
         pass_filenames: false
+      - id: block-env-files
+        name: Block .env files from being committed
+        entry: |
+          bash -c 'if git diff --cached --name-only | grep -E "^\.env(\..*)?$" > /dev/null; then
+            echo "";
+            echo "❌ ERROR: Attempting to commit .env file(s)!";
+            echo "";
+            echo "Environment files contain sensitive information and must NEVER be committed.";
+            echo "The following .env file(s) were blocked:";
+            git diff --cached --name-only | grep -E "^\.env(\..*)?$" | sed "s/^/  - /";
+            echo "";
+            echo "To fix this:";
+            echo "  1. Remove the file(s) from staging: git reset HEAD .env*";
+            echo "  2. Ensure .env is in your .gitignore file";
+            echo "  3. Use .env.example for sharing configuration templates";
+            echo "";
+            echo "If you have already committed .env files, remove them from history:";
+            echo "  git rm --cached .env";
+            echo "";
+            exit 1;
+          fi'
+        language: system
+        pass_filenames: false
+        always_run: true
 
 ci:
   autoupdate_schedule: weekly

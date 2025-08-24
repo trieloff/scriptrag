@@ -153,9 +153,6 @@ cython_debug/
 # IDEs
 .idea/
 .vscode/
-*.swp
-*.swo
-*~
 .DS_Store
 
 # Project specific
@@ -170,12 +167,19 @@ data/processed/
 logs/
 *.log
 
-# Temporary files
+# Temporary files and backups
 tmp/
 temp/
 *.tmp
 *.temp
 *.bak
+*.backup
+*.orig
+*~
+.*.swp
+.*.swo
+*.swp
+*.swo
 
 # Config files with secrets
 config/secrets.yaml

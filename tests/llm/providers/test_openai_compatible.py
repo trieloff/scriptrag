@@ -414,7 +414,7 @@ class TestOpenAICompatibleProvider:
                 model="test", messages=[{"role": "user", "content": "Hello"}]
             )
 
-            with pytest.raises(asyncio.TimeoutError):
+            with pytest.raises(TimeoutError):
                 await provider.complete(request)
 
     @pytest.mark.asyncio

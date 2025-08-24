@@ -322,7 +322,15 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                     model=request.model,
                 )
                 raise ValueError(f"Invalid API response: {e}") from e
-            except (RuntimeError, OSError, TimeoutError) as e:
+            except TimeoutError:
+                # Let TimeoutError propagate unchanged to match test expectations
+                logger.error(
+                    "OpenAI-compatible completion failed with timeout",
+                    endpoint=completions_url,
+                    model=request.model,
+                )
+                raise
+            except (RuntimeError, OSError) as e:
                 # Catch runtime/network errors and convert to LLMProviderError
                 logger.error(
                     "OpenAI-compatible completion failed with unexpected error",

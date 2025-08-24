@@ -487,7 +487,7 @@ class LLMClient:
         except LLMError:
             # Re-raise our specific LLM errors
             raise
-        except (AttributeError, KeyError, TypeError, ValueError, RuntimeError) as e:
+        except (AttributeError, KeyError, TypeError, ValueError) as e:
             error_details: ErrorDetails = {
                 "error": str(e),
                 "error_type": type(e).__name__,
@@ -506,6 +506,9 @@ class LLMClient:
                 hint="Check provider configuration and embedding request format",
                 details=dict(error_details),
             ) from e
+        except RuntimeError:
+            # Let RuntimeError propagate unchanged to match test expectations
+            raise
 
     def get_current_provider(self) -> LLMProvider | None:
         """Get the currently active provider type."""

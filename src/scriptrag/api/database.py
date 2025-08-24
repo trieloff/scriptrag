@@ -168,6 +168,13 @@ class DatabaseInitializer:
             logger.info("VSS schema initialized successfully")
         except FileNotFoundError:
             logger.debug("No VSS schema file found, skipping")
+        except sqlite3.Error as e:
+            # Re-raise SQLite errors as DatabaseError for consistency
+            raise DatabaseError(
+                message=f"Failed to initialize VSS schema: {e}",
+                hint="Check that required tables exist before initializing VSS schema",
+                details={"error_type": type(e).__name__},
+            ) from e
 
         conn.commit()
 

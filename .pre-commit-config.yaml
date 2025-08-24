@@ -171,6 +171,23 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: check-backup-files
+        name: Check for backup and temporary files
+        entry: |
+          bash -c 'if git diff --cached --name-status | grep -E "^[AM]" | cut -f2- | grep -E "\.(backup|bak|orig|swp|swo)$|~$|/\.[^/]*\.(swp|swo)$" > /dev/null; then
+            echo "Error: Backup or temporary files detected. These should not be committed.";
+            echo "Files found:";
+            git diff --cached --name-status | grep -E "^[AM]" | cut -f2- | grep -E "\.(backup|bak|orig|swp|swo)$|~$|/\.[^/]*\.(swp|swo)$";
+            exit 1;
+          fi'
+        language: system
+        pass_filenames: false
+        description: |
+          Prevents accidental commit of backup and temporary files:
+          - *.backup, *.bak, *.orig - Backup files
+          - *~ - Editor backup files
+          - .*.swp, .*.swo, *.swp, *.swo - Vim swap files
+
 ci:
   autoupdate_schedule: weekly
   skip: [mypy]  # mypy is too slow for CI

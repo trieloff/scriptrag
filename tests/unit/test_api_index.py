@@ -409,7 +409,7 @@ class TestIndexCommand:
             result = await cmd.index()
 
         assert len(result.errors) == 1
-        assert "Index operation failed: Discovery failed" in result.errors[0]
+        assert "Index operation failed: Error: Discovery failed" in result.errors[0]
         assert result.total_scripts_indexed == 0
 
 
@@ -763,7 +763,7 @@ class TestIndexCommandMissingCoverage:
         # Process batch - should catch exception and add to errors
         results = await indexer._process_scripts_batch(scripts, dry_run=False)
         assert len(results) == 1
-        assert results[0].error == "Test error"
+        assert results[0].error == "Error: Test error"
 
     @pytest.mark.asyncio
     async def test_index_single_script_parser_error(self):

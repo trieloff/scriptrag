@@ -4,7 +4,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from jsonschema import ValidationError
 
 from scriptrag.agents.markdown_agent_analyzer import MarkdownAgentAnalyzer
 from scriptrag.api.analyze import AnalyzeCommand
@@ -110,7 +109,9 @@ Come in, John.
         analyze_cmd = AnalyzeCommand(analyzers=[failing_analyzer])
 
         # Run analysis in brittle mode - should raise
-        with pytest.raises(ValidationError) as exc_info:
+        from scriptrag.exceptions import AnalyzerError
+
+        with pytest.raises(AnalyzerError) as exc_info:
             await analyze_cmd._process_file(
                 temp_fountain_file, force=True, dry_run=False, brittle=True
             )

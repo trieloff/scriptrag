@@ -45,7 +45,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
                 "Not a git repo"
             )
 
-            with pytest.raises(RuntimeError, match="Not a git repository"):
+            from scriptrag.exceptions import GitError
+
+            with pytest.raises(GitError, match="Error: Not a git repository"):
                 _ = analyzer.repo
 
     def test_repo_property_caches_repo(self, tmp_path):

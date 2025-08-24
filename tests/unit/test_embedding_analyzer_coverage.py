@@ -234,7 +234,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
 
         with patch("scriptrag.analyzers.embedding.git.Repo") as mock_repo_class:
             mock_repo = Mock()
-            mock_repo.index.add.side_effect = Exception("Git error")
+            # Git add error should be caught and logged as warning, not propagated
+            # Use git.GitCommandError which is actually caught by the code
+            mock_repo.index.add.side_effect = git.GitCommandError("add", "Git error")
             mock_repo_class.return_value = mock_repo
 
             # Should still return the embedding despite git error
@@ -279,7 +281,7 @@ class TestSceneEmbeddingAnalyzerCoverage:
         analyzer = SceneEmbeddingAnalyzer()
         analyzer.llm_client = AsyncMock()
 
-        # Mock response with empty data list - this will trigger fallback behavior
+        # Mock response with empty data list - this will raise RuntimeError
         response = Mock(spec=EmbeddingResponse)
         response.data = []
         response.model = "test-embedding-model"
@@ -288,18 +290,13 @@ class TestSceneEmbeddingAnalyzerCoverage:
 
         scene = {"content": "test scene"}
 
-        # Empty data should trigger fallback to zero vector, not raise error
-        embedding = await analyzer._generate_embedding(scene)
-
-        # Should return zero vector with default dimensions
-        assert isinstance(embedding, np.ndarray)
-        assert embedding.dtype == np.float32
-        assert len(embedding) == 1536  # Default dimensions
-        np.testing.assert_array_equal(embedding, np.zeros(1536, dtype=np.float32))
+        # Empty data should raise RuntimeError
+        with pytest.raises(RuntimeError, match="No embedding data in response"):
+            await analyzer._generate_embedding(scene)
 
     @pytest.mark.asyncio
     async def test_generate_embedding_exception_fallback(self):
-        """Test generating embedding exception fallback to zero vector."""
+        """Test generating embedding exception propagation."""
         config = {"dimensions": 768}
         analyzer = SceneEmbeddingAnalyzer(config)
         analyzer.llm_client = AsyncMock()
@@ -309,17 +306,13 @@ class TestSceneEmbeddingAnalyzerCoverage:
 
         scene = {"content": "test scene"}
 
-        embedding = await analyzer._generate_embedding(scene)
-
-        # Should return zero vector with configured dimensions
-        assert isinstance(embedding, np.ndarray)
-        assert embedding.dtype == np.float32
-        assert len(embedding) == 768
-        np.testing.assert_array_equal(embedding, np.zeros(768, dtype=np.float32))
+        # Exception should propagate up, no fallback behavior
+        with pytest.raises(Exception, match="Network error"):
+            await analyzer._generate_embedding(scene)
 
     @pytest.mark.asyncio
     async def test_generate_embedding_exception_fallback_default_dimensions(self):
-        """Test generating embedding exception fallback with default dimensions."""
+        """Test generating embedding exception propagation with default config."""
         analyzer = SceneEmbeddingAnalyzer()  # No dimensions configured
         analyzer.llm_client = AsyncMock()
 
@@ -328,13 +321,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
 
         scene = {"content": "test scene"}
 
-        embedding = await analyzer._generate_embedding(scene)
-
-        # Should return zero vector with default 1536 dimensions
-        assert isinstance(embedding, np.ndarray)
-        assert embedding.dtype == np.float32
-        assert len(embedding) == 1536
-        np.testing.assert_array_equal(embedding, np.zeros(1536, dtype=np.float32))
+        # Exception should propagate up, no fallback behavior
+        with pytest.raises(Exception, match="Network error"):
+            await analyzer._generate_embedding(scene)
 
     def test_format_scene_for_embedding_delegates_to_utils(self):
         """Test that _format_scene_for_embedding delegates to ScreenplayUtils."""

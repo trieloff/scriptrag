@@ -144,6 +144,9 @@ class TestGitHubModelsProvider:
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = GitHubModelsProvider()
 
+        # Initialize the HTTP client before patching
+        provider._init_http_client()
+
         mock_response = MagicMock()
         mock_response.status_code = 200
 
@@ -158,6 +161,9 @@ class TestGitHubModelsProvider:
         """Test availability with invalid token."""
         provider = GitHubModelsProvider()
 
+        # Initialize the HTTP client before patching
+        provider._init_http_client()
+
         mock_response = MagicMock()
         mock_response.status_code = 401
 
@@ -169,6 +175,9 @@ class TestGitHubModelsProvider:
         """Test successful model listing."""
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = GitHubModelsProvider()
+
+        # Initialize the HTTP client before patching
+        provider._init_http_client()
 
         # Clear cache to ensure fresh discovery
         if provider.model_discovery.cache:
@@ -235,6 +244,9 @@ class TestGitHubModelsProvider:
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = GitHubModelsProvider()
 
+        # Initialize the HTTP client before patching
+        provider._init_http_client()
+
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -283,6 +295,9 @@ class TestGitHubModelsProvider:
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = GitHubModelsProvider()
 
+        # Initialize the HTTP client before patching
+        provider._init_http_client()
+
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
@@ -323,6 +338,9 @@ class TestOpenAICompatibleProvider:
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
 
+        # Initialize the HTTP client before patching
+        provider._init_http_client()
+
         mock_response = MagicMock()
         mock_response.status_code = 200
 
@@ -334,6 +352,9 @@ class TestOpenAICompatibleProvider:
         """Test successful model listing."""
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
+
+        # Initialize the HTTP client before patching
+        provider._init_http_client()
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -356,6 +377,9 @@ class TestOpenAICompatibleProvider:
         """Test successful completion."""
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
+
+        # Initialize the HTTP client before patching
+        provider._init_http_client()
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -388,6 +412,9 @@ class TestOpenAICompatibleProvider:
         """Test successful embedding."""
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
+
+        # Initialize the HTTP client before patching
+        provider._init_http_client()
 
         mock_response = MagicMock()
         mock_response.status_code = 200

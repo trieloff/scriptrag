@@ -32,6 +32,9 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
     provider_type = LLMProvider.CLAUDE_CODE
 
+    # Static models for testing compatibility
+    STATIC_MODELS = ModelRegistry.CLAUDE_CODE_MODELS
+
     def __init__(self) -> None:
         """Initialize Claude Code provider."""
         self.sdk_available: bool = False

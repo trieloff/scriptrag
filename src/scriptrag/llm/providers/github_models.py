@@ -197,13 +197,15 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
 
             data: dict[str, Any] = response.json()
 
-            # Extract response content for logging
-            choices: list[dict[str, Any]] = data.get("choices", [])
+            # Extract response content for logging (safely handle malformed data)
+            choices_raw = data.get("choices", [])
             response_content: str = ""
-            if choices and len(choices) > 0:
-                response_content = (
-                    choices[0].get("message", {}).get("content", "") or ""
-                )
+            if isinstance(choices_raw, list) and len(choices_raw) > 0:
+                first_choice = choices_raw[0]
+                if isinstance(first_choice, dict):
+                    message = first_choice.get("message", {})
+                    if isinstance(message, dict):
+                        response_content = message.get("content", "") or ""
 
             logger.info(
                 "GitHub Models completion successful",

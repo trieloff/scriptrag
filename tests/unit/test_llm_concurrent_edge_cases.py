@@ -10,7 +10,6 @@ import pytest
 
 from scriptrag.exceptions import (
     LLMFallbackError,
-    LLMProviderError,
     LLMRetryableError,
     RateLimitError,
 )
@@ -399,13 +398,12 @@ class TestEdgeCases:
                 messages=[{"role": "user", "content": "Test"}],
             )
 
-            with pytest.raises(LLMProviderError) as exc_info:
+            with pytest.raises(ValueError) as exc_info:
                 await provider.complete(request)
 
-            # Should handle JSON decode error
-            assert (
-                "JSON" in str(exc_info.value) or "decode" in str(exc_info.value).lower()
-            )
+            # Should handle JSON decode error and wrap in ValueError
+            assert "Invalid API response" in str(exc_info.value)
+            assert "JSON" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_network_interruption_during_retry(self):

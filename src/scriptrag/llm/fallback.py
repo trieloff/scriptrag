@@ -8,7 +8,7 @@ from typing import Protocol, TypeVar
 from typing_extensions import TypedDict
 
 from scriptrag.config import get_logger
-from scriptrag.exceptions import LLMFallbackError
+from scriptrag.exceptions import LLMFallbackError, LLMProviderError, LLMRetryableError
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.models import (
     CompletionRequest,
@@ -336,6 +336,8 @@ class FallbackHandler:
             ValueError,
             RuntimeError,
             OSError,
+            LLMProviderError,
+            LLMRetryableError,
         ) as e:
             provider_errors[provider_name] = e
             error_details: ErrorDetails = {

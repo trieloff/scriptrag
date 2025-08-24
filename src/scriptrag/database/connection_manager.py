@@ -115,6 +115,8 @@ class ConnectionPool:
 
         if self.settings.database_foreign_keys:
             conn.execute("PRAGMA foreign_keys = ON")
+        else:
+            conn.execute("PRAGMA foreign_keys = OFF")
 
         # Enable JSON support
         conn.row_factory = sqlite3.Row

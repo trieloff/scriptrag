@@ -57,12 +57,15 @@ def initialized_db(initialized_db_settings):
     # Initialize database with schema
     from scriptrag.api.database import DatabaseInitializer
 
-    db_ops = DatabaseOperations(initialized_db_settings)
     initializer = DatabaseInitializer()
     initializer.initialize_database(
-        db_path=db_ops.db_path, settings=initialized_db_settings, force=True
+        db_path=initialized_db_settings.database_path,
+        settings=initialized_db_settings,
+        force=True,
     )
-    return db_ops
+
+    # Create DatabaseOperations after initialization to get fresh connection manager
+    return DatabaseOperations(initialized_db_settings)
 
 
 @pytest.fixture

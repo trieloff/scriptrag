@@ -97,8 +97,13 @@ class TestInitCommand:
 
     def test_init_fails_if_database_exists(self, runner, temp_db_path):
         """Test that init fails if database already exists."""
-        # Create existing database
-        temp_db_path.touch()
+        # Create existing database with a schema
+        import sqlite3
+
+        conn = sqlite3.connect(temp_db_path)
+        conn.execute("CREATE TABLE scripts (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        conn.close()
 
         # Run init command
         result = runner.invoke(app, ["init", "--db-path", str(temp_db_path)])

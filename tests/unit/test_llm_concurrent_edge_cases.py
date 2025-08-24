@@ -8,7 +8,12 @@ from unittest.mock import AsyncMock, Mock, patch
 import httpx
 import pytest
 
-from scriptrag.exceptions import LLMFallbackError, LLMRetryableError, RateLimitError
+from scriptrag.exceptions import (
+    LLMFallbackError,
+    LLMProviderError,
+    LLMRetryableError,
+    RateLimitError,
+)
 from scriptrag.llm import LLMClient
 from scriptrag.llm.fallback import FallbackHandler
 from scriptrag.llm.models import (
@@ -394,7 +399,7 @@ class TestEdgeCases:
                 messages=[{"role": "user", "content": "Test"}],
             )
 
-            with pytest.raises(Exception) as exc_info:
+            with pytest.raises(LLMProviderError) as exc_info:
                 await provider.complete(request)
 
             # Should handle JSON decode error

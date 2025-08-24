@@ -15,6 +15,7 @@ from scriptrag.api.analyze_helpers import (
 from scriptrag.api.analyze_protocols import SceneAnalyzer
 from scriptrag.api.analyze_results import AnalyzeResult, FileResult
 from scriptrag.api.list import FountainMetadata
+from scriptrag.exceptions import AnalyzerError
 from scriptrag.parser import Scene, Script
 
 
@@ -281,9 +282,9 @@ class TestAnalyzeCommand:
             mock_lister.list_scripts.return_value = [script_meta]
             mock_lister_class.return_value = mock_lister
 
-            mock_process.side_effect = Exception("File processing error")
+            mock_process.side_effect = AnalyzerError("File processing error")
 
-            with pytest.raises(Exception, match="File processing error"):
+            with pytest.raises(AnalyzerError, match="File processing error"):
                 await command.analyze(Path("/test"), brittle=True)
 
     @pytest.mark.asyncio
@@ -305,7 +306,7 @@ class TestAnalyzeCommand:
             mock_lister.list_scripts.return_value = [script_meta]
             mock_lister_class.return_value = mock_lister
 
-            mock_process.side_effect = Exception("File processing error")
+            mock_process.side_effect = AnalyzerError("File processing error")
 
             result = await command.analyze(Path("/test"), brittle=False)
 
@@ -320,9 +321,9 @@ class TestAnalyzeCommand:
         command = AnalyzeCommand()
 
         with patch("scriptrag.api.analyze.ScriptLister") as mock_lister_class:
-            mock_lister_class.side_effect = Exception("General error")
+            mock_lister_class.side_effect = AnalyzerError("General error")
 
-            with pytest.raises(Exception, match="General error"):
+            with pytest.raises(AnalyzerError, match="General error"):
                 await command.analyze(Path("/test"), brittle=True)
 
     @pytest.mark.asyncio
@@ -331,7 +332,7 @@ class TestAnalyzeCommand:
         command = AnalyzeCommand()
 
         with patch("scriptrag.api.analyze.ScriptLister") as mock_lister_class:
-            mock_lister_class.side_effect = Exception("General error")
+            mock_lister_class.side_effect = AnalyzerError("General error")
 
             result = await command.analyze(Path("/test"), brittle=False)
 

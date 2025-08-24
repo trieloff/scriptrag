@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from scriptrag.exceptions import LLMRetryableError
+from scriptrag.exceptions import LLMProviderError, LLMRetryableError
 from scriptrag.llm import (
     CompletionRequest,
     CompletionResponse,
@@ -106,11 +106,15 @@ class TestLLMClientCoverage:
         # Mock providers that fail
         mock_provider1 = Mock(spec=BaseLLMProvider)
         mock_provider1.is_available = AsyncMock(return_value=True)
-        mock_provider1.list_models = AsyncMock(side_effect=Exception("API Error"))
+        mock_provider1.list_models = AsyncMock(
+            side_effect=LLMProviderError("API Error")
+        )
 
         mock_provider2 = Mock(spec=BaseLLMProvider)
         mock_provider2.is_available = AsyncMock(return_value=True)
-        mock_provider2.list_models = AsyncMock(side_effect=Exception("Network Error"))
+        mock_provider2.list_models = AsyncMock(
+            side_effect=LLMProviderError("Network Error")
+        )
 
         client.registry.providers = {
             LLMProvider.CLAUDE_CODE: mock_provider1,
@@ -201,7 +205,7 @@ class TestLLMClientCoverage:
 
         # Mock the retry strategy to raise an exception
         client.retry_strategy.execute_with_retry = AsyncMock(
-            side_effect=Exception("Test error")
+            side_effect=LLMProviderError("Test error")
         )
 
         request = CompletionRequest(
@@ -215,7 +219,7 @@ class TestLLMClientCoverage:
                 "scriptrag.llm.client.traceback.format_exc",
                 return_value="Stack trace",
             ),
-            pytest.raises(Exception, match="Test error"),
+            pytest.raises(LLMProviderError, match="Test error"),
         ):
             await client._try_complete_with_provider(mock_provider, request)
 
@@ -308,7 +312,7 @@ class TestLLMClientCoverage:
 
         # Mock retry strategy to raise an exception
         client.retry_strategy.execute_with_retry = AsyncMock(
-            side_effect=Exception("Embed error")
+            side_effect=LLMProviderError("Embed error")
         )
 
         request = EmbeddingRequest(
@@ -322,7 +326,7 @@ class TestLLMClientCoverage:
                 "scriptrag.llm.client.traceback.format_exc",
                 return_value="Embed stack trace",
             ),
-            pytest.raises(Exception, match="Embed error"),
+            pytest.raises(LLMProviderError, match="Embed error"),
         ):
             await client._try_embed_with_provider(mock_provider, request)
 

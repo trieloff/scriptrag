@@ -14,6 +14,7 @@ import pytest
 
 from scriptrag.api import DatabaseInitializer
 from scriptrag.config import ScriptRAGSettings
+from scriptrag.exceptions import DatabaseError
 
 
 class TestVSSSchemaInitialization:
@@ -106,7 +107,7 @@ class TestVSSSchemaInitialization:
             mock_read.side_effect = mock_read_side_effect
 
             # This should fail because scenes table doesn't exist
-            with pytest.raises(RuntimeError) as exc_info:
+            with pytest.raises(DatabaseError) as exc_info:
                 initializer.initialize_database(settings=settings)
 
             assert "Failed to initialize database" in str(exc_info.value)

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm.models import CompletionRequest, EmbeddingRequest, LLMProvider
 from scriptrag.llm.providers.github_models import GitHubModelsProvider
 
@@ -337,7 +338,7 @@ class TestGitHubModelsProvider:
                 model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
             )
 
-            with pytest.raises(Exception) as exc_info:
+            with pytest.raises(LLMProviderError) as exc_info:
                 await provider.complete(request)
             assert "API Error" in str(exc_info.value)
 

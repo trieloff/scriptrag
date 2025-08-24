@@ -15,6 +15,7 @@ from typer.testing import CliRunner
 from scriptrag.analyzers.embedding import SceneEmbeddingAnalyzer
 from scriptrag.cli.main import app
 from scriptrag.config import set_settings
+from scriptrag.exceptions import LLMProviderError
 from tests.llm_test_utils import (
     TIMEOUT_INTEGRATION,
     TIMEOUT_LLM,
@@ -115,7 +116,7 @@ class TestLLMTimeoutHandling:
         assert response2.id == "mock-completion-1"
 
         # Third call should fail
-        with pytest.raises(Exception, match="Mock provider error"):
+        with pytest.raises(LLMProviderError, match="Mock provider error"):
             await provider.complete(request)
 
     @pytest.mark.integration
@@ -139,7 +140,7 @@ class TestLLMTimeoutHandling:
             assert response.id == "mock-completion-1"
 
         # Next call should hit rate limit
-        with pytest.raises(Exception, match="Rate limit exceeded"):
+        with pytest.raises(LLMProviderError, match="Rate limit exceeded"):
             await provider.complete(request)
 
     @pytest.mark.integration

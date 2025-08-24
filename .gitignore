@@ -45,6 +45,7 @@ nosetests.xml
 coverage.xml
 coverage.json
 junit.xml
+junit-canary.xml
 *.cover
 *.py,cover
 .hypothesis/

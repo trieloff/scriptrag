@@ -197,6 +197,28 @@ test-no-llm: install ## Run all tests except LLM tests
 	@echo "🧪 Running tests without LLM dependencies..."
 	uv run pytest tests/ -v -m "not requires_llm" $(PYTEST_ARGS)
 
+test-canary: install ## Run quick canary tests like CI (fast validation before push)
+	@echo "🐤 Running canary tests for quick validation..."
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "⏭️  Excluding: integration, slow, and LLM tests"
+	@echo "⚡ Settings: fail-fast (-x), 10 error limit, 15s per-test timeout"
+	@echo "📊 Expected runtime: < 30 seconds"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@start=$$(date +%s); \
+	uv run pytest -x -q --tb=short --maxfail=10 --disable-warnings --junit-xml=junit-canary.xml -o log_cli=false --capture=fd --timeout=15 --timeout-method=thread -m "not integration and not slow and not requires_llm" $(PYTEST_ARGS); \
+	ret=$$?; \
+	end=$$(date +%s); \
+	runtime=$$((end-start)); \
+	echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"; \
+	if [ $$ret -eq 0 ]; then \
+		echo "✅ Canary tests passed in $${runtime}s"; \
+		echo "🚀 Ready to push! Consider running 'make test' for full validation."; \
+	else \
+		echo "❌ Canary tests failed after $${runtime}s"; \
+		echo "💡 Run 'make test' for detailed output or check junit-canary.xml"; \
+	fi; \
+	exit $$ret
+
 test-fast: install ## Run tests without coverage (faster)
 	@echo "🔍 Checking for mock files before tests..."
 	@bash -c 'if find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null | head -1 | grep -q .; then \
@@ -388,6 +410,9 @@ check-fast: install ## Run fast quality checks (no tests)
 	uv run ruff check src/ tests/
 	uv run mypy src/ --no-error-summary
 	uv run ruff format --check src/ tests/
+
+.PHONY: check-canary
+check-canary: check-fast test-canary ## Run fast checks + canary tests (recommended before push)
 
 .PHONY: pre-commit
 pre-commit: install ## Run pre-commit on all files

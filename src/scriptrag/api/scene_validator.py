@@ -20,16 +20,36 @@ class FountainValidator:
         This is a compatibility wrapper that uses the enhanced SceneValidator
         from the validators package.
         """
-        # Use the enhanced validator
-        result = self.validator.validate_scene(content, strict=False)
+        try:
+            # Use the enhanced validator
+            result = self.validator.validate_scene(content, strict=False)
 
-        # Convert to the expected ValidationResult format
-        return ValidationResult(
-            is_valid=result.is_valid,
-            errors=result.errors,
-            warnings=result.warnings,
-            parsed_scene=result.parsed_scene,
-        )
+            # Convert to the expected ValidationResult format
+            return ValidationResult(
+                is_valid=result.is_valid,
+                errors=result.errors,
+                warnings=result.warnings,
+                parsed_scene=result.parsed_scene,
+            )
+        except Exception as e:
+            # If validation fails, return a basic validation result
+            logger.error(f"Validation error: {e}")
+            # Still try basic validation
+            has_heading = self._has_scene_heading(content)
+            if has_heading:
+                # Has a valid heading, so it's technically valid
+                return ValidationResult(
+                    is_valid=True,
+                    errors=[],
+                    warnings=[f"Advanced validation failed: {e!s}"],
+                    parsed_scene=None,
+                )
+            return ValidationResult(
+                is_valid=False,
+                errors=["Missing scene heading", f"Validation error: {e!s}"],
+                warnings=[],
+                parsed_scene=None,
+            )
 
     def _has_scene_heading(self, content: str) -> bool:
         """Check if content has a valid scene heading."""

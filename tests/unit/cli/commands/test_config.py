@@ -160,15 +160,20 @@ class TestConfigInit:
         assert "Configuration file generated" in result.output
         assert "existing: content" not in output_path.read_text()
 
-    def test_init_invalid_path(self):
-        """Test error with invalid output path."""
+    def test_init_creates_parent_directories(self, tmp_path):
+        """Test that init creates parent directories if they don't exist."""
+        # Use a path with non-existent parent directories
+        deep_path = tmp_path / "level1" / "level2" / "level3" / "config.yaml"
+
         result = runner.invoke(
             config_app,
-            ["init", "--output", "/invalid/path/config.yaml", "--force"],
+            ["init", "--output", str(deep_path), "--force"],
         )
 
-        assert result.exit_code == 1
-        assert "Error" in result.output
+        # The command should succeed and create all parent directories
+        assert result.exit_code == 0
+        assert deep_path.exists()
+        assert "Configuration file generated" in result.output
 
 
 class TestConfigValidate:

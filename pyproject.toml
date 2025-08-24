@@ -139,6 +139,68 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/scriptrag"]
+exclude = [
+    "**/CLAUDE.md",
+    "**/*.backup",
+    "**/tests/",
+    "**/__pycache__/",
+    "**/.pytest_cache/",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/node_modules/",
+]
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    ".github/",
+    ".claude/",
+    "docs/",
+    "tests/",
+    "scripts/",
+    "notebooks/",
+    "examples/",
+    "cache/",
+    "logs/",
+    "exports/",
+    "temp/",
+    "data/",
+    "embeddings/",
+    "test_data/",
+    "**/CLAUDE.md",
+    "**/*.backup",
+    "**/__pycache__/",
+    "**/.pytest_cache/",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/node_modules/",
+    "Makefile",
+    "mkdocs.yml",
+    "codecov.yml",
+    "pyrightconfig.json",
+    "pytest*.ini",
+    "commit_fixes.sh",
+    "terragon-setup.sh",
+    "trigger_ci.txt",
+    "uv.lock",
+    "AGENTS.md",
+    "AI_CONTENT_INDICATORS_DATABASE.md",
+    "ARCHITECTURE.md",
+    "SIMPLIFICATION_SUMMARY.md",
+    "TEST_IMPROVEMENTS_SUMMARY.md",
+    "TO-NEVER-DO.md",
+    "TYPE_COVERAGE_IMPROVEMENTS.md",
+    "WEEKLY_STATUS_REPORT.md",
+    ".editorconfig",
+    ".env.example",
+    ".markdownlint.yaml",
+    ".pre-commit-config.yaml",
+    ".secrets.baseline",
+    ".sqlfluff",
+    ".sqlfluffignore",
+    ".yamllint.yaml",
+    ".gitattributes",
+    "config.yaml",
+]
 
 [tool.hatch.version]
 path = "src/scriptrag/__init__.py"

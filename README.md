@@ -240,6 +240,43 @@ See [Testing Best Practices](docs/TESTING.md) for comprehensive testing guidelin
 - **Pattern**: GraphRAG (Graph + Retrieval-Augmented Generation)
 - **Interface**: MCP (Model Context Protocol) server
 
+## Building and Packaging
+
+### Package Distribution
+
+ScriptRAG is distributed as a Python wheel and source distribution. The packages are optimized for size by excluding development files:
+
+#### Building Packages
+
+```bash
+# Install build dependencies
+make setup-dev
+
+# Build wheel and source distribution
+uv run python -m build
+
+# Verify package contents
+unzip -l dist/*.whl  # Check wheel contents
+tar -tzf dist/*.tar.gz  # Check source distribution
+```
+
+#### What's Included
+
+The distribution packages include:
+
+- All runtime Python code (`src/scriptrag/`)
+- SQL schema files for database initialization
+- README and LICENSE files
+- Required metadata and configuration
+
+The following are excluded to reduce package size:
+
+- Development documentation (CLAUDE.md files, architecture docs)
+- Test files and fixtures
+- Development tools and scripts
+- Examples and notebooks
+- CI/CD configuration
+
 ## Contributing
 
 Contributions are welcome! Please see our [Developer Guide](docs/developer-guide.md) and [AI Agent Guidelines](AGENTS.md) for more details.

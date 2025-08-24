@@ -944,3 +944,213 @@ I object!
             assert not parser.processor._is_character_line(char), (
                 f"Should NOT be valid character: {char}"
             )
+
+
+class TestFountainParserHelperMethods:
+    """Test FountainParser helper methods independently."""
+
+    @pytest.fixture
+    def parser(self):
+        """Create a FountainParser instance."""
+        return FountainParser()
+
+    def test_apply_jouvence_workaround(self, parser):
+        """Test the _apply_jouvence_workaround method."""
+        # Test that boneyard comments are stripped
+        content = """Title: Test
+/* This is a boneyard comment */
+INT. ROOM - DAY
+
+Some action.
+
+/* SCRIPTRAG-META-START
+{
+    "test": "value"
+}
+SCRIPTRAG-META-END */
+"""
+        cleaned = parser._apply_jouvence_workaround(content)
+
+        # All boneyard comments should be removed
+        assert "/*" not in cleaned
+        assert "*/" not in cleaned
+        assert "This is a boneyard comment" not in cleaned
+        assert "SCRIPTRAG-META-START" not in cleaned
+        assert "test" not in cleaned
+
+        # But regular content should remain
+        assert "Title: Test" in cleaned
+        assert "INT. ROOM - DAY" in cleaned
+        assert "Some action." in cleaned
+
+    def test_apply_jouvence_workaround_multiline(self, parser):
+        """Test workaround with multiline boneyard comments."""
+        content = """Title: Test
+
+/*
+   This is a
+   multiline
+   boneyard comment
+*/
+
+INT. ROOM - DAY
+
+/* Another
+comment */
+"""
+        cleaned = parser._apply_jouvence_workaround(content)
+
+        assert "/*" not in cleaned
+        assert "*/" not in cleaned
+        assert "multiline" not in cleaned
+        assert "boneyard comment" not in cleaned
+        assert "Another" not in cleaned
+
+        # Regular content preserved
+        assert "Title: Test" in cleaned
+        assert "INT. ROOM - DAY" in cleaned
+
+    def test_extract_doc_metadata_full(self, parser):
+        """Test _extract_doc_metadata with all fields present."""
+        # Create a mock jouvence document
+        mock_doc = MagicMock()
+        mock_doc.title_values = {
+            "title": "Test Script",
+            "author": "John Doe",
+            "episode": "5",
+            "season": "2",
+            "series": "Amazing Show",
+            "project": "Season 2 Scripts",
+        }
+
+        title, author, metadata = parser._extract_doc_metadata(mock_doc)
+
+        assert title == "Test Script"
+        assert author == "John Doe"
+        assert metadata["episode"] == 5
+        assert metadata["season"] == 2
+        assert metadata["series_title"] == "Amazing Show"
+        assert metadata["project_title"] == "Season 2 Scripts"
+
+    def test_extract_doc_metadata_author_variations(self, parser):
+        """Test _extract_doc_metadata with different author field names."""
+        variations = [
+            ("author", "John Doe"),
+            ("authors", "Jane & John"),
+            ("writer", "Bob Smith"),
+            ("writers", "Alice & Bob"),
+            ("written by", "Charlie"),
+        ]
+
+        for field_name, expected_author in variations:
+            mock_doc = MagicMock()
+            mock_doc.title_values = {"title": "Test", field_name: expected_author}
+
+            title, author, metadata = parser._extract_doc_metadata(mock_doc)
+            assert author == expected_author, f"Failed for field: {field_name}"
+
+    def test_extract_doc_metadata_no_title_values(self, parser):
+        """Test _extract_doc_metadata when doc has no title_values."""
+        mock_doc = MagicMock()
+        mock_doc.title_values = None
+
+        title, author, metadata = parser._extract_doc_metadata(mock_doc)
+
+        assert title is None
+        assert author is None
+        assert metadata == {}
+
+    def test_extract_doc_metadata_series_variations(self, parser):
+        """Test _extract_doc_metadata with different series field names."""
+        # Test priority: series > series_title > show
+        mock_doc = MagicMock()
+        mock_doc.title_values = {
+            "series": "Primary",
+            "series_title": "Secondary",
+            "show": "Tertiary",
+        }
+
+        _, _, metadata = parser._extract_doc_metadata(mock_doc)
+        assert metadata["series_title"] == "Primary"
+
+        # Without 'series'
+        mock_doc.title_values = {"series_title": "Secondary", "show": "Tertiary"}
+
+        _, _, metadata = parser._extract_doc_metadata(mock_doc)
+        assert metadata["series_title"] == "Secondary"
+
+        # Only 'show'
+        mock_doc.title_values = {"show": "Tertiary"}
+
+        _, _, metadata = parser._extract_doc_metadata(mock_doc)
+        assert metadata["series_title"] == "Tertiary"
+
+    def test_extract_doc_metadata_project_variations(self, parser):
+        """Test _extract_doc_metadata with different project field names."""
+        # Test priority: project > project_title
+        mock_doc = MagicMock()
+        mock_doc.title_values = {
+            "project": "Primary Project",
+            "project_title": "Secondary Project",
+        }
+
+        _, _, metadata = parser._extract_doc_metadata(mock_doc)
+        assert metadata["project_title"] == "Primary Project"
+
+        # Only project_title
+        mock_doc.title_values = {"project_title": "Secondary Project"}
+
+        _, _, metadata = parser._extract_doc_metadata(mock_doc)
+        assert metadata["project_title"] == "Secondary Project"
+
+    def test_extract_doc_metadata_non_numeric_episode_season(self, parser):
+        """Test _extract_doc_metadata with non-numeric episode/season."""
+        mock_doc = MagicMock()
+        mock_doc.title_values = {"episode": "Three", "season": "Two"}
+
+        _, _, metadata = parser._extract_doc_metadata(mock_doc)
+        assert metadata["episode"] == "Three"
+        assert metadata["season"] == "Two"
+
+    def test_process_scenes_basic(self, parser):
+        """Test _process_scenes method."""
+        # Create mock jouvence scenes
+        mock_scene1 = MagicMock()
+        mock_scene1.header = "INT. ROOM - DAY"
+        mock_scene1.paragraphs = []
+
+        mock_scene2 = MagicMock()
+        mock_scene2.header = "EXT. PARK - NIGHT"
+        mock_scene2.paragraphs = []
+
+        mock_doc = MagicMock()
+        mock_doc.scenes = [mock_scene1, mock_scene2]
+
+        content = "INT. ROOM - DAY\n\nAction.\n\nEXT. PARK - NIGHT\n\nMore action."
+
+        scenes = parser._process_scenes(mock_doc, content)
+
+        assert len(scenes) == 2
+        assert scenes[0].heading == "INT. ROOM - DAY"
+        assert scenes[1].heading == "EXT. PARK - NIGHT"
+
+    def test_process_scenes_skip_without_header(self, parser):
+        """Test _process_scenes skips scenes without headers."""
+        # Create mock scenes
+        mock_fade_in = MagicMock()
+        mock_fade_in.header = None  # No header for FADE IN
+
+        mock_scene = MagicMock()
+        mock_scene.header = "INT. ROOM - DAY"
+        mock_scene.paragraphs = []
+
+        mock_doc = MagicMock()
+        mock_doc.scenes = [mock_fade_in, mock_scene]
+
+        content = "FADE IN:\n\nINT. ROOM - DAY\n\nAction."
+
+        scenes = parser._process_scenes(mock_doc, content)
+
+        # Should only have one scene (the one with header)
+        assert len(scenes) == 1
+        assert scenes[0].heading == "INT. ROOM - DAY"

@@ -214,6 +214,19 @@ class GitLFSVectorStore(VectorStore):
         model_dir = self.lfs_dir / model.replace("/", "_") / entity_type
         return model_dir / f"{entity_id}.npy"
 
+    def get_embedding_path(self, entity_type: str, entity_id: int, model: str) -> Path:
+        """Get path for an embedding file (public method).
+
+        Args:
+            entity_type: Type of entity
+            entity_id: ID of the entity
+            model: Model used for embedding
+
+        Returns:
+            Path to embedding file
+        """
+        return self._get_path(entity_type, entity_id, model)
+
     def store(
         self,
         entity_type: str,

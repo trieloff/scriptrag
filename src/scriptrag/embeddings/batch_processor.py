@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from scriptrag.config import get_logger
+from scriptrag.exceptions import EmbeddingResponseError
 from scriptrag.llm.client import LLMClient
 from scriptrag.llm.models import EmbeddingRequest
 
@@ -119,7 +120,11 @@ class BatchProcessor:
                         embedding=list(embedding),
                         metadata=item.metadata,
                     )
-                raise ValueError("No embedding in response")
+                raise EmbeddingResponseError(
+                    message="No embedding in response",
+                    hint="Check that the LLM provider supports embeddings",
+                    details={"model": model, "item_id": item.id},
+                )
 
             except Exception as e:
                 last_error = str(e)

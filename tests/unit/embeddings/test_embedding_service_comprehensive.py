@@ -186,7 +186,9 @@ class TestEmbeddingServiceComprehensive:
         mock_llm_client.embed.return_value = mock_response
 
         # Create long content that exceeds max_length
-        long_content = "A" * 9000  # Longer than 8000 limit
+        # The default model is text-embedding-3-small with max_tokens=8191
+        # which translates to 8191 * 4 = 32764 character limit
+        long_content = "A" * 35000  # Longer than model limit
         scene_heading = "INT. ROOM - DAY"
 
         with patch.object(service, "generate_embedding") as mock_gen:
@@ -198,7 +200,8 @@ class TestEmbeddingServiceComprehensive:
 
             # Check that text was truncated
             call_args = mock_gen.call_args[0][0]
-            assert len(call_args) <= 8000 + 3  # +3 for "..."
+            # text-embedding-3-small: max_tokens=8191, max_length=8191*4=32764
+            assert len(call_args) <= 32764 + 3  # +3 for "..."
             assert call_args.endswith("...")
             assert "Scene: INT. ROOM - DAY" in call_args
 

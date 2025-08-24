@@ -152,8 +152,16 @@ class EmbeddingService:
         # Combine heading and content for richer embedding
         combined_text = f"Scene: {scene_heading}\n\n{scene_content}"
 
-        # Truncate if too long (most models have token limits)
-        max_length = 8000  # Conservative limit for most models
+        # Get model-specific max tokens and use conservative character estimate
+        actual_model = model or self.default_model
+        model_info = self.dimension_manager.get_model_info(actual_model)
+        if model_info and model_info.max_tokens:
+            # Conservative estimate: ~4 characters per token
+            max_length = model_info.max_tokens * 4
+        else:
+            # Fallback to conservative default
+            max_length = 8000
+
         if len(combined_text) > max_length:
             combined_text = combined_text[:max_length] + "..."
 
@@ -177,7 +185,7 @@ class EmbeddingService:
         self.lfs_store.store(entity_type, entity_id, embedding, model)
 
         # Return path for compatibility
-        return self.lfs_store._get_path(entity_type, entity_id, model)
+        return self.lfs_store.get_embedding_path(entity_type, entity_id, model)
 
     def load_embedding_from_lfs(
         self, entity_type: str, entity_id: int, model: str

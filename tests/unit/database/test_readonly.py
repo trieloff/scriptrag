@@ -21,6 +21,9 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         return settings
 
     def test_get_read_only_connection_success(self, settings):

@@ -16,7 +16,15 @@ from scriptrag.config import ScriptRAGSettings
 @pytest.fixture
 def mock_settings():
     """Create mock settings for testing."""
-    return MagicMock(spec=ScriptRAGSettings)
+    settings = MagicMock(spec=ScriptRAGSettings)
+    settings.database_path = ":memory:"
+    settings.database_journal_mode = "WAL"
+    settings.database_synchronous = "NORMAL"
+    settings.database_cache_size = -2000
+    settings.database_temp_store = "MEMORY"
+    settings.database_foreign_keys = True
+    settings.database_timeout = 30.0
+    return settings
 
 
 @pytest.fixture

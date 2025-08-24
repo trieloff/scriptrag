@@ -258,16 +258,18 @@ class AnalyzeCommand:
                     )
                     result.errors.append(f"{script_meta.file_path}: {e}")
 
-        except (OSError, ValueError, RuntimeError) as e:
+        except (OSError, ValueError, RuntimeError, AnalyzerError) as e:
             if brittle:
                 logger.error(f"Analyze operation failed: {e!s} (brittle mode)")
+                if isinstance(e, AnalyzerError):
+                    raise
                 raise AnalyzerError(
                     message="Analyze operation failed",
                     hint="Check directory permissions and available analyzers",
                     details={"error_type": type(e).__name__, "error": str(e)},
                 ) from e
             logger.error(f"Analyze operation failed: {e!s}")
-            result.errors.append(f"Analyze failed: {e!s}")
+            result.errors.append(f"{e!s}")
 
         return result
 

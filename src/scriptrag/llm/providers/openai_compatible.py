@@ -322,8 +322,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                     model=request.model,
                 )
                 raise ValueError(f"Invalid API response: {e}") from e
-            except Exception as e:
-                # Catch any other unexpected errors and convert to LLMProviderError
+            except (RuntimeError, OSError, TimeoutError) as e:
+                # Catch runtime/network errors and convert to LLMProviderError
                 logger.error(
                     "OpenAI-compatible completion failed with unexpected error",
                     error=str(e),

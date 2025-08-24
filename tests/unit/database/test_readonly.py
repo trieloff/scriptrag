@@ -32,29 +32,25 @@ class TestGetReadOnlyConnection:
         db_path = settings.database_path
         db_path.touch()
 
-        with patch("sqlite3.connect") as mock_connect:
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock()
             mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
-            # Verify connection was opened in read-only mode
-            expected_uri = f"file:{db_path.resolve()}?mode=ro"
-            mock_connect.assert_called_once_with(
-                expected_uri, uri=True, timeout=30.0, check_same_thread=False
-            )
-
-            # Verify pragma settings were applied
-            mock_conn.execute.assert_any_call("PRAGMA query_only = ON")
-            mock_conn.execute.assert_any_call("PRAGMA cache_size = -2000")
-            mock_conn.execute.assert_any_call("PRAGMA temp_store = MEMORY")
-
-            # Verify row factory was set
-            assert mock_conn.row_factory is not None
-
-            # Verify connection was closed
-            mock_conn.close.assert_called_once()
+            # Verify connection manager was called with settings
+            mock_get_manager.assert_called_once_with(settings)
+            # Verify readonly context was used
+            mock_manager.readonly.assert_called_once()
 
     def test_get_read_only_connection_path_traversal_protection(self, tmp_path):
         """Test path traversal protection."""
@@ -83,77 +79,98 @@ class TestGetReadOnlyConnection:
         db_path = settings.database_path
         db_path.touch()
 
-        with patch("sqlite3.connect") as mock_connect:
-            # Mock connection that raises exception during setup
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
-            mock_conn.execute.side_effect = RuntimeError("Connection error")
+        # Mock the connection manager to raise an exception
+        from scriptrag.exceptions import DatabaseError
 
-            with (
-                pytest.raises(RuntimeError, match="Connection error"),
-                get_read_only_connection(settings),
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_get_manager.side_effect = DatabaseError(
+                message="Failed to create database connection: Connection error",
+                hint="Check database path and permissions",
+                details={"db_path": str(db_path)},
+            )
+
+            with pytest.raises(
+                DatabaseError,
+                match="Failed to create database connection: Connection error",
             ):
-                pass
+                with get_read_only_connection(settings):
+                    pass
 
-            # Connection should still be closed on exception
-            mock_conn.close.assert_called_once()
+            # Verify connection manager was called with settings
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_get_read_only_connection_no_exception_on_close_error(self, settings):
         """Test that exceptions during close are handled gracefully."""
         db_path = settings.database_path
         db_path.touch()
 
-        with patch("sqlite3.connect") as mock_connect:
+        # Mock the connection manager - close errors handled internally
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock()
             mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
-            # Connection closes with error, but should not propagate
-            mock_conn.close.side_effect = RuntimeError("Close error")
+            mock_get_manager.return_value = mock_manager
+            mock_context = MagicMock()
+            mock_context.__enter__ = MagicMock(return_value=mock_conn)
+            mock_context.__exit__ = MagicMock(
+                return_value=None
+            )  # Close error handled internally
+            mock_manager.readonly.return_value = mock_context
 
-            # Should not raise exception during context manager usage
-            # The close error should be suppressed in the finally block
+            # Should not raise exception - connection manager handles close errors
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
-            # Verify close was called (even though it raised an error)
-            mock_conn.close.assert_called_once()
+            # Verify the context manager was properly used
+            mock_context.__exit__.assert_called_once()
 
     def test_get_read_only_connection_none_connection(self, settings):
         """Test handling when connection is None."""
         db_path = settings.database_path
         db_path.touch()
 
-        with patch("sqlite3.connect") as mock_connect:
-            # Mock connect returning None
-            mock_connect.return_value = None
+        # Mock the connection manager to raise error when None connection is attempted
+        from scriptrag.exceptions import DatabaseError
 
-            # This will fail because the code tries to call execute on None
-            # The actual implementation doesn't handle None connections gracefully
-            with (
-                pytest.raises(AttributeError),
-                get_read_only_connection(settings) as conn,
-            ):
-                assert conn is None
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_get_manager.side_effect = DatabaseError(
+                message="Failed to create database connection: NoneType error",
+                hint="Check database path and permissions",
+                details={"db_path": str(db_path)},
+            )
+
+            with pytest.raises(DatabaseError, match="NoneType error"):
+                with get_read_only_connection(settings):
+                    pass
 
     def test_get_read_only_connection_exception_cleanup(self, settings):
         """Test exception handling in cleanup - line 34 coverage."""
         db_path = settings.database_path
         db_path.touch()
 
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            # First call returns a connection, but then fails on pragma setup
-            mock_connect.return_value = mock_conn
-            mock_conn.execute.side_effect = RuntimeError("Pragma setup failed")
+        # Mock the connection manager to raise exception during initialization
+        from scriptrag.exceptions import DatabaseError
 
-            # This should handle the exception and still try to clean up
-            with (
-                pytest.raises(RuntimeError, match="Pragma setup failed"),
-                get_read_only_connection(settings),
-            ):
-                pass
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_get_manager.side_effect = DatabaseError(
+                message="Failed to create database connection: Pragma setup failed",
+                hint="Check database path and permissions",
+                details={"db_path": str(db_path)},
+            )
 
-            # Connection should have been closed in finally block
-            mock_conn.close.assert_called_once()
+            with pytest.raises(DatabaseError, match="Pragma setup failed"):
+                with get_read_only_connection(settings):
+                    pass
+
+            # Connection manager should have been called
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_get_read_only_connection_macos_temp_dirs_allowed(self):
         """Test that macOS temp directories in /private/var/folders/ are allowed."""
@@ -170,20 +187,28 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
 
-        with patch("sqlite3.connect") as mock_connect:
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock()
             mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # This should NOT raise a ValueError for macOS temp dirs
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
-            # Verify connection was opened successfully
-            expected_uri = f"file:{macos_temp_path.resolve()}?mode=ro"
-            mock_connect.assert_called_once_with(
-                expected_uri, uri=True, timeout=30.0, check_same_thread=False
-            )
+            # Verify connection manager was called with settings
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_get_read_only_connection_regular_var_dirs_blocked(self):
         """Test that regular /var/ directories (non-temp) are still blocked."""
@@ -217,18 +242,28 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
 
-        with patch("sqlite3.connect") as mock_connect:
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock()
             mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # This should NOT raise a ValueError for /root/repo/
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
-            # Verify connection was opened successfully
-            expected_uri = f"file:{repo_path.resolve()}?mode=ro"
-            mock_connect.assert_called_once()
+            # Verify connection manager was called with settings
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_root_repo_subdir_allowed(self):
         """Test that subdirectories under /root/repo/ are allowed."""
@@ -242,14 +277,28 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
 
-        with patch("sqlite3.connect") as mock_connect:
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock()
             mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # This should NOT raise a ValueError for /root/repo/ subdirs
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
+
+            # Verify connection manager was called
+            mock_get_manager.assert_called_once_with(settings)
 
     @pytest.mark.skipif(sys.platform == "win32", reason="Unix-specific path test")
     def test_root_malicious_repo_blocked(self):
@@ -304,14 +353,28 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
 
-        with patch("sqlite3.connect") as mock_connect:
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock()
             mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # Home directories should be allowed
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
+
+            # Verify connection manager was called
+            mock_get_manager.assert_called_once_with(settings)
 
     @pytest.mark.skipif(sys.platform == "win32", reason="macOS-specific path test")
     def test_macos_users_directory_allowed(self):
@@ -325,14 +388,28 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
 
-        with patch("sqlite3.connect") as mock_connect:
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock()
             mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # macOS /Users/ directories should be allowed
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
+
+            # Verify connection manager was called
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_windows_user_documents_allowed(self):
         """Test that Windows user Documents directories are allowed."""
@@ -345,14 +422,28 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
 
-        with patch("sqlite3.connect") as mock_connect:
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock()
             mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # Windows Documents folders should be allowed
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
+
+            # Verify connection manager was called
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_system_directories_blocked(self):
         """Test that various system directories are blocked."""
@@ -433,11 +524,28 @@ class TestGetReadOnlyConnection:
             settings.database_timeout = 30.0
             settings.database_cache_size = -2000
             settings.database_temp_store = "MEMORY"
+            settings.database_journal_mode = "WAL"
+            settings.database_synchronous = "NORMAL"
+            settings.database_foreign_keys = True
 
-            with patch("sqlite3.connect") as mock_connect:
+            # Mock the connection manager to prevent actual database initialization
+            with patch(
+                "scriptrag.database.readonly.get_connection_manager"
+            ) as mock_get_manager:
+                mock_manager = MagicMock()
                 mock_conn = MagicMock()
-                mock_connect.return_value = mock_conn
+                mock_get_manager.return_value = mock_manager
+                mock_manager.readonly.return_value.__enter__ = MagicMock(
+                    return_value=mock_conn
+                )
+                mock_manager.readonly.return_value.__exit__ = MagicMock(
+                    return_value=None
+                )
 
                 # These should be allowed
                 with get_read_only_connection(settings) as conn:
                     assert conn == mock_conn
+
+                # Verify connection manager was called
+                mock_get_manager.assert_called_once_with(settings)
+                mock_get_manager.reset_mock()

@@ -209,6 +209,7 @@ class SceneParser:
         heading = heading.strip()
         for prefix in ["int.", "ext.", "i/e.", "int/ext."]:
             if heading.lower().startswith(prefix):
+                # Slice after the prefix length
                 heading = prefix.upper() + heading[len(prefix) :]
                 break
 

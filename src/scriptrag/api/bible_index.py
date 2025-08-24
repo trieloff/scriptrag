@@ -10,7 +10,6 @@ from pathlib import Path
 
 from scriptrag.analyzers.embedding import SceneEmbeddingAnalyzer
 from scriptrag.api.bible_alias_extractor import BibleAliasExtractor
-from scriptrag.api.bible_detector import BibleAutoDetector  # noqa: F401
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 from scriptrag.parser.bible_parser import BibleParser, ParsedBible

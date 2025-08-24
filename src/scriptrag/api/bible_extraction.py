@@ -1,13 +1,24 @@
-"""Bible character extraction module using LLM."""
+"""Bible extraction orchestration module.
+
+This module provides the main entry point for bible extraction functionality,
+coordinating between character extraction, scene extraction, formatting,
+and validation submodules.
+"""
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from scriptrag.api.bible.character_bible import (
+    BibleCharacter,
+)
+from scriptrag.api.bible.character_bible import (
+    BibleCharacterExtractor as CharacterExtractor,
+)
+from scriptrag.api.bible.formatters import BibleFormatter
+from scriptrag.api.bible.scene_bible import SceneBibleExtractor
+from scriptrag.api.bible.validators import BibleValidator
 from scriptrag.config import get_logger
 from scriptrag.llm import LLMClient
 from scriptrag.parser.bible_parser import BibleParser
@@ -15,74 +26,37 @@ from scriptrag.parser.bible_parser import BibleParser
 logger = get_logger(__name__)
 
 
-@dataclass
-class BibleCharacter:
-    """Represents a character extracted from a script Bible.
+class BibleExtractor:
+    """Orchestrates bible extraction from screenplay files.
 
-    Contains all information about a character including their canonical name,
-    alternative names or titles they might be referred to by, optional
-    categorization tags, and descriptive notes.
+    This class coordinates the extraction of character and scene information
+    from Bible markdown files, using specialized extractors for each type
+    of data and providing unified formatting and validation.
 
-    This data structure is used to store LLM-extracted character information
-    before it's converted to the final metadata format for database storage
-    and use by the relationships analyzer.
-
-    Attributes:
-        canonical: The primary/official character name, typically as it would
-                  appear in dialogue headers (e.g., "JANE SMITH", "DETECTIVE JONES")
-        aliases: List of alternative names, nicknames, or titles this character
-                might be referenced by (e.g., ["JANE", "MS. SMITH", "THE DETECTIVE"])
-        tags: Optional list of character categories or roles
-             (e.g., ["protagonist", "detective", "supporting"])
-        notes: Optional free-form description or notes about the character
-               from the Bible content
+    The extractor combines:
+    - Character extraction for names, aliases, and roles
+    - Scene extraction for locations and settings
+    - Output formatting for consistent results
+    - Data validation and normalization
 
     Example:
-        >>> character = BibleCharacter(
-        ...     canonical="JANE SMITH",
-        ...     aliases=["JANE", "DETECTIVE SMITH", "MS. SMITH"],
-        ...     tags=["protagonist", "detective"],
-        ...     notes="Lead investigator with 15 years experience"
-        ... )
-    """
-
-    canonical: str
-    aliases: list[str]
-    tags: list[str] | None = None
-    notes: str | None = None
-
-
-class BibleCharacterExtractor:
-    """Extracts character names and aliases from script Bible files using LLM.
-
-    This class orchestrates the process of analyzing script Bible markdown files
-    to identify character information and extract structured data about character
-    names, aliases, and relationships. It uses LLM analysis to understand
-    natural language descriptions and convert them to structured character data
-    suitable for use in relationship analysis.
-
-    The extractor works by:
-    1. Parsing Bible markdown files to identify character-related sections
-    2. Using LLM prompts to extract structured character information
-    3. Normalizing and validating the extracted data
-    4. Returning standardized metadata for database storage
-
-    Example:
-        >>> extractor = BibleCharacterExtractor()
-        >>> result = await extractor.extract_characters_from_bible(
-        ...     Path("my_script_bible.md")
-        ... )
+        >>> extractor = BibleExtractor()
+        >>> result = await extractor.extract_from_bible(Path("bible.md"))
         >>> print(f"Found {len(result['characters'])} characters")
     """
 
     def __init__(self, llm_client: LLMClient | None = None) -> None:
-        """Initialize Bible character extractor.
+        """Initialize Bible extractor.
 
         Args:
-            llm_client: LLM client for extraction
+            llm_client: LLM client for extraction, shared across submodules
         """
         self.llm_client = llm_client or LLMClient()
+        self.character_extractor = CharacterExtractor(self.llm_client)
+        self.scene_extractor = SceneBibleExtractor(self.llm_client)
         self.bible_parser = BibleParser()
+        self.formatter = BibleFormatter()
+        self.validator = BibleValidator()
 
     async def extract_characters_from_bible(self, bible_path: Path) -> dict[str, Any]:
         """Extract character names and aliases from a script Bible file.
@@ -120,7 +94,7 @@ class BibleCharacterExtractor:
             }
 
         Example:
-            >>> extractor = BibleCharacterExtractor()
+            >>> extractor = BibleExtractor()
             >>> result = await extractor.extract_characters_from_bible(
             ...     Path("script_bible.md")
             ... )
@@ -137,364 +111,134 @@ class BibleCharacterExtractor:
             parsed_bible = self.bible_parser.parse_file(bible_path)
 
             # Find character-related chunks
-            character_chunks = self._find_character_chunks(parsed_bible)
+            character_chunks = self.character_extractor.find_character_chunks(
+                parsed_bible
+            )
 
             if not character_chunks:
                 logger.info(f"No character sections found in {bible_path}")
-                return self._create_empty_result()
+                return self.formatter.create_empty_result("characters")
 
             # Extract characters via LLM
-            characters = await self._extract_via_llm(character_chunks)
+            characters = await self.character_extractor.extract_via_llm(
+                character_chunks
+            )
 
             # Normalize and deduplicate
-            normalized_characters = self._normalize_characters(characters)
+            normalized_characters = self.validator.normalize_characters(characters)
 
-            return {
-                "version": 1,
-                "extracted_at": datetime.now().isoformat(),
-                "characters": [
-                    {
-                        "canonical": char.canonical,
-                        "aliases": char.aliases,
-                        "tags": char.tags,
-                        "notes": char.notes,
-                    }
-                    for char in normalized_characters
-                ],
-            }
+            # Format and return result
+            return self.formatter.format_character_result(normalized_characters)
 
         except Exception as e:
             logger.error(f"Failed to extract characters from {bible_path}: {e}")
-            return self._create_empty_result()
+            return self.formatter.create_empty_result("characters")
 
     def _find_character_chunks(self, parsed_bible: Any) -> list[str]:
-        r"""Find Bible chunks likely to contain character information.
+        """Find Bible chunks likely to contain character information.
 
-        Uses keyword-based heuristics to identify sections that mention
-        characters, protagonists, cast members, or character roles. This
-        pre-filtering reduces the content sent to the LLM for extraction,
-        improving both accuracy and cost-effectiveness.
-
-        The method checks both section headings and content for character-related
-        keywords, combining headings with content to provide context for the
-        LLM extraction process.
-
-        Args:
-            parsed_bible: Parsed Bible data containing chunks with headings
-                         and content from the BibleParser
-
-        Returns:
-            List of text strings, each containing a heading (if present)
-            followed by chunk content that likely describes characters.
-            Returns empty list if no character-related chunks are found.
-
-        Example:
-            For a Bible chunk with heading "Main Characters" and content
-            describing "Jane Smith is the detective...", this would return
-            a list containing "Main Characters\n\nJane Smith is the detective..."
+        Legacy method for backward compatibility with tests.
+        Delegates to the character extractor.
         """
-        character_chunks = []
-        character_keywords = [
-            "character",
-            "protagonist",
-            "antagonist",
-            "cast",
-            "role",
-            "player",
-            "person",
-            "name",
-        ]
-
-        for chunk in parsed_bible.chunks:
-            # Check if heading suggests character content
-            heading_lower = (chunk.heading or "").lower()
-            if any(keyword in heading_lower for keyword in character_keywords):
-                # Include heading with content for context
-                chunk_text = (
-                    f"{chunk.heading}\n{chunk.content}"
-                    if chunk.heading
-                    else chunk.content
-                )
-                character_chunks.append(chunk_text)
-                continue
-
-            # Check if content has character mentions (quick heuristic)
-            content_lower = chunk.content.lower()
-            if any(keyword in content_lower for keyword in character_keywords[:4]):
-                # Include heading with content for context
-                chunk_text = (
-                    f"{chunk.heading}\n{chunk.content}"
-                    if chunk.heading
-                    else chunk.content
-                )
-                character_chunks.append(chunk_text)
-
-        return character_chunks
+        return self.character_extractor.find_character_chunks(parsed_bible)
 
     async def _extract_via_llm(self, chunks: list[str]) -> list[BibleCharacter]:
-        r"""Extract character data from Bible content using LLM analysis.
+        """Extract character data from Bible content using LLM analysis.
 
-        Sends carefully crafted prompts to the LLM to extract structured
-        character information from Bible content chunks. The prompt includes
-        specific formatting rules and examples to ensure consistent output.
-
-        The extraction process:
-        1. Combines chunks with separators for context
-        2. Sends detailed prompt with extraction rules and JSON schema
-        3. Parses LLM response to extract JSON character data
-        4. Converts to BibleCharacter objects with validation
-
-        Args:
-            chunks: List of text chunks from Bible sections that likely contain
-                   character information, typically including section headings
-                   and descriptions
-
-        Returns:
-            List of BibleCharacter objects with canonical names, aliases,
-            tags, and notes as extracted by the LLM. Returns empty list
-            if extraction fails or no valid characters are found.
-
-        Example:
-            Input chunks: ["## Characters\n\nJane Smith is the detective..."]
-            Output: [BibleCharacter(canonical="JANE SMITH",
-                                   aliases=["JANE", "DETECTIVE SMITH"],
-                                   tags=["protagonist", "detective"])]
-
-        Note:
-            All LLM communication errors are caught and logged. The method
-            gracefully handles API failures, invalid responses, and parsing
-            errors by returning an empty list rather than raising exceptions.
+        Legacy method for backward compatibility with tests.
+        Delegates to the character extractor.
         """
-        # Combine chunks for context
-        combined_text = "\n\n---\n\n".join(chunks)
-
-        prompt = (
-            "Extract all character names and their aliases from the following "
-            "screenplay bible content.\n\n"
-            "For each character, identify:\n"
-            "1. The canonical/primary name (uppercase, as it would appear in "
-            "dialogue headers)\n"
-            "2. All aliases, nicknames, or alternative references (also uppercase)\n"
-            "3. Any tags or categories (e.g., 'protagonist', 'villain', 'supporting')\n"
-            "4. Brief notes if provided\n\n"
-            "Rules:\n"
-            "- All names and aliases must be UPPERCASE\n"
-            "- Exclude generic nouns like 'MAN', 'WOMAN', 'COP' unless they are "
-            "specific characters\n"
-            "- Include parenthetical disambiguations if needed "
-            "(e.g., 'JOHN (YOUNG)', 'JOHN (OLD)')\n"
-            "- For characters with titles, include both full and shortened versions "
-            "(e.g., 'DETECTIVE SMITH' and 'SMITH')\n\n"
-            f"Content:\n{combined_text}\n\n"
-            "Return a JSON array with this structure:\n"
-            "[\n"
-            "  {\n"
-            '    "canonical": "JANE SMITH",\n'
-            '    "aliases": ["JANE", "MS. SMITH", "DETECTIVE SMITH"],\n'
-            '    "tags": ["protagonist", "detective"],\n'
-            '    "notes": "Lead detective investigating the case"\n'
-            "  }\n"
-            "]\n\n"
-            "Only return the JSON array, no other text."
-        )
-
-        try:
-            # Format prompt as messages for LLM client
-            messages = [{"role": "user", "content": prompt}]
-            response = await self.llm_client.complete(messages)
-            # Extract JSON from response text
-            response_text = (
-                response.content if hasattr(response, "content") else str(response)
-            )
-            characters_data = self._extract_json(response_text)
-
-            # Convert to BibleCharacter objects
-            characters = []
-            for char_dict in characters_data:
-                if not isinstance(char_dict, dict):
-                    continue
-
-                canonical = char_dict.get("canonical", "").upper()
-                if not canonical:
-                    continue
-
-                aliases = [
-                    alias.upper()
-                    for alias in char_dict.get("aliases", [])
-                    if isinstance(alias, str)
-                ]
-
-                character = BibleCharacter(
-                    canonical=canonical,
-                    aliases=aliases,
-                    tags=char_dict.get("tags"),
-                    notes=char_dict.get("notes"),
-                )
-                characters.append(character)
-
-            return characters
-
-        except Exception as e:
-            logger.error(f"LLM extraction failed: {e}")
-            return []
+        return await self.character_extractor.extract_via_llm(chunks)
 
     def _extract_json(self, response: str) -> list[dict[str, Any]]:
-        r"""Extract JSON array from potentially messy LLM response text.
+        """Extract JSON array from potentially messy LLM response text.
 
-        LLM responses often contain extra text, formatting, or code blocks
-        around the requested JSON. This method uses multiple parsing strategies
-        to reliably extract the character data array:
-
-        1. First attempts to parse the entire response as JSON
-        2. Falls back to regex extraction of JSON array patterns
-        3. Validates that the result is actually an array
-
-        Args:
-            response: Raw text response from LLM completion, which may contain
-                     JSON wrapped in code blocks, explanatory text, or other
-                     formatting that needs to be stripped
-
-        Returns:
-            List of character data dictionaries with schema:
-            - canonical (str): Required canonical character name
-            - aliases (list[str]): Required list of aliases
-            - tags (list[str] | None): Optional character tags
-            - notes (str | None): Optional character notes
-
-        Example:
-            >>> response = '```json\n[{"canonical": "JANE", "aliases": ["J"]}]\n```'
-            >>> extractor._extract_json(response)
-            [{'canonical': 'JANE', 'aliases': ['J']}]
-
-        Note:
-            All parsing errors are caught and logged as warnings. The method
-            never raises exceptions, instead returning an empty list to allow
-            the extraction process to continue gracefully.
+        Legacy method for backward compatibility with tests.
+        Delegates to the shared utility.
         """
-        # Try parsing the whole response first to avoid false positives
-        try:
-            result = json.loads(response)
-            return result if isinstance(result, list) else []
-        except json.JSONDecodeError:
-            pass
+        from scriptrag.api.bible.utils import LLMResponseParser
 
-        # Try to find JSON array in response
-        import re
-
-        # Enhanced pattern to match complete JSON arrays while avoiding embedded arrays
-        # Look for arrays that contain objects, not just simple values
-        json_match = re.search(
-            r"(\[\s*\{.*?\}\s*(?:,\s*\{.*?\}\s*)*\])",
-            response,
-            re.DOTALL,
-        )
-        if json_match:
-            try:
-                result = json.loads(json_match.group(1))
-                return result if isinstance(result, list) else []
-            except json.JSONDecodeError:
-                pass
-
-        logger.warning("Could not parse LLM response as JSON")
-        return []
+        return LLMResponseParser.extract_json_array(response)
 
     def _normalize_characters(
         self, characters: list[BibleCharacter]
     ) -> list[BibleCharacter]:
         """Normalize and deduplicate extracted character data.
 
-        Performs comprehensive cleanup of LLM-extracted character data including
-        case normalization, deduplication by canonical name, and intelligent
-        alias filtering to avoid redundant entries.
-
-        The normalization process:
-        1. Converts all names to uppercase for consistency
-        2. Removes duplicate canonical names (first occurrence wins)
-        3. Filters out redundant aliases (canonical name, first name only)
-        4. Maintains alias order while removing duplicates
-
-        Args:
-            characters: Raw list of BibleCharacter objects from LLM extraction,
-                       potentially containing duplicates and inconsistent casing
-
-        Returns:
-            Clean list of BibleCharacter objects with normalized names,
-            deduplicated canonicals, and filtered aliases. Characters are
-            returned in order of first appearance.
-
-        Example:
-            Input: [BibleCharacter(canonical="jane smith", aliases=["JANE", "jane"]),
-                   BibleCharacter(canonical="JANE SMITH", aliases=["Ms. Smith"])]
-            Output: [BibleCharacter(canonical="JANE SMITH",
-                                   aliases=["JANE", "MS. SMITH"])]
-
-        Note:
-            If a canonical name has multiple parts (e.g., "JANE SMITH"), the
-            first name alone ("JANE") is filtered out of aliases to avoid
-            redundancy, since it's usually too generic to be useful.
+        Legacy method for backward compatibility with tests.
+        Delegates to the validator.
         """
-        seen_canonicals = set()
-        normalized = []
-
-        for char in characters:
-            # Uppercase and strip
-            char.canonical = char.canonical.upper().strip()
-
-            # Skip if duplicate canonical
-            if char.canonical in seen_canonicals:
-                continue
-            seen_canonicals.add(char.canonical)
-
-            # Normalize aliases
-            normalized_aliases = []
-            seen_aliases = {char.canonical}  # Canonical is implicitly an alias
-
-            # Get first name from canonical for comparison
-            canonical_parts = char.canonical.split()
-            first_name = canonical_parts[0] if canonical_parts else ""
-
-            for alias in char.aliases:
-                alias = alias.upper().strip()
-                # Skip if:
-                # - Empty or already seen
-                # - Matches the full canonical name
-                # - Is just the first name and canonical has multiple parts
-                if not alias or alias in seen_aliases or alias == char.canonical:
-                    continue
-
-                # Skip first name only if canonical has multiple parts
-                if alias == first_name and len(canonical_parts) > 1:
-                    continue
-
-                normalized_aliases.append(alias)
-                seen_aliases.add(alias)
-
-            char.aliases = normalized_aliases
-            normalized.append(char)
-
-        return normalized
+        return self.validator.normalize_characters(characters)
 
     def _create_empty_result(self) -> dict[str, Any]:
         """Create standardized empty result for failed extractions.
 
-        Provides consistent structure when character extraction fails due to
-        missing Bible files, LLM errors, or other issues. The empty result
-        maintains the same schema as successful extractions.
+        Legacy method for backward compatibility with tests.
+        """
+        return self.formatter.create_empty_result("characters")
+
+    async def extract_scenes_from_bible(self, bible_path: Path) -> dict[str, Any]:
+        """Extract scene information from a script Bible file.
+
+        Extracts location and setting information from Bible markdown files.
+
+        Args:
+            bible_path: Path to the Bible markdown file
 
         Returns:
-            Dictionary with version 1 schema containing empty characters list
-            and current timestamp. This structure matches successful extraction
-            results and can be safely processed by downstream components.
-
-        Example:
-            {
-                "version": 1,
-                "extracted_at": "2024-01-15T10:30:00.123456",
-                "characters": []
-            }
+            Dictionary containing scene extraction results
         """
-        return {
-            "version": 1,
-            "extracted_at": datetime.now().isoformat(),
-            "characters": [],
-        }
+        try:
+            # Parse the Bible file
+            parsed_bible = self.bible_parser.parse_file(bible_path)
+
+            # Find scene-related chunks
+            scene_chunks = self.scene_extractor.find_scene_chunks(parsed_bible)
+
+            if not scene_chunks:
+                logger.info(f"No scene sections found in {bible_path}")
+                return self.formatter.create_empty_result("scenes")
+
+            # Extract scenes via LLM (returns BibleScene objects)
+            scenes = await self.scene_extractor.extract_scenes_via_llm(scene_chunks)
+
+            # Filter valid scenes (now working with BibleScene objects)
+            valid_scenes = [
+                scene for scene in scenes if self.validator.validate_bible_scene(scene)
+            ]
+
+            # Format and return result
+            return self.formatter.format_scene_result(valid_scenes)
+
+        except Exception as e:
+            logger.error(f"Failed to extract scenes from {bible_path}: {e}")
+            return self.formatter.create_empty_result("scenes")
+
+    async def extract_from_bible(
+        self, bible_path: Path, extract_scenes: bool = False
+    ) -> dict[str, Any]:
+        """Extract all information from a script Bible file.
+
+        Combines character and optionally scene extraction into a single result.
+
+        Args:
+            bible_path: Path to the Bible markdown file
+            extract_scenes: Whether to also extract scene information
+
+        Returns:
+            Combined dictionary with character and scene data
+        """
+        # Always extract characters
+        character_result = await self.extract_characters_from_bible(bible_path)
+
+        # Optionally extract scenes
+        scene_result = None
+        if extract_scenes:
+            scene_result = await self.extract_scenes_from_bible(bible_path)
+
+        # Merge results
+        return self.formatter.merge_results(character_result, scene_result)
+
+
+# Legacy alias for backward compatibility
+BibleCharacterExtractor = BibleExtractor

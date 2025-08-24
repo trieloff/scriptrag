@@ -9,6 +9,7 @@ from typing import Any, ClassVar
 import httpx
 
 from scriptrag.config import get_logger
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.models import (
     CompletionRequest,
@@ -321,6 +322,16 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                     model=request.model,
                 )
                 raise ValueError(f"Invalid API response: {e}") from e
+            except Exception as e:
+                # Catch any other unexpected errors and convert to LLMProviderError
+                logger.error(
+                    "OpenAI-compatible completion failed with unexpected error",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    endpoint=completions_url,
+                    model=request.model,
+                )
+                raise LLMProviderError(f"OpenAI-compatible API error: {e}") from e
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Generate embeddings using OpenAI-compatible API."""

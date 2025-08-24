@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from scriptrag.analyzers.base import BaseSceneAnalyzer
 
+from jsonschema.exceptions import ValidationError
+
 from scriptrag.api.analyze_helpers import (
     file_needs_update,
     load_bible_metadata,
@@ -225,7 +227,7 @@ class AnalyzeCommand:
                         FileResult(
                             path=script_meta.file_path,
                             updated=False,
-                            error=str(e),
+                            error=e.message if hasattr(e, "message") else str(e),
                         )
                     )
                     result.errors.append(f"{script_meta.file_path}: {e}")
@@ -397,7 +399,11 @@ class AnalyzeCommand:
                             if hasattr(analyzer, "version"):  # pragma: no cover
                                 analyzer_result["version"] = analyzer.version
                             metadata["analyzers"][analyzer.name] = analyzer_result
-                        except (AnalyzerError, ScriptRAGError) as e:  # pragma: no cover
+                        except (
+                            AnalyzerError,
+                            ScriptRAGError,
+                            ValidationError,
+                        ) as e:
                             # Re-raise our specific exceptions in brittle mode
                             if brittle:
                                 logger.error(

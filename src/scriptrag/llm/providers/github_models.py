@@ -9,6 +9,7 @@ from typing import Any, ClassVar, Literal, TypedDict
 import httpx
 
 from scriptrag.config import get_logger
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.model_discovery import GitHubModelsDiscovery
 from scriptrag.llm.models import (
@@ -471,6 +472,16 @@ class GitHubModelsProvider(BaseLLMProvider):
                 model=request.model,
             )
             raise ValueError(f"Invalid API response: {e}") from e
+        except Exception as e:
+            # Catch any other unexpected errors and convert to LLMProviderError
+            logger.error(
+                "GitHub Models completion failed with unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                endpoint=f"{self.base_url}/chat/completions",
+                model=request.model,
+            )
+            raise LLMProviderError(f"GitHub Models API error: {e}") from e
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Generate embeddings using GitHub Models."""

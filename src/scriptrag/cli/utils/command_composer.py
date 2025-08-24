@@ -14,7 +14,7 @@ class CommandStep:
     """Represents a single step in a command composition."""
 
     name: str
-    function: Callable
+    function: Callable[..., Any]
     args: tuple = ()
     kwargs: dict[str, Any] | None = None
     on_error: str = "abort"  # "abort", "continue", "retry"
@@ -47,11 +47,11 @@ class CommandComposer:
     def add_step(
         self,
         name: str,
-        function: Callable,
-        *args,
+        function: Callable[..., Any],
+        *args: Any,
         on_error: str = "abort",
         retry_count: int = 0,
-        **kwargs,
+        **kwargs: Any,
     ) -> "CommandComposer":
         """Add a step to the composition.
 
@@ -115,7 +115,7 @@ class CommandComposer:
         while attempts < max_attempts:
             try:
                 logger.debug(f"Executing step: {step.name} (attempt {attempts + 1})")
-                result = step.function(*step.args, **step.kwargs)
+                result = step.function(*step.args, **(step.kwargs or {}))
                 return CommandResult(
                     success=True,
                     data=result,
@@ -174,15 +174,15 @@ class TransactionalComposer(CommandComposer):
     def __init__(self) -> None:
         """Initialize transactional composer."""
         super().__init__()
-        self.rollback_functions: dict[str, Callable] = {}
+        self.rollback_functions: dict[str, Callable[..., Any]] = {}
 
     def add_step_with_rollback(
         self,
         name: str,
-        function: Callable,
-        rollback_function: Callable,
-        *args,
-        **kwargs,
+        function: Callable[..., Any],
+        rollback_function: Callable[..., Any],
+        *args: Any,
+        **kwargs: Any,
     ) -> "TransactionalComposer":
         """Add a step with rollback capability.
 
@@ -231,10 +231,10 @@ class TransactionalComposer(CommandComposer):
 
 # Example usage functions for common compositions
 def compose_scene_workflow(
-    read_func: Callable,
-    validate_func: Callable,
-    update_func: Callable,
-    notify_func: Callable | None = None,
+    read_func: Callable[..., Any],
+    validate_func: Callable[..., Any],
+    update_func: Callable[..., Any],
+    notify_func: Callable[..., Any] | None = None,
 ) -> CommandComposer:
     """Compose a scene editing workflow.
 

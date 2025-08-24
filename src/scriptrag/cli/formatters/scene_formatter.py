@@ -12,8 +12,8 @@ from scriptrag.api.scene_models import (
     ReadSceneResult,
     UpdateSceneResult,
 )
-from scriptrag.api.types import SceneData
 from scriptrag.cli.formatters.base import OutputFormat, OutputFormatter
+from scriptrag.parser import Scene as SceneData
 
 
 class SceneFormatter(OutputFormatter[Any]):

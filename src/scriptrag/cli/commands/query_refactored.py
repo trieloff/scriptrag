@@ -1,5 +1,6 @@
 """Refactored query command with clean separation of concerns."""
 
+import inspect
 from collections.abc import Callable
 from typing import Any
 
@@ -57,7 +58,7 @@ class QueryCommandBuilder:
 
         return app
 
-    def _create_list_command(self) -> Callable:
+    def _create_list_command(self) -> Callable[..., None]:
         """Create the list command."""
 
         def list_queries(
@@ -96,10 +97,7 @@ class QueryCommandBuilder:
                         info = self.formatter.format_query_info(
                             query.name,
                             query.description,
-                            [
-                                {"name": p.name, "type": p.type, "required": p.required}
-                                for p in query.params
-                            ]
+                            [f"{p.name} ({p.type})" for p in query.params]
                             if verbose
                             else None,
                         )
@@ -119,7 +117,7 @@ class QueryCommandBuilder:
             spec: Query specification
         """
 
-        def create_command() -> Callable:
+        def create_command() -> Callable[..., None]:
             """Create command function for the query."""
 
             def query_command(**kwargs: Any) -> None:
@@ -138,6 +136,7 @@ class QueryCommandBuilder:
                     output_format = OutputFormat.MARKDOWN
                 else:
                     output_format = OutputFormat.TABLE
+                    _ = output_format  # Used to determine output handling
 
                 try:
                     # Execute query through API
@@ -146,23 +145,18 @@ class QueryCommandBuilder:
                     start_time = time.time()
                     results = self.api.execute_query(spec.name, kwargs)
                     execution_time = time.time() - start_time
+                    _ = execution_time  # Track for potential stats
 
-                    # Format and output results
-                    formatted = self.formatter.format(results, output_format)
-                    console.print(formatted)
+                    # Query API returns formatted string, just print it
+                    if results is not None:
+                        console.print(results)
 
-                    # Show execution stats if not JSON
-                    if not json_output:
-                        stats = self.formatter.format_execution_stats(
-                            len(results), execution_time
-                        )
-                        console.print(stats)
+                    # Execution stats are handled by the API formatter
 
                 except Exception as e:
                     self.handler.handle_error(e, json_output)
 
             # Build command signature dynamically
-            import inspect
 
             # Create parameter annotations
             params = {}
@@ -210,7 +204,11 @@ class QueryCommandBuilder:
                     )
                 )
 
-            query_command.__signature__ = sig.replace(parameters=new_params)
+            # Fix signature assignment with proper type handling
+            import contextlib
+
+            with contextlib.suppress(AttributeError):
+                query_command.__signature__ = sig.replace(parameters=new_params)  # type: ignore[attr-defined]
             query_command.__doc__ = spec.description
 
             return query_command

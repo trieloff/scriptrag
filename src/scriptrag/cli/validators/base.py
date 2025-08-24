@@ -137,4 +137,4 @@ class CompositeValidator(Validator[T]):
         result = value
         for validator in self.validators:
             result = validator.validate(result)
-        return result
+        return result  # type: ignore[no-any-return]

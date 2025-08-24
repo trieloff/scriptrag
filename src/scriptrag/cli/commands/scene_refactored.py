@@ -115,13 +115,13 @@ async def read_scene(
     )
 
     # Read scene through API
-    result = await api.read_scene(scene_id)
+    scene_result = await api.read_scene(scene_id)
 
-    if not result.success:
-        handler.handle_error(Exception(result.error), json_output)
+    if not scene_result.success:
+        handler.handle_error(Exception(scene_result.error), json_output)
 
     # Format and output result
-    formatter.print(result, output_format)
+    formatter.print(scene_result, output_format)
 
 
 @scene_app.command(name="add")

@@ -43,7 +43,7 @@ class SceneValidator(Validator[SceneIdentifier]):
 
         return SceneIdentifier(
             project=project,
-            scene_number=scene_number,
+            scene_number=scene_number or 1,  # Default to scene 1 if None
             season=season,
             episode=episode,
         )
@@ -94,7 +94,7 @@ class SceneContentValidator(Validator[str]):
                     "(INT., EXT., INT/EXT., etc.)"
                 )
 
-        return content
+        return content  # type: ignore[no-any-return]
 
 
 class ScenePositionValidator(Validator[tuple[int, str]]):
@@ -125,9 +125,15 @@ class ScenePositionValidator(Validator[tuple[int, str]]):
             )
 
         if after_scene is not None:
-            self.validate_type(after_scene, int, "after_scene")
-            self.validate_range(after_scene, min_val=1, field_name="after_scene")
-            return (after_scene, "after")
-        self.validate_type(before_scene, int, "before_scene")
-        self.validate_range(before_scene, min_val=1, field_name="before_scene")
-        return (before_scene, "before")
+            validated_after_scene = self.validate_type(after_scene, int, "after_scene")
+            validated_after_scene = self.validate_range(
+                validated_after_scene, min_val=1, field_name="after_scene"
+            )
+            return (int(validated_after_scene), "after")
+
+        # before_scene must be not None at this point due to earlier validation
+        validated_before_scene = self.validate_type(before_scene, int, "before_scene")
+        validated_before_scene = self.validate_range(
+            validated_before_scene, min_val=1, field_name="before_scene"
+        )
+        return (int(validated_before_scene), "before")

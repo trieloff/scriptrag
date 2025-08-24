@@ -120,7 +120,9 @@ class CLIHandler:
         return sys.stdin.read()
 
 
-def cli_command(async_func: bool = False):
+def cli_command(
+    async_func: bool = False,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator for CLI commands with standardized error handling.
 
     Args:
@@ -130,9 +132,9 @@ def cli_command(async_func: bool = False):
         Decorator function
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             handler = CLIHandler()
             try:
                 # Check if function is async
@@ -158,7 +160,7 @@ def cli_command(async_func: bool = False):
     return decorator
 
 
-def async_cli_command(func: Callable) -> Callable:
+def async_cli_command(func: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator specifically for async CLI commands.
 
     Args:

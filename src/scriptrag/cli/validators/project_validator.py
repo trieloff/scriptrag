@@ -52,7 +52,7 @@ class ProjectValidator(Validator[str]):
                 "hyphens, and underscores (no spaces)"
             )
 
-        return project
+        return project  # type: ignore[no-any-return]
 
 
 class EpisodeIdentifierValidator(Validator[dict]):

@@ -588,26 +588,28 @@ class TestClaudeCodeProvider:
             provider = ClaudeCodeProvider()
 
             # Should use fallback values when mocked
-            assert provider.model_discovery.cache_ttl == 3600
+            assert provider.model_discovery.cache.ttl == 3600
 
     def test_init_import_error(self):
         """Test initialization when settings import fails."""
-        with patch(
-            "scriptrag.llm.providers.claude_code.get_settings", side_effect=ImportError
-        ):
-            provider = ClaudeCodeProvider()
+        with patch("scriptrag.config.get_settings", side_effect=ImportError):
+            # Mock SDK to focus on settings import error
+            with patch.dict("sys.modules", {"claude_code_sdk": Mock()}):
+                with patch("shutil.which", return_value="/usr/bin/claude"):
+                    provider = ClaudeCodeProvider()
 
-            # Should use fallback values
-            assert provider.model_discovery.cache_ttl == 3600
-            assert provider.model_discovery.use_cache is True
+                    # Should use fallback values
+                    assert provider.model_discovery.cache.ttl == 3600
+                    assert (
+                        provider.model_discovery.cache is not None
+                    )  # use_cache=True means cache exists
 
     def test_check_sdk_available(self):
         """Test SDK availability check when available."""
         with patch("scriptrag.config.get_settings"):
             with patch("shutil.which", return_value="/usr/bin/claude"):
-                with patch("claude_code_sdk") as mock_sdk:
-                    mock_sdk.__name__ = "claude_code_sdk"
-
+                # Mock the import by patching at the module level where it's used
+                with patch.dict("sys.modules", {"claude_code_sdk": Mock()}):
                     provider = ClaudeCodeProvider()
                     assert provider.sdk_available is True
 
@@ -615,19 +617,20 @@ class TestClaudeCodeProvider:
         """Test SDK check when executable not in PATH."""
         with patch("scriptrag.config.get_settings"):
             with patch("shutil.which", return_value=None):
-                with patch("claude_code_sdk"):
+                with patch.dict("sys.modules", {"claude_code_sdk": Mock()}):
                     provider = ClaudeCodeProvider()
                     assert provider.sdk_available is False
 
     def test_check_sdk_import_error(self):
         """Test SDK check when SDK not installed."""
         with patch("scriptrag.config.get_settings"):
-            with patch(
-                "scriptrag.llm.providers.claude_code.claude_code_sdk",
-                side_effect=ImportError,
-            ):
-                provider = ClaudeCodeProvider()
-                assert provider.sdk_available is False
+            # Create a mapping that excludes claude_code_sdk to trigger ImportError
+            with patch.dict(
+                "sys.modules", {"claude_code_sdk": None}
+            ):  # None triggers ImportError
+                with patch("shutil.which", return_value="/usr/bin/claude"):
+                    provider = ClaudeCodeProvider()
+                    assert provider.sdk_available is False
 
     @pytest.mark.asyncio
     async def test_is_available_disabled_by_env(self):

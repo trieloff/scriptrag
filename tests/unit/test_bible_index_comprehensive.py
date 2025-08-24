@@ -428,15 +428,18 @@ class TestBibleIndexer:
         """Test indexing chunks with parent-child relationships."""
         mock_conn = Mock()
         mock_cursor = Mock()
+        mock_conn.cursor.return_value = mock_cursor
 
-        # Return different IDs for each chunk
+        # Return different IDs for each chunk using side_effect
         lastrowid_values = [100, 101, 102]
-        mock_cursor.lastrowid = 100  # Will be overridden by side_effect
 
-        def lastrowid_side_effect():
+        def get_lastrowid(*args, **kwargs):
             return lastrowid_values.pop(0) if lastrowid_values else None
 
-        type(mock_cursor).lastrowid = property(lambda _: lastrowid_side_effect())
+        # Create a PropertyMock for lastrowid that returns sequential values
+        from unittest.mock import PropertyMock
+
+        type(mock_cursor).lastrowid = PropertyMock(side_effect=get_lastrowid)
 
         # Create mock chunks with parent relationships
         mock_chunk1 = Mock()
@@ -470,16 +473,6 @@ class TestBibleIndexer:
         mock_parsed_bible.chunks = [mock_chunk1, mock_chunk2, mock_chunk3]
 
         indexer = BibleIndexer(Mock(), Mock())
-
-        # Mock lastrowid to return sequential values
-        call_count = 0
-
-        def mock_lastrowid():
-            nonlocal call_count
-            call_count += 1
-            return 99 + call_count  # 100, 101, 102
-
-        mock_cursor.lastrowid = property(lambda _: mock_lastrowid())
 
         count = await indexer._index_chunks(mock_conn, 456, mock_parsed_bible)
 
@@ -684,7 +677,8 @@ class TestBibleIndexer:
 
         assert count == 0
 
-        # Verify exponential backoff: 1s, 2s, 4s
-        expected_delays = [1.0, 2.0, 4.0]
+        # Verify exponential backoff: 1s, 2s
+        # max_retries=3 means 2 retries after initial failure
+        expected_delays = [1.0, 2.0]
         sleep_calls = [call[0][0] for call in mock_sleep.call_args_list]
         assert sleep_calls == expected_delays

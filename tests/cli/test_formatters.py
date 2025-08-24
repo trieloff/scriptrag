@@ -21,6 +21,8 @@ class TestSceneFormatter:
             number=1,
             heading="INT. OFFICE - DAY",
             content="INT. OFFICE - DAY\n\nJohn enters.",
+            original_text="INT. OFFICE - DAY\n\nJohn enters.",
+            content_hash="abc123",
         )
 
         result = formatter.format(scene, OutputFormat.TEXT)
@@ -34,6 +36,8 @@ class TestSceneFormatter:
             number=1,
             heading="INT. OFFICE - DAY",
             content="INT. OFFICE - DAY\n\nJohn enters.",
+            original_text="INT. OFFICE - DAY\n\nJohn enters.",
+            content_hash="def456",
         )
 
         result = formatter.format(scene, OutputFormat.JSON)
@@ -49,6 +53,8 @@ class TestSceneFormatter:
             number=42,
             heading="EXT. STREET - NIGHT",
             content="EXT. STREET - NIGHT\n\nRain falls.",
+            original_text="EXT. STREET - NIGHT\n\nRain falls.",
+            content_hash="ghi789",
         )
         result = ReadSceneResult(
             success=True,
@@ -79,8 +85,20 @@ class TestSceneFormatter:
         """Test formatting list of scenes."""
         formatter = SceneFormatter()
         scenes = [
-            SceneData(number=1, heading="INT. OFFICE - DAY", content="Content 1"),
-            SceneData(number=2, heading="EXT. STREET - NIGHT", content="Content 2"),
+            SceneData(
+                number=1,
+                heading="INT. OFFICE - DAY",
+                content="Content 1",
+                original_text="Content 1",
+                content_hash="jkl012",
+            ),
+            SceneData(
+                number=2,
+                heading="EXT. STREET - NIGHT",
+                content="Content 2",
+                original_text="Content 2",
+                content_hash="mno345",
+            ),
         ]
 
         # Table format

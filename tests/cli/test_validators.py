@@ -42,7 +42,7 @@ class TestProjectValidator:
         """Test invalid project names."""
         validator = ProjectValidator()
 
-        with pytest.raises(ValidationError, match="required"):
+        with pytest.raises(ValidationError, match="cannot be empty"):
             validator.validate("")
 
         with pytest.raises(ValidationError, match="required"):
@@ -147,7 +147,7 @@ class TestSceneContentValidator:
         """Test empty content validation."""
         validator = SceneContentValidator()
 
-        with pytest.raises(ValidationError, match="required"):
+        with pytest.raises(ValidationError, match="cannot be empty"):
             validator.validate("")
 
         with pytest.raises(ValidationError, match="required"):

@@ -2,13 +2,34 @@
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import dataclass
 
+from scriptrag.api.bible.utils import LLMResponseParser
 from scriptrag.config import get_logger
 from scriptrag.llm import LLMClient
-from scriptrag.parser.bible_parser import BibleParser
+from scriptrag.parser.bible_parser import BibleParser, ParsedBible
 
 logger = get_logger(__name__)
+
+
+@dataclass
+class BibleScene:
+    """Represents a scene extracted from a script Bible.
+
+    Contains information about a scene location including its type
+    (interior/exterior), time of day, and description.
+
+    Attributes:
+        location: The location name as it would appear in slug lines
+        type: Interior/Exterior designation (INT, EXT, INT/EXT, I/E)
+        time: Time of day if specified (DAY, NIGHT, etc.)
+        description: Description or notes about the location
+    """
+
+    location: str
+    type: str | None = None
+    time: str | None = None
+    description: str | None = None
 
 
 class SceneBibleExtractor:
@@ -42,7 +63,7 @@ class SceneBibleExtractor:
         self.llm_client = llm_client or LLMClient()
         self.bible_parser = BibleParser()
 
-    def find_scene_chunks(self, parsed_bible: Any) -> list[str]:
+    def find_scene_chunks(self, parsed_bible: ParsedBible) -> list[str]:
         """Find Bible chunks likely to contain scene information.
 
         Uses keyword-based heuristics to identify sections that mention
@@ -95,7 +116,7 @@ class SceneBibleExtractor:
 
         return scene_chunks
 
-    async def extract_scenes_via_llm(self, chunks: list[str]) -> list[dict[str, Any]]:
+    async def extract_scenes_via_llm(self, chunks: list[str]) -> list[BibleScene]:
         """Extract scene data from Bible content using LLM analysis.
 
         Sends prompts to the LLM to extract structured scene information
@@ -106,7 +127,7 @@ class SceneBibleExtractor:
                    scene information
 
         Returns:
-            List of scene data dictionaries. Returns empty list
+            List of BibleScene objects. Returns empty list
             if extraction fails or no valid scenes are found.
         """
         if not chunks:
@@ -143,32 +164,27 @@ class SceneBibleExtractor:
                 response.content if hasattr(response, "content") else str(response)
             )
 
-            # Try to parse JSON from response
-            import json
-            import re
+            scenes_data = LLMResponseParser.extract_json_array(response_text)
 
-            # Try parsing the whole response first
-            try:
-                result = json.loads(response_text)
-                return result if isinstance(result, list) else []
-            except json.JSONDecodeError:
-                pass
+            # Convert to BibleScene objects
+            scenes = []
+            for scene_dict in scenes_data:
+                if not isinstance(scene_dict, dict):
+                    continue
 
-            # Try to find JSON array in response
-            json_match = re.search(
-                r"(\[\s*\{.*?\}\s*(?:,\s*\{.*?\}\s*)*\])",
-                response_text,
-                re.DOTALL,
-            )
-            if json_match:
-                try:
-                    result = json.loads(json_match.group(1))
-                    return result if isinstance(result, list) else []
-                except json.JSONDecodeError:
-                    pass
+                location = scene_dict.get("location", "").upper().strip()
+                if not location:
+                    continue
 
-            logger.warning("Could not parse LLM response as JSON for scenes")
-            return []
+                scene = BibleScene(
+                    location=location,
+                    type=scene_dict.get("type"),
+                    time=scene_dict.get("time"),
+                    description=scene_dict.get("description"),
+                )
+                scenes.append(scene)
+
+            return scenes
 
         except Exception as e:
             logger.error(f"Scene LLM extraction failed: {e}")

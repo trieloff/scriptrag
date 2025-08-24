@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from scriptrag.api.bible.character_bible import BibleCharacter
+from scriptrag.api.bible.scene_bible import BibleScene
 from scriptrag.config import get_logger
 
 logger = get_logger(__name__)
@@ -70,14 +71,16 @@ class BibleFormatter:
 
     @staticmethod
     def format_scene_result(
-        scenes: list[dict[str, Any]], extracted_at: datetime | None = None
+        scenes: list[BibleScene] | list[dict[str, Any]],
+        extracted_at: datetime | None = None,
     ) -> dict[str, Any]:
         """Format scene extraction results.
 
         Converts extracted scene data into a standardized dictionary format.
+        Accepts either BibleScene objects or dictionaries for flexibility.
 
         Args:
-            scenes: List of extracted scene dictionaries
+            scenes: List of BibleScene objects or scene dictionaries
             extracted_at: Optional extraction timestamp, defaults to current time
 
         Returns:
@@ -91,10 +94,34 @@ class BibleFormatter:
         if extracted_at is None:
             extracted_at = datetime.now()
 
+        formatted_scenes = []
+        for scene in scenes:
+            if isinstance(scene, BibleScene):
+                formatted_scenes.append(BibleFormatter._format_scene(scene))
+            else:
+                formatted_scenes.append(scene)
+
         return {
             "version": 1,
             "extracted_at": extracted_at.isoformat(),
-            "scenes": scenes,
+            "scenes": formatted_scenes,
+        }
+
+    @staticmethod
+    def _format_scene(scene: BibleScene) -> dict[str, Any]:
+        """Format a single scene for output.
+
+        Args:
+            scene: BibleScene object to format
+
+        Returns:
+            Dictionary with scene data
+        """
+        return {
+            "location": scene.location,
+            "type": scene.type,
+            "time": scene.time,
+            "description": scene.description,
         }
 
     @staticmethod

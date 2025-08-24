@@ -154,9 +154,11 @@ class BibleExtractor:
         """Extract JSON array from potentially messy LLM response text.
 
         Legacy method for backward compatibility with tests.
-        Delegates to the character extractor.
+        Delegates to the shared utility.
         """
-        return self.character_extractor._extract_json(response)
+        from scriptrag.api.bible.utils import LLMResponseParser
+
+        return LLMResponseParser.extract_json_array(response)
 
     def _normalize_characters(
         self, characters: list[BibleCharacter]
@@ -197,19 +199,12 @@ class BibleExtractor:
                 logger.info(f"No scene sections found in {bible_path}")
                 return self.formatter.create_empty_result("scenes")
 
-            # Extract scenes via LLM
+            # Extract scenes via LLM (returns BibleScene objects)
             scenes = await self.scene_extractor.extract_scenes_via_llm(scene_chunks)
 
-            # Normalize scenes
-            normalized_scenes = [
-                self.validator.normalize_scene(scene) for scene in scenes
-            ]
-
-            # Filter valid scenes
+            # Filter valid scenes (now working with BibleScene objects)
             valid_scenes = [
-                scene
-                for scene in normalized_scenes
-                if self.validator.validate_scene(scene)
+                scene for scene in scenes if self.validator.validate_bible_scene(scene)
             ]
 
             # Format and return result

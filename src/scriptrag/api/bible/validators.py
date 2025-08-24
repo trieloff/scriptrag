@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from scriptrag.api.bible.character_bible import BibleCharacter
+from scriptrag.api.bible.scene_bible import BibleScene
+from scriptrag.api.bible.utils import VALID_SCENE_TYPES
 from scriptrag.config import get_logger
 
 logger = get_logger(__name__)
@@ -118,6 +120,28 @@ class BibleValidator:
         return normalized
 
     @staticmethod
+    def validate_bible_scene(scene: BibleScene) -> bool:
+        """Validate a BibleScene object.
+
+        Checks that the scene has required fields and valid data.
+
+        Args:
+            scene: BibleScene object to validate
+
+        Returns:
+            True if scene is valid, False otherwise
+        """
+        # Must have a location
+        if not scene.location or not scene.location.strip():
+            return False
+
+        # Type should be INT, EXT, or INT/EXT if present
+        if scene.type and scene.type.upper() not in VALID_SCENE_TYPES:
+            logger.warning(f"Invalid scene type: {scene.type}")
+
+        return True
+
+    @staticmethod
     def validate_scene(scene: dict[str, Any]) -> bool:
         """Validate a scene dictionary.
 
@@ -134,10 +158,8 @@ class BibleValidator:
             return False
 
         # Type should be INT, EXT, or INT/EXT if present
-        if scene.get("type"):
-            valid_types = ["INT", "EXT", "INT/EXT", "I/E"]
-            if scene["type"].upper() not in valid_types:
-                logger.warning(f"Invalid scene type: {scene['type']}")
+        if scene.get("type") and scene["type"].upper() not in VALID_SCENE_TYPES:
+            logger.warning(f"Invalid scene type: {scene['type']}")
 
         return True
 

@@ -41,20 +41,32 @@ def validate_output_path(path: Path, force: bool = False) -> Path:
 
     # Check if path is in a system directory (outside home and tmp)
     # Get temp directory in a secure way
-    temp_dir = Path(tempfile.gettempdir())
+    temp_dir = Path(tempfile.gettempdir()).resolve()
+    home_dir = Path.home().resolve()
 
     try:
         is_system_path = (
             resolved.is_absolute()
-            and not resolved.is_relative_to(Path.home())
+            and not resolved.is_relative_to(home_dir)
             and not resolved.is_relative_to(temp_dir)
         )
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError, OSError):
         # is_relative_to can raise ValueError on some Python versions
+        # or OSError on Windows with certain path combinations
+        # Use string-based fallback that works across all platforms
+        resolved_str = str(resolved)
+        home_str = str(home_dir)
+        temp_str = str(temp_dir)
+
+        # Normalize path separators for cross-platform comparison
+        resolved_normalized = resolved_str.replace("\\", "/")
+        home_normalized = home_str.replace("\\", "/")
+        temp_normalized = temp_str.replace("\\", "/")
+
         is_system_path = (
             resolved.is_absolute()
-            and not str(resolved).startswith(str(Path.home()))
-            and not str(resolved).startswith(str(temp_dir))
+            and not resolved_normalized.startswith(home_normalized)
+            and not resolved_normalized.startswith(temp_normalized)
         )
 
     if (

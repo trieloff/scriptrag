@@ -365,20 +365,31 @@ class TestPathValidation:
 
     def test_validate_system_path_prompt(self, tmp_path):
         """Test prompt for system paths."""
-        # Create a path that appears to be outside home
-        system_path = Path("/etc/scriptrag/config.yaml")
+        # Create a path that appears to be outside home and temp
+        # Use a platform-agnostic system path that will be recognized as "system"
+        # on all platforms
+        import os
 
+        # Create a mock system path that's definitely outside home/temp
+        if os.name == "nt":  # Windows
+            system_path = Path("C:/Windows/System32/scriptrag/config.yaml")
+        else:  # Unix-like (Linux, macOS)
+            system_path = Path("/etc/scriptrag/config.yaml")
+
+        # Mock both Path.home() and tempfile.gettempdir() to ensure the path
+        # is recognized as a system path
         with patch(
             "scriptrag.cli.commands.config.init.Path.home", return_value=tmp_path
         ):
             with patch(
-                "scriptrag.cli.commands.config.init.Path.resolve",
-                return_value=system_path,
+                "scriptrag.cli.commands.config.init.tempfile.gettempdir",
+                return_value=str(tmp_path / "temp"),
             ):
-                # Simulate user declining
+                # Don't mock Path.resolve globally - let it work naturally
+                # but ensure the path we're testing is absolute and resolved
                 result = runner.invoke(
                     config_app,
-                    ["init", "--output", str(system_path)],
+                    ["init", "--output", str(system_path.resolve())],
                     input="n\n",
                 )
 

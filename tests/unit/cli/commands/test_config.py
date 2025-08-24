@@ -1,6 +1,7 @@
 """Unit tests for configuration management CLI commands."""
 
 import json
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -106,10 +107,15 @@ class TestConfigInit:
         """Test TOML format error when tomli_w is not available."""
         output_path = tmp_path / "config.toml"
 
-        # Mock the import to raise ImportError
-        with patch(
-            "builtins.__import__", side_effect=ImportError("No module named 'tomli_w'")
-        ):
+        # Remove tomli_w from sys.modules if it exists and prevent import
+        tomli_w_was_present = "tomli_w" in sys.modules
+        if tomli_w_was_present:
+            tomli_w_module = sys.modules.pop("tomli_w")
+
+        try:
+            # Prevent import by adding it to sys.modules as None
+            sys.modules["tomli_w"] = None
+
             result = runner.invoke(
                 config_app,
                 ["init", "--output", str(output_path), "--format", "toml"],
@@ -117,6 +123,12 @@ class TestConfigInit:
 
             assert result.exit_code == 1
             assert "tomli_w package required" in result.output
+        finally:
+            # Restore original state
+            if tomli_w_was_present:
+                sys.modules["tomli_w"] = tomli_w_module
+            else:
+                sys.modules.pop("tomli_w", None)
 
     def test_init_existing_file_prompt(self, tmp_path):
         """Test prompt when file already exists."""

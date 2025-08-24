@@ -22,8 +22,6 @@ def generate_config_template() -> str:
         "# Path to the SQLite database file (default: ./scriptrag.db)": None,
         "database_timeout": 30.0,
         "# SQLite connection timeout in seconds (default: 30.0)": None,
-        "database_wal_mode": True,
-        "# Enable Write-Ahead Logging for better concurrency (default: true)": None,
         "database_foreign_keys": True,
         "# Enable foreign key constraints (default: true)": None,
         "database_journal_mode": "WAL",

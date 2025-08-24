@@ -63,9 +63,8 @@ ScriptRAG follows consistent naming conventions across different configuration s
 |---------|------|---------|-------------|
 | `database_path` | Path | `./scriptrag.db` | Path to SQLite database file |
 | `database_timeout` | float | `30.0` | Connection timeout in seconds |
-| `database_wal_mode` | bool | `true` | Enable Write-Ahead Logging |
 | `database_foreign_keys` | bool | `true` | Enable foreign key constraints |
-| `database_journal_mode` | str | `WAL` | SQLite journal mode |
+| `database_journal_mode` | str | `WAL` | SQLite journal mode (WAL recommended) |
 | `database_synchronous` | str | `NORMAL` | SQLite synchronous mode |
 | `database_cache_size` | int | `-2000` | SQLite cache size (KB) |
 | `database_temp_store` | str | `MEMORY` | SQLite temp store location |
@@ -165,7 +164,7 @@ Copy and customize these examples for your needs:
 # Database configuration
 database_path: /path/to/scriptrag.db
 database_timeout: 60.0
-database_wal_mode: true
+database_journal_mode: WAL
 
 # Logging configuration
 log_level: INFO
@@ -189,7 +188,7 @@ search_vector_similarity_threshold: 0.3
 # Database configuration
 database_path = "/path/to/scriptrag.db"
 database_timeout = 60.0
-database_wal_mode = true
+database_journal_mode = "WAL"
 
 # Logging configuration
 log_level = "INFO"
@@ -209,7 +208,7 @@ llm_temperature = 0.7
 {
   "database_path": "/path/to/scriptrag.db",
   "database_timeout": 60.0,
-  "database_wal_mode": true,
+  "database_journal_mode": "WAL",
   "log_level": "INFO",
   "log_format": "console",
   "log_file": "/var/log/scriptrag.log",

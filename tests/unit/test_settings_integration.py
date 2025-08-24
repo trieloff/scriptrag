@@ -66,7 +66,6 @@ class TestSettingsIntegration:
 
         # Check database settings
         assert settings.database_timeout == 30.0
-        assert settings.database_wal_mode is True
         assert settings.database_foreign_keys is True
         assert settings.database_journal_mode == "WAL"
         assert settings.database_synchronous == "NORMAL"

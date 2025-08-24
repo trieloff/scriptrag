@@ -189,6 +189,48 @@ uv run scriptrag scene read --project "My Amazing Script" --scene 1
 | `search` | Search scripts | ✅ Working |
 | `query` | Run SQL queries | ✅ Working |
 
+## 🧪 Development & Testing
+
+### Quick Validation
+
+Use the canary test target for rapid validation before pushing changes:
+
+```bash
+# Run canary tests (< 30 seconds) - mimics CI's quick validation
+make test-canary
+
+# Run fast checks + canary tests (recommended before push)
+make check-canary
+```
+
+The canary tests:
+
+- Skip integration, slow, and LLM tests
+- Fail fast on first error
+- Limit to 10 failures maximum
+- Timeout tests after 15 seconds
+- Complete in under 30 seconds
+
+### Complete Testing
+
+```bash
+# Run full test suite with coverage
+make test
+
+# Run specific test types
+make test-unit         # Unit tests only
+make test-integration  # Integration tests
+make test-llm         # LLM tests (requires SCRIPTRAG_TEST_LLMS=1)
+
+# Quick tests without coverage
+make test-fast
+
+# Run all quality checks (lint, type-check, security, tests)
+make check
+```
+
+See [Testing Best Practices](docs/TESTING.md) for comprehensive testing guidelines.
+
 ## Tech Stack
 
 - **Language**: Python with uv package manager

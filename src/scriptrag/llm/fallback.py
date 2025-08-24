@@ -338,6 +338,7 @@ class FallbackHandler:
             OSError,
             LLMProviderError,
             LLMRetryableError,
+            Exception,
         ) as e:
             provider_errors[provider_name] = e
             error_details: ErrorDetails = {

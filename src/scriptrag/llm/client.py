@@ -178,7 +178,13 @@ class LLMClient:
             if provider_instance and await provider_instance.is_available():
                 try:
                     return await provider_instance.list_models()
-                except (AttributeError, ValueError, RuntimeError, OSError) as e:
+                except (
+                    AttributeError,
+                    ValueError,
+                    RuntimeError,
+                    OSError,
+                    Exception,
+                ) as e:
                     logger.debug(f"Failed to list models from {provider.value}: {e}")
             return []
 
@@ -195,6 +201,7 @@ class LLMClient:
                 RuntimeError,
                 OSError,
                 LLMProviderError,
+                Exception,
             ) as e:
                 logger.debug(f"Failed to list models from {provider_type.value}: {e}")
 

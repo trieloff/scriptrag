@@ -130,9 +130,12 @@ class ClaudeCodeProvider(BaseLLMProvider):
             # Check if the claude executable is available in PATH
             import shutil
 
-            import claude_code_sdk  # noqa: F401
+            import claude_code_sdk
 
-            if shutil.which("claude") is not None:
+            # Verify the SDK is properly imported by checking it's not None
+            sdk_available = claude_code_sdk is not None
+
+            if sdk_available and shutil.which("claude") is not None:
                 self.sdk_available = True
                 logger.debug("Claude Code SDK and CLI executable are available")
             else:

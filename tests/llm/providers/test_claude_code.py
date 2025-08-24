@@ -619,10 +619,10 @@ class TestClaudeCodeProvider:
             assert response.choices[0]["message"]["content"] == "Slow response"
 
             # Check that start and completion were logged
+            # Note: has_system parameter was removed from logging call
             mock_logger.info.assert_any_call(
                 "Claude Code query started (attempt 1/1)",
                 prompt_length=11,
-                has_system=False,
             )
             # Completion log should have been called
             assert any(

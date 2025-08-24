@@ -1,0 +1,65 @@
+# Include necessary files for source distribution
+include README.md
+include LICENSE
+include pyproject.toml
+include src/scriptrag/py.typed
+
+# Include SQL schema files needed for runtime
+recursive-include src/scriptrag/storage/database/queries *.sql
+recursive-include src/scriptrag/storage/database/sql *.sql
+
+# Include type stubs
+recursive-include stubs *.pyi
+
+# Exclude development and documentation files
+recursive-exclude * CLAUDE.md
+recursive-exclude * *.backup
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .pytest_cache
+recursive-exclude * .DS_Store
+recursive-exclude * .gitignore
+recursive-exclude * .git
+
+# Exclude directories that should not be in the distribution
+prune docs
+prune tests
+prune scripts
+prune notebooks
+prune examples
+prune cache
+prune logs
+prune exports
+prune temp
+prune data
+prune embeddings
+prune .github
+prune .claude
+prune test_data
+
+# Exclude specific files
+exclude Makefile
+exclude mkdocs.yml
+exclude codecov.yml
+exclude pyrightconfig.json
+exclude pytest.ini
+exclude pytest-fast.ini
+exclude pytest-minimal.ini
+exclude commit_fixes.sh
+exclude terragon-setup.sh
+exclude trigger_ci.txt
+exclude uv.lock
+exclude config.yaml
+exclude .gitattributes
+exclude .editorconfig
+exclude .env.example
+exclude .markdownlint.yaml
+exclude .pre-commit-config.yaml
+exclude .secrets.baseline
+exclude .sqlfluff
+exclude .sqlfluffignore
+exclude .yamllint.yaml
+
+# Exclude all markdown files except README.md
+global-exclude *.md
+include README.md

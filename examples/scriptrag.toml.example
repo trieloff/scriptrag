@@ -4,7 +4,7 @@
 # Database configuration
 database_path = "./scriptrag.db"  # Path to SQLite database
 database_timeout = 30.0            # Connection timeout in seconds
-database_wal_mode = true           # Enable Write-Ahead Logging for better concurrency
+database_journal_mode = "WAL"     # SQLite journal mode (WAL recommended for concurrency)
 
 # Application settings
 app_name = "scriptrag"

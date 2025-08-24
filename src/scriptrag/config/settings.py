@@ -53,10 +53,6 @@ class ScriptRAGSettings(BaseSettings):
         description="SQLite connection timeout in seconds",
         ge=0.1,
     )
-    database_wal_mode: bool = Field(
-        default=True,
-        description="Enable Write-Ahead Logging (WAL) mode for better concurrency",
-    )
     database_foreign_keys: bool = Field(
         default=True,
         description="Enable foreign key constraints",

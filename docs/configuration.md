@@ -63,9 +63,8 @@ ScriptRAG follows consistent naming conventions across different configuration s
 |---------|------|---------|-------------|
 | `database_path` | Path | `./scriptrag.db` | Path to SQLite database file |
 | `database_timeout` | float | `30.0` | Connection timeout in seconds |
-| `database_wal_mode` | bool | `true` | Enable Write-Ahead Logging |
 | `database_foreign_keys` | bool | `true` | Enable foreign key constraints |
-| `database_journal_mode` | str | `WAL` | SQLite journal mode |
+| `database_journal_mode` | str | `WAL` | SQLite journal mode (WAL recommended) |
 | `database_synchronous` | str | `NORMAL` | SQLite synchronous mode |
 | `database_cache_size` | int | `-2000` | SQLite cache size (KB) |
 | `database_temp_store` | str | `MEMORY` | SQLite temp store location |
@@ -83,10 +82,29 @@ ScriptRAG follows consistent naming conventions across different configuration s
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `log_level` | str | `INFO` | Logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL) |
-| `log_format` | str | `console` | Output format (console/JSON/structured) |
+| `log_format` | str | `console` | Output format - see below for details |
 | `log_file` | Path | `null` | Optional log file path |
 | `log_file_rotation` | str | `1 day` | Log rotation interval |
 | `log_file_retention` | str | `7 days` | Log retention period |
+
+#### Log Format Options
+
+ScriptRAG supports three logging formats to suit different environments:
+
+- **`console`** (default) - Human-readable output with colors, ideal for development
+  - Colored output when connected to a terminal
+  - Clear, easy-to-read format for debugging
+  - Best for local development and interactive use
+
+- **`json`** - Machine-readable JSON format, ideal for production
+  - Each log entry as a JSON object
+  - Perfect for log aggregation systems (ELK, Splunk, etc.)
+  - Includes structured metadata for filtering and searching
+
+- **`structured`** - Key-value pairs format, good for production debugging
+  - Readable yet parseable format
+  - Balance between human and machine readability
+  - Useful when you need both visibility and structure
 
 ### Search Settings
 
@@ -127,7 +145,7 @@ All settings can be configured via environment variables by prefixing with `SCRI
 # Database settings
 export SCRIPTRAG_DATABASE_PATH=/path/to/database.db
 export SCRIPTRAG_DATABASE_TIMEOUT=60.0
-export SCRIPTRAG_DATABASE_WAL_MODE=true
+export SCRIPTRAG_DATABASE_JOURNAL_MODE=WAL
 
 # Logging settings
 export SCRIPTRAG_LOG_LEVEL=DEBUG
@@ -165,7 +183,7 @@ Copy and customize these examples for your needs:
 # Database configuration
 database_path: /path/to/scriptrag.db
 database_timeout: 60.0
-database_wal_mode: true
+database_journal_mode: WAL
 
 # Logging configuration
 log_level: INFO
@@ -189,7 +207,7 @@ search_vector_similarity_threshold: 0.3
 # Database configuration
 database_path = "/path/to/scriptrag.db"
 database_timeout = 60.0
-database_wal_mode = true
+database_journal_mode = "WAL"
 
 # Logging configuration
 log_level = "INFO"
@@ -209,7 +227,7 @@ llm_temperature = 0.7
 {
   "database_path": "/path/to/scriptrag.db",
   "database_timeout": 60.0,
-  "database_wal_mode": true,
+  "database_journal_mode": "WAL",
   "log_level": "INFO",
   "log_format": "console",
   "log_file": "/var/log/scriptrag.log",
@@ -319,6 +337,31 @@ EOF
 
 # Load both (prod.yaml overrides base.yaml)
 uv run scriptrag pull --config base.yaml --config prod.yaml
+```
+
+### Example 5: Logging Configuration
+
+```bash
+# Development setup with console logging
+export SCRIPTRAG_LOG_FORMAT=console
+export SCRIPTRAG_LOG_LEVEL=DEBUG
+uv run scriptrag pull screenplay.fountain
+
+# Production setup with JSON logging to file
+cat > prod-config.yaml << EOF
+log_format: json
+log_level: INFO
+log_file: /var/log/scriptrag/app.log
+EOF
+uv run scriptrag pull --config prod-config.yaml screenplay.fountain
+
+# Docker container with structured logging
+docker run -e SCRIPTRAG_LOG_FORMAT=structured \
+           -e SCRIPTRAG_LOG_LEVEL=INFO \
+           scriptrag:latest
+
+# Quick debugging with verbose output
+SCRIPTRAG_LOG_LEVEL=DEBUG SCRIPTRAG_LOG_FORMAT=console uv run scriptrag search "dialogue"
 ```
 
 ## Troubleshooting

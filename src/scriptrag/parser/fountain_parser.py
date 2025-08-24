@@ -23,27 +23,46 @@ class FountainParser:
         # Keep BONEYARD_PATTERN for parse_file compatibility
         self.BONEYARD_PATTERN = self.processor.BONEYARD_PATTERN
 
-    def parse(self, content: str) -> Script:
-        """Parse Fountain content into structured format.
+    def _apply_jouvence_workaround(self, content: str) -> str:
+        """Apply workaround for jouvence v0.4.2 infinite loop bug.
+
+        ISSUE: The jouvence parser (v0.4.2) has a bug where it enters an infinite
+        loop when parsing certain boneyard comments. Specifically, when the parser
+        encounters boneyard comments like our SCRIPTRAG-META blocks, it gets stuck
+        in the RE_BONEYARD_END pattern matching at parser.py:540 in peekline().
+        This causes tests to hang indefinitely until they timeout.
+
+        ROOT CAUSE: The jouvence parser's state machine for boneyard parsing has
+        a logic error that prevents it from properly detecting the end of certain
+        boneyard comment patterns, causing it to loop forever.
+
+        WORKAROUND: We temporarily strip ALL boneyard comments (/* ... */) from
+        the content before passing it to jouvence for parsing. This prevents the
+        infinite loop from occurring.
+
+        This workaround can be removed once jouvence fixes the boneyard parsing bug.
 
         Args:
             content: Raw Fountain text
 
         Returns:
-            Parsed Script object with scenes
+            Content with boneyard comments removed
         """
-        # Apply the same jouvence boneyard bug workaround as in parse_file()
-        # See parse_file() for detailed explanation of this workaround
         boneyard_pattern = re.compile(r"/\*.*?\*/", re.DOTALL)
-        cleaned_content = boneyard_pattern.sub("", content)
+        return boneyard_pattern.sub("", content)
 
-        # Parse using jouvence
-        # Note: jouvence 0.4.2 has a bug where parse() with file objects
-        # references an undefined variable 'fp'. Use parseString() instead.
-        parser = JouvenceParser()
-        doc = parser.parseString(cleaned_content)
+    def _extract_doc_metadata(
+        self, doc: Any
+    ) -> tuple[str | None, str | None, dict[str, Any]]:
+        """Extract metadata from parsed jouvence document.
 
-        # Extract title and author from metadata
+        Args:
+            doc: Parsed jouvence document
+
+        Returns:
+            Tuple of (title, author, metadata_dict)
+        """
+        # Extract title
         title = doc.title_values.get("title") if doc.title_values else None
 
         # Check various author field variations
@@ -89,7 +108,18 @@ class FountainParser:
             elif "project_title" in doc.title_values:
                 metadata["project_title"] = doc.title_values["project_title"]
 
-        # Process scenes
+        return title, author, metadata
+
+    def _process_scenes(self, doc: Any, content: str) -> list[Scene]:
+        """Process scenes from parsed jouvence document.
+
+        Args:
+            doc: Parsed jouvence document
+            content: Original content for scene text extraction
+
+        Returns:
+            List of processed Scene objects
+        """
         scenes = []
         scene_number = 0
         for jouvence_scene in doc.scenes:
@@ -100,6 +130,31 @@ class FountainParser:
                     scene_number, jouvence_scene, content
                 )
                 scenes.append(scene)
+        return scenes
+
+    def parse(self, content: str) -> Script:
+        """Parse Fountain content into structured format.
+
+        Args:
+            content: Raw Fountain text
+
+        Returns:
+            Parsed Script object with scenes
+        """
+        # Apply jouvence workaround to avoid infinite loop bug
+        cleaned_content = self._apply_jouvence_workaround(content)
+
+        # Parse using jouvence
+        # Note: jouvence 0.4.2 has a bug where parse() with file objects
+        # references an undefined variable 'fp'. Use parseString() instead.
+        parser = JouvenceParser()
+        doc = parser.parseString(cleaned_content)
+
+        # Extract metadata using helper method
+        title, author, metadata = self._extract_doc_metadata(doc)
+
+        # Process scenes using helper method
+        scenes = self._process_scenes(doc, content)
 
         return Script(title=title, author=author, scenes=scenes, metadata=metadata)
 
@@ -115,41 +170,8 @@ class FountainParser:
         # Get the full content for scene processing
         content = file_path.read_text(encoding="utf-8")
 
-        # WORKAROUND for jouvence v0.4.2 infinite loop bug:
-        #
-        # ISSUE: The jouvence parser (v0.4.2) has a bug where it enters an infinite
-        # loop when parsing certain boneyard comments. Specifically, when the parser
-        # encounters boneyard comments like our SCRIPTRAG-META blocks, it gets stuck
-        # in the RE_BONEYARD_END pattern matching at parser.py:540 in peekline().
-        # This causes tests to hang indefinitely until they timeout.
-        #
-        # ROOT CAUSE: The jouvence parser's state machine for boneyard parsing has
-        # a logic error that prevents it from properly detecting the end of certain
-        # boneyard comment patterns, causing it to loop forever.
-        #
-        # WORKAROUND: We temporarily strip ALL boneyard comments (/* ... */) from
-        # the content before passing it to jouvence for parsing. This prevents the
-        # infinite loop from occurring. We preserve our SCRIPTRAG-META blocks by:
-        # 1. First saving their locations and content
-        # 2. Removing all boneyard comments for parsing
-        # 3. Re-inserting our metadata after parsing completes
-        #
-        # This workaround can be removed once jouvence fixes the boneyard parsing bug.
-        # The metadata remains intact in the original files - we only strip it during
-        # the parsing phase to avoid triggering the jouvence bug.
-
-        boneyard_pattern = re.compile(r"/\*.*?\*/", re.DOTALL)
-        scriptrag_metadata_blocks = []
-        cleaned_content = content
-
-        # First, save our ScriptRAG metadata blocks
-        for match in self.BONEYARD_PATTERN.finditer(content):
-            scriptrag_metadata_blocks.append(
-                (match.start(), match.end(), match.group(0))
-            )
-
-        # Then remove ALL boneyard comments to avoid the jouvence bug
-        cleaned_content = boneyard_pattern.sub("", cleaned_content)
+        # Apply jouvence workaround to avoid infinite loop bug
+        cleaned_content = self._apply_jouvence_workaround(content)
 
         # Parse using jouvence with parseString to avoid file path issues
         logger.debug(f"Parsing fountain file: {file_path}")
@@ -168,63 +190,11 @@ class FountainParser:
                 },
             ) from e
 
-        # Extract title and author from metadata
-        title = doc.title_values.get("title") if doc.title_values else None
+        # Extract metadata using helper method
+        title, author, metadata = self._extract_doc_metadata(doc)
 
-        # Check various author field variations
-        author = None
-        if doc.title_values:
-            # Check all common variations of author fields
-            author_fields = ["author", "authors", "writer", "writers", "written by"]
-            for field in author_fields:
-                if field in doc.title_values:
-                    author = doc.title_values[field]
-                    break
-
-        # Extract additional metadata
-        metadata: dict[str, Any] = {}
-        if doc.title_values:
-            # Extract episode number
-            if "episode" in doc.title_values:
-                try:
-                    # Try to parse as int, but keep as string if it fails
-                    metadata["episode"] = int(doc.title_values["episode"])
-                except (ValueError, TypeError):  # pragma: no cover
-                    metadata["episode"] = doc.title_values["episode"]
-
-            # Extract season number
-            if "season" in doc.title_values:
-                try:
-                    # Try to parse as int, but keep as string if it fails
-                    metadata["season"] = int(doc.title_values["season"])
-                except (ValueError, TypeError):  # pragma: no cover
-                    metadata["season"] = doc.title_values["season"]
-
-            # Extract series title (for TV scripts)
-            if "series" in doc.title_values:
-                metadata["series_title"] = doc.title_values["series"]
-            elif "series_title" in doc.title_values:
-                metadata["series_title"] = doc.title_values["series_title"]
-            elif "show" in doc.title_values:
-                metadata["series_title"] = doc.title_values["show"]
-
-            # Extract project title (for grouping multiple drafts)
-            if "project" in doc.title_values:
-                metadata["project_title"] = doc.title_values["project"]
-            elif "project_title" in doc.title_values:
-                metadata["project_title"] = doc.title_values["project_title"]
-
-        # Process scenes
-        scenes = []
-        scene_number = 0
-        for jouvence_scene in doc.scenes:
-            # Skip scenes without headers (like FADE IN sections)
-            if jouvence_scene.header:
-                scene_number += 1
-                scene = self.processor.process_jouvence_scene(
-                    scene_number, jouvence_scene, content
-                )
-                scenes.append(scene)
+        # Process scenes using helper method
+        scenes = self._process_scenes(doc, content)
 
         script = Script(title=title, author=author, scenes=scenes, metadata=metadata)
 

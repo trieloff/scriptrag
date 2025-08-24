@@ -1,6 +1,7 @@
 """Configuration initialization command."""
 
 import json
+import tempfile
 from pathlib import Path
 from typing import Annotated
 
@@ -38,15 +39,22 @@ def validate_output_path(path: Path, force: bool = False) -> Path:
     """
     resolved = path.resolve()
 
-    # Check if path is in a system directory (outside home)
+    # Check if path is in a system directory (outside home and tmp)
+    # Get temp directory in a secure way
+    temp_dir = Path(tempfile.gettempdir())
+
     try:
-        is_system_path = resolved.is_absolute() and not resolved.is_relative_to(
-            Path.home()
+        is_system_path = (
+            resolved.is_absolute()
+            and not resolved.is_relative_to(Path.home())
+            and not resolved.is_relative_to(temp_dir)
         )
-    except ValueError:
+    except (ValueError, AttributeError):
         # is_relative_to can raise ValueError on some Python versions
-        is_system_path = resolved.is_absolute() and not str(resolved).startswith(
-            str(Path.home())
+        is_system_path = (
+            resolved.is_absolute()
+            and not str(resolved).startswith(str(Path.home()))
+            and not str(resolved).startswith(str(temp_dir))
         )
 
     if (

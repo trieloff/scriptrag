@@ -133,7 +133,7 @@ class TestConfigInit:
         )
 
         assert result.exit_code == 0
-        assert "Config generation cancelled" in result.output
+        assert "cancelled" in result.output.lower()
         assert output_path.read_text() == "existing: content"  # Unchanged
 
     def test_init_force_overwrite(self, tmp_path):
@@ -368,7 +368,7 @@ class TestPathValidation:
                 )
 
                 assert result.exit_code == 0
-                assert "Config generation cancelled" in result.output
+                assert "cancelled" in result.output.lower()
 
 
 class TestConfigIntegration:

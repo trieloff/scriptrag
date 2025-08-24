@@ -91,6 +91,9 @@ class TestVSSSchemaInitialization:
         initializer = DatabaseInitializer()
 
         # Mock to skip main schema but execute VSS schema
+        # First read the actual VSS schema content
+        actual_vss_schema = initializer._read_sql_file("vss_schema.sql")
+
         def mock_read_side_effect(filename):
             if filename == "init_database.sql":
                 # Return empty schema - no tables created
@@ -100,7 +103,7 @@ class TestVSSSchemaInitialization:
                 return "-- No bible schema"
             if filename == "vss_schema.sql":
                 # Return actual VSS schema that depends on scenes
-                return initializer._read_sql_file("vss_schema.sql")
+                return actual_vss_schema
             return ""
 
         with patch.object(initializer, "_read_sql_file") as mock_read:

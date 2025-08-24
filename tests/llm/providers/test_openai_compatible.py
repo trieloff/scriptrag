@@ -137,7 +137,7 @@ class TestOpenAICompatibleProvider:
     ) -> None:
         """Test API error during availability check."""
         with patch.object(
-            provider.client, "get", side_effect=Exception("Connection error")
+            provider.client, "get", side_effect=RuntimeError("Connection error")
         ):
             result = await provider.is_available()
             assert result is False
@@ -195,7 +195,9 @@ class TestOpenAICompatibleProvider:
         self, provider: OpenAICompatibleProvider
     ) -> None:
         """Test model listing with API error."""
-        with patch.object(provider.client, "get", side_effect=Exception("API Error")):
+        with patch.object(
+            provider.client, "get", side_effect=RuntimeError("API Error")
+        ):
             models = await provider.list_models()
             assert models == []
 
@@ -389,7 +391,9 @@ class TestOpenAICompatibleProvider:
     @pytest.mark.asyncio
     async def test_complete_api_error(self, provider: OpenAICompatibleProvider) -> None:
         """Test completion with API error."""
-        with patch.object(provider.client, "post", side_effect=Exception("API Error")):
+        with patch.object(
+            provider.client, "post", side_effect=RuntimeError("API Error")
+        ):
             request = CompletionRequest(
                 model="test", messages=[{"role": "user", "content": "Hello"}]
             )
@@ -440,7 +444,9 @@ class TestOpenAICompatibleProvider:
     @pytest.mark.asyncio
     async def test_embed_api_error(self, provider: OpenAICompatibleProvider) -> None:
         """Test embedding with API error."""
-        with patch.object(provider.client, "post", side_effect=Exception("API Error")):
+        with patch.object(
+            provider.client, "post", side_effect=RuntimeError("API Error")
+        ):
             request = EmbeddingRequest(
                 model="text-embedding-ada-002", input="Test text"
             )

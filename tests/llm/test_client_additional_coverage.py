@@ -137,7 +137,7 @@ class TestLLMClientAdditionalCoverage:
         """Test list_models with specific provider that raises error."""
         error_provider = AsyncMock()
         error_provider.is_available = AsyncMock(return_value=True)
-        error_provider.list_models = AsyncMock(side_effect=Exception("API error"))
+        error_provider.list_models = AsyncMock(side_effect=RuntimeError("API error"))
 
         client = LLMClient()
         client.registry.providers = {
@@ -171,7 +171,7 @@ class TestLLMClientAdditionalCoverage:
         """Test complete with provider error triggering fallback."""
         error_provider = AsyncMock()
         error_provider.is_available = AsyncMock(return_value=True)
-        error_provider.complete = AsyncMock(side_effect=Exception("API error"))
+        error_provider.complete = AsyncMock(side_effect=RuntimeError("API error"))
 
         fallback_provider = AsyncMock()
         fallback_provider.is_available = AsyncMock(return_value=True)

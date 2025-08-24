@@ -114,7 +114,7 @@ class TestGitHubModelsProvider:
     async def test_is_available_api_error(self, provider: GitHubModelsProvider) -> None:
         """Test API error during availability check."""
         with patch.object(
-            provider.client, "get", side_effect=Exception("Network error")
+            provider.client, "get", side_effect=RuntimeError("Network error")
         ):
             result = await provider.is_available()
             assert result is False
@@ -191,7 +191,9 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_list_models_api_error(self, provider: GitHubModelsProvider) -> None:
         """Test model listing with API error falls back to static models."""
-        with patch.object(provider.client, "get", side_effect=Exception("API Error")):
+        with patch.object(
+            provider.client, "get", side_effect=RuntimeError("API Error")
+        ):
             models = await provider.list_models()
             # Should fall back to static models or use cached models
             assert len(models) >= 2  # At least static models
@@ -333,7 +335,9 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_complete_api_error(self, provider: GitHubModelsProvider) -> None:
         """Test completion with API error."""
-        with patch.object(provider.client, "post", side_effect=Exception("API Error")):
+        with patch.object(
+            provider.client, "post", side_effect=RuntimeError("API Error")
+        ):
             request = CompletionRequest(
                 model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
             )

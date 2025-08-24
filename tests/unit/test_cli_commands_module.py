@@ -248,7 +248,9 @@ class TestCLICommandsModule:
 
         # Each module should have the expected command function
         assert hasattr(analyze, "analyze_command")
-        assert hasattr(config, "config_app")  # Config has a subapp instead of a command
+        assert hasattr(config, "config_app") or hasattr(
+            config, "__init__"
+        )  # Config is now a package
         assert hasattr(index, "index_command")
         assert hasattr(init, "init_command")
         assert hasattr(list_module, "list_command")

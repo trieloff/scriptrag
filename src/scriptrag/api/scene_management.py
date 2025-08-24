@@ -14,9 +14,9 @@ from scriptrag.api.scene_models import (
     SceneIdentifier,
     UpdateSceneResult,
 )
+from scriptrag.api.scene_parser import SceneParser
 from scriptrag.api.scene_validator import FountainValidator
 from scriptrag.config import ScriptRAGSettings, get_logger
-from scriptrag.parser import FountainParser
 
 logger = get_logger(__name__)
 
@@ -36,7 +36,7 @@ class SceneManagementAPI:
         self.db_ops = DatabaseOperations(self.settings)
         self.scene_db = SceneDatabaseOperations()
         self.validator = FountainValidator()
-        self.parser = FountainParser()
+        self.parser = SceneParser()
 
     async def read_scene(
         self, scene_id: SceneIdentifier, reader_id: str = "ai_agent"

@@ -103,8 +103,21 @@ class DatabaseInitializer:
 
         # Resolve to absolute path
         db_path = db_path.resolve()
-        # Check if database exists
-        if db_path.exists() and not force:
+
+        # Check if database exists WITH a valid schema
+        # Empty database file (created by connection manager) doesn't count
+        has_schema = False
+        if db_path.exists():
+            try:
+                from scriptrag.database.connection_manager import get_connection_manager
+
+                manager = get_connection_manager(settings)
+                has_schema = manager.check_database_exists()
+            except Exception:
+                # If we can't check, assume no schema
+                has_schema = False
+
+        if has_schema and not force:
             raise FileExistsError(
                 f"Database already exists at {db_path}. Use --force to overwrite."
             )

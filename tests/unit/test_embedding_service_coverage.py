@@ -48,16 +48,14 @@ class TestEmbeddingServiceExtended:
         # Set up cache directory
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
-        embedding_service.cache_dir = cache_dir
+        embedding_service.cache.cache_dir = cache_dir
 
         text = "Test text"
         model = "test-model"
         cached_embedding = [0.5, 0.6, 0.7]
 
-        # Create cache file using numpy format (as per real implementation)
-        cache_key = embedding_service._get_cache_key(text, model)
-        cache_file = cache_dir / f"{cache_key}.npy"
-        np.save(cache_file, np.array(cached_embedding, dtype=np.float32))
+        # Pre-populate cache using the new interface
+        embedding_service.cache.put(text, model, cached_embedding)
 
         # Should load from cache without calling LLM
         result = await embedding_service.generate_embedding(text, model)
@@ -73,15 +71,31 @@ class TestEmbeddingServiceExtended:
         # Set up cache directory
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
-        embedding_service.cache_dir = cache_dir
+        embedding_service.cache.cache_dir = cache_dir
 
         text = "Test text"
         model = "test-model"
 
-        # Create corrupted cache file
-        cache_key = embedding_service._get_cache_key(text, model)
-        cache_file = cache_dir / f"{cache_key}.npy"
+        # Create corrupted cache file manually in the cache structure
+        cache_key = embedding_service.cache._get_cache_key(text, model)
+        subdir = cache_dir / cache_key[:2]
+        subdir.mkdir(exist_ok=True)
+        cache_file = subdir / f"{cache_key}.npy"
         cache_file.write_text("corrupted npy data")
+
+        # Add to index so it thinks the cache exists
+        import time
+
+        from scriptrag.embeddings.cache import CacheEntry
+
+        embedding_service.cache._index[cache_key] = CacheEntry(
+            key=cache_key,
+            embedding=[],
+            model=model,
+            timestamp=time.time(),
+            access_count=1,
+            last_access=time.time(),
+        )
 
         # Should fall back to generating new embedding
         embedding_service.llm_client.embed.return_value = type(
@@ -98,9 +112,20 @@ class TestEmbeddingServiceExtended:
         self, embedding_service, tmp_path
     ):
         """Test generating scene embedding with caching."""
+        # Create new cache instance with test directory
+        from scriptrag.embeddings.cache import EmbeddingCache, InvalidationStrategy
+
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
-        embedding_service.cache_dir = cache_dir
+
+        # Replace the cache instance entirely
+        embedding_service.cache = EmbeddingCache(
+            cache_dir=cache_dir, strategy=InvalidationStrategy.LRU
+        )
+        # Update pipeline to use new cache
+        embedding_service.pipeline.cache = embedding_service.cache
+        # Ensure pipeline config has cache enabled
+        embedding_service.pipeline.config.use_cache = True
 
         scene_heading = "INT. ROOM - DAY"
         scene_content = "Scene content"
@@ -114,11 +139,13 @@ class TestEmbeddingServiceExtended:
         # Account for float32 precision from cache
         np.testing.assert_array_almost_equal(result, [0.1, 0.2, 0.3], decimal=5)
 
-        # Check cache was created - use the same text format as the method
+        # Check cache was created - need to use processed text
+        # The pipeline applies preprocessing before caching
         combined_text = f"Scene: {scene_heading}\n\n{scene_content}"
-        cache_key = embedding_service._get_cache_key(combined_text, model)
-        cache_file = cache_dir / f"{cache_key}.npy"
-        assert cache_file.exists()
+        processed_text = embedding_service.pipeline.preprocessor.process(combined_text)
+        cached_result = embedding_service.cache.get(processed_text, model)
+        assert cached_result is not None
+        np.testing.assert_array_almost_equal(cached_result, [0.1, 0.2, 0.3], decimal=5)
 
     @pytest.mark.asyncio
     async def test_generate_scene_embedding_no_metadata(self, embedding_service):
@@ -145,7 +172,7 @@ class TestEmbeddingServiceExtended:
         """Test saving embedding to LFS storage."""
         git_storage = tmp_path / "git_storage"
         git_storage.mkdir()
-        embedding_service.lfs_dir = git_storage
+        embedding_service.lfs_store.lfs_dir = git_storage
 
         entity_type = "scene"
         entity_id = 1
@@ -169,7 +196,7 @@ class TestEmbeddingServiceExtended:
         """Test loading non-existent embedding from LFS."""
         git_storage = tmp_path / "git_storage"
         git_storage.mkdir()
-        embedding_service.lfs_dir = git_storage
+        embedding_service.lfs_store.lfs_dir = git_storage
 
         # Try to load non-existent embedding
         result = embedding_service.load_embedding_from_lfs("scene", 999, "test-model")
@@ -180,14 +207,15 @@ class TestEmbeddingServiceExtended:
         """Test handling errors when loading from LFS."""
         git_storage = tmp_path / "git_storage"
         git_storage.mkdir()
-        embedding_service.lfs_dir = git_storage
+        embedding_service.lfs_store.lfs_dir = git_storage
 
-        # Create corrupted file
+        # Create corrupted file in the correct path structure
         entity_type = "scene"
         entity_id = 1
         model = "test-model"
 
-        file_dir = git_storage / entity_type / model
+        # Use the correct GitLFS path structure: model/entity_type
+        file_dir = git_storage / model.replace("/", "_") / entity_type
         file_dir.mkdir(parents=True)
         file_path = file_dir / f"{entity_id}.npy"
         file_path.write_text("corrupted")
@@ -279,9 +307,9 @@ class TestEmbeddingServiceExtended:
         text = "Test text with special chars: 你好 🎉"
         model = "test-model"
 
-        # Generate key multiple times
-        key1 = embedding_service._get_cache_key(text, model)
-        key2 = embedding_service._get_cache_key(text, model)
+        # Generate key multiple times using cache interface
+        key1 = embedding_service.cache._get_cache_key(text, model)
+        key2 = embedding_service.cache._get_cache_key(text, model)
 
         # Should be consistent
         assert key1 == key2
@@ -291,11 +319,11 @@ class TestEmbeddingServiceExtended:
         assert all(c in "0123456789abcdef" for c in key1)
 
         # Different text should give different key
-        key3 = embedding_service._get_cache_key("Different text", model)
+        key3 = embedding_service.cache._get_cache_key("Different text", model)
         assert key3 != key1
 
         # Different model should give different key
-        key4 = embedding_service._get_cache_key(text, "different-model")
+        key4 = embedding_service.cache._get_cache_key(text, "different-model")
         assert key4 != key1
 
     # NOTE: Removed test_batch_scene_embeddings as it used wrong API signature

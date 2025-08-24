@@ -74,7 +74,7 @@ async def read_scene(
     # Initialize handlers
     handler = CLIHandler(console)
     formatter = SceneFormatter(console)
-    project_validator = ProjectValidator()
+    project_validator = ProjectValidator(allow_spaces=True)
 
     # Validate inputs
     project = project_validator.validate(project)
@@ -168,7 +168,7 @@ async def add_scene(
     handler = CLIHandler(console)
 
     # Validate inputs
-    project_validator = ProjectValidator()
+    project_validator = ProjectValidator(allow_spaces=True)
     project = project_validator.validate(project)
 
     # Validate position
@@ -275,7 +275,7 @@ async def update_scene(
     formatter = SceneFormatter(console)
 
     # Validate inputs
-    project_validator = ProjectValidator()
+    project_validator = ProjectValidator(allow_spaces=True)
     project = project_validator.validate(project)
 
     scene_validator = SceneValidator()

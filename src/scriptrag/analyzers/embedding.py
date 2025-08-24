@@ -76,26 +76,52 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
 
         # Ensure embeddings directory exists
         embeddings_dir = self.repo_path / self.lfs_path
-        embeddings_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            embeddings_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            logger.error(
+                f"Failed to create embeddings directory {embeddings_dir}: {e}. "
+                "Embeddings will not be cached to disk."
+            )
 
         # Check if Git LFS is configured for .npy files
         gitattributes_path = self.repo_path / ".gitattributes"
         lfs_pattern = f"{self.lfs_path}/*.npy filter=lfs diff=lfs merge=lfs -text"
 
-        if gitattributes_path.exists():
-            with gitattributes_path.open() as f:
-                content = f.read()
-                if lfs_pattern not in content:
-                    logger.warning(
-                        f"Git LFS not configured for {self.lfs_path}/*.npy files. "
-                        "Adding configuration to .gitattributes"
+        try:
+            if gitattributes_path.exists():
+                with gitattributes_path.open() as f:
+                    content = f.read()
+                    if lfs_pattern not in content:
+                        logger.warning(
+                            f"Git LFS not configured for {self.lfs_path}/*.npy files. "
+                            "Adding configuration to .gitattributes"
+                        )
+                        try:
+                            with gitattributes_path.open("a") as f:
+                                f.write(f"\n{lfs_pattern}\n")
+                        except OSError as e:
+                            logger.error(
+                                f"Failed to update .gitattributes: {e}. "
+                                "Please manually add the following line to "
+                                f".gitattributes:\n{lfs_pattern}"
+                            )
+            else:
+                logger.info("Creating .gitattributes with Git LFS configuration")
+                try:
+                    with gitattributes_path.open("w") as f:
+                        f.write(f"{lfs_pattern}\n")
+                except OSError as e:
+                    logger.error(
+                        f"Failed to create .gitattributes: {e}. "
+                        "Please manually create .gitattributes with the "
+                        f"following line:\n{lfs_pattern}"
                     )
-                    with gitattributes_path.open("a") as f:
-                        f.write(f"\n{lfs_pattern}\n")
-        else:
-            logger.info("Creating .gitattributes with Git LFS configuration")
-            with gitattributes_path.open("w") as f:
-                f.write(f"{lfs_pattern}\n")
+        except OSError as e:
+            logger.error(
+                f"Failed to read .gitattributes: {e}. "
+                "Git LFS configuration check skipped."
+            )
 
     async def cleanup(self) -> None:
         """Clean up resources."""

@@ -335,27 +335,27 @@ class TestSearchEngine:
 
         # Dialogue match
         query = SearchQuery(raw_query="test", dialogue="hello")
-        assert engine._determine_match_type(query) == "dialogue"
+        assert engine.result_utils.determine_match_type(query) == "dialogue"
 
         # Action match
         query = SearchQuery(raw_query="test", action="fight")
-        assert engine._determine_match_type(query) == "action"
+        assert engine.result_utils.determine_match_type(query) == "action"
 
         # Text match
         query = SearchQuery(raw_query="test", text_query="general")
-        assert engine._determine_match_type(query) == "text"
+        assert engine.result_utils.determine_match_type(query) == "text"
 
         # Character match
         query = SearchQuery(raw_query="test", characters=["JOHN"])
-        assert engine._determine_match_type(query) == "character"
+        assert engine.result_utils.determine_match_type(query) == "character"
 
         # Location match
         query = SearchQuery(raw_query="test", locations=["OFFICE"])
-        assert engine._determine_match_type(query) == "location"
+        assert engine.result_utils.determine_match_type(query) == "location"
 
         # Default
         query = SearchQuery(raw_query="test")
-        assert engine._determine_match_type(query) == "text"
+        assert engine.result_utils.determine_match_type(query) == "text"
 
     def test_search_no_results(self, mock_settings, mock_db):
         """Test search with no results."""
@@ -710,27 +710,27 @@ class TestSearchEngine:
             characters=["JOHN"],  # Should be ignored for match type
             locations=["OFFICE"],  # Should be ignored for match type
         )
-        assert engine._determine_match_type(query) == "dialogue"
+        assert engine.result_utils.determine_match_type(query) == "dialogue"
 
         # Test action match (no dialogue)
         query = SearchQuery(raw_query="test", action="fight")
-        assert engine._determine_match_type(query) == "action"
+        assert engine.result_utils.determine_match_type(query) == "action"
 
         # Test text match (no dialogue or action)
         query = SearchQuery(raw_query="test", text_query="general")
-        assert engine._determine_match_type(query) == "text"
+        assert engine.result_utils.determine_match_type(query) == "text"
 
         # Test character match (no dialogue, action, or text)
         query = SearchQuery(raw_query="test", characters=["JOHN"])
-        assert engine._determine_match_type(query) == "character"
+        assert engine.result_utils.determine_match_type(query) == "character"
 
         # Test location match (no dialogue, action, text, or characters)
         query = SearchQuery(raw_query="test", locations=["OFFICE"])
-        assert engine._determine_match_type(query) == "location"
+        assert engine.result_utils.determine_match_type(query) == "location"
 
         # Test default (no specific filters)
         query = SearchQuery(raw_query="test")
-        assert engine._determine_match_type(query) == "text"
+        assert engine.result_utils.determine_match_type(query) == "text"
 
     def test_search_vector_mode_fuzzy(self, mock_settings, mock_db):
         """Test vector search with fuzzy mode."""

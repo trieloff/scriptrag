@@ -150,6 +150,6 @@ class ProviderRegistry:
     async def cleanup(self) -> None:
         """Clean up resources for all providers."""
         for provider in self.providers.values():
-            if hasattr(provider, "client"):
+            if hasattr(provider, "client") and provider.client is not None:
                 await provider.client.aclose()
                 logger.debug(f"Cleaned up provider: {provider.provider_type.value}")

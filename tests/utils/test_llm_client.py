@@ -337,9 +337,7 @@ class TestOpenAICompatibleProvider:
         """Test availability with configuration."""
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
-
-        # Initialize the HTTP client before patching
-        provider._init_http_client()
+        # OpenAICompatibleProvider initializes client in __init__, not lazily
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -352,9 +350,7 @@ class TestOpenAICompatibleProvider:
         """Test successful model listing."""
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
-
-        # Initialize the HTTP client before patching
-        provider._init_http_client()
+        # OpenAICompatibleProvider initializes client in __init__, not lazily
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -377,9 +373,7 @@ class TestOpenAICompatibleProvider:
         """Test successful completion."""
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
-
-        # Initialize the HTTP client before patching
-        provider._init_http_client()
+        # OpenAICompatibleProvider initializes client in __init__, not lazily
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -412,9 +406,7 @@ class TestOpenAICompatibleProvider:
         """Test successful embedding."""
         _ = mock_env_vars  # Fixture sets up environment variables
         provider = OpenAICompatibleProvider()
-
-        # Initialize the HTTP client before patching
-        provider._init_http_client()
+        # OpenAICompatibleProvider initializes client in __init__, not lazily
 
         mock_response = MagicMock()
         mock_response.status_code = 200

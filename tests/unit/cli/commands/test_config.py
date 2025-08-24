@@ -106,19 +106,17 @@ class TestConfigInit:
         """Test TOML format error when tomli_w is not available."""
         output_path = tmp_path / "config.toml"
 
-        with patch("scriptrag.cli.commands.config.init.tomli_w", None):
-            # Simulate ImportError
-            with patch(
-                "scriptrag.cli.commands.config.init.import",
-                side_effect=ImportError("No module named 'tomli_w'"),
-            ):
-                result = runner.invoke(
-                    config_app,
-                    ["init", "--output", str(output_path), "--format", "toml"],
-                )
+        # Mock the import to raise ImportError
+        with patch(
+            "builtins.__import__", side_effect=ImportError("No module named 'tomli_w'")
+        ):
+            result = runner.invoke(
+                config_app,
+                ["init", "--output", str(output_path), "--format", "toml"],
+            )
 
-                assert result.exit_code == 1
-                assert "tomli_w package required" in result.output
+            assert result.exit_code == 1
+            assert "tomli_w package required" in result.output
 
     def test_init_existing_file_prompt(self, tmp_path):
         """Test prompt when file already exists."""
@@ -383,6 +381,11 @@ class TestConfigIntegration:
             config_app,
             ["init", "--output", str(config_path), "--env", "dev"],
         )
+        if result.exit_code != 0:
+            # Print error for debugging
+            print(f"Exit code: {result.exit_code}")
+            print(f"Output: {result.output}")
+            print(f"Exception: {result.exception}")
         assert result.exit_code == 0
 
         # Validate generated config
@@ -390,6 +393,11 @@ class TestConfigIntegration:
             config_app,
             ["validate", "--config", str(config_path)],
         )
+        if result.exit_code != 0:
+            # Print error for debugging
+            print(f"Validate Exit code: {result.exit_code}")
+            print(f"Validate Output: {result.output}")
+            print(f"Validate Exception: {result.exception}")
         assert result.exit_code == 0
         assert "Configuration is valid" in result.output
 

@@ -299,9 +299,10 @@ def check_config_keys(config: dict[str, Any]) -> None:
     # Common mistakes in config keys
     wrong_keys = {
         "db_path": "database_path",
-        "llm_provider": "llm_config.provider",
-        "api_key": "llm_config.api_key",  # pragma: allowlist secret
-        "model": "llm_config.model",
+        "llm.provider": "llm_provider",
+        "llm_config.provider": "llm_provider",
+        "api_key": "llm_api_key",  # pragma: allowlist secret
+        "model": "llm_model",
     }
 
     for wrong, correct in wrong_keys.items():

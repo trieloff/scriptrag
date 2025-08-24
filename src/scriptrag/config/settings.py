@@ -17,10 +17,23 @@ class ScriptRAGSettings(BaseSettings):
     """ScriptRAG configuration settings.
 
     Settings are loaded with the following precedence (highest to lowest):
-    1. CLI arguments (when provided)
-    2. Config file values
-    3. Environment variables
-    4. Default values
+    1. CLI arguments (when provided via command flags)
+       Example: scriptrag index --db-path /custom/path.db
+
+    2. Config file values (YAML, TOML, or JSON)
+       Example: scriptrag --config myconfig.yaml
+       Multiple files: Later files override earlier ones
+
+    3. Environment variables (prefixed with SCRIPTRAG_)
+       Example: export SCRIPTRAG_DATABASE_PATH=/data/scripts.db
+
+    4. .env file (in current directory or specified path)
+       Example: SCRIPTRAG_LOG_LEVEL=DEBUG in .env file
+
+    5. Default values (defined in field declarations below)
+
+    Use 'scriptrag config validate' to see the effective configuration
+    after all sources are merged.
     """
 
     model_config = SettingsConfigDict(

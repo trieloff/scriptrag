@@ -265,7 +265,7 @@ class TestQueryBuilderCoverage:
 
         # Character-only search uses EXISTS with exact character name match
         assert "EXISTS" in sql
-        assert "c3.name = ?" in sql
+        assert "c.name = ?" in sql
         assert "John" in params
         assert "Jane" in params
 

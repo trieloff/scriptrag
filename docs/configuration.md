@@ -82,10 +82,29 @@ ScriptRAG follows consistent naming conventions across different configuration s
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `log_level` | str | `INFO` | Logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL) |
-| `log_format` | str | `console` | Output format (console/JSON/structured) |
+| `log_format` | str | `console` | Output format - see below for details |
 | `log_file` | Path | `null` | Optional log file path |
 | `log_file_rotation` | str | `1 day` | Log rotation interval |
 | `log_file_retention` | str | `7 days` | Log retention period |
+
+#### Log Format Options
+
+ScriptRAG supports three logging formats to suit different environments:
+
+- **`console`** (default) - Human-readable output with colors, ideal for development
+  - Colored output when connected to a terminal
+  - Clear, easy-to-read format for debugging
+  - Best for local development and interactive use
+
+- **`json`** - Machine-readable JSON format, ideal for production
+  - Each log entry as a JSON object
+  - Perfect for log aggregation systems (ELK, Splunk, etc.)
+  - Includes structured metadata for filtering and searching
+
+- **`structured`** - Key-value pairs format, good for production debugging
+  - Readable yet parseable format
+  - Balance between human and machine readability
+  - Useful when you need both visibility and structure
 
 ### Search Settings
 
@@ -126,7 +145,7 @@ All settings can be configured via environment variables by prefixing with `SCRI
 # Database settings
 export SCRIPTRAG_DATABASE_PATH=/path/to/database.db
 export SCRIPTRAG_DATABASE_TIMEOUT=60.0
-export SCRIPTRAG_DATABASE_WAL_MODE=true
+export SCRIPTRAG_DATABASE_JOURNAL_MODE=WAL
 
 # Logging settings
 export SCRIPTRAG_LOG_LEVEL=DEBUG
@@ -318,6 +337,31 @@ EOF
 
 # Load both (prod.yaml overrides base.yaml)
 uv run scriptrag pull --config base.yaml --config prod.yaml
+```
+
+### Example 5: Logging Configuration
+
+```bash
+# Development setup with console logging
+export SCRIPTRAG_LOG_FORMAT=console
+export SCRIPTRAG_LOG_LEVEL=DEBUG
+uv run scriptrag pull screenplay.fountain
+
+# Production setup with JSON logging to file
+cat > prod-config.yaml << EOF
+log_format: json
+log_level: INFO
+log_file: /var/log/scriptrag/app.log
+EOF
+uv run scriptrag pull --config prod-config.yaml screenplay.fountain
+
+# Docker container with structured logging
+docker run -e SCRIPTRAG_LOG_FORMAT=structured \
+           -e SCRIPTRAG_LOG_LEVEL=INFO \
+           scriptrag:latest
+
+# Quick debugging with verbose output
+SCRIPTRAG_LOG_LEVEL=DEBUG SCRIPTRAG_LOG_FORMAT=console uv run scriptrag search "dialogue"
 ```
 
 ## Troubleshooting

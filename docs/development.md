@@ -23,7 +23,11 @@ make lint          # Run all linters
 make format        # Format code
 make type-check    # Type checking
 make security      # Security scans
+make sql-lint      # Check SQL formatting
+make sql-fix       # Auto-format SQL files
 ```
+
+For SQL formatting standards, see the [SQL Style Guide](SQL_STYLE_GUIDE.md).
 
 ## Documentation
 

@@ -252,20 +252,16 @@ warn_unused_ignores = true
 warn_no_return = true
 follow_imports = "normal"
 ignore_missing_imports = true
+# Platform-agnostic configuration (no Darwin hardcoding)
+# Tests are included by default for comprehensive type checking
 
-[tool.pyright]
-venvPath = "."
-venv = ".venv"
-include = ["src"]
-exclude = ["**/__pycache__", "**/node_modules", ".venv", "build", "dist", "tests"]
-pythonVersion = "3.11"
-pythonPlatform = "Darwin"
-typeCheckingMode = "basic"
-reportMissingImports = true
-reportMissingTypeStubs = false
-reportOptionalMemberAccess = false
-reportGeneralTypeIssues = false
-stubPath = "./typings"
+# Per-module configuration for gradual strictness
+[[tool.mypy.overrides]]
+module = "tests.*"
+# Less strict for tests
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
 
 [tool.isort]
 profile = "ruff"
@@ -290,7 +286,7 @@ ignore-property-decorators = true
 ignore-module = true
 ignore-nested-functions = true
 ignore-nested-classes = true
-fail-under = 60
+fail-under = 80
 exclude = ["tests", "docs", "scripts", "migrations"]
 verbose = 1
 quiet = false

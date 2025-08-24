@@ -96,6 +96,7 @@ files are modified. The hooks are configured in `.claude/config.json` and run
 after Write/Edit/MultiEdit operations:
 
 - **Python files**: Automatically formatted with Ruff
+- **SQL files**: Automatically formatted with SQLFluff
 - **Markdown files**: Fixed with markdownlint
 - **JSON/YAML files**: Formatted and validated
 - **All files**: Trailing whitespace removed, proper line endings ensured
@@ -322,7 +323,8 @@ make setup-dev          # Complete dev environment setup
 make update             # Update all dependencies
 
 # Code quality (run before commits)
-make format             # Format code with ruff
+make format             # Format Python code with ruff
+make sql-fix           # Format SQL files with SQLFluff
 make lint              # Run all linters
 make type-check        # Type checking with mypy
 make check             # Run all quality checks
@@ -345,6 +347,7 @@ make run-mcp          # Run MCP server
 - **README.md**: Project roadmap and architecture
 - **AGENTS.md**: Commit message guidelines and project rules
 - **[TESTING.md](docs/TESTING.md)**: Comprehensive testing best practices and cross-platform guidelines
+- **[SQL_STYLE_GUIDE.md](docs/SQL_STYLE_GUIDE.md)**: SQL formatting standards and guidelines
 - **Database Schema**: `src/scriptrag/database/schema.py`
 - **Configuration**: `src/scriptrag/config/settings.py`
 - **Module CLAUDE.md files**: 17 distributed documentation files

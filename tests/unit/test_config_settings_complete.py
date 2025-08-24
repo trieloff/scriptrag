@@ -699,11 +699,16 @@ class TestMultipleSourcesLoading:
     of truth must be reconciled in proper order.
     """
 
-    def test_from_multiple_sources_config_files_only(self, tmp_path):
+    def test_from_multiple_sources_config_files_only(self, tmp_path, monkeypatch):
         """Test loading from multiple config files with proper precedence.
 
         The case of conflicting testimonies - later files override earlier ones.
         """
+        # Clear all SCRIPTRAG environment variables to ensure test isolation
+        for key in list(os.environ.keys()):
+            if key.startswith("SCRIPTRAG_"):
+                monkeypatch.delenv(key, raising=False)
+
         # Create first config file
         config1 = tmp_path / "config1.yaml"
         config1_data = {

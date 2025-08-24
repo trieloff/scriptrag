@@ -71,6 +71,7 @@ class TextMatchRanker(SearchRanker):
         text_lower = text.lower()
         query_lower = query.lower()
 
+        # Build base score from matching signals
         score = 0.0
 
         # Exact match
@@ -92,9 +93,13 @@ class TextMatchRanker(SearchRanker):
             word_ratio = partial_matches / len(query_words)
             score += self.weights["partial_match"] * word_ratio
 
+        # Reserve headroom for case-sensitive bonus so exact casing can win ties
+        case_bonus = self.weights["case_sensitive"]
+        score = min(score, 1.0 - case_bonus)
+
         # Case-sensitive bonus
         if query in text:
-            score += self.weights["case_sensitive"]
+            score += case_bonus
 
         return min(score, 1.0)
 
@@ -181,9 +186,9 @@ class ProximityRanker(SearchRanker):
                 positions[term].append(idx)
                 idx += len(term_lower)
 
-        # If any term is missing, return worst score
+        # If any term is missing, no proximity signal
         if any(not pos_list for pos_list in positions.values()):
-            return float("inf")
+            return 0.0
 
         # Calculate minimum distance between all terms
         min_distance = float("inf")

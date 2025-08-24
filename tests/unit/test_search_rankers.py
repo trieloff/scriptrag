@@ -299,7 +299,8 @@ class TestProximityRanker:
         text = "The quick brown fox"
         terms = ["quick", "elephant"]  # elephant not in text
         score = ranker.calculate_proximity_score(text, terms)
-        assert score == float("inf")
+        # Missing terms should contribute no proximity signal
+        assert score == 0.0
 
     def test_calculate_proximity_score_adjacent_terms(self) -> None:
         """Test proximity score for adjacent terms."""

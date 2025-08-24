@@ -191,7 +191,7 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
                 embedding = np.load(embedding_path)
                 self._embeddings_cache[content_hash] = embedding
                 return np.array(embedding)
-            except (OSError, ValueError, np.lib.npyio.NpzFile) as e:
+            except (OSError, ValueError) as e:
                 logger.error(f"Failed to load embedding from {embedding_path}: {e}")
                 # Fall through to regenerate
 

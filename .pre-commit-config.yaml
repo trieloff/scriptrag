@@ -80,20 +80,16 @@ repos:
         additional_dependencies: ['bandit[toml]']
         exclude: '^tests/'
 
-  # Docstring coverage - using docstr-coverage (Python 3.12+ compatible)
-  - repo: https://github.com/HunterMcGushion/docstr_coverage
-    rev: v2.3.2
+  # Docstring coverage - using interrogate for consistency
+  - repo: https://github.com/econchick/interrogate
+    rev: 1.7.0
     hooks:
-      - id: docstr-coverage
+      - id: interrogate
         args: [
-          'src/',
-          '--fail-under', '60',
-          '--skip-magic', '--skip-init', '--skip-class-def',
-          '--skip-private', '--skip-property',
-          '--exclude', 'tests/*', '--exclude', 'docs/*',
-          '--exclude', 'scripts/*', '--exclude', '.venv/*',
-          '--verbose', '2'
+          '--config', 'pyproject.toml',
+          '--fail-under', '80',   # Increased from 60% to 80%
         ]
+        exclude: '^tests/'
 
   # Check for common security issues - now enabled
   - repo: https://github.com/Yelp/detect-secrets
@@ -170,6 +166,47 @@ repos:
           fi'
         language: system
         pass_filenames: false
+      - id: block-env-files
+        name: Block .env files from being committed
+        entry: |
+          bash -c 'if git diff --cached --name-only | grep -E "^\.env(\..*)?$" > /dev/null; then
+            echo "";
+            echo "❌ ERROR: Attempting to commit .env file(s)!";
+            echo "";
+            echo "Environment files contain sensitive information and must NEVER be committed.";
+            echo "The following .env file(s) were blocked:";
+            git diff --cached --name-only | grep -E "^\.env(\..*)?$" | sed "s/^/  - /";
+            echo "";
+            echo "To fix this:";
+            echo "  1. Remove the file(s) from staging: git reset HEAD .env*";
+            echo "  2. Ensure .env is in your .gitignore file";
+            echo "  3. Use .env.example for sharing configuration templates";
+            echo "";
+            echo "If you have already committed .env files, remove them from history:";
+            echo "  git rm --cached .env";
+            echo "";
+            exit 1;
+          fi'
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: check-backup-files
+        name: Check for backup and temporary files
+        entry: |
+          bash -c 'if git diff --cached --name-status | grep -E "^[AM]" | cut -f2- | grep -E "\.(backup|bak|orig|swp|swo)$|~$|/\.[^/]*\.(swp|swo)$" > /dev/null; then
+            echo "Error: Backup or temporary files detected. These should not be committed.";
+            echo "Files found:";
+            git diff --cached --name-status | grep -E "^[AM]" | cut -f2- | grep -E "\.(backup|bak|orig|swp|swo)$|~$|/\.[^/]*\.(swp|swo)$";
+            exit 1;
+          fi'
+        language: system
+        pass_filenames: false
+        description: |
+          Prevents accidental commit of backup and temporary files:
+          - *.backup, *.bak, *.orig - Backup files
+          - *~ - Editor backup files
+          - .*.swp, .*.swo, *.swp, *.swo - Vim swap files
 
 ci:
   autoupdate_schedule: weekly

@@ -264,6 +264,20 @@ test-coverage: test ## Run tests and print detailed coverage report
 	@echo ""
 	@echo "📁 HTML report available in htmlcov/index.html"
 
+.PHONY: docstring-coverage
+docstring-coverage: install ## Check docstring coverage with detailed report
+	@echo "📊 Docstring Coverage Report"
+	@echo "============================"
+	uv run interrogate src/ -v
+	@echo ""
+	@echo "Current minimum threshold: 80%"
+
+.PHONY: docstring-badge
+docstring-badge: install ## Generate docstring coverage badge
+	@echo "🏷️ Generating docstring coverage badge..."
+	uv run interrogate src/ --generate-badge .
+	@echo "✅ Badge generated as interrogate_badge.svg"
+
 # Documentation
 .PHONY: docs
 docs: install ## Build documentation
@@ -388,6 +402,7 @@ check-fast: install ## Run fast quality checks (no tests)
 	uv run ruff check src/ tests/
 	uv run mypy src/ --no-error-summary
 	uv run ruff format --check src/ tests/
+	uv run interrogate src/ --fail-under 80 --quiet
 
 .PHONY: pre-commit
 pre-commit: install ## Run pre-commit on all files

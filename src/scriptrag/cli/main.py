@@ -34,14 +34,14 @@ app = typer.Typer(
     rich_markup_mode="rich",
 )
 
-# Add subcommands with clean separation
+# Add subcommands keeping backward-compatible, single-level commands
 app.command(name="init")(init_command)
-app.add_typer(index.app, name="index")
+app.command(name="index")(index.index_command)
 app.command(name="list")(list_command)
 app.command(name="search")(search_command)
-app.add_typer(analyze.app, name="analyze")
-app.add_typer(watch.app, name="watch")
-app.add_typer(pull.app, name="pull")
+app.command(name="analyze")(analyze.analyze_command)
+app.command(name="watch")(watch.watch_command)
+app.command(name="pull")(pull.pull_command)
 app.command(name="mcp")(mcp_command)
 app.add_typer(scene_app, name="scene")
 

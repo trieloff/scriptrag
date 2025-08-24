@@ -250,8 +250,11 @@ class TestSearchEngineAsyncDatabaseError:
         scriptrag_db.write_text("")
 
         try:
-            # Setup engine with non-existent database
-            non_existent_db = tmp_path / "nonexistent.db"
+            # Setup engine with a path in a non-existent directory
+            # This ensures the database file can't be auto-created
+            non_existent_dir = tmp_path / "non_existent_dir"
+            non_existent_db = non_existent_dir / "nonexistent.db"
+
             settings = ScriptRAGSettings(database_path=non_existent_db)
             engine = SearchEngine(settings)
             query = SearchQuery(raw_query="test", text_query="test")

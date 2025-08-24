@@ -238,6 +238,18 @@ class ScriptRAGIndexError(ScriptRAGError):
     pass
 
 
+class EmbeddingError(ScriptRAGError):
+    """Embedding generation errors."""
+
+    pass
+
+
+class EmbeddingResponseError(EmbeddingError):
+    """Error when embedding response is invalid or missing."""
+
+    pass
+
+
 class QueryError(ScriptRAGError):
     """Query execution errors including SQL and parameter issues."""
 

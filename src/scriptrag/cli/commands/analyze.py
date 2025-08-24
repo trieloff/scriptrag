@@ -16,8 +16,9 @@ console = Console()
 app = typer.Typer()
 
 
-@app.command()
+@app.callback(invoke_without_command=True)
 def analyze_command(
+    ctx: typer.Context,
     path: Annotated[
         Path | None,
         typer.Argument(
@@ -74,6 +75,10 @@ def analyze_command(
 
     Note: This command does not update the database.
     """
+    # If no subcommand, run the analyze logic
+    if ctx.invoked_subcommand is not None:
+        return
+
     try:
         from scriptrag.api.analyze import AnalyzeCommand
         from scriptrag.config.settings import ScriptRAGSettings

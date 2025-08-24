@@ -258,10 +258,19 @@ DEFAULT_TIMEOUT = 30
 ```bash
 make test           # Full test suite with coverage
 make lint          # All linting checks (delegate fixes to ruff-house)
-make type-check    # Type checking (delegate fixes to type-veronica)
+make type-check    # Type checking with MyPy (delegate fixes to type-veronica)
 make security      # Security scans
 make check-fast    # Quick quality checks (recommended first step)
 ```
+
+### **Type Checking Strategy**
+
+This project uses **MyPy** as the sole type checker for consistency:
+- Configuration in `pyproject.toml` under `[tool.mypy]`
+- Platform-agnostic (no Darwin/Windows/Linux specific settings)
+- Strict checking for source code, relaxed for tests
+- Integrated into CI, pre-commit hooks, and Makefile
+- No Pyright configuration (removed to avoid confusion)
 
 ### **Code Coverage Requirements**
 

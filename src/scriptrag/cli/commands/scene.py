@@ -4,54 +4,20 @@ import asyncio
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any, Literal, TypedDict
+from typing import Annotated, Literal
 
 import typer
 from rich.console import Console
-from rich.panel import Panel
-from rich.syntax import Syntax
 
 from scriptrag.api.scene_management import SceneManagementAPI
 from scriptrag.api.scene_models import SceneIdentifier
 from scriptrag.cli.commands.scene_config import load_config_with_validation
+from scriptrag.cli.scene_formatter import SceneFormatter
 from scriptrag.config import get_logger
 
 logger = get_logger(__name__)
 console = Console()
-
-
-# TypedDict definitions for JSON output
-class SceneReadJsonOutput(TypedDict):
-    """JSON output format for scene read command."""
-
-    success: bool
-    scene_number: int
-    heading: str
-    content: str
-    last_read: str | None
-
-
-class BibleContentJsonOutput(TypedDict):
-    """JSON output format for bible content."""
-
-    success: bool
-    content: str
-
-
-class BibleListJsonOutput(TypedDict):
-    """JSON output format for bible file list."""
-
-    success: bool
-    bible_files: list[dict[str, Any]]
-
-
-class BibleFileInfo(TypedDict):
-    """Information about a bible file."""
-
-    name: str
-    path: str
-    size: int
-
+formatter = SceneFormatter(console)
 
 # Position type for scene operations
 PositionType = Literal["after", "before"]
@@ -123,47 +89,14 @@ def read_scene(
                 console.print(f"[red]Error: {bible_result.error}[/red]")
                 raise typer.Exit(1)
 
-            if json_output:
-                if bible_result.content:
-                    # Specific bible content
-                    bible_content_output: BibleContentJsonOutput = {
-                        "success": True,
-                        "content": bible_result.content,
-                    }
-                    console.print_json(data=bible_content_output)
-                else:
-                    # List of bible files
-                    bible_list_output: BibleListJsonOutput = {
-                        "success": True,
-                        "bible_files": bible_result.bible_files,
-                    }
-                    console.print_json(data=bible_list_output)
-            else:
-                if bible_result.content:
-                    # Display bible content
-                    console.print(
-                        Panel(
-                            Syntax(bible_result.content, "markdown", theme="monokai"),
-                            title=f"Bible: {bible_name or 'Content'}",
-                            subtitle=f"Project: {project}",
-                        )
-                    )
-                else:
-                    # Display list of available bible files
-                    console.print(
-                        f"\n[green]Available bible files for "
-                        f"project '{project}':[/green]\n"
-                    )
-                    for bible_file in bible_result.bible_files:
-                        size_kb: float = bible_file["size"] / 1024
-                        console.print(
-                            f"  • [cyan]{bible_file['name']}[/cyan] "
-                            f"({bible_file['path']}) - {size_kb:.1f} KB"
-                        )
-                    console.print(
-                        "\n[dim]Use --bible-name <filename> to read a "
-                        "specific bible file[/dim]"
-                    )
+            # Use formatter to display bible content
+            formatter.format_bible_display(
+                bible_result.content,
+                bible_result.bible_files,
+                project,
+                bible_name,
+                json_output,
+            )
             return
 
         # Reading scene content
@@ -190,34 +123,14 @@ def read_scene(
             console.print(f"[red]Error: {result.error}[/red]")
             raise typer.Exit(1)
 
-        if json_output:
-            if result.scene:
-                scene_output: SceneReadJsonOutput = {
-                    "success": True,
-                    "scene_number": result.scene.number,
-                    "heading": result.scene.heading,
-                    "content": result.scene.content,
-                    "last_read": result.last_read.isoformat()
-                    if result.last_read
-                    else None,
-                }
-                console.print_json(data=scene_output)
-        else:
-            # Display scene content
-            if result.scene:
-                console.print(
-                    Panel(
-                        Syntax(result.scene.content, "text", theme="monokai"),
-                        title=f"Scene {scene_id.key}",
-                        subtitle=result.scene.heading,
-                    )
-                )
-
-            # Display read timestamp
-            if result.last_read:
-                console.print(
-                    f"\n[green]Last read:[/green] {result.last_read.isoformat()}"
-                )
+        # Use formatter to display scene
+        if result.scene:
+            formatter.format_scene_display(
+                result.scene,
+                scene_id,
+                result.last_read,
+                json_output,
+            )
 
     except Exception as e:
         logger.error(f"Failed to read: {e}")
@@ -325,7 +238,7 @@ def add_scene(
             console.print(f"[red]Error: {result.error}[/red]")
             raise typer.Exit(1)
 
-        # Display success message
+        # Display success message using formatter
         new_scene_id: SceneIdentifier = SceneIdentifier(
             project=project,
             scene_number=(
@@ -334,13 +247,12 @@ def add_scene(
             season=season,
             episode=episode,
         )
-        console.print(f"[green]✓[/green] Scene added: {new_scene_id.key}")
-
-        if result.renumbered_scenes:
-            console.print(
-                f"[yellow]Renumbered scenes:[/yellow] "
-                f"{', '.join(map(str, result.renumbered_scenes))}"
-            )
+        formatter.format_operation_result(
+            "add",
+            True,
+            new_scene_id,
+            details={"renumbered_scenes": result.renumbered_scenes},
+        )
 
     except Exception as e:
         logger.error(f"Failed to add scene: {e}")
@@ -454,13 +366,15 @@ def update_scene(
         if not result.success:
             console.print(f"[red]Error: {result.error}[/red]")
             if result.validation_errors:
-                console.print("[red]Validation errors:[/red]")
-                for error in result.validation_errors:
-                    console.print(f"  • {error}")
+                formatter.format_validation_errors(result.validation_errors)
             raise typer.Exit(1)
 
-        # Display success message
-        console.print(f"[green]✓[/green] Scene updated: {scene_id.key}")
+        # Display success message using formatter
+        formatter.format_operation_result(
+            "update",
+            True,
+            scene_id,
+        )
 
     except Exception as e:
         logger.error(f"Failed to update scene: {e}")
@@ -533,14 +447,13 @@ def delete_scene(
             console.print(f"[red]Error: {result.error}[/red]")
             raise typer.Exit(1)
 
-        # Display success message
-        console.print(f"[green]✓[/green] Scene deleted: {scene_id.key}")
-
-        if result.renumbered_scenes:
-            console.print(
-                f"[yellow]Renumbered scenes:[/yellow] "
-                f"{', '.join(map(str, result.renumbered_scenes))}"
-            )
+        # Display success message using formatter
+        formatter.format_operation_result(
+            "delete",
+            True,
+            scene_id,
+            details={"renumbered_scenes": result.renumbered_scenes},
+        )
 
     except Exception as e:
         logger.error(f"Failed to delete scene: {e}")

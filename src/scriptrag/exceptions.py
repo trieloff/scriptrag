@@ -262,12 +262,6 @@ class SearchError(ScriptRAGError):
     pass
 
 
-class EmbeddingError(ScriptRAGError):
-    """Errors related to embedding generation and storage."""
-
-    pass
-
-
 class EmbeddingLoadError(EmbeddingError):
     """Error loading saved embeddings from disk."""
 

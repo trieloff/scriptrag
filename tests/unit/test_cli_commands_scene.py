@@ -616,7 +616,11 @@ class TestSceneCommandsComprehensiveCoverage:
     def mock_config_loader(self) -> Generator[Mock, None, None]:
         """Mock configuration loader."""
         with patch("scriptrag.cli.commands.scene.load_config_with_validation") as mock:
-            mock.return_value = MagicMock()
+            # Create a proper ScriptRAGSettings mock with string database_path
+            mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test_db.sqlite"
+            mock_settings.get_database_path.return_value = "/tmp/test_db.sqlite"
+            mock.return_value = mock_settings
             yield mock
 
     # === READ COMMAND ERROR SCENARIOS ===

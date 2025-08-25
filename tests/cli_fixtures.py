@@ -31,9 +31,13 @@ def strip_ansi_codes(text: str) -> str:
     Returns:
         Text with all ANSI escape sequences and spinner characters removed
     """
-    # Remove ANSI escape sequences
+    # Remove ANSI escape sequences (standard format with \x1b prefix)
     ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
     text = ansi_escape.sub("", text)
+
+    # Remove ANSI escape sequences (Windows format without \x1b prefix)
+    ansi_escape_windows = re.compile(r"\[[0-9;]*m")
+    text = ansi_escape_windows.sub("", text)
 
     # Remove Unicode spinner characters (Braille patterns)
     spinner_chars = re.compile(r"[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]")

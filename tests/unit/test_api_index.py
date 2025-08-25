@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from scriptrag.api.index import IndexCommand
+from scriptrag.api.index import IndexCommand, IndexOperationResult, IndexResult
 from scriptrag.api.list import FountainMetadata
-from scriptrag.config import IndexOperationResult, IndexResult, ScriptRAGSettings
+from scriptrag.config import ScriptRAGSettings
 from scriptrag.parser import Dialogue, Scene, Script
 
 

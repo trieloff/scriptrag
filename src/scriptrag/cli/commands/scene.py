@@ -225,7 +225,11 @@ async def add_scene(
         )
     else:
         scene_num = result.created_scene.number if result.created_scene else "unknown"
-        handler.handle_success(f"Scene added successfully as scene {scene_num}")
+        msg = f"Scene added successfully as scene {scene_num}"
+        if result.renumbered_scenes:
+            renumbered = ", ".join(map(str, result.renumbered_scenes))
+            msg += f"\nRenumbered scenes: {renumbered}"
+        handler.handle_success(msg)
 
 
 @scene_app.command(name="update")

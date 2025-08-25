@@ -319,7 +319,7 @@ class TestSceneAddCommand:
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Invalid Fountain format" in clean_output
+        assert "Scene content must start with a valid scene heading" in clean_output
 
 
 class TestSceneUpdateCommand:
@@ -357,9 +357,7 @@ class TestSceneUpdateCommand:
                 "test",
                 "--scene",
                 "5",
-                "--safe",
-                "--last-read",
-                "2024-01-15T10:30:00",
+                "--check-conflicts",
                 "--content",
                 "INT. UPDATED - DAY\n\nUpdated content",
             ],

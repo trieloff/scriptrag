@@ -14,7 +14,6 @@ from scriptrag.cli.formatters.scene_formatter import SceneFormatter
 from scriptrag.cli.utils.cli_handler import CLIHandler, async_cli_command
 from scriptrag.cli.validators.project_validator import ProjectValidator
 from scriptrag.cli.validators.scene_validator import (
-    SceneContentValidator,
     ScenePositionValidator,
     SceneValidator,
 )
@@ -177,20 +176,12 @@ async def add_scene(
         {"after_scene": after_scene, "before_scene": before_scene}
     )
 
-    # Get content
-    if content is None:
-        content = handler.read_stdin(required=True)
-
-    # Validate content
-    if content is not None:
-        content_validator = SceneContentValidator()
-        content = content_validator.validate(content)
-    else:
-        handler.handle_error(ValueError("No content provided"), json_output)
-        return
-
-    # Load settings
+    # Load settings early to validate config path
     settings = load_config_with_validation(config)
+
+    # Get content (let API perform Fountain validation)
+    if content is None:
+        content = handler.read_stdin(required=False) or ""
 
     # Initialize API
     api = SceneManagementAPI(settings=settings)
@@ -225,7 +216,12 @@ async def add_scene(
         )
     else:
         scene_num = result.created_scene.number if result.created_scene else "unknown"
-        handler.handle_success(f"Scene added successfully as scene {scene_num}")
+        renum = (
+            f" Renumbered scenes: {', '.join(map(str, result.renumbered_scenes))}"
+            if getattr(result, "renumbered_scenes", None)
+            else ""
+        )
+        handler.handle_success(f"Scene added successfully as scene {scene_num}{renum}")
 
 
 @scene_app.command(name="update")
@@ -252,6 +248,20 @@ async def update_scene(
             help="Check if scene was modified since last read",
         ),
     ] = False,
+    safe: Annotated[
+        bool,
+        typer.Option(
+            "--safe",
+            help="Alias for --check-conflicts (requires --last-read)",
+        ),
+    ] = False,
+    last_read: Annotated[
+        str | None,
+        typer.Option(
+            "--last-read",
+            help="Last read timestamp (ISO format) for safe updates",
+        ),
+    ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
     config: Annotated[
         Path | None,
@@ -288,26 +298,37 @@ async def update_scene(
         }
     )
 
-    # Get content
-    if content is None:
-        content = handler.read_stdin(required=True)
-
-    # Validate content
-    if content is not None:
-        content_validator = SceneContentValidator()
-        content = content_validator.validate(content)
-    else:
-        handler.handle_error(ValueError("No content provided"), json_output)
-        return
-
-    # Load settings
+    # Load settings early to validate config path
     settings = load_config_with_validation(config)
+
+    # Get content (let API perform Fountain validation)
+    if content is None:
+        content = handler.read_stdin(required=False) or ""
 
     # Initialize API
     api = SceneManagementAPI(settings=settings)
 
+    # Parse safe/last-read options
+    effective_check = bool(check_conflicts or safe)
+    parsed_last_read = None
+    if last_read:
+        from datetime import datetime
+
+        try:
+            parsed_last_read = datetime.fromisoformat(last_read)
+        except Exception as e:  # pragma: no cover - defensive
+            handler.handle_error(
+                ValueError(f"Invalid --last-read format: {e}"), json_output
+            )
+            return
+
     # Update scene through API
-    result = await api.update_scene(scene_id, content, check_conflicts=check_conflicts)
+    result = await api.update_scene(
+        scene_id,
+        content,
+        check_conflicts=effective_check,
+        last_read=parsed_last_read,
+    )
 
     if not result.success:
         handler.handle_error(Exception(result.error), json_output)

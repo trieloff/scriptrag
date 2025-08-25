@@ -2,12 +2,14 @@
 
 import inspect
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 import typer
 from rich.console import Console
 
 from scriptrag.api.query import QueryAPI
+from scriptrag.cli.commands.scene_config import load_config_with_validation
 from scriptrag.cli.formatters.base import OutputFormat
 from scriptrag.cli.formatters.query_formatter import QueryResultFormatter
 from scriptrag.cli.utils.cli_handler import CLIHandler
@@ -66,9 +68,14 @@ class QueryCommandBuilder:
             verbose: bool = typer.Option(
                 False, "--verbose", "-v", help="Show query details"
             ),
+            config: Path | None = typer.Option(
+                None, "--config", "-c", help="Path to configuration file"
+            ),
         ) -> None:
             """List all available queries."""
             try:
+                # Validate config if provided
+                _ = load_config_with_validation(config)
                 queries = self.api.list_queries()
 
                 if json_output:
@@ -130,6 +137,13 @@ class QueryCommandBuilder:
                 json_output = kwargs.pop("json", False)
                 csv_output = kwargs.pop("csv", False)
                 markdown_output = kwargs.pop("markdown", False)
+                # Optional global options
+                config = kwargs.pop("config", None)
+                _project = kwargs.pop("project", None)  # accepted but not required
+
+                # Validate config if provided
+                if config is not None:
+                    load_config_with_validation(config)
 
                 # Determine output format
                 if json_output:
@@ -193,6 +207,15 @@ class QueryCommandBuilder:
             params["markdown"] = (
                 bool,
                 typer.Option(False, "--markdown", help="Output as Markdown"),
+            )
+            # Add common options
+            params["project"] = (
+                str | None,
+                typer.Option(None, "--project", "-p", help="Optional project name"),
+            )
+            params["config"] = (
+                Path | None,
+                typer.Option(None, "--config", "-c", help="Path to configuration file"),
             )
 
             # Create function with dynamic signature

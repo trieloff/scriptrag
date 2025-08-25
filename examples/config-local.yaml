@@ -1,0 +1,36 @@
+# ScriptRAG Local Configuration
+# Basic configuration for getting started quickly
+#
+# Usage: scriptrag --config examples/config-local.yaml <command>
+# Or copy to ~/.config/scriptrag/config.yaml for default use
+
+# Database - Simple local setup
+database_path: "scriptrag.db"  # Store in current directory
+
+# Application - Default settings
+app_name: "scriptrag"
+debug: false
+
+# Logging - User-friendly console output
+log_level: "INFO"
+log_format: "console"
+
+# LLM Configuration Options
+# Uncomment and configure one of the following options:
+
+# Option 1: Use Claude Code (if available)
+# llm_provider: "claude_code"
+
+# Option 2: Use local Ollama
+# llm_provider: "openai"
+# llm_endpoint: "http://localhost:11434/v1"
+# llm_model: "llama2"
+
+# Option 3: Use GitHub Models (requires GITHUB_TOKEN)
+# llm_provider: "github_models"
+# llm_api_key: "${GITHUB_TOKEN}"
+
+# Option 4: Use OpenAI (requires OPENAI_API_KEY)
+# llm_provider: "openai"
+# llm_endpoint: "https://api.openai.com/v1"
+# llm_api_key: "${OPENAI_API_KEY}"

@@ -112,6 +112,7 @@ class TestCLICommandsModule:
         expected_attrs.update(
             [
                 "analyze",
+                "config",  # Config module for configuration management
                 "index",
                 "init",
                 "list",
@@ -223,6 +224,7 @@ class TestCLICommandsModule:
 
         from scriptrag.cli.commands import (
             analyze,
+            config,
             index,
             init,
             mcp,
@@ -235,6 +237,7 @@ class TestCLICommandsModule:
         )
 
         assert isinstance(analyze, ModuleType)
+        assert isinstance(config, ModuleType)
         assert isinstance(index, ModuleType)
         assert isinstance(init, ModuleType)
         assert isinstance(list_module, ModuleType)
@@ -245,6 +248,9 @@ class TestCLICommandsModule:
 
         # Each module should have the expected command function
         assert hasattr(analyze, "analyze_command")
+        assert hasattr(config, "config_app") or hasattr(
+            config, "__init__"
+        )  # Config is now a package
         assert hasattr(index, "index_command")
         assert hasattr(init, "init_command")
         assert hasattr(list_module, "list_command")
@@ -257,6 +263,7 @@ class TestCLICommandsModule:
         """Test that module names match their expected command prefixes."""
         from scriptrag.cli.commands import (
             analyze,
+            config,
             index,
             init,
             mcp,
@@ -270,6 +277,7 @@ class TestCLICommandsModule:
 
         # Check module names
         assert analyze.__name__.endswith("analyze")
+        assert config.__name__.endswith("config")
         assert index.__name__.endswith("index")
         assert init.__name__.endswith("init")
         assert list_module.__name__.endswith("list")

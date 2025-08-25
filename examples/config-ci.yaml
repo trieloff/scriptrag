@@ -1,0 +1,47 @@
+# ScriptRAG CI/Testing Configuration
+# Optimized for continuous integration and automated testing
+#
+# Usage: scriptrag --config examples/config-ci.yaml <command>
+# Or set in CI environment: SCRIPTRAG_CONFIG=config-ci.yaml
+
+# Database - In-memory for fast tests
+database_path: ":memory:"  # Use in-memory database for speed
+database_timeout: 10.0
+database_wal_mode: false  # Not applicable for :memory:
+database_foreign_keys: true  # Maintain referential integrity
+database_journal_mode: "MEMORY"
+database_synchronous: "OFF"  # Speed over safety in CI
+database_cache_size: -2000
+database_temp_store: "MEMORY"
+
+# Application
+app_name: "scriptrag-test"
+metadata_scan_size: 10240
+skip_boneyard_filter: true  # Skip for test speed
+debug: false
+
+# Logging - Minimal for CI output clarity
+log_level: "ERROR"  # Only show errors in CI
+log_format: "console"
+# No log file in CI - output to console only
+log_file_rotation: "1 hour"
+log_file_retention: "1 hour"
+
+# Search - Fast settings for CI
+search_vector_threshold: 5
+search_vector_similarity_threshold: 0.1  # Lower threshold for tests
+search_vector_result_limit_factor: 0.5
+search_vector_min_results: 3
+search_thread_timeout: 30.0  # Short timeout for CI
+
+# LLM - Typically disabled for CI (use mocks)
+# Tests should use mocked LLM responses for deterministic results
+# llm_provider: none  # Uncomment to disable LLM
+llm_temperature: 0.0  # Deterministic responses if LLM is used
+llm_force_static_models: true  # No dynamic discovery in CI
+llm_model_cache_ttl: 0  # No caching in CI
+
+# Bible/Document Embeddings
+bible_embeddings_path: "/tmp/embeddings/bible"
+bible_max_file_size: 1048576  # 1MB for test files
+bible_llm_context_limit: 1000  # Small context for tests

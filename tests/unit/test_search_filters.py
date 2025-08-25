@@ -18,11 +18,48 @@ from scriptrag.search.models import BibleSearchResult, SearchQuery, SearchResult
 class TestSearchFilter:
     """Test base SearchFilter class."""
 
-    def test_filter_not_implemented(self) -> None:
-        """Test that base filter raises NotImplementedError."""
-        base_filter = SearchFilter()
-        with pytest.raises(NotImplementedError):
-            base_filter.filter([], SearchQuery(raw_query="test"))
+    def test_cannot_instantiate_abstract_class(self) -> None:
+        """Test that base filter cannot be instantiated directly."""
+        with pytest.raises(TypeError, match="Can't instantiate abstract class"):
+            SearchFilter()
+
+    def test_concrete_subclass_must_implement_filter(self) -> None:
+        """Test that concrete subclasses must implement filter method."""
+
+        # Create a class that doesn't implement filter
+        class IncompleteFilter(SearchFilter):
+            pass
+
+        with pytest.raises(TypeError, match="Can't instantiate abstract class"):
+            IncompleteFilter()
+
+    def test_proper_subclass_can_be_instantiated(self) -> None:
+        """Test that a proper implementation can be instantiated."""
+
+        # Create a complete implementation
+        class CompleteFilter(SearchFilter):
+            def filter(
+                self, results: list[SearchResult], query: SearchQuery
+            ) -> list[SearchResult]:
+                return results
+
+        # Should not raise an error
+        filter_instance = CompleteFilter()
+        test_results = [
+            SearchResult(
+                script_id=1,
+                script_title="Test",
+                script_author="Author",
+                scene_id=1,
+                scene_number=1,
+                scene_heading="INT. OFFICE - DAY",
+                scene_location="INT. OFFICE",
+                scene_time="DAY",
+                scene_content="Content",
+            )
+        ]
+        query = SearchQuery(raw_query="test")
+        assert filter_instance.filter(test_results, query) == test_results
 
 
 class TestSearchFilterChain:

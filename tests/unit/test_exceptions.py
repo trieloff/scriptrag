@@ -7,9 +7,13 @@ import pytest
 from scriptrag.exceptions import (
     ConfigurationError,
     DatabaseError,
+    EmbeddingError,
+    EmbeddingResponseError,
     GitError,
     LLMError,
+    LLMFallbackError,
     LLMProviderError,
+    LLMRetryableError,
     ParseError,
     QueryError,
     RateLimitError,
@@ -278,16 +282,11 @@ class TestCheckConfigKeys:
         assert error.details["invalid_key"] == "db_path"
         assert error.details["correct_key"] == "database_path"
 
-    def test_invalid_llm_provider_key(self):
-        """Test with wrong llm_provider key."""
+    def test_valid_llm_provider_key(self):
+        """Test that llm_provider is a valid key."""
         config = {"llm_provider": "openai"}
-
-        with pytest.raises(ConfigurationError) as exc_info:
-            check_config_keys(config)
-
-        error = exc_info.value
-        assert "Invalid configuration key 'llm_provider'" in str(error)
-        assert "Use 'llm_config.provider' instead" in str(error)
+        # Should not raise - llm_provider is a valid key
+        check_config_keys(config)
 
     def test_invalid_api_key(self):
         """Test with wrong api_key at root level."""
@@ -298,7 +297,7 @@ class TestCheckConfigKeys:
 
         error = exc_info.value
         assert "Invalid configuration key 'api_key'" in str(error)
-        assert "Use 'llm_config.api_key' instead" in str(error)
+        assert "Use 'llm_api_key' instead" in str(error)
 
     def test_invalid_model_key(self):
         """Test with wrong model key at root level."""
@@ -309,7 +308,7 @@ class TestCheckConfigKeys:
 
         error = exc_info.value
         assert "Invalid configuration key 'model'" in str(error)
-        assert "Use 'llm_config.model' instead" in str(error)
+        assert "Use 'llm_model' instead" in str(error)
 
     def test_multiple_invalid_keys_stops_at_first(self):
         """Test that validation stops at first invalid key."""
@@ -576,8 +575,12 @@ class TestInheritanceHierarchy:
             LLMError,
             RateLimitError,
             LLMProviderError,
+            LLMFallbackError,
+            LLMRetryableError,
             GitError,
             ScriptRAGIndexError,
+            EmbeddingError,
+            EmbeddingResponseError,
             QueryError,
             SearchError,
         ]
@@ -591,14 +594,357 @@ class TestInheritanceHierarchy:
         """Test that LLM-related exceptions inherit correctly."""
         rate_limit_error = RateLimitError()
         provider_error = LLMProviderError("Provider error")
+        fallback_error = LLMFallbackError()
+        retryable_error = LLMRetryableError("Retryable error")
 
-        # Both should inherit from LLMError
+        # All should inherit from LLMError
         assert isinstance(rate_limit_error, LLMError)
         assert isinstance(provider_error, LLMError)
+        assert isinstance(fallback_error, LLMError)
+        assert isinstance(retryable_error, LLMError)
 
         # And ultimately from ScriptRAGError
         assert isinstance(rate_limit_error, ScriptRAGError)
         assert isinstance(provider_error, ScriptRAGError)
+        assert isinstance(fallback_error, ScriptRAGError)
+        assert isinstance(retryable_error, ScriptRAGError)
+
+    def test_embedding_exception_hierarchy(self):
+        """Test that embedding-related exceptions inherit correctly."""
+        embedding_error = EmbeddingError("Embedding failed")
+        response_error = EmbeddingResponseError("Response invalid")
+
+        # EmbeddingResponseError should inherit from EmbeddingError
+        assert isinstance(response_error, EmbeddingError)
+
+        # Both should inherit from ScriptRAGError
+        assert isinstance(embedding_error, ScriptRAGError)
+        assert isinstance(response_error, ScriptRAGError)
+
+
+class TestLLMFallbackError:
+    """Test LLMFallbackError exception class."""
+
+    def test_llm_fallback_error_basic(self):
+        """Test basic LLMFallbackError creation."""
+        error = LLMFallbackError()
+        error_str = str(error)
+        assert "Error: All LLM providers failed" in error_str
+        assert error.message == "All LLM providers failed"
+        assert error.provider_errors == {}
+        assert error.attempted_providers == []
+        assert error.fallback_chain == []
+        assert error.debug_info is None
+        # Basic error always includes provider count and list details
+        assert "attempted_providers: []" in error_str
+        assert "fallback_chain: []" in error_str
+        assert "provider_count: 0" in error_str
+
+    def test_llm_fallback_error_with_providers(self):
+        """Test LLMFallbackError with attempted providers."""
+        attempted_providers = ["openai", "claude", "github"]
+        error = LLMFallbackError(attempted_providers=attempted_providers)
+
+        assert error.attempted_providers == attempted_providers
+        assert "Tried 3 providers" in str(error)
+        assert error.details["attempted_providers"] == attempted_providers
+        assert error.details["provider_count"] == 3
+
+    def test_llm_fallback_error_with_provider_errors(self):
+        """Test LLMFallbackError with specific provider errors."""
+        provider_errors = {
+            "openai": ValueError("API key invalid"),
+            "claude": ConnectionError("Network timeout"),
+        }
+        error = LLMFallbackError(provider_errors=provider_errors)
+
+        assert error.provider_errors == provider_errors
+        assert "Check provider credentials and availability" in str(error)
+        assert "provider_errors" in error.details
+        assert error.details["provider_errors"]["openai"] == "API key invalid"
+        assert error.details["provider_errors"]["claude"] == "Network timeout"
+
+    def test_llm_fallback_error_with_fallback_chain(self):
+        """Test LLMFallbackError with fallback chain."""
+        fallback_chain = ["primary", "secondary", "tertiary"]
+        error = LLMFallbackError(fallback_chain=fallback_chain)
+
+        assert error.fallback_chain == fallback_chain
+        assert error.details["fallback_chain"] == fallback_chain
+
+    def test_llm_fallback_error_with_debug_info(self):
+        """Test LLMFallbackError with debug information."""
+        debug_info = {
+            "stack_trace": "Traceback (most recent call last)...",
+            "timestamp": "2023-12-25T10:30:00Z",
+        }
+        error = LLMFallbackError(debug_info=debug_info)
+
+        assert error.debug_info == debug_info
+        assert "debug_info" in error.details
+        assert error.details["debug_info"] == debug_info
+
+    def test_llm_fallback_error_comprehensive(self):
+        """Test LLMFallbackError with all parameters."""
+        message = "Custom fallback failure message"
+        provider_errors = {
+            "openai": RateLimitError("Rate limit exceeded"),
+            "claude": LLMProviderError("Model not available"),
+        }
+        attempted_providers = ["openai", "claude", "local"]
+        fallback_chain = ["openai", "claude", "local"]
+        debug_info = {"session_id": "abc123", "retry_count": 3}
+
+        error = LLMFallbackError(
+            message=message,
+            provider_errors=provider_errors,
+            attempted_providers=attempted_providers,
+            fallback_chain=fallback_chain,
+            debug_info=debug_info,
+        )
+
+        # Verify all attributes are set
+        assert error.message == message
+        assert error.provider_errors == provider_errors
+        assert error.attempted_providers == attempted_providers
+        assert error.fallback_chain == fallback_chain
+        assert error.debug_info == debug_info
+
+        # Verify formatted message contains all information
+        error_str = str(error)
+        assert message in error_str
+        assert (
+            "Tried 3 providers. Check provider credentials and availability"
+            in error_str
+        )
+        assert "attempted_providers: ['openai', 'claude', 'local']" in error_str
+        assert "fallback_chain: ['openai', 'claude', 'local']" in error_str
+        assert "provider_count: 3" in error_str
+        assert "provider_errors" in error_str
+        assert "debug_info" in error_str
+
+    def test_llm_fallback_error_inheritance(self):
+        """Test that LLMFallbackError inherits from LLMError."""
+        error = LLMFallbackError()
+        assert isinstance(error, LLMError)
+        assert isinstance(error, ScriptRAGError)
+        assert isinstance(error, Exception)
+
+    def test_llm_fallback_error_hint_combinations(self):
+        """Test different combinations of hint generation."""
+        # Only attempted providers
+        error1 = LLMFallbackError(attempted_providers=["openai"])
+        assert "Tried 1 providers" in str(error1)
+        assert "Check provider credentials" not in str(error1)
+
+        # Only provider errors
+        error2 = LLMFallbackError(provider_errors={"openai": ValueError("test")})
+        assert "Check provider credentials and availability" in str(error2)
+        assert "Tried" not in str(error2)
+
+        # Both
+        error3 = LLMFallbackError(
+            attempted_providers=["openai", "claude"],
+            provider_errors={"openai": ValueError("test")},
+        )
+        hint_text = str(error3)
+        assert "Tried 2 providers" in hint_text
+        assert "Check provider credentials and availability" in hint_text
+
+    def test_llm_fallback_error_empty_collections(self):
+        """Test LLMFallbackError with empty collections."""
+        error = LLMFallbackError(
+            provider_errors={},
+            attempted_providers=[],
+            fallback_chain=[],
+        )
+
+        assert error.provider_errors == {}
+        assert error.attempted_providers == []
+        assert error.fallback_chain == []
+        assert error.details["provider_count"] == 0
+        # Should not add provider_errors to details if empty
+        assert "provider_errors" not in error.details
+
+
+class TestLLMRetryableError:
+    """Test LLMRetryableError exception class."""
+
+    def test_llm_retryable_error_basic(self):
+        """Test basic LLMRetryableError creation."""
+        error = LLMRetryableError("Connection failed")
+        assert error.message == "Connection failed"
+        assert error.provider is None
+        assert error.retry_after is None
+        assert error.attempt is None
+        assert error.max_attempts is None
+        assert error.original_error is None
+        assert str(error) == "Error: Connection failed"
+
+    def test_llm_retryable_error_with_provider(self):
+        """Test LLMRetryableError with provider."""
+        error = LLMRetryableError("Request failed", provider="OpenAI")
+        assert error.provider == "OpenAI"
+        assert error.details["provider"] == "OpenAI"
+
+    def test_llm_retryable_error_with_retry_after(self):
+        """Test LLMRetryableError with retry_after."""
+        error = LLMRetryableError("Rate limited", retry_after=15.5)
+        assert error.retry_after == 15.5
+        assert "Retry after 15.5 seconds" in str(error)
+        assert error.details["retry_after"] == 15.5
+
+    def test_llm_retryable_error_with_attempt_info(self):
+        """Test LLMRetryableError with attempt information."""
+        error = LLMRetryableError(
+            "Temporary failure",
+            attempt=2,
+            max_attempts=5,
+        )
+        assert error.attempt == 2
+        assert error.max_attempts == 5
+        assert "Attempt 2/5" in str(error)
+        assert error.details["attempt"] == 2
+        assert error.details["max_attempts"] == 5
+
+    def test_llm_retryable_error_with_original_error(self):
+        """Test LLMRetryableError with original error."""
+        original = ConnectionError("Network unreachable")
+        error = LLMRetryableError("Retry needed", original_error=original)
+
+        assert error.original_error == original
+        assert "original_error" in error.details
+        assert "ConnectionError: Network unreachable" in error.details["original_error"]
+
+    def test_llm_retryable_error_comprehensive(self):
+        """Test LLMRetryableError with all parameters."""
+        original = TimeoutError("Request timed out")
+        error = LLMRetryableError(
+            message="Retryable network error",
+            provider="Claude",
+            retry_after=30.0,
+            attempt=3,
+            max_attempts=5,
+            original_error=original,
+        )
+
+        # Verify all attributes are set
+        assert error.message == "Retryable network error"
+        assert error.provider == "Claude"
+        assert error.retry_after == 30.0
+        assert error.attempt == 3
+        assert error.max_attempts == 5
+        assert error.original_error == original
+
+        # Verify formatted message contains all information
+        error_str = str(error)
+        assert "Retryable network error" in error_str
+        assert "Retry after 30.0 seconds. Attempt 3/5" in error_str
+        assert "provider: Claude" in error_str
+        assert "retry_after: 30.0" in error_str
+        assert "attempt: 3" in error_str
+        assert "max_attempts: 5" in error_str
+        assert "TimeoutError: Request timed out" in error_str
+
+    def test_llm_retryable_error_inheritance(self):
+        """Test that LLMRetryableError inherits from LLMError."""
+        error = LLMRetryableError("test")
+        assert isinstance(error, LLMError)
+        assert isinstance(error, ScriptRAGError)
+        assert isinstance(error, Exception)
+
+    def test_llm_retryable_error_hint_combinations(self):
+        """Test different combinations of hint generation."""
+        # Only retry_after
+        error1 = LLMRetryableError("test", retry_after=10.0)
+        assert "Retry after 10.0 seconds" in str(error1)
+        assert "Attempt" not in str(error1)
+
+        # Only attempt info
+        error2 = LLMRetryableError("test", attempt=1, max_attempts=3)
+        assert "Attempt 1/3" in str(error2)
+        assert "Retry after" not in str(error2)
+
+        # Both
+        error3 = LLMRetryableError(
+            "test",
+            retry_after=5.0,
+            attempt=2,
+            max_attempts=4,
+        )
+        hint_text = str(error3)
+        assert "Retry after 5.0 seconds" in hint_text
+        assert "Attempt 2/4" in hint_text
+        assert ". " in hint_text  # Hints joined with ". "
+
+    def test_llm_retryable_error_partial_attempt_info(self):
+        """Test LLMRetryableError with incomplete attempt information."""
+        # Only attempt, no max_attempts
+        error1 = LLMRetryableError("test", attempt=2)
+        assert error1.attempt == 2
+        assert error1.max_attempts is None
+        assert "Attempt" not in str(error1)  # No hint generated without max_attempts
+        assert error1.details["attempt"] == 2
+        assert "max_attempts" not in error1.details
+
+        # Only max_attempts, no attempt
+        error2 = LLMRetryableError("test", max_attempts=5)
+        assert error2.attempt is None
+        assert error2.max_attempts == 5
+        assert "Attempt" not in str(error2)  # No hint generated without attempt
+        assert "attempt" not in error2.details
+        assert error2.details["max_attempts"] == 5
+
+    def test_llm_retryable_error_none_values(self):
+        """Test LLMRetryableError handling of None values in details."""
+        error = LLMRetryableError(
+            "test",
+            provider=None,
+            retry_after=None,
+            attempt=None,
+            max_attempts=None,
+            original_error=None,
+        )
+
+        # None values should not be added to details
+        expected_details = {}
+        assert error.details == expected_details
+
+
+class TestAdditionalExceptionClasses:
+    """Test additional exception classes for complete coverage."""
+
+    def test_embedding_error(self):
+        """Test EmbeddingError exception."""
+        error = EmbeddingError(
+            "Embedding generation failed",
+            hint="Check model availability",
+            details={"model": "text-embedding-3-small", "dimensions": 1536},
+        )
+        assert isinstance(error, ScriptRAGError)
+        assert "Error: Embedding generation failed" in str(error)
+        assert "Hint: Check model availability" in str(error)
+        assert "model: text-embedding-3-small" in str(error)
+        assert "dimensions: 1536" in str(error)
+
+    def test_embedding_response_error(self):
+        """Test EmbeddingResponseError exception."""
+        error = EmbeddingResponseError(
+            "Invalid embedding response format",
+            details={"expected_shape": [1536], "received_shape": [768]},
+        )
+        assert isinstance(error, EmbeddingError)
+        assert isinstance(error, ScriptRAGError)
+        assert "Error: Invalid embedding response format" in str(error)
+        assert "expected_shape: [1536]" in str(error)
+        assert "received_shape: [768]" in str(error)
+
+    def test_embedding_response_error_inheritance(self):
+        """Test that EmbeddingResponseError inherits from EmbeddingError."""
+        error = EmbeddingResponseError("Test error")
+        assert isinstance(error, EmbeddingError)
+        assert isinstance(error, ScriptRAGError)
+        assert isinstance(error, Exception)
 
 
 class TestEdgeCaseScenarios:

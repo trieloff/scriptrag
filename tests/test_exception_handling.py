@@ -140,6 +140,8 @@ class TestGitHubModelsExceptions:
     async def test_is_available_http_status_error(self):
         """Test availability check handles HTTP status errors."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Initialize client to avoid None error
+        provider._init_http_client()
 
         mock_response = Mock()
         mock_response.status_code = 403
@@ -157,6 +159,8 @@ class TestGitHubModelsExceptions:
     async def test_complete_json_decode_error(self):
         """Test completion handles JSON decode errors."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Initialize client to avoid None error
+        provider._init_http_client()
 
         request = CompletionRequest(
             model="gpt-4o",
@@ -182,6 +186,8 @@ class TestGitHubModelsExceptions:
     async def test_complete_type_error(self):
         """Test completion handles unexpected response structure."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Initialize client to avoid None error
+        provider._init_http_client()
 
         request = CompletionRequest(
             model="gpt-4o",
@@ -209,6 +215,8 @@ class TestGitHubModelsExceptions:
     async def test_embed_http_error(self):
         """Test embedding handles HTTP errors."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Initialize client to avoid None error
+        provider._init_http_client()
 
         request = EmbeddingRequest(model="test-model", input="test text")
 
@@ -226,11 +234,17 @@ class TestClaudeCodeExceptions:
 
     def test_sdk_check_import_error(self):
         """Test SDK check handles ImportError."""
-        # Mock the import to fail
-        with patch("builtins.__import__", side_effect=ImportError("Module not found")):
-            # Force re-initialization to trigger the import error
+        # Mock the specific import that causes the issue - claude_code_sdk
+        original_import = __builtins__["__import__"]
+
+        def mock_import(name, *args, **kwargs):
+            if name == "claude_code_sdk":
+                raise ImportError("Module not found")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=mock_import):
             provider = ClaudeCodeProvider()
-            # Since we can't easily re-trigger __init__, just check it's not available
+            # The import error should be caught and SDK marked as unavailable
             assert not provider.sdk_available
 
     @pytest.mark.asyncio

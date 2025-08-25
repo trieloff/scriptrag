@@ -254,7 +254,7 @@ class TestSearchEngine:
 
         query = SearchQuery(raw_query="test", text_query="test")
 
-        with patch("scriptrag.search.engine.logger") as mock_logger:
+        with patch("scriptrag.search.utils.logger") as mock_logger:
             response = engine.search(query)
 
             # Should log warning but continue
@@ -304,19 +304,19 @@ class TestSearchEngine:
     def test_determine_match_type_dialogue(self, engine):
         """Test match type determination for dialogue queries."""
         query = SearchQuery(raw_query="dialogue:Hello", dialogue="Hello")
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "dialogue"
 
     def test_determine_match_type_action(self, engine):
         """Test match type determination for action queries."""
         query = SearchQuery(raw_query="action:runs", action="runs")
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "action"
 
     def test_determine_match_type_text(self, engine):
         """Test match type determination for text queries."""
         query = SearchQuery(raw_query="something", text_query="something")
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "text"
 
     @patch("scriptrag.search.engine.get_read_only_connection")
@@ -359,7 +359,7 @@ class TestSearchEngine:
 
         query = SearchQuery(raw_query="test", text_query="test")
 
-        with patch("scriptrag.search.engine.logger") as mock_logger:
+        with patch("scriptrag.search.utils.logger") as mock_logger:
             response = engine.search(query)
 
             # Should log warning about invalid JSON
@@ -375,19 +375,19 @@ class TestSearchEngine:
     def test_determine_match_type_character(self, engine):
         """Test match type determination for character queries."""
         query = SearchQuery(raw_query="character:ALICE", characters=["ALICE"])
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "character"
 
     def test_determine_match_type_location(self, engine):
         """Test match type determination for location queries."""
         query = SearchQuery(raw_query="location:OFFICE", locations=["OFFICE"])
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "location"
 
     def test_determine_match_type_default(self, engine):
         """Test match type determination fallback."""
         query = SearchQuery(raw_query="")
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "text"
 
     def test_get_read_only_connection_non_path_validation_error(self, engine):

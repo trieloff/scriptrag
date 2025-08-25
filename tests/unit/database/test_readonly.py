@@ -22,8 +22,6 @@ class TestGetReadOnlyConnection:
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
-        settings.database_synchronous = "NORMAL"
-        settings.database_foreign_keys = True
         return settings
 
     def test_get_read_only_connection_success(self, settings):
@@ -66,6 +64,7 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
 
         # The test expects a ValueError to be raised by the context manager
         with (
@@ -188,8 +187,6 @@ class TestGetReadOnlyConnection:
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
-        settings.database_synchronous = "NORMAL"
-        settings.database_foreign_keys = True
 
         # Mock the connection manager to prevent actual database initialization
         with patch(
@@ -222,6 +219,7 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
 
         # This should still raise a ValueError for non-temp /var directories
         with (
@@ -243,8 +241,6 @@ class TestGetReadOnlyConnection:
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
-        settings.database_synchronous = "NORMAL"
-        settings.database_foreign_keys = True
 
         # Mock the connection manager to prevent actual database initialization
         with patch(
@@ -278,8 +274,6 @@ class TestGetReadOnlyConnection:
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
-        settings.database_synchronous = "NORMAL"
-        settings.database_foreign_keys = True
 
         # Mock the connection manager to prevent actual database initialization
         with patch(
@@ -313,6 +307,7 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
 
         # This should raise a ValueError - not the allowed /root/repo/ prefix
         with (
@@ -334,6 +329,7 @@ class TestGetReadOnlyConnection:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
 
         # This should raise a ValueError
         with (
@@ -354,8 +350,6 @@ class TestGetReadOnlyConnection:
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
-        settings.database_synchronous = "NORMAL"
-        settings.database_foreign_keys = True
 
         # Mock the connection manager to prevent actual database initialization
         with patch(
@@ -389,8 +383,6 @@ class TestGetReadOnlyConnection:
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
-        settings.database_synchronous = "NORMAL"
-        settings.database_foreign_keys = True
 
         # Mock the connection manager to prevent actual database initialization
         with patch(
@@ -423,8 +415,6 @@ class TestGetReadOnlyConnection:
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
-        settings.database_synchronous = "NORMAL"
-        settings.database_foreign_keys = True
 
         # Mock the connection manager to prevent actual database initialization
         with patch(
@@ -465,6 +455,7 @@ class TestGetReadOnlyConnection:
             settings.database_timeout = 30.0
             settings.database_cache_size = -2000
             settings.database_temp_store = "MEMORY"
+            settings.database_journal_mode = "WAL"
 
             # All system directories should be blocked
             with (
@@ -498,6 +489,7 @@ class TestGetReadOnlyConnection:
             settings.database_timeout = 30.0
             settings.database_cache_size = -2000
             settings.database_temp_store = "MEMORY"
+            settings.database_journal_mode = "WAL"
 
             # All path traversal attempts should be blocked
             with (
@@ -525,8 +517,6 @@ class TestGetReadOnlyConnection:
             settings.database_cache_size = -2000
             settings.database_temp_store = "MEMORY"
             settings.database_journal_mode = "WAL"
-            settings.database_synchronous = "NORMAL"
-            settings.database_foreign_keys = True
 
             # Mock the connection manager to prevent actual database initialization
             with patch(

@@ -8,7 +8,7 @@ from scriptrag.exceptions import LLMFallbackError
 from scriptrag.llm import LLMClient, LLMProvider
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.client import CompletionRequest, EmbeddingRequest
-from scriptrag.llm.providers import ClaudeCodeProvider
+from scriptrag.llm.providers.claude_code import ClaudeCodeProvider
 
 
 class TestRemainingCoverage:
@@ -192,9 +192,26 @@ class TestRemainingCoverage:
     @pytest.mark.asyncio
     async def test_claude_provider_check_sdk_import_error(self):
         """Test _check_sdk when import fails."""
-        with patch("builtins.__import__", side_effect=ImportError("Not found")):
-            provider = ClaudeCodeProvider()
-            assert provider.sdk_available is False
+        # Mock the claude_code_sdk import to fail
+        import sys
+
+        original_modules = sys.modules.copy()
+
+        # Remove claude_code_sdk if it exists
+        if "claude_code_sdk" in sys.modules:
+            del sys.modules["claude_code_sdk"]
+
+        try:
+            # Patch the import to raise ImportError
+            with patch.dict(
+                "sys.modules",
+                {"claude_code_sdk": None},  # This will make import fail
+            ):
+                provider = ClaudeCodeProvider()
+                assert provider.sdk_available is False
+        finally:
+            # Restore original modules
+            sys.modules.update(original_modules)
 
     @pytest.mark.asyncio
     async def test_claude_provider_is_available_sdk_other_exception(self):

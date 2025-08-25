@@ -6,7 +6,12 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from scriptrag.api.bible_extraction import BibleCharacter, BibleCharacterExtractor
+from scriptrag.api.bible.scene_bible import BibleScene
+from scriptrag.api.bible_extraction import (
+    BibleCharacter,
+    BibleCharacterExtractor,
+    BibleExtractor,
+)
 from scriptrag.parser.bible_parser import BibleChunk, ParsedBible
 
 
@@ -469,3 +474,297 @@ class TestBibleCharacterExtractor:
         assert result["version"] == 1
         assert result["characters"] == []
         assert "extracted_at" in result
+
+
+class TestBibleExtractor:
+    """Test the main BibleExtractor class with scene and combined extraction."""
+
+    def test_init_with_llm_client(self) -> None:
+        """Test BibleExtractor initialization with provided LLM client."""
+        mock_client = Mock()
+        extractor = BibleExtractor(llm_client=mock_client)
+        assert extractor.llm_client is mock_client
+
+    def test_init_without_llm_client(self) -> None:
+        """Test BibleExtractor initialization without LLM client."""
+        with patch("scriptrag.api.bible_extraction.LLMClient") as mock_llm_class:
+            mock_client = Mock()
+            mock_llm_class.return_value = mock_client
+
+            extractor = BibleExtractor()
+            assert extractor.llm_client is mock_client
+
+    @pytest.mark.asyncio
+    async def test_extract_scenes_from_bible_parse_error(self, tmp_path: Path) -> None:
+        """Test scene extraction with parse error."""
+        bible_path = tmp_path / "bad_bible.md"
+        bible_path.write_text("# Test")
+
+        extractor = BibleExtractor()
+
+        # Mock parser to raise error
+        with patch.object(
+            extractor.bible_parser, "parse_file", side_effect=Exception("Parse failed")
+        ):
+            result = await extractor.extract_scenes_from_bible(bible_path)
+
+            assert result["version"] == 1
+            assert result["scenes"] == []
+            assert "extracted_at" in result
+
+    @pytest.mark.asyncio
+    async def test_extract_scenes_from_bible_no_scene_chunks(
+        self, tmp_path: Path
+    ) -> None:
+        """Test scene extraction when no scene chunks found."""
+        bible_path = tmp_path / "bible.md"
+        bible_path.write_text("# Test")
+
+        # Create Bible with no scene-related content
+        empty_bible = ParsedBible(
+            file_path=bible_path,
+            title="Empty Bible",
+            file_hash="hash",
+            metadata={},
+            chunks=[
+                BibleChunk(
+                    chunk_number=0,
+                    heading="Character Info",
+                    level=1,
+                    content="JANE SMITH - Detective",
+                    content_hash="hash1",
+                    metadata={},
+                    parent_chunk_id=None,
+                )
+            ],
+        )
+
+        extractor = BibleExtractor()
+
+        with patch.object(
+            extractor.bible_parser, "parse_file", return_value=empty_bible
+        ):
+            result = await extractor.extract_scenes_from_bible(bible_path)
+
+            assert result["version"] == 1
+            assert result["scenes"] == []
+
+    @pytest.mark.asyncio
+    async def test_extract_scenes_from_bible_successful(self, tmp_path: Path) -> None:
+        """Test successful scene extraction."""
+        bible_path = tmp_path / "bible.md"
+        bible_path.write_text("# Test")
+
+        # Create Bible with scene content
+        scene_bible = ParsedBible(
+            file_path=bible_path,
+            title="Scene Bible",
+            file_hash="hash",
+            metadata={},
+            chunks=[
+                BibleChunk(
+                    chunk_number=0,
+                    heading="Locations",
+                    level=1,
+                    content="Police Station - Main headquarters downtown",
+                    content_hash="hash1",
+                    metadata={},
+                    parent_chunk_id=None,
+                )
+            ],
+        )
+
+        # Mock scene extraction with correct BibleScene structure
+        mock_scene = BibleScene(
+            location="POLICE STATION",
+            type="INT",
+            time="DAY",
+            description="Main police station downtown",
+        )
+
+        extractor = BibleExtractor()
+
+        with (
+            patch.object(
+                extractor.bible_parser, "parse_file", return_value=scene_bible
+            ),
+            patch.object(
+                extractor.scene_extractor,
+                "extract_scenes_via_llm",
+                return_value=[mock_scene],
+            ),
+            patch.object(
+                extractor.validator, "validate_bible_scene", return_value=True
+            ),
+        ):
+            result = await extractor.extract_scenes_from_bible(bible_path)
+
+            assert result["version"] == 1
+            assert len(result["scenes"]) == 1
+            scene = result["scenes"][0]
+            assert scene["location"] == "POLICE STATION"
+            assert scene["type"] == "INT"
+
+    @pytest.mark.asyncio
+    async def test_extract_scenes_from_bible_invalid_scenes(
+        self, tmp_path: Path
+    ) -> None:
+        """Test scene extraction with invalid scene data."""
+        bible_path = tmp_path / "bible.md"
+        bible_path.write_text("# Test")
+
+        # Create Bible with scene content
+        scene_bible = ParsedBible(
+            file_path=bible_path,
+            title="Scene Bible",
+            file_hash="hash",
+            metadata={},
+            chunks=[
+                BibleChunk(
+                    chunk_number=0,
+                    heading="Locations",
+                    level=1,
+                    content="Police Station - Main headquarters downtown",
+                    content_hash="hash1",
+                    metadata={},
+                    parent_chunk_id=None,
+                )
+            ],
+        )
+
+        # Mock scene extraction with invalid scene
+        mock_scene = BibleScene(location="", type=None, time=None, description="")
+
+        extractor = BibleExtractor()
+
+        with (
+            patch.object(
+                extractor.bible_parser, "parse_file", return_value=scene_bible
+            ),
+            patch.object(
+                extractor.scene_extractor,
+                "extract_scenes_via_llm",
+                return_value=[mock_scene],
+            ),
+            patch.object(
+                extractor.validator, "validate_bible_scene", return_value=False
+            ),
+        ):
+            result = await extractor.extract_scenes_from_bible(bible_path)
+
+            assert result["version"] == 1
+            assert result["scenes"] == []  # Invalid scenes filtered out
+
+    @pytest.mark.asyncio
+    async def test_extract_from_bible_characters_only(
+        self, tmp_path: Path, mock_parsed_bible: ParsedBible
+    ) -> None:
+        """Test combined extraction with characters only."""
+        bible_path = tmp_path / "bible.md"
+        bible_path.write_text("# Test")
+
+        # Mock LLM client for character extraction
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = json.dumps(
+            [
+                {
+                    "canonical": "JANE SMITH",
+                    "aliases": ["JANE", "DETECTIVE SMITH"],
+                    "tags": ["protagonist"],
+                    "notes": "Lead detective",
+                }
+            ]
+        )
+        mock_client.complete.return_value = mock_response
+
+        extractor = BibleExtractor(llm_client=mock_client)
+
+        with patch.object(
+            extractor.bible_parser, "parse_file", return_value=mock_parsed_bible
+        ):
+            result = await extractor.extract_from_bible(
+                bible_path, extract_scenes=False
+            )
+
+            # Should contain character data but no scene data
+            assert result["version"] == 1
+            assert len(result["characters"]) == 1
+            assert "scenes" not in result or result["scenes"] is None
+
+    @pytest.mark.asyncio
+    async def test_extract_from_bible_with_scenes(
+        self, tmp_path: Path, mock_parsed_bible: ParsedBible
+    ) -> None:
+        """Test combined extraction with both characters and scenes."""
+        bible_path = tmp_path / "bible.md"
+        bible_path.write_text("# Test")
+
+        # Mock LLM client for character extraction
+        mock_client = AsyncMock()
+        mock_response = Mock()
+        mock_response.content = json.dumps(
+            [
+                {
+                    "canonical": "JANE SMITH",
+                    "aliases": ["JANE", "DETECTIVE SMITH"],
+                    "tags": ["protagonist"],
+                    "notes": "Lead detective",
+                }
+            ]
+        )
+        mock_client.complete.return_value = mock_response
+
+        # Mock scene extraction with correct BibleScene structure
+        mock_scene = BibleScene(
+            location="POLICE STATION",
+            type="INT",
+            time="DAY",
+            description="Police headquarters",
+        )
+
+        extractor = BibleExtractor(llm_client=mock_client)
+
+        with (
+            patch.object(
+                extractor.bible_parser, "parse_file", return_value=mock_parsed_bible
+            ),
+            patch.object(
+                extractor.scene_extractor,
+                "extract_scenes_via_llm",
+                return_value=[mock_scene],
+            ),
+            patch.object(
+                extractor.validator, "validate_bible_scene", return_value=True
+            ),
+        ):
+            result = await extractor.extract_from_bible(bible_path, extract_scenes=True)
+
+            # Should contain both character and scene data
+            assert result["version"] == 1
+            assert len(result["characters"]) == 1
+            assert len(result["scenes"]) == 1
+
+            char = result["characters"][0]
+            assert char["canonical"] == "JANE SMITH"
+
+            scene = result["scenes"][0]
+            assert scene["location"] == "POLICE STATION"
+
+
+class TestBibleExtractorLegacyAlias:
+    """Test the legacy BibleCharacterExtractor alias."""
+
+    def test_legacy_alias_is_same_class(self) -> None:
+        """Test that BibleCharacterExtractor is an alias for BibleExtractor."""
+        # This tests line 244 which defines the legacy alias
+        assert BibleCharacterExtractor is BibleExtractor
+
+    def test_legacy_alias_initialization(self) -> None:
+        """Test initialization through legacy alias."""
+        mock_client = Mock()
+        extractor = BibleCharacterExtractor(llm_client=mock_client)
+
+        # Should be same type as BibleExtractor
+        assert isinstance(extractor, BibleExtractor)
+        assert extractor.llm_client is mock_client

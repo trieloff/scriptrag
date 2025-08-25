@@ -28,9 +28,9 @@ console = Console()
 # Create main app with improved configuration
 app = typer.Typer(
     name="scriptrag",
-    help="Git-native screenplay analysis with temporal navigation",
+    help="ScriptRAG: A Graph-Based Screenwriting Assistant",
     pretty_exceptions_enable=False,
-    add_completion=True,
+    add_completion=False,
     rich_markup_mode="rich",
 )
 
@@ -38,6 +38,8 @@ app = typer.Typer(
 app.command(name="init")(init_command)
 app.command(name="index")(index.index_command)
 app.command(name="list")(list_command)
+# Hidden alias for list
+app.command(name="ls", hidden=True)(list_command)
 app.command(name="search")(search_command)
 app.command(name="analyze")(analyze.analyze_command)
 app.command(name="watch")(watch.watch_command)

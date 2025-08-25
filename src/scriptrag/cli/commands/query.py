@@ -93,6 +93,10 @@ class QueryCommandBuilder:
                         console.print("[dim]No queries available[/dim]")
                         return
 
+                    # Header expected by tests and users
+                    console.print("[bold]Available queries:[/bold]")
+                    console.print("")
+
                     for query in queries:
                         info = self.formatter.format_query_info(
                             query.name,

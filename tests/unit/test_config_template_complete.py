@@ -383,8 +383,14 @@ class TestGetDefaultConfigPath:
             # Simulate home directory resolution failure
             mock_home.side_effect = OSError("No home directory")
 
-            with patch("pathlib.Path.cwd") as mock_cwd:
-                mock_cwd.return_value = Path("/current/working/dir")
+            with (
+                patch("pathlib.Path.cwd") as mock_cwd,
+                patch("pathlib.Path.resolve") as mock_resolve,
+            ):
+                # Mock both cwd() and resolve() to return the expected Unix path
+                mock_path = Path("/current/working/dir")
+                mock_cwd.return_value = mock_path
+                mock_resolve.return_value = mock_path
 
                 result = get_default_config_path()
 
@@ -403,8 +409,14 @@ class TestGetDefaultConfigPath:
             with patch("pathlib.Path.mkdir") as mock_mkdir:
                 mock_mkdir.side_effect = PermissionError("Permission denied")
 
-                with patch("pathlib.Path.cwd") as mock_cwd:
-                    mock_cwd.return_value = Path("/fallback/dir")
+                with (
+                    patch("pathlib.Path.cwd") as mock_cwd,
+                    patch("pathlib.Path.resolve") as mock_resolve,
+                ):
+                    # Mock both cwd() and resolve() to return the expected Unix path
+                    mock_path = Path("/fallback/dir")
+                    mock_cwd.return_value = mock_path
+                    mock_resolve.return_value = mock_path
 
                     result = get_default_config_path()
 
@@ -420,8 +432,14 @@ class TestGetDefaultConfigPath:
             # Simulate RuntimeError during home resolution
             mock_home.side_effect = RuntimeError("System-specific home error")
 
-            with patch("pathlib.Path.cwd") as mock_cwd:
-                mock_cwd.return_value = Path("/current/dir")
+            with (
+                patch("pathlib.Path.cwd") as mock_cwd,
+                patch("pathlib.Path.resolve") as mock_resolve,
+            ):
+                # Mock both cwd() and resolve() to return the expected Unix path
+                mock_path = Path("/current/dir")
+                mock_cwd.return_value = mock_path
+                mock_resolve.return_value = mock_path
 
                 result = get_default_config_path()
 

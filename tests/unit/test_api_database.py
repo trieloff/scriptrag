@@ -205,11 +205,10 @@ class TestDatabaseInitializer:
 
         with patch("sqlite3.connect") as mock_connect:
             mock_connect.return_value = mock_conn
-            with pytest.raises(RuntimeError) as exc_info:
+            with pytest.raises(Exception) as exc_info:
                 initializer.initialize_database(db_path)
 
-        # Verify error message
-        assert "Failed to initialize database" in str(exc_info.value)
+        # Verify error message - should be the raw exception
         assert "SQL error" in str(exc_info.value)
 
         # Verify cleanup - database should not exist

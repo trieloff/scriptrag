@@ -7,6 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from scriptrag.config import ScriptRAGSettings
+from scriptrag.exceptions import DatabaseError
 from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import SearchMode, SearchQuery
 
@@ -229,7 +230,7 @@ class TestSearchEngineEventLoop:
         )
 
         # Should raise an exception about database not found
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(DatabaseError) as exc_info:
             engine.search(query)
 
         # Verify the exception is about the database
@@ -257,7 +258,7 @@ class TestSearchEngineEventLoop:
         assert loop is not None
 
         # Should raise an exception about database not found
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(DatabaseError) as exc_info:
             engine.search(query)
 
         # Verify the exception is about the database

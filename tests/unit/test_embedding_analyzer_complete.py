@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 
 from scriptrag.analyzers.embedding import SceneEmbeddingAnalyzer
+from scriptrag.exceptions import EmbeddingError, EmbeddingGenerationError, GitError
 from scriptrag.llm.models import EmbeddingRequest, EmbeddingResponse, LLMProvider
 from scriptrag.utils import ScreenplayUtils
 
@@ -147,7 +148,8 @@ class TestSceneEmbeddingAnalyzerComplete:
                 "Not a git repository"
             )
 
-            with pytest.raises(RuntimeError, match="Not a git repository"):
+            # After refactor: Now throws GitError instead of RuntimeError
+            with pytest.raises(GitError, match="Not a git repository"):
                 _ = analyzer.repo
 
     # ==== HASH COMPUTATION TESTS ====
@@ -364,24 +366,23 @@ class TestSceneEmbeddingAnalyzerComplete:
 
     @pytest.mark.asyncio
     async def test_generate_embedding_api_error_fallback(self, analyzer_config):
-        """Test fallback to zero vector when API fails."""
+        """Test API errors now raise EmbeddingGenerationError instead of fallback."""
         analyzer = SceneEmbeddingAnalyzer(analyzer_config)
         mock_client = AsyncMock()
         mock_client.embed.side_effect = Exception("API Error")
         analyzer.llm_client = mock_client
 
         scene = {"content": "test scene"}
-        result = await analyzer._generate_embedding(scene)
 
-        # Should return zero vector with configured dimensions
-        assert isinstance(result, np.ndarray)
-        assert result.dtype == np.float32
-        assert len(result) == 5  # From config
-        np.testing.assert_array_equal(result, np.zeros(5, dtype=np.float32))
+        # After refactor: API errors now raise exceptions instead of fallback
+        with pytest.raises(
+            EmbeddingGenerationError, match="Failed to generate embedding"
+        ):
+            await analyzer._generate_embedding(scene)
 
     @pytest.mark.asyncio
     async def test_generate_embedding_empty_response_fallback(self):
-        """Test fallback when response has no data."""
+        """Test that empty response now raises RuntimeError instead of fallback."""
         analyzer = SceneEmbeddingAnalyzer()  # No dimensions configured
         mock_client = AsyncMock()
 
@@ -392,13 +393,13 @@ class TestSceneEmbeddingAnalyzerComplete:
         analyzer.llm_client = mock_client
 
         scene = {"content": "test scene"}
-        result = await analyzer._generate_embedding(scene)
 
-        # Should return zero vector with default dimensions
-        assert isinstance(result, np.ndarray)
-        assert result.dtype == np.float32
-        assert len(result) == 1536  # Default dimensions
-        np.testing.assert_array_equal(result, np.zeros(1536, dtype=np.float32))
+        # After refactor: Empty response now raises EmbeddingGenerationError
+        with pytest.raises(
+            EmbeddingGenerationError,
+            match="Failed to generate embedding: No embedding data in response",
+        ):
+            await analyzer._generate_embedding(scene)
 
     @pytest.mark.asyncio
     async def test_generate_embedding_attribute_access_response(self):
@@ -619,12 +620,11 @@ class TestSceneEmbeddingAnalyzerComplete:
         # No LLM client, will cause error
         scene = {"content": "test scene"}
 
-        result = await analyzer.analyze(scene)
-
-        assert "error" in result
-        assert result["analyzer"] == "scene_embeddings"
-        assert result["version"] == "1.0.0"
-        assert "LLM client not initialized" in result["error"]
+        # After refactor: Now raises EmbeddingError instead of returning error dict
+        with pytest.raises(
+            EmbeddingError, match="Failed to analyze scene: LLM client not initialized"
+        ):
+            await analyzer.analyze(scene)
 
     # ==== CLEANUP TESTS ====
 

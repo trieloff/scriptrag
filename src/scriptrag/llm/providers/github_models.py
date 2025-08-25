@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from scriptrag.config import get_logger
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm.base_provider import EnhancedBaseLLMProvider
 from scriptrag.llm.model_discovery import GitHubModelsDiscovery
 from scriptrag.llm.model_registry import ModelRegistry
@@ -241,6 +242,16 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
                 model=request.model,
             )
             raise ValueError(f"Invalid API response: {e}") from e
+        except (RuntimeError, OSError, TimeoutError) as e:
+            # Catch runtime/network errors and convert to LLMProviderError
+            logger.error(
+                "GitHub Models completion failed with unexpected error",
+                error=str(e),
+                error_type=type(e).__name__,
+                endpoint=f"{self.base_url}/chat/completions",
+                model=request.model,
+            )
+            raise LLMProviderError(f"GitHub Models API error: {e}") from e
 
     def _parse_completion_response(
         self, data: dict[str, Any], model: str

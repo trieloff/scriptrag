@@ -10,6 +10,11 @@ import numpy as np
 
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.config import get_logger
+from scriptrag.exceptions import (
+    EmbeddingError,
+    EmbeddingGenerationError,
+    GitError,
+)
 from scriptrag.utils import ScreenplayUtils, get_default_llm_client
 
 if TYPE_CHECKING:
@@ -63,9 +68,13 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
         if self._repo is None:
             try:
                 self._repo = git.Repo(self.repo_path, search_parent_directories=True)
-            except git.InvalidGitRepositoryError:
+            except git.InvalidGitRepositoryError as e:
                 logger.error(f"Not a git repository: {self.repo_path}")
-                raise RuntimeError(f"Not a git repository: {self.repo_path}") from None
+                raise GitError(
+                    message=f"Not a git repository: {self.repo_path}",
+                    hint="Ensure you're running this command in a git repository",
+                    details={"repo_path": str(self.repo_path), "error": str(e)},
+                ) from e
         return self._repo
 
     async def initialize(self) -> None:
@@ -182,7 +191,7 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
                 embedding = np.load(embedding_path)
                 self._embeddings_cache[content_hash] = embedding
                 return np.array(embedding)
-            except Exception as e:
+            except (OSError, ValueError) as e:
                 logger.error(f"Failed to load embedding from {embedding_path}: {e}")
                 # Fall through to regenerate
 
@@ -199,10 +208,10 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
             try:
                 self.repo.index.add([str(embedding_path.relative_to(self.repo_path))])
                 logger.debug(f"Added {embedding_path} to git index")
-            except Exception as e:
+            except (git.GitCommandError, OSError) as e:
                 logger.warning(f"Failed to add embedding to git: {e}")
 
-        except Exception as e:
+        except (OSError, PermissionError) as e:
             logger.error(f"Failed to save embedding to {embedding_path}: {e}")
 
         # Cache it
@@ -248,11 +257,18 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
 
             raise RuntimeError("No embedding data in response")
 
-        except Exception as e:
-            logger.error(f"Failed to generate embedding: {e}")
-            # Return a zero vector as fallback
-            dimensions = self.dimensions or 1536  # Default dimensions
-            return np.zeros(dimensions, dtype=np.float32)
+        except (AttributeError, KeyError, TypeError, RuntimeError, Exception) as e:
+            error_msg = f"Failed to generate embedding: {e}"
+            logger.error(error_msg)
+            raise EmbeddingGenerationError(
+                message=error_msg,
+                hint="Check the LLM response format and embedding configuration",
+                details={
+                    "model": self.embedding_model,
+                    "error_type": type(e).__name__,
+                    "error": str(e),
+                },
+            ) from e
 
     def _format_scene_for_embedding(self, scene: dict[str, Any]) -> str:
         """Format scene content for embedding generation.
@@ -304,10 +320,18 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
 
             return result
 
-        except Exception as e:
+        except (EmbeddingError, GitError) as e:
+            # Re-raise our specific exceptions with proper context
             logger.error(f"Failed to analyze scene: {e}")
-            return {
-                "error": str(e),
-                "analyzer": self.name,
-                "version": self.version,
-            }
+            raise
+        except (OSError, ValueError, RuntimeError) as e:
+            logger.error(f"Failed to analyze scene: {e}")
+            raise EmbeddingError(
+                message=f"Failed to analyze scene: {e}",
+                hint="Check file permissions and available disk space",
+                details={
+                    "analyzer": self.name,
+                    "version": self.version,
+                    "error_type": type(e).__name__,
+                },
+            ) from e

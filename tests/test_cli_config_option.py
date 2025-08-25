@@ -42,6 +42,7 @@ class TestConfigOptionSceneCommands:
         try:
             # Setup mocks
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -100,6 +101,7 @@ class TestConfigOptionSceneCommands:
         try:
             # Setup mocks
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -148,6 +150,7 @@ class TestConfigOptionSceneCommands:
         try:
             # Setup mocks
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -195,6 +198,7 @@ class TestConfigOptionSceneCommands:
         try:
             # Setup mocks
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -241,6 +245,7 @@ class TestConfigOptionSceneCommands:
         try:
             # Setup mocks
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -291,6 +296,7 @@ class TestConfigOptionAnalyzeCommand:
         try:
             # Setup mocks
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_command = MagicMock()
@@ -339,6 +345,7 @@ class TestConfigOptionListCommand:
         try:
             # Setup mocks
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_command = MagicMock()
@@ -383,6 +390,7 @@ class TestConfigOptionIndexCommand:
         try:
             # Setup mocks
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_command = MagicMock()
@@ -587,6 +595,7 @@ class TestConfigOptionSearchCommand:
 
             # Setup mocks
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_settings.database_path = db_path
             mock_settings_class.from_multiple_sources.return_value = mock_settings
             mock_get_settings.return_value = mock_settings

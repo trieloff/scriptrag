@@ -107,6 +107,7 @@ class TestCreateQueryCommand:
         # Setup mocks
         mock_api.get_query.return_value = simple_spec
         mock_settings = MagicMock()
+        mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_current_api = MagicMock()
         mock_api_class.return_value = mock_current_api
@@ -133,6 +134,7 @@ class TestCreateQueryCommand:
         # Setup mocks
         mock_api.get_query.return_value = simple_spec
         mock_settings = MagicMock()
+        mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_current_api = MagicMock()
         mock_api_class.return_value = mock_current_api
@@ -163,6 +165,7 @@ class TestCreateQueryCommand:
         # Setup mocks
         mock_api.get_query.return_value = simple_spec
         mock_settings = MagicMock()
+        mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_current_api = MagicMock()
         mock_api_class.return_value = mock_current_api
@@ -217,6 +220,7 @@ class TestRegisterQueryCommands:
     ):
         """Test registering commands when no queries found."""
         mock_settings = MagicMock()
+        mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_api = MagicMock()
         mock_api_class.return_value = mock_api
@@ -240,6 +244,7 @@ class TestRegisterQueryCommands:
         """Test registering commands with queries."""
         # Setup mocks
         mock_settings = MagicMock()
+        mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_api = MagicMock()
         mock_api_class.return_value = mock_api
@@ -266,6 +271,7 @@ class TestRegisterQueryCommands:
         """Test registering commands when command creation fails."""
         # Setup mocks
         mock_settings = MagicMock()
+        mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_api = MagicMock()
         mock_api_class.return_value = mock_api
@@ -313,6 +319,7 @@ class TestRegisterQueryCommands:
 
         # Setup runtime API that will succeed
         mock_settings = MagicMock()
+        mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_runtime_api = MagicMock()
         mock_api_class.return_value = mock_runtime_api
@@ -353,6 +360,7 @@ class TestRegisterQueryCommands:
 
         # Setup runtime API that will fail
         mock_settings = MagicMock()
+        mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_runtime_api = MagicMock()
         mock_api_class.return_value = mock_runtime_api
@@ -461,6 +469,7 @@ class TestHelperFunctions:
             patch("scriptrag.cli.commands.query.QueryAPI") as mock_api_class,
         ):
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_get_settings.return_value = mock_settings
             mock_api = MagicMock()
             mock_api_class.return_value = mock_api
@@ -811,6 +820,7 @@ class TestCoverageGaps:
             patch("scriptrag.cli.commands.query.console") as mock_console,
         ):
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_get_settings.return_value = mock_settings
             mock_runtime_api = MagicMock()
             mock_api_class.return_value = mock_runtime_api

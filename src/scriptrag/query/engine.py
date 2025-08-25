@@ -18,14 +18,26 @@ class QueryEngine:
         """Initialize query engine.
 
         Args:
-            settings: Configuration settings
+            settings: Configuration settings (deprecated, use get_settings())
         """
-        if settings is None:
-            from scriptrag.config import get_settings
+        # Store settings but prefer get_settings() for runtime configuration
+        # This ensures tests with environment variable changes work correctly
+        self._initial_settings = settings
 
-            settings = get_settings()
+    @property
+    def settings(self) -> ScriptRAGSettings:
+        """Get current settings, always fresh from configuration system.
 
-        self.settings = settings
+        This ensures tests that modify environment variables and call reset_settings()
+        will see the updated configuration.
+        """
+        if self._initial_settings is not None:
+            # Use initial settings if provided (for backward compatibility)
+            return self._initial_settings
+
+        from scriptrag.config import get_settings
+
+        return get_settings()
 
     @property
     def db_path(self) -> Any:

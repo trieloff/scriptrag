@@ -24,7 +24,9 @@ class QueryAPI:
 
         self.settings = settings
         self.loader = QueryLoader(settings)
-        self.engine = QueryEngine(settings)
+        # CRITICAL: Don't pass settings to QueryEngine - let it get fresh settings
+        # This ensures integration tests that modify environment variables work
+        self.engine = QueryEngine()
         self.formatter = QueryFormatter()
 
     def list_queries(self) -> list[QuerySpec]:

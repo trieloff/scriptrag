@@ -165,6 +165,8 @@ ORDER BY d.id""")
 
         # Reset caches before reload
         reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "list"])
@@ -191,6 +193,8 @@ ORDER BY d.id""")
 
         # Reset caches before reload
         reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "list_scenes", "--limit", "2"])
@@ -216,6 +220,8 @@ ORDER BY d.id""")
 
         # Reset caches before reload
         reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(
@@ -242,6 +248,8 @@ ORDER BY d.id""")
 
         # Reset caches before reload
         reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(
@@ -275,6 +283,8 @@ ORDER BY d.id""")
 
         # Reset caches before reload
         reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "character_lines"])
@@ -298,6 +308,8 @@ ORDER BY d.id""")
 
         # Reset caches before reload
         reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "nonexistent"])
@@ -320,6 +332,8 @@ ORDER BY d.id""")
 
         # Reset caches before reload
         reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "list_scenes"])

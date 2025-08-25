@@ -204,6 +204,7 @@ jobs:
           SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}
           SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
           SCRIPTRAG_ENVIRONMENT: testing
+          SCRIPTRAG_TEST_LLMS: ""  # Disable LLM tests in CI to prevent rate limit failures
 
       - name: Surface canary test results
         uses: pmeier/pytest-results-action@main
@@ -298,6 +299,7 @@ jobs:
           SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}
           SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
           SCRIPTRAG_ENVIRONMENT: testing
+          SCRIPTRAG_TEST_LLMS: ""  # Disable LLM tests in CI to prevent rate limit failures
 
       - name: Surface failing tests
         uses: pmeier/pytest-results-action@main
@@ -445,6 +447,7 @@ jobs:
           SCRIPTRAG_LLM_API_KEY: ${{ secrets.SCRIPTRAG_LLM_API_KEY }}
           SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
           SCRIPTRAG_ENVIRONMENT: testing
+          SCRIPTRAG_TEST_LLMS: ""  # Explicitly disable LLM tests to prevent rate limit failures
 
       - name: Surface failing integration tests
         uses: pmeier/pytest-results-action@main

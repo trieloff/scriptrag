@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Protocol
 
 from scriptrag.config import ScriptRAGSettings, get_logger
+from scriptrag.exceptions import DatabaseError
 
 logger = get_logger(__name__)
 
@@ -130,11 +131,15 @@ class DatabaseInitializer:
             logger.info("Database initialized successfully", path=str(db_path))
             return db_path
 
-        except Exception as e:
+        except (OSError, sqlite3.Error, ValueError) as e:
             # Clean up on failure
             if db_path.exists() and connection is None:
                 db_path.unlink()
-            raise RuntimeError(f"Failed to initialize database: {e}") from e
+            raise DatabaseError(
+                message=f"Failed to initialize database: {e}",
+                hint="Check disk space and file permissions",
+                details={"path": str(db_path), "error_type": type(e).__name__},
+            ) from e
 
     def _initialize_with_connection(self, conn: DatabaseConnection) -> None:
         """Initialize database using provided connection.
@@ -163,6 +168,13 @@ class DatabaseInitializer:
             logger.info("VSS schema initialized successfully")
         except FileNotFoundError:
             logger.debug("No VSS schema file found, skipping")
+        except sqlite3.Error as e:
+            # Re-raise SQLite errors as DatabaseError for consistency
+            raise DatabaseError(
+                message=f"Failed to initialize VSS schema: {e}",
+                hint="Check that required tables exist before initializing VSS schema",
+                details={"error_type": type(e).__name__},
+            ) from e
 
         conn.commit()
 

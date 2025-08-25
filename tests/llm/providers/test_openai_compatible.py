@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm.models import CompletionRequest, EmbeddingRequest, LLMProvider
 from scriptrag.llm.providers.openai_compatible import OpenAICompatibleProvider
 
@@ -136,7 +137,7 @@ class TestOpenAICompatibleProvider:
     ) -> None:
         """Test API error during availability check."""
         with patch.object(
-            provider.client, "get", side_effect=Exception("Connection error")
+            provider.client, "get", side_effect=RuntimeError("Connection error")
         ):
             result = await provider.is_available()
             assert result is False
@@ -194,7 +195,9 @@ class TestOpenAICompatibleProvider:
         self, provider: OpenAICompatibleProvider
     ) -> None:
         """Test model listing with API error."""
-        with patch.object(provider.client, "get", side_effect=Exception("API Error")):
+        with patch.object(
+            provider.client, "get", side_effect=RuntimeError("API Error")
+        ):
             models = await provider.list_models()
             assert models == []
 
@@ -388,12 +391,14 @@ class TestOpenAICompatibleProvider:
     @pytest.mark.asyncio
     async def test_complete_api_error(self, provider: OpenAICompatibleProvider) -> None:
         """Test completion with API error."""
-        with patch.object(provider.client, "post", side_effect=Exception("API Error")):
+        with patch.object(
+            provider.client, "post", side_effect=RuntimeError("API Error")
+        ):
             request = CompletionRequest(
                 model="test", messages=[{"role": "user", "content": "Hello"}]
             )
 
-            with pytest.raises(Exception) as exc_info:
+            with pytest.raises(LLMProviderError) as exc_info:
                 await provider.complete(request)
             assert "API Error" in str(exc_info.value)
 
@@ -409,7 +414,7 @@ class TestOpenAICompatibleProvider:
                 model="test", messages=[{"role": "user", "content": "Hello"}]
             )
 
-            with pytest.raises(asyncio.TimeoutError):
+            with pytest.raises(TimeoutError):
                 await provider.complete(request)
 
     @pytest.mark.asyncio
@@ -439,7 +444,9 @@ class TestOpenAICompatibleProvider:
     @pytest.mark.asyncio
     async def test_embed_api_error(self, provider: OpenAICompatibleProvider) -> None:
         """Test embedding with API error."""
-        with patch.object(provider.client, "post", side_effect=Exception("API Error")):
+        with patch.object(
+            provider.client, "post", side_effect=RuntimeError("API Error")
+        ):
             request = EmbeddingRequest(
                 model="text-embedding-ada-002", input="Test text"
             )

@@ -243,6 +243,12 @@ class ClaudeCodeProvider(BaseLLMProvider):
         except AttributeError as e:
             logger.error(f"Claude Code response parsing failed: {e}")
             raise RuntimeError(f"Invalid SDK response structure: {e}") from e
+        except Exception as e:
+            # Catch any other unexpected exceptions and wrap in LLMProviderError
+            logger.error(f"Claude Code unexpected error: {e}")
+            from scriptrag.exceptions import LLMProviderError
+
+            raise LLMProviderError(f"Failed to complete prompt: {e}") from e
 
     async def _execute_query(
         self,

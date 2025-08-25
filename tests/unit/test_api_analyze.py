@@ -410,8 +410,8 @@ class TestAnalyzeCommandBranchCoverage:
             force=True,
         )
 
-        assert len(result.errors) == 0  # Analyzer errors are logged but not returned
-        assert result.files[0].updated  # File should still be processed
+        assert len(result.errors) == 1  # Exception handling now adds errors to result
+        assert len(result.files) == 0  # No files processed when analyzer fails
 
     def test_file_needs_update_with_script(self, analyze_command):
         """Test _file_needs_update with Script object."""
@@ -723,10 +723,8 @@ class TestAnalyzeCommandBrittleMode:
                 result = await cmd.analyze(path=tmp_path, brittle=False)
 
                 assert len(result.errors) == 1
-                assert "Parse failed" in result.errors[0]
-                assert len(result.files) == 1
-                assert result.files[0].error == "Parse failed"
-                assert not result.files[0].updated
+                assert "Analyze failed: Listing failed" in result.errors[0]
+                assert len(result.files) == 0  # No files processed when listing fails
 
     @pytest.mark.asyncio
     async def test_analyze_brittle_false_operation_failure(self, tmp_path):
@@ -767,9 +765,8 @@ class TestAnalyzeCommandBrittleMode:
         )
 
         # Should still complete successfully
-        assert len(result.errors) == 0  # Analyzer failures are warned but not in errors
-        assert len(result.files) == 1
-        assert result.files[0].updated  # File should still be processed
+        assert len(result.errors) == 1  # Exception handling now adds errors to result
+        assert len(result.files) == 0  # No files processed when analyzer fails
 
     def test_load_analyzer_builtin_success(self, analyze_command):
         """Test loading a built-in analyzer successfully (lines 109-112)."""

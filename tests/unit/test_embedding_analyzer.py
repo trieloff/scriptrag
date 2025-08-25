@@ -270,11 +270,13 @@ class TestSceneEmbeddingAnalyzer:
         analyzer = SceneEmbeddingAnalyzer(analyzer_config)
         # No LLM client initialized
 
-        result = await analyzer.analyze(sample_scene)
+        from scriptrag.exceptions import EmbeddingError
 
-        assert "error" in result
-        assert result["analyzer"] == "scene_embeddings"
-        assert result["version"] == "1.0.0"
+        with pytest.raises(EmbeddingError) as exc_info:
+            await analyzer.analyze(sample_scene)
+
+        # Check that the error message contains expected information
+        assert "Error: Failed to analyze scene" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_cleanup(self, analyzer_config):

@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm import LLMProvider
 from scriptrag.llm.client import LLMClient
 from scriptrag.llm.models import (
@@ -136,7 +137,7 @@ class TestLLMClientAdditionalCoverage:
         """Test list_models with specific provider that raises error."""
         error_provider = AsyncMock()
         error_provider.is_available = AsyncMock(return_value=True)
-        error_provider.list_models = AsyncMock(side_effect=Exception("API error"))
+        error_provider.list_models = AsyncMock(side_effect=RuntimeError("API error"))
 
         client = LLMClient()
         client.registry.providers = {
@@ -170,7 +171,7 @@ class TestLLMClientAdditionalCoverage:
         """Test complete with provider error triggering fallback."""
         error_provider = AsyncMock()
         error_provider.is_available = AsyncMock(return_value=True)
-        error_provider.complete = AsyncMock(side_effect=Exception("API error"))
+        error_provider.complete = AsyncMock(side_effect=RuntimeError("API error"))
 
         fallback_provider = AsyncMock()
         fallback_provider.is_available = AsyncMock(return_value=True)
@@ -234,11 +235,15 @@ class TestLLMClientAdditionalCoverage:
         """Test complete when all providers fail."""
         error_provider1 = AsyncMock()
         error_provider1.is_available = AsyncMock(return_value=True)
-        error_provider1.complete = AsyncMock(side_effect=Exception("API error 1"))
+        error_provider1.complete = AsyncMock(
+            side_effect=LLMProviderError("API error 1")
+        )
 
         error_provider2 = AsyncMock()
         error_provider2.is_available = AsyncMock(return_value=True)
-        error_provider2.complete = AsyncMock(side_effect=Exception("API error 2"))
+        error_provider2.complete = AsyncMock(
+            side_effect=LLMProviderError("API error 2")
+        )
 
         client = LLMClient(
             fallback_order=[LLMProvider.CLAUDE_CODE, LLMProvider.GITHUB_MODELS]
@@ -251,9 +256,9 @@ class TestLLMClientAdditionalCoverage:
         with patch.object(
             client.fallback_handler,
             "complete_with_fallback",
-            new=AsyncMock(side_effect=Exception("All providers failed")),
+            new=AsyncMock(side_effect=LLMProviderError("All providers failed")),
         ):
-            with pytest.raises(Exception) as exc_info:
+            with pytest.raises(LLMProviderError) as exc_info:
                 await client.complete([{"role": "user", "content": "test prompt"}])
             assert "All providers failed" in str(exc_info.value)
 
@@ -262,11 +267,11 @@ class TestLLMClientAdditionalCoverage:
         """Test embed when all providers fail."""
         error_provider1 = AsyncMock()
         error_provider1.is_available = AsyncMock(return_value=True)
-        error_provider1.embed = AsyncMock(side_effect=Exception("API error 1"))
+        error_provider1.embed = AsyncMock(side_effect=LLMProviderError("API error 1"))
 
         error_provider2 = AsyncMock()
         error_provider2.is_available = AsyncMock(return_value=True)
-        error_provider2.embed = AsyncMock(side_effect=Exception("API error 2"))
+        error_provider2.embed = AsyncMock(side_effect=LLMProviderError("API error 2"))
 
         client = LLMClient(
             fallback_order=[LLMProvider.CLAUDE_CODE, LLMProvider.GITHUB_MODELS]
@@ -279,9 +284,9 @@ class TestLLMClientAdditionalCoverage:
         with patch.object(
             client.fallback_handler,
             "embed_with_fallback",
-            new=AsyncMock(side_effect=Exception("All providers failed")),
+            new=AsyncMock(side_effect=LLMProviderError("All providers failed")),
         ):
-            with pytest.raises(Exception) as exc_info:
+            with pytest.raises(LLMProviderError) as exc_info:
                 await client.embed("test text")
             assert "All providers failed" in str(exc_info.value)
 

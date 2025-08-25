@@ -8,6 +8,7 @@ import pytest
 from scriptrag.api.index import IndexCommand, IndexOperationResult, IndexResult
 from scriptrag.api.list import FountainMetadata
 from scriptrag.config import ScriptRAGSettings
+from scriptrag.exceptions import DatabaseError, ParseError
 from scriptrag.parser import Dialogue, Scene, Script
 
 
@@ -322,7 +323,7 @@ class TestIndexCommand:
 
         # Make parser fail
         with patch.object(
-            cmd.parser, "parse_file", side_effect=Exception("Parse error")
+            cmd.parser, "parse_file", side_effect=ParseError("Parse error")
         ):
             results = await cmd._process_scripts_batch(
                 sample_script_metadata[:1], dry_run=False
@@ -365,9 +366,9 @@ class TestIndexCommand:
 
         with (
             patch.object(
-                cmd.parser, "parse_file", side_effect=Exception("Parse failed")
+                cmd.parser, "parse_file", side_effect=ParseError("Parse failed")
             ),
-            pytest.raises(Exception, match="Parse failed"),
+            pytest.raises(ParseError, match="Parse failed"),
         ):
             await cmd._index_single_script(file_path, dry_run=False)
 
@@ -403,12 +404,12 @@ class TestIndexCommand:
 
         # Simulate an exception during discovery
         with patch.object(
-            cmd, "_discover_scripts", side_effect=Exception("Discovery failed")
+            cmd, "_discover_scripts", side_effect=DatabaseError("Discovery failed")
         ):
             result = await cmd.index()
 
         assert len(result.errors) == 1
-        assert "Index operation failed: Discovery failed" in result.errors[0]
+        assert "Index operation failed: Error: Discovery failed" in result.errors[0]
         assert result.total_scripts_indexed == 0
 
 
@@ -757,12 +758,12 @@ class TestIndexCommandMissingCoverage:
         ]
 
         # Mock _index_single_script to raise exception
-        indexer._index_single_script = AsyncMock(side_effect=Exception("Test error"))
+        indexer._index_single_script = AsyncMock(side_effect=ParseError("Test error"))
 
         # Process batch - should catch exception and add to errors
         results = await indexer._process_scripts_batch(scripts, dry_run=False)
         assert len(results) == 1
-        assert results[0].error == "Test error"
+        assert results[0].error == "Error: Test error"
 
     @pytest.mark.asyncio
     async def test_index_single_script_parser_error(self):
@@ -781,11 +782,11 @@ class TestIndexCommandMissingCoverage:
 
         # Mock parser to raise exception
         mock_parser = Mock()
-        mock_parser.parse_file.side_effect = Exception("Parse error")
+        mock_parser.parse_file.side_effect = ParseError("Parse error")
         indexer.parser = mock_parser
 
         # Test indexing - should raise exception
-        with pytest.raises(Exception, match="Parse error"):
+        with pytest.raises(ParseError, match="Parse error"):
             await indexer._index_single_script(script_metadata.file_path, dry_run=False)
 
     @pytest.mark.asyncio
@@ -797,7 +798,7 @@ class TestIndexCommandMissingCoverage:
         )
         mock_db_ops = Mock()
         # Mock transaction to raise database error
-        mock_db_ops.transaction.side_effect = Exception("Database error")
+        mock_db_ops.transaction.side_effect = DatabaseError("Database error")
         indexer = IndexCommand(settings, mock_db_ops)
 
         script_metadata = FountainMetadata(
@@ -815,7 +816,7 @@ class TestIndexCommandMissingCoverage:
         indexer.parser = mock_parser
 
         # Test indexing - should raise database error
-        with pytest.raises(Exception, match="Database error"):
+        with pytest.raises(DatabaseError, match="Database error"):
             await indexer._index_single_script(script_metadata.file_path, dry_run=False)
 
     @pytest.mark.asyncio

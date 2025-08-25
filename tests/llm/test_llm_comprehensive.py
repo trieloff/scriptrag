@@ -385,7 +385,7 @@ class TestGitHubModelsProviderExtended:
         provider._init_http_client()
 
         with patch.object(
-            provider.client, "get", side_effect=Exception("Request failed")
+            provider.client, "get", side_effect=RuntimeError("Request failed")
         ):
             models = await provider.list_models()
             # Falls back to static models on exception
@@ -599,7 +599,7 @@ class TestOpenAICompatibleProviderExtended:
         )
 
         with patch.object(
-            provider.client, "get", side_effect=Exception("Unexpected error")
+            provider.client, "get", side_effect=RuntimeError("Unexpected error")
         ):
             models = await provider.list_models()
             assert models == []
@@ -796,7 +796,7 @@ class TestLLMClientExtended:
 
         mock_provider = Mock(spec=BaseLLMProvider)
         mock_provider.is_available = AsyncMock(return_value=True)
-        mock_provider.list_models = AsyncMock(side_effect=Exception("API error"))
+        mock_provider.list_models = AsyncMock(side_effect=RuntimeError("API error"))
         client.registry.providers[LLMProvider.GITHUB_MODELS] = mock_provider
 
         models = await client.list_models(provider=LLMProvider.GITHUB_MODELS)
@@ -893,7 +893,9 @@ class TestLLMClientExtended:
         for provider_type in [LLMProvider.CLAUDE_CODE, LLMProvider.GITHUB_MODELS]:
             mock_provider = Mock(spec=BaseLLMProvider)
             mock_provider.is_available = AsyncMock(return_value=True)
-            mock_provider.complete = AsyncMock(side_effect=Exception("Provider error"))
+            mock_provider.complete = AsyncMock(
+                side_effect=RuntimeError("Provider error")
+            )
             mock_provider.list_models = AsyncMock(return_value=[])
             client.registry.providers[provider_type] = mock_provider
 
@@ -1007,7 +1009,7 @@ class TestLLMClientExtended:
         for provider_type in [LLMProvider.GITHUB_MODELS, LLMProvider.OPENAI_COMPATIBLE]:
             mock_provider = Mock(spec=BaseLLMProvider)
             mock_provider.is_available = AsyncMock(return_value=True)
-            mock_provider.embed = AsyncMock(side_effect=Exception("Embed error"))
+            mock_provider.embed = AsyncMock(side_effect=RuntimeError("Embed error"))
             mock_provider.list_models = AsyncMock(return_value=[])
             client.registry.providers[provider_type] = mock_provider
 

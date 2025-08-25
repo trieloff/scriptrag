@@ -1003,7 +1003,14 @@ Content."""
 
         # Should handle None file_path gracefully by causing a TypeError
         assert result.success is False
-        assert "expected str, bytes or os.PathLike object, not NoneType" in result.error
+        # Handle both Python version variants of the TypeError message
+        error_variants = [
+            "expected str, bytes or os.PathLike object, not NoneType",
+            "argument should be a str or an os.PathLike object where __fspath__ returns a str, not 'NoneType'",  # noqa: E501
+        ]
+        assert any(variant in result.error for variant in error_variants), (
+            f"Expected one of {error_variants} in error: {result.error}"
+        )
 
     @pytest.mark.asyncio
     async def test_read_bible_no_files_found_in_project(self, api):

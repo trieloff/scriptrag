@@ -1,6 +1,7 @@
 """Embedding service for generating and managing scene embeddings."""
 
 import hashlib
+import os
 import struct
 from pathlib import Path
 
@@ -113,6 +114,13 @@ class EmbeddingService:
             ScriptRAGError: If embedding generation fails
         """
         model = model or self.default_model
+
+        # In test/CI canary environment, avoid external LLM calls
+        if os.getenv("SCRIPTRAG_ENVIRONMENT") == "testing":
+            # Deterministic lightweight embedding based on text hash
+            h = hashlib.sha256(text.encode()).digest()
+            # Produce 16 floats in [0,1)
+            return [h[i] / 255.0 for i in range(16)]
 
         # Check cache first
         if use_cache:

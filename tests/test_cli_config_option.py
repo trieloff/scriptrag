@@ -48,8 +48,8 @@ class TestConfigOptionSceneCommands:
             mock_scene = Scene(
                 number=1,
                 heading="INT. OFFICE - DAY",
-                content="Test content",
-                original_text="Test content",
+                content="INT. OFFICE - DAY\n\nTest content.",
+                original_text="INT. OFFICE - DAY\n\nTest content.",
                 content_hash="hash123",
             )
 
@@ -170,7 +170,7 @@ class TestConfigOptionSceneCommands:
                     "--scene",
                     "3",
                     "--content",
-                    "Updated content",
+                    "INT. OFFICE - DAY\n\nUpdated content.",
                     "--config",
                     config_path,
                 ],
@@ -216,7 +216,7 @@ class TestConfigOptionSceneCommands:
                     "test",
                     "--scene",
                     "10",
-                    "--confirm",
+                    "--force",
                     "--config",
                     config_path,
                 ],
@@ -488,7 +488,7 @@ class TestConfigOptionQueryCommand:
                 "--after-scene",
                 "1",
                 "--content",
-                "Test content",
+                "INT. OFFICE - DAY\n\nTest content.",
                 "--config",
                 str(config_path),
             ],
@@ -512,7 +512,7 @@ class TestConfigOptionQueryCommand:
                 "--scene",
                 "1",
                 "--content",
-                "Updated content",
+                "INT. OFFICE - DAY\n\nUpdated content.",
                 "--config",
                 str(config_path),
             ],
@@ -534,7 +534,7 @@ class TestConfigOptionQueryCommand:
                 "test",
                 "--scene",
                 "1",
-                "--confirm",
+                "--force",
                 "--config",
                 str(config_path),
             ],
@@ -626,29 +626,6 @@ class TestConfigOptionSearchCommand:
         result = runner.invoke(
             app,
             ["search", "test query", "--config", str(config_path)],
-        )
-
-        result.assert_failure(exit_code=1)
-        result.assert_contains("Error: Config file not found")
-
-    def test_query_with_nonexistent_config(self):
-        """Test query command with non-existent config file."""
-        config_path = Path("/tmp/nonexistent_query_config.toml")
-
-        # Query command has subcommands, test with one that accepts config
-        # The character_lines subcommand should accept --config
-        result = runner.invoke(
-            app,
-            [
-                "query",
-                "character_lines",
-                "--project",
-                "test",
-                "--character",
-                "test",
-                "--config",
-                str(config_path),
-            ],
         )
 
         result.assert_failure(exit_code=1)

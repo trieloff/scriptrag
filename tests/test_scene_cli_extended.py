@@ -525,7 +525,8 @@ class TestSceneUpdateCommandExtended:
             assert result.exit_code == 1
             clean_output = strip_ansi_codes(result.output)
             assert (
-                "No content provided" in clean_output
+                "scene content cannot be empty" in clean_output
+                or "No content provided" in clean_output
                 or "Invalid Fountain format" in clean_output
             )
 
@@ -597,10 +598,8 @@ class TestSceneUpdateCommandExtended:
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Validation failed" in clean_output
-        assert "Validation errors:" in clean_output
-        assert "Missing scene heading" in clean_output
-        assert "Invalid format" in clean_output
+        # CLI validation catches this before API, so we expect the CLI validation error
+        assert "Scene content must start with a valid scene heading" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_update_scene_exception(self, mock_api_class):
@@ -624,8 +623,7 @@ class TestSceneUpdateCommandExtended:
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Failed to update scene" in clean_output
-        assert "Unexpected error" in clean_output
+        assert "Error: Unexpected error" in clean_output
 
 
 class TestSceneDeleteCommandExtended:

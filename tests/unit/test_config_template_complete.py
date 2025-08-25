@@ -351,23 +351,25 @@ class TestGetDefaultConfigPath:
 
         The standard case - when the system behaves as expected.
         """
-        with patch("pathlib.Path.home") as mock_home:
-            # Create a mock Path object that returns itself when resolve() is called
-            mock_path = Path("/home/testuser")
-            mock_home.return_value = mock_path
+        # Mock the entire Path.home() to return a mock that supports resolve()
+        from unittest.mock import MagicMock
 
+        mock_home_path = MagicMock(spec=Path)
+        mock_home_path.resolve.return_value = Path("/home/testuser")
+
+        with patch(
+            "src.scriptrag.config.template.Path.home", return_value=mock_home_path
+        ):
             # Mock successful mkdir operation
             with patch("pathlib.Path.mkdir") as mock_mkdir:
                 mock_mkdir.return_value = None
 
-                # Mock the resolve method to return the same path
-                with patch.object(mock_path, "resolve", return_value=mock_path):
-                    result = get_default_config_path()
+                result = get_default_config_path()
 
-                    expected = (
-                        Path("/home/testuser") / ".config" / "scriptrag" / "config.yaml"
-                    )
-                    assert result == expected
+                expected = (
+                    Path("/home/testuser") / ".config" / "scriptrag" / "config.yaml"
+                )
+                assert result == expected
 
                 # Should attempt to create the config directory
                 mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
@@ -468,23 +470,30 @@ class TestGetDefaultConfigPath:
 
         OSError during directory creation should trigger fallback.
         """
-        with patch("pathlib.Path.home") as mock_home:
-            mock_path = Path("/home/testuser")
-            mock_home.return_value = mock_path
+        # Mock Path.home() to return a mock that supports resolve()
+        from unittest.mock import MagicMock
 
+        mock_home_path = MagicMock(spec=Path)
+        mock_home_path.resolve.return_value = Path("/home/testuser")
+
+        with patch(
+            "src.scriptrag.config.template.Path.home", return_value=mock_home_path
+        ):
             with patch("pathlib.Path.mkdir") as mock_mkdir:
                 mock_mkdir.side_effect = OSError("Filesystem error")
 
-                with patch("pathlib.Path.cwd") as mock_cwd:
-                    mock_cwd.return_value = Path("/fallback/dir")
+                # Mock Path.cwd() to return a mock that supports resolve()
+                mock_cwd_path = MagicMock(spec=Path)
+                mock_cwd_path.resolve.return_value = Path("/fallback/dir")
 
-                    # Mock the resolve method to return the same path
-                    with patch.object(mock_path, "resolve", return_value=mock_path):
-                        result = get_default_config_path()
+                with patch(
+                    "src.scriptrag.config.template.Path.cwd", return_value=mock_cwd_path
+                ):
+                    result = get_default_config_path()
 
-                        # Use pathlib for cross-platform compatibility
-                        expected = Path("/fallback/dir") / "scriptrag.yaml"
-                        assert result == expected
+                    # Use pathlib for cross-platform compatibility
+                    expected = Path("/fallback/dir") / "scriptrag.yaml"
+                    assert result == expected
 
     def test_get_default_config_path_real_world_simulation(self, tmp_path):
         """Test with actual filesystem operations in a controlled environment.

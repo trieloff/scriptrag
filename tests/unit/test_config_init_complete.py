@@ -202,12 +202,12 @@ class TestValidateOutputPath:
                     mock_windows_path = tmp_path / "mock_config.yaml"
                     mock_windows_path.touch()  # Create the file so it exists
 
-                    with patch.object(
-                        test_path, "resolve", return_value=mock_windows_path
-                    ):
-                        result = validate_output_path(test_path)
-                        # Should resolve to our mock path
-                        assert result == mock_windows_path
+                    # Create test with real path that should be accepted
+                    # Put it inside the mocked temp directory so it's not a system path
+                    real_test_path = mock_temp / "real_config.yaml"
+                    result = validate_output_path(real_test_path)
+                    # Should resolve to the actual resolved path
+                    assert result == real_test_path.resolve()
 
 
 class TestConfigInit:

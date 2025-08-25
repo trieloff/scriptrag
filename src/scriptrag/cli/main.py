@@ -31,7 +31,7 @@ app = typer.Typer(
     name="scriptrag",
     help="Git-native screenplay analysis with temporal navigation",
     pretty_exceptions_enable=False,
-    add_completion=True,
+    add_completion=False,
     rich_markup_mode="rich",
 )
 

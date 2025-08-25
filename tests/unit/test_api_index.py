@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from scriptrag.api.index import IndexCommand, IndexOperationResult, IndexResult
+from scriptrag.api.index import IndexCommand
 from scriptrag.api.list import FountainMetadata
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config import IndexOperationResult, IndexResult, ScriptRAGSettings
 from scriptrag.parser import Dialogue, Scene, Script
 
 
@@ -105,7 +105,8 @@ class TestIndexCommand:
     def test_from_config(self):
         """Test creating IndexCommand from config."""
         with patch("scriptrag.api.index.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings.database_path = "/tmp/test.db"
             mock_get_settings.return_value = mock_settings
 
             cmd = IndexCommand.from_config()

@@ -20,6 +20,7 @@ from scriptrag.api.scene_models import (
     UpdateSceneResult,
 )
 from scriptrag.cli.main import app
+from scriptrag.config import ScriptRAGSettings
 from scriptrag.parser import Scene
 from tests.cli_fixtures import strip_ansi_codes
 
@@ -76,7 +77,7 @@ class TestSceneCommandsConfigOption:
         config_file.write_text("database_path: /custom/test.db\n")
 
         # Setup mocks
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = Path("/custom/test.db")
         mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
 
@@ -167,7 +168,7 @@ class TestSceneCommandsConfigOption:
         config_file.write_text("database_path: /custom/test.db\n")
 
         # Setup mocks
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = Path("/custom/test.db")
         mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
 
@@ -221,7 +222,7 @@ class TestSceneCommandsConfigOption:
         config_file.write_text("database_path: /custom/test.db\n")
 
         # Setup mocks
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = Path("/custom/test.db")
         mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
 
@@ -275,7 +276,7 @@ class TestSceneCommandsConfigOption:
         config_file.write_text("database_path: /custom/test.db\n")
 
         # Setup mocks
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = Path("/custom/test.db")
         mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
 
@@ -328,7 +329,7 @@ class TestSceneCommandsConfigOption:
         config_file.write_text("database_path: /custom/test.db\n")
 
         # Setup mocks
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = Path("/custom/test.db")
         mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
 
@@ -415,7 +416,7 @@ class TestSceneCommandsConfigOption:
     ) -> None:
         """Test scene command falls back to default settings when no config."""
         # Setup mocks
-        default_settings = MagicMock()
+        default_settings = MagicMock(spec=ScriptRAGSettings)
         default_settings.database_path = Path("/default/test.db")
         mock_get_settings.return_value = default_settings
 
@@ -468,7 +469,7 @@ class TestSceneCommandsConfigOption:
         )
 
         # Setup mocks
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = Path("/custom/test.db")
         mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
 
@@ -529,7 +530,7 @@ class TestSceneCommandsConfigOption:
         )
 
         # Setup mocks
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = Path("/custom/test.db")
         mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
 
@@ -615,7 +616,7 @@ class TestSceneCommandsComprehensiveCoverage:
     def mock_config_loader(self) -> Generator[Mock, None, None]:
         """Mock configuration loader."""
         with patch("scriptrag.cli.commands.scene.load_config_with_validation") as mock:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = "/tmp/test.db"
             mock.return_value = mock_settings
             yield mock

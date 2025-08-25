@@ -9,6 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
+from scriptrag.config import ScriptRAGSettings
 
 
 @pytest.fixture
@@ -21,7 +22,7 @@ def runner():
 def mock_settings():
     """Create mock settings."""
     with patch("scriptrag.cli.commands.watch.get_settings") as mock:
-        settings = MagicMock()
+        settings = MagicMock(spec=ScriptRAGSettings)
         settings.database_path = Path("/tmp/test.db")
         mock.return_value = settings
         yield settings
@@ -299,7 +300,8 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.ScriptRAGSettings"
         ) as mock_settings_class:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings.database_path = Path("/tmp/test.db")
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
@@ -575,7 +577,8 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.ScriptRAGSettings"
         ) as mock_settings_class:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings.database_path = Path("/tmp/test.db")
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             with patch(
@@ -696,7 +699,7 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.ScriptRAGSettings"
         ) as mock_settings_class:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = Path("/custom/test.db")
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 

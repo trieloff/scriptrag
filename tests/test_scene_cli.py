@@ -476,7 +476,7 @@ class TestSceneDeleteCommand:
 
         mock_api.delete_scene = AsyncMock(return_value=mock_result)
 
-        # Run command with confirm
+        # Run command with force
         result = runner.invoke(
             app,
             [
@@ -486,17 +486,17 @@ class TestSceneDeleteCommand:
                 "test",
                 "--scene",
                 "5",
-                "--confirm",
+                "--force",
             ],
         )
 
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.output)
-        assert "Scene deleted" in clean_output
-        assert "Renumbered scenes: 6, 7, 8" in clean_output
+        assert "deleted successfully" in clean_output
+        assert "3 scenes renumbered" in clean_output
 
     def test_delete_scene_no_confirm(self):
-        """Test delete without confirmation."""
+        """Test delete without confirmation - should abort."""
         result = runner.invoke(
             app,
             [
@@ -509,10 +509,10 @@ class TestSceneDeleteCommand:
             ],
         )
 
-        assert result.exit_code == 0
+        # Should abort due to confirmation prompt in CI
+        assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Warning" in clean_output
-        assert "--confirm" in clean_output
+        # In CI, typer.confirm() raises Abort, so no warning message
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_delete_scene_not_found(self, mock_api_class):
@@ -536,7 +536,7 @@ class TestSceneDeleteCommand:
                 "test",
                 "--scene",
                 "999",
-                "--confirm",
+                "--force",
             ],
         )
 
@@ -571,10 +571,10 @@ class TestSceneDeleteCommand:
                 "3",
                 "--scene",
                 "10",
-                "--confirm",
+                "--force",
             ],
         )
 
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.output)
-        assert "Scene deleted" in clean_output
+        assert "deleted successfully" in clean_output

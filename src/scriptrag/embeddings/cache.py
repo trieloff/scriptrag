@@ -166,7 +166,11 @@ class EmbeddingCache:
 
             # Update access metadata
             entry.access_count += 1
-            entry.last_access = time.time()
+            # Ensure last_access is always later than timestamp for deterministic LRU
+            new_access_time = time.time()
+            if new_access_time <= entry.timestamp:
+                new_access_time = entry.timestamp + 0.001
+            entry.last_access = new_access_time
 
             logger.debug(f"Cache hit: {key}")
             result: list[float] = embedding.tolist()

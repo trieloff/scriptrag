@@ -204,14 +204,15 @@ class EmbeddingCache:
             np_embedding = np.array(embedding, dtype=np.float32)
             np.save(cache_file, np_embedding)
 
-            # Update index
+            # Update index with current time
+            current_time = time.time()
             self._index[key] = CacheEntry(
                 key=key,
                 embedding=[],  # Don't keep in memory
                 model=model,
-                timestamp=time.time(),
+                timestamp=current_time,
                 access_count=1,
-                last_access=time.time(),
+                last_access=current_time,
                 metadata=metadata,
             )
 
@@ -288,9 +289,14 @@ class EmbeddingCache:
         if self.strategy == InvalidationStrategy.LRU:
             # Evict least recently used
             # Use timestamp as fallback if last_access is None for consistent ordering
+            # Sort by (last_access, timestamp, key) for cross-platform determinism
             key = min(
                 self._index.keys(),
-                key=lambda k: self._index[k].last_access or self._index[k].timestamp,
+                key=lambda k: (
+                    self._index[k].last_access or self._index[k].timestamp,
+                    self._index[k].timestamp,
+                    k,  # Use key as final tiebreaker for deterministic behavior
+                ),
             )
         elif self.strategy == InvalidationStrategy.LFU:
             # Evict least frequently used

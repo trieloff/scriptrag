@@ -59,6 +59,9 @@ class TestQueryEngine:
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
 
+        # Ensure the database file exists before creating engine
+        assert temp_db.exists(), f"Test database should exist at {temp_db}"
+
         return QueryEngine(settings)
 
     def test_execute_simple_query(self, engine):

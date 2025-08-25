@@ -39,6 +39,7 @@ app = typer.Typer(
 app.command(name="init")(init_command)
 app.command(name="index")(index_command)
 app.command(name="list")(list_command)
+app.command(name="ls")(list_command)  # Alias for list command
 app.command(name="search")(search_command)
 app.command(name="analyze")(analyze_command)
 app.add_typer(watch.app, name="watch")

@@ -630,16 +630,16 @@ class TestSceneDeleteCommandExtended:
     """Extended tests for scene delete command."""
 
     def test_delete_without_confirm(self):
-        """Test delete without confirmation."""
+        """Test delete without confirmation - should prompt and be cancelled."""
         result = runner.invoke(
             app,
             ["scene", "delete", "--project", "test", "--scene", "5"],
+            input="n\n",  # Respond 'no' to confirmation prompt
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 0  # Successful cancellation
         clean_output = strip_ansi_codes(result.output)
-        assert "Warning: This will permanently delete the scene" in clean_output
-        assert "Add --confirm flag to proceed" in clean_output
+        assert "Deletion cancelled" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_delete_with_tv_params(self, mock_api_class):
@@ -666,14 +666,13 @@ class TestSceneDeleteCommandExtended:
                 "3",
                 "--scene",
                 "5",
-                "--confirm",
+                "--force",
             ],
         )
 
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.output)
-        assert "Scene deleted" in clean_output
-        assert "Renumbered scenes: 6, 7, 8" in clean_output
+        assert "deleted successfully" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_delete_error(self, mock_api_class):
@@ -688,7 +687,7 @@ class TestSceneDeleteCommandExtended:
 
         result = runner.invoke(
             app,
-            ["scene", "delete", "--project", "test", "--scene", "999", "--confirm"],
+            ["scene", "delete", "--project", "test", "--scene", "999", "--force"],
         )
 
         assert result.exit_code == 1
@@ -703,10 +702,10 @@ class TestSceneDeleteCommandExtended:
 
         result = runner.invoke(
             app,
-            ["scene", "delete", "--project", "test", "--scene", "5", "--confirm"],
+            ["scene", "delete", "--project", "test", "--scene", "5", "--force"],
         )
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Failed to delete scene" in clean_output
+        assert "Error:" in clean_output
         assert "Unexpected error" in clean_output

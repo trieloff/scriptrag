@@ -1,13 +1,15 @@
 """Result ranking and scoring for search results."""
 
+from abc import ABC, abstractmethod
 from collections.abc import Callable
 
 from scriptrag.search.models import BibleSearchResult, SearchQuery, SearchResult
 
 
-class SearchRanker:
+class SearchRanker(ABC):
     """Base class for search result ranking."""
 
+    @abstractmethod
     def rank(
         self, results: list[SearchResult], query: SearchQuery
     ) -> list[SearchResult]:
@@ -20,7 +22,6 @@ class SearchRanker:
         Returns:
             Ranked results
         """
-        raise NotImplementedError
 
 
 class RelevanceRanker(SearchRanker):

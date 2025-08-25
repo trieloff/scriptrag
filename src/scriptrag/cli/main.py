@@ -7,8 +7,8 @@ import typer
 from rich.console import Console
 
 from scriptrag.cli.commands import (
-    analyze,
-    index,
+    analyze_command,
+    index_command,
     pull,
     watch,
 )
@@ -36,10 +36,10 @@ app = typer.Typer(
 
 # Add subcommands with clean separation
 app.command(name="init")(init_command)
-app.add_typer(index.app, name="index")
+app.command(name="index")(index_command)
 app.command(name="list")(list_command)
 app.command(name="search")(search_command)
-app.add_typer(analyze.app, name="analyze")
+app.command(name="analyze")(analyze_command)
 app.add_typer(watch.app, name="watch")
 app.add_typer(pull.app, name="pull")
 app.command(name="mcp")(mcp_command)

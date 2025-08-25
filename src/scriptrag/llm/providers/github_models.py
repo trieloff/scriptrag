@@ -111,7 +111,12 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
         if not await super().is_available():
             return False
 
-        # Perform actual availability validation
+        # Check if we have a cached result that's still valid
+        cached_result = self.rate_limiter.check_availability_cache()
+        if cached_result is not None:
+            return cached_result
+
+        # Perform actual availability validation only if no valid cache
         return await self._validate_availability()
 
     async def list_models(self) -> list[Model]:

@@ -1,7 +1,6 @@
 """Search engine for executing queries."""
 
 import asyncio
-import json
 import sqlite3
 import threading
 import time
@@ -12,13 +11,16 @@ from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.database.readonly import get_read_only_connection
 from scriptrag.exceptions import DatabaseError
 from scriptrag.search.builder import QueryBuilder
+from scriptrag.search.filters import BibleContentFilter, DuplicateFilter
 from scriptrag.search.models import (
     BibleSearchResult,
     SearchQuery,
     SearchResponse,
     SearchResult,
 )
+from scriptrag.search.rankers import BibleResultRanker, HybridRanker
 from scriptrag.search.semantic_adapter import SemanticSearchAdapter
+from scriptrag.search.utils import SearchResultUtils
 
 logger = get_logger(__name__)
 
@@ -41,6 +43,9 @@ class SearchEngine:
         self.db_path = settings.database_path
         self.query_builder = QueryBuilder()
         self.semantic_adapter = SemanticSearchAdapter(settings)
+        self.result_utils = SearchResultUtils()
+        self.ranker = HybridRanker()
+        self.duplicate_filter = DuplicateFilter()
 
     @contextmanager
     def get_read_only_connection(self) -> Generator[sqlite3.Connection, None, None]:
@@ -228,22 +233,11 @@ class SearchEngine:
 
                 # Convert rows to SearchResult objects
                 for idx, row in enumerate(rows):
-                    # Parse metadata for season/episode with error handling
-                    metadata = {}
-                    if row["script_metadata"]:
-                        try:
-                            metadata = json.loads(row["script_metadata"])
-                        except (json.JSONDecodeError, TypeError) as e:
-                            logger.warning(
-                                f"Failed to parse metadata for script "
-                                f"{row['script_id']}",
-                                extra={
-                                    "row_index": idx,
-                                    "script_id": row["script_id"],
-                                    "error": str(e),
-                                },
-                            )
-                            metadata = {}
+                    # Parse metadata using utility
+                    metadata = self.result_utils.parse_metadata(
+                        row["script_metadata"],
+                        {"row_index": idx, "script_id": row["script_id"]},
+                    )
 
                     result = SearchResult(
                         script_id=row["script_id"],
@@ -257,7 +251,7 @@ class SearchEngine:
                         scene_content=row["scene_content"],
                         season=metadata.get("season"),
                         episode=metadata.get("episode"),
-                        match_type=self._determine_match_type(query),
+                        match_type=self.result_utils.determine_match_type(query),
                     )
                     results.append(result)
 
@@ -309,6 +303,21 @@ class SearchEngine:
                         error_type=type(e).__name__,
                     )
                     # Continue with SQL results only - this is a graceful degradation
+
+            # Apply duplicate filtering and ranking
+            results = self.duplicate_filter.filter(results, query)
+            results = self.ranker.rank(results, query)
+
+            # Rank bible results if present
+            if bible_results:
+                bible_results = BibleContentFilter.deduplicate(bible_results)
+                query_text = query.dialogue or query.action or query.text_query or ""
+                if query_text:
+                    bible_results = BibleResultRanker.rank_by_relevance(
+                        bible_results, query_text
+                    )
+                else:
+                    bible_results = BibleResultRanker.rank_by_hierarchy(bible_results)
 
             # Calculate execution time
             execution_time_ms = (time.time() - start_time) * 1000
@@ -441,24 +450,3 @@ class SearchEngine:
             # Return empty results for graceful degradation
 
         return bible_results, bible_total_count
-
-    def _determine_match_type(self, query: SearchQuery) -> str:
-        """Determine the type of match based on query.
-
-        Args:
-            query: Search query
-
-        Returns:
-            Match type string
-        """
-        if query.dialogue:
-            return "dialogue"
-        if query.action:
-            return "action"
-        if query.text_query:
-            return "text"
-        if query.characters:
-            return "character"
-        if query.locations:
-            return "location"
-        return "text"

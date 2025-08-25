@@ -1,0 +1,61 @@
+# ScriptRAG Production Configuration
+# Optimized for production deployment with high performance and reliability
+#
+# Usage: scriptrag --config /etc/scriptrag/config.yaml <command>
+# Or set SCRIPTRAG_CONFIG=/etc/scriptrag/config.yaml environment variable
+
+# Database - Production settings with high performance
+database_path: "/var/lib/scriptrag/scriptrag.db"
+database_timeout: 30.0
+database_wal_mode: true
+database_foreign_keys: true
+database_journal_mode: "WAL"
+database_synchronous: "FULL"  # Data safety in production
+database_cache_size: -64000  # 64MB cache for better performance
+database_temp_store: "MEMORY"
+
+# Application
+app_name: "scriptrag"
+metadata_scan_size: 10240  # Efficient metadata scanning
+skip_boneyard_filter: false  # Enable all filters in production
+debug: false
+
+# Logging - Production logging for monitoring
+log_level: "WARNING"
+log_format: "json"  # Structured logs for log aggregation systems
+log_file: "/var/log/scriptrag/scriptrag.log"
+log_file_rotation: "1 day"
+log_file_retention: "30 days"
+
+# Search - Optimized for production performance
+search_vector_threshold: 10
+search_vector_similarity_threshold: 0.3
+search_vector_result_limit_factor: 0.5
+search_vector_min_results: 5
+search_thread_timeout: 300.0  # 5 minute timeout
+
+# LLM - Production API configuration
+# Option 1: OpenAI API (recommended for production)
+llm_provider: "openai"
+llm_endpoint: "https://api.openai.com/v1"
+llm_api_key: "${OPENAI_API_KEY}"  # Load from environment variable
+llm_model: "gpt-4"
+llm_embedding_model: "text-embedding-3-small"
+llm_embedding_dimensions: 1536
+
+# Option 2: GitHub Models (with authentication)
+# llm_provider: "github_models"
+# llm_api_key: "${GITHUB_TOKEN}"
+# llm_model: "gpt-4o"
+# llm_embedding_model: "text-embedding-3-small"
+
+# Common LLM settings
+llm_temperature: 0.7
+llm_max_tokens: 2048
+llm_force_static_models: false  # Allow dynamic model discovery
+llm_model_cache_ttl: 3600  # 1 hour cache for stability
+
+# Bible/Document Embeddings
+bible_embeddings_path: "/var/lib/scriptrag/embeddings/bible"
+bible_max_file_size: 10485760  # 10MB limit for safety
+bible_llm_context_limit: 2000  # Conservative context limit

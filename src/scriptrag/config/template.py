@@ -175,12 +175,18 @@ def get_default_config_path() -> Path:
     - Falls back to: ./scriptrag.yaml in the current directory
     """
     # Try XDG config directory first
-    config_dir = Path.home() / ".config" / "scriptrag"
-
-    # Use config directory if it exists or we can create it
     try:
+        home_dir = Path.home().resolve()
+        config_dir = home_dir / ".config" / "scriptrag"
+
+        # Use config directory if it exists or we can create it
         config_dir.mkdir(parents=True, exist_ok=True)
         return config_dir / "config.yaml"
-    except (OSError, PermissionError):
-        # Fall back to current directory
-        return Path.cwd() / "scriptrag.yaml"
+    except (OSError, PermissionError, RuntimeError):
+        # Fall back to current directory on any path resolution issues
+        # RuntimeError can occur on some systems when resolving home directory
+        try:
+            return Path.cwd().resolve() / "scriptrag.yaml"
+        except (OSError, RuntimeError):
+            # Ultimate fallback - relative path in current directory
+            return Path("scriptrag.yaml")

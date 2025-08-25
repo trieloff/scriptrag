@@ -10,7 +10,7 @@ from typing import Any, TypeAlias
 
 import numpy as np
 import numpy.typing as npt
-from sqlite_vec import serialize_float32
+import sqlite_vec
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.exceptions import DatabaseError
@@ -121,7 +121,7 @@ class VSSService:
                 scene_id,
                 embedding,
                 model,
-                serializer=serialize_float32,
+                serializer=sqlite_vec.serialize_float32,
             )
 
             conn.commit()
@@ -172,7 +172,7 @@ class VSSService:
                 model,
                 limit=limit,
                 script_id=script_id,
-                serializer=serialize_float32,
+                serializer=sqlite_vec.serialize_float32,
             )
 
         except Exception as e:
@@ -213,7 +213,7 @@ class VSSService:
                 chunk_id,
                 embedding,
                 model,
-                serializer=serialize_float32,
+                serializer=sqlite_vec.serialize_float32,
             )
 
             conn.commit()
@@ -266,7 +266,7 @@ class VSSService:
                 model,
                 limit=limit,
                 script_id=script_id,
-                serializer=serialize_float32,
+                serializer=sqlite_vec.serialize_float32,
             )
 
         except Exception as e:

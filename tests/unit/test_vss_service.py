@@ -44,7 +44,7 @@ def vss_service(mock_settings, tmp_path):
     with (
         patch("scriptrag.storage.vss_service.sqlite_vec.load"),
         patch(
-            "scriptrag.storage.vss_service.serialize_float32",
+            "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
             side_effect=mock_serialize_float32,
         ),
     ):
@@ -138,7 +138,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -156,7 +156,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -198,7 +198,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -218,7 +218,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -255,7 +255,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -295,7 +295,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -317,7 +317,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -354,7 +354,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -384,7 +384,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -407,7 +407,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):

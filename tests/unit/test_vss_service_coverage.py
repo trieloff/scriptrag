@@ -42,7 +42,7 @@ def vss_service(mock_settings, tmp_path):
     with (
         patch("scriptrag.storage.vss_service.sqlite_vec.load"),
         patch(
-            "scriptrag.storage.vss_service.serialize_float32",
+            "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
             side_effect=mock_serialize_float32,
         ),
     ):
@@ -131,7 +131,7 @@ class TestVSSServiceExtended:
                 side_effect=sqlite3.OperationalError("Cannot load"),
             ),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -146,7 +146,7 @@ class TestVSSServiceExtended:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -186,8 +186,10 @@ class TestVSSServiceExtended:
             mock_cursor.__iter__ = Mock(return_value=iter(mock_row_objects))
 
             # Configure mock to handle the query
-            def mock_execute(query, params):
-                if "MATCH" in query and params[1] == 10:  # script_id filter
+            def mock_execute(query, params=None):
+                if (
+                    "MATCH" in query and params and len(params) > 1 and params[1] == 10
+                ):  # script_id filter
                     return mock_cursor
                 return MagicMock()
 
@@ -218,7 +220,7 @@ class TestVSSServiceExtended:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -262,10 +264,12 @@ class TestVSSServiceExtended:
             mock_cursor.__iter__ = Mock(return_value=iter(mock_row_objects))
 
             # Configure mock to handle the query
-            def mock_execute(query, params):
+            def mock_execute(query, params=None):
                 if (
                     "MATCH" in query
                     and "bible_chunk_embeddings" in query
+                    and params
+                    and len(params) > 1
                     and params[1] == 10
                 ):  # script_id filter
                     return mock_cursor
@@ -299,7 +303,7 @@ class TestVSSServiceExtended:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=Exception("Serialization failed"),
             ),
         ):
@@ -317,7 +321,7 @@ class TestVSSServiceExtended:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=Exception("Serialization failed"),
             ),
         ):
@@ -370,7 +374,7 @@ CREATE TABLE IF NOT EXISTS another_table (id INTEGER PRIMARY KEY);
             with (
                 patch("scriptrag.storage.vss_service.sqlite_vec.load"),
                 patch(
-                    "scriptrag.storage.vss_service.serialize_float32",
+                    "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                     side_effect=mock_serialize_float32,
                 ),
             ):
@@ -391,7 +395,7 @@ CREATE TABLE IF NOT EXISTS another_table (id INTEGER PRIMARY KEY);
 
         with (
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):

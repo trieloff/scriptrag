@@ -26,8 +26,13 @@ class TestDatabaseSettingsIntegration:
 
             initializer.initialize_database(settings=settings)
 
-            # Check that connect was called with correct timeout
-            mock_connect.assert_called_once_with(str(tmp_path / "test.db"), timeout=5.0)
+            # Connection pooling may call connect multiple times during initialization
+            # Just verify timeout and thread safety parameters are used correctly
+            mock_connect.assert_called_with(
+                str(tmp_path / "test.db"), timeout=5.0, check_same_thread=False
+            )
+            # Check that connect was called at least once (allow for connection pooling)
+            assert mock_connect.call_count >= 1
 
     def test_database_init_configures_pragmas(self, tmp_path):
         """Test that database initialization configures pragmas from settings."""

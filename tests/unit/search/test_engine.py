@@ -64,6 +64,9 @@ class TestSearchEngine:
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         # Add semantic search settings
         settings.search_vector_result_limit_factor = 0.5
         settings.search_vector_min_results = 5
@@ -91,6 +94,12 @@ class TestSearchEngine:
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = Path("/test/db.sqlite")
+            mock_settings.database_timeout = 30.0
+            mock_settings.database_cache_size = -2000
+            mock_settings.database_temp_store = "MEMORY"
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
             # Add semantic search settings
             mock_settings.search_vector_result_limit_factor = 0.5
             mock_settings.search_vector_min_results = 5

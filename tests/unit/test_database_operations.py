@@ -49,13 +49,23 @@ def initialized_db_settings(tmp_path):
 @pytest.fixture
 def initialized_db(initialized_db_settings):
     """Create an initialized test database."""
+    # Force close any existing connection manager to ensure clean state
+    from scriptrag.database.connection_manager import close_connection_manager
+
+    close_connection_manager()
+
     # Initialize database with schema
     from scriptrag.api.database import DatabaseInitializer
 
-    db_ops = DatabaseOperations(initialized_db_settings)
     initializer = DatabaseInitializer()
-    initializer.initialize_database(db_path=db_ops.db_path, force=True)
-    return db_ops
+    initializer.initialize_database(
+        db_path=initialized_db_settings.database_path,
+        settings=initialized_db_settings,
+        force=True,
+    )
+
+    # Create DatabaseOperations after initialization to get fresh connection manager
+    return DatabaseOperations(initialized_db_settings)
 
 
 @pytest.fixture
@@ -160,13 +170,36 @@ class TestDatabaseOperations:
         assert cursor.fetchone()["count"] == 0
         conn.close()
 
-    def test_check_database_exists(self, db_ops, initialized_db):
+    def test_check_database_exists(self, tmp_path):
         """Test checking if database exists."""
+        # Create settings
+        settings = ScriptRAGSettings(
+            database_path=tmp_path / "test.db",
+            database_timeout=5.0,
+            database_journal_mode="WAL",
+            database_synchronous="NORMAL",
+            database_cache_size=-2000,
+            database_temp_store="MEMORY",
+            database_foreign_keys=True,
+        )
+
         # Before initialization
+        db_ops = DatabaseOperations(settings)
         assert not db_ops.check_database_exists()
 
-        # After initialization
-        assert initialized_db.check_database_exists()
+        # Initialize database
+        from scriptrag.api.database import DatabaseInitializer
+
+        initializer = DatabaseInitializer()
+        initializer.initialize_database(
+            db_path=settings.database_path,
+            settings=settings,
+            force=True,
+        )
+
+        # After initialization (create new instance to get fresh connection pool)
+        db_ops = DatabaseOperations(settings)
+        assert db_ops.check_database_exists()
 
     def test_get_existing_script(self, initialized_db, sample_script):
         """Test getting existing script record."""
@@ -504,14 +537,19 @@ class TestDatabaseOperations:
             database_path=tmp_path / "test.db",
             database_foreign_keys=False,  # Foreign keys disabled
         )
-        db_ops = DatabaseOperations(settings)
 
         # Initialize database first
         from scriptrag.api.database import DatabaseInitializer
 
         initializer = DatabaseInitializer()
-        initializer.initialize_database(db_path=db_ops.db_path, force=True)
+        initializer.initialize_database(
+            db_path=settings.database_path,
+            settings=settings,
+            force=True,
+        )
 
+        # Create DatabaseOperations after initialization to get fresh connection pool
+        db_ops = DatabaseOperations(settings)
         conn = db_ops.get_connection()
 
         # Check that foreign keys are disabled

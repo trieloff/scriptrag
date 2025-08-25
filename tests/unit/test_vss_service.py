@@ -24,6 +24,12 @@ def mock_settings():
     """Create mock settings for testing."""
     settings = MagicMock(spec=ScriptRAGSettings)
     settings.database_path = Path(":memory:")
+    settings.database_journal_mode = "WAL"
+    settings.database_synchronous = "NORMAL"
+    settings.database_cache_size = -2000
+    settings.database_temp_store = "MEMORY"
+    settings.database_foreign_keys = True
+    settings.database_timeout = 30.0
     return settings
 
 
@@ -38,7 +44,7 @@ def vss_service(mock_settings, tmp_path):
     with (
         patch("scriptrag.storage.vss_service.sqlite_vec.load"),
         patch(
-            "scriptrag.storage.vss_service.serialize_float32",
+            "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
             side_effect=mock_serialize_float32,
         ),
     ):
@@ -132,7 +138,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -150,7 +156,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -192,7 +198,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -212,7 +218,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -249,7 +255,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -289,7 +295,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -311,7 +317,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -348,7 +354,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -378,7 +384,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):
@@ -401,7 +407,7 @@ class TestVSSService:
         with (
             patch("scriptrag.storage.vss_service.sqlite_vec.load"),
             patch(
-                "scriptrag.storage.vss_service.serialize_float32",
+                "scriptrag.storage.vss_service.sqlite_vec.serialize_float32",
                 side_effect=mock_serialize_float32,
             ),
         ):

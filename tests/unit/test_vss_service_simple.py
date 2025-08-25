@@ -22,6 +22,12 @@ def mock_settings(tmp_path):
     """Create mock settings for testing."""
     settings = MagicMock(spec=ScriptRAGSettings)
     settings.database_path = tmp_path / "test.db"
+    settings.database_journal_mode = "WAL"
+    settings.database_synchronous = "NORMAL"
+    settings.database_cache_size = -2000
+    settings.database_temp_store = "MEMORY"
+    settings.database_foreign_keys = True
+    settings.database_timeout = 30.0
     return settings
 
 

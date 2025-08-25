@@ -21,6 +21,9 @@ class TestSearchEngine:
         settings.database_timeout = 30.0
         settings.database_cache_size = 2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         # Add semantic search settings
         settings.search_vector_result_limit_factor = 0.5
         settings.search_vector_min_results = 5
@@ -132,7 +135,7 @@ class TestSearchEngine:
         """Test engine initialization without settings."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
-            mock_settings.database_path = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             # Add semantic search settings
             mock_settings.search_vector_result_limit_factor = 0.5
             mock_settings.search_vector_min_results = 5
@@ -175,14 +178,20 @@ class TestSearchEngine:
         ):
             pass
 
-    def test_search_database_not_found(self, mock_settings):
+    def test_search_database_not_found(self, mock_settings, tmp_path):
         """Test search when database doesn't exist."""
-        from scriptrag.exceptions import DatabaseError
+        import sqlite3
+
+        # Set the database path to a nonexistent file
+        # Note: SQLite will auto-create the file, but it will be empty (no tables)
+        nonexistent_db = tmp_path / "nonexistent.db"
+        mock_settings.database_path = nonexistent_db
 
         engine = SearchEngine(mock_settings)
         query = SearchQuery(raw_query="test")
 
-        with pytest.raises(DatabaseError, match="Database not found"):
+        # When database auto-created but has no tables, expect OperationalError
+        with pytest.raises(sqlite3.OperationalError, match="no such table: scripts"):
             engine.search(query)
 
     def test_search_simple_query(self, mock_settings, mock_db):
@@ -587,6 +596,8 @@ class TestSearchEngine:
 
     def test_get_read_only_connection_sql_error(self, mock_settings, tmp_path):
         """Test connection handling with database that causes SQL errors."""
+        from scriptrag.exceptions import DatabaseError
+
         # Create a file that's not a valid SQLite database
         invalid_db = tmp_path / "invalid.db"
         invalid_db.write_text("This is not a SQLite database")
@@ -594,9 +605,9 @@ class TestSearchEngine:
         mock_settings.database_path = invalid_db
         engine = SearchEngine(mock_settings)
 
-        # Should raise an exception when trying to connect
+        # Should raise our custom DatabaseError (wrapping sqlite3.DatabaseError)
         with (
-            pytest.raises(sqlite3.DatabaseError),
+            pytest.raises(DatabaseError, match="Failed to create database connection"),
             engine.get_read_only_connection(),
         ):
             pass
@@ -839,8 +850,8 @@ class TestSearchEngine:
         """Test initialization with settings retrieved from get_settings()."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             # Create a mock settings object with all required attributes
-            mock_settings = MagicMock()
-            mock_settings.database_path = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings.database_path = "/tmp/test.db"
             # Add semantic search settings
             mock_settings.search_vector_result_limit_factor = 0.5
             mock_settings.search_vector_min_results = 5

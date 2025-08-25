@@ -23,6 +23,9 @@ class TestSearchEnginePendingTasks:
         settings.database_timeout = 30.0
         settings.database_cache_size = 2000
         settings.database_temp_store = "MEMORY"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         settings.search_vector_result_limit_factor = 0.5
         settings.search_vector_min_results = 5
         settings.search_vector_similarity_threshold = 0.5

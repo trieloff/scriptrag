@@ -55,9 +55,12 @@ class TestQueryEngine:
         """Create engine with test database."""
         settings = MagicMock(spec=ScriptRAGSettings)
         settings.database_path = temp_db
-        settings.database_timeout = 30.0
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_foreign_keys = True
+        settings.database_timeout = 30.0
 
         return QueryEngine(settings)
 
@@ -198,6 +201,12 @@ class TestQueryEngine:
         """Test error when database doesn't exist."""
         settings = MagicMock(spec=ScriptRAGSettings)
         settings.database_path = Path("/nonexistent/db.sqlite")
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_cache_size = -2000
+        settings.database_temp_store = "MEMORY"
+        settings.database_foreign_keys = True
+        settings.database_timeout = 30.0
 
         engine = QueryEngine(settings)
         spec = QuerySpec(name="test", description="Test query", sql="SELECT 1")
@@ -281,6 +290,12 @@ class TestQueryEngine:
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = Path("/test/db.sqlite")
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_cache_size = -2000
+            mock_settings.database_temp_store = "MEMORY"
+            mock_settings.database_foreign_keys = True
+            mock_settings.database_timeout = 30.0
             mock_get_settings.return_value = mock_settings
 
             engine = QueryEngine()
@@ -383,9 +398,12 @@ class TestQueryEngine:
         """Test handling of programming error."""
         settings = MagicMock(spec=ScriptRAGSettings)
         settings.database_path = temp_db
-        settings.database_timeout = 30.0
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_foreign_keys = True
+        settings.database_timeout = 30.0
 
         engine = QueryEngine(settings)
 
@@ -403,9 +421,12 @@ class TestQueryEngine:
         # Create engine without temp_db fixture to avoid real database
         settings = MagicMock(spec=ScriptRAGSettings)
         settings.database_path = tmp_path / "test.db"
-        settings.database_timeout = 30.0
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_foreign_keys = True
+        settings.database_timeout = 30.0
 
         # Create the database file so it exists
         settings.database_path.touch()
@@ -433,9 +454,12 @@ class TestQueryEngine:
         # Create engine without temp_db fixture
         settings = MagicMock(spec=ScriptRAGSettings)
         settings.database_path = tmp_path / "test.db"
-        settings.database_timeout = 30.0
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_foreign_keys = True
+        settings.database_timeout = 30.0
 
         # Create the database file so it exists
         settings.database_path.touch()
@@ -538,9 +562,12 @@ class TestQueryEngine:
         # Create engine with a connection that can potentially raise IntegrityError
         settings = MagicMock(spec=ScriptRAGSettings)
         settings.database_path = tmp_path / "test.db"
-        settings.database_timeout = 30.0
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_foreign_keys = True
+        settings.database_timeout = 30.0
 
         # Create the database file so it exists
         settings.database_path.touch()
@@ -569,9 +596,12 @@ class TestQueryEngine:
         # Create engine
         settings = MagicMock(spec=ScriptRAGSettings)
         settings.database_path = tmp_path / "test.db"
-        settings.database_timeout = 30.0
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_foreign_keys = True
+        settings.database_timeout = 30.0
 
         # Create the database file so it exists
         settings.database_path.touch()
@@ -600,9 +630,12 @@ class TestQueryEngine:
         # Create engine
         settings = MagicMock(spec=ScriptRAGSettings)
         settings.database_path = tmp_path / "test.db"
-        settings.database_timeout = 30.0
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
+        settings.database_foreign_keys = True
+        settings.database_timeout = 30.0
 
         # Create the database file so it exists
         settings.database_path.touch()

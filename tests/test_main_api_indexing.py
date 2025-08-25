@@ -68,7 +68,8 @@ def temp_db_path():
     # Create a temporary directory and generate a database path
     # Don't create the actual file - let ScriptRAG initialize it
     with tempfile.TemporaryDirectory() as tmpdir:
-        db_path = Path(tmpdir) / "test_scriptrag.db"
+        # Use a unique name to avoid conflicts with isolated_test_environment
+        db_path = Path(tmpdir) / "main_api_test.db"
 
         yield db_path
 
@@ -82,6 +83,10 @@ def scriptrag_instance(temp_db_path):
     import platform
 
     from scriptrag.config import ScriptRAGSettings
+    from scriptrag.database.connection_manager import close_connection_manager
+
+    # Close any existing connection manager to ensure clean state
+    close_connection_manager()
 
     settings = ScriptRAGSettings(
         database_path=temp_db_path,
@@ -90,6 +95,9 @@ def scriptrag_instance(temp_db_path):
     instance = ScriptRAG(settings=settings, auto_init_db=True)
 
     yield instance
+
+    # Clean up connection manager after test
+    close_connection_manager()
 
     # Ensure proper cleanup on Windows to prevent file locking issues
     if platform.system() == "Windows":

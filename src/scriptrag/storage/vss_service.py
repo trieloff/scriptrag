@@ -11,7 +11,6 @@ from typing import Any, TypeAlias
 import numpy as np
 import numpy.typing as npt
 import sqlite_vec
-from sqlite_vec import serialize_float32
 
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.exceptions import DatabaseError
@@ -51,11 +50,16 @@ class VSSService:
         """
         self.settings = settings
         self.db_path = db_path or settings.database_path
+        # Use centralized connection manager
+        from scriptrag.database.connection_manager import get_connection_manager
+
+        self._conn_manager = get_connection_manager(settings, force_new=False)
         self._ensure_vss_support()
 
     def _ensure_vss_support(self) -> None:
         """Ensure sqlite-vec extension is loaded and VSS tables exist."""
-        with self.get_connection() as conn:
+        conn = self.get_connection()
+        try:
             # Check if VSS tables exist
             cursor = conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' "
@@ -66,6 +70,8 @@ class VSSService:
             if not any("scene_embeddings" in t for t in tables):
                 logger.info("Creating VSS tables for first time...")
                 self._initialize_vss_tables(conn)
+        finally:
+            self._conn_manager.release_connection(conn)
 
     def _initialize_vss_tables(self, conn: sqlite3.Connection) -> None:
         """Initialize VSS virtual tables via migration helper."""
@@ -81,26 +87,11 @@ class VSSService:
         """Get a database connection with sqlite-vec loaded.
 
         Returns:
-            Database connection with VSS support
+            Database connection with VSS support from the pool
         """
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
-
-        # Enable foreign keys
-        conn.execute("PRAGMA foreign_keys = ON")
-
-        # Load sqlite-vec extension if supported
-        # macOS default SQLite doesn't support loadable extensions
-        if hasattr(conn, "enable_load_extension"):
-            try:
-                conn.enable_load_extension(True)
-                sqlite_vec.load(conn)
-                conn.enable_load_extension(False)
-            except (AttributeError, sqlite3.OperationalError) as e:
-                logger.debug(f"SQLite extension loading not available: {e}")
-                # Continue without VSS support - tests will mock this functionality
-
-        return conn
+        # Get connection from centralized manager
+        # VSS support is already configured in the connection manager
+        return self._conn_manager.get_connection()
 
     def store_scene_embedding(
         self,
@@ -130,7 +121,7 @@ class VSSService:
                 scene_id,
                 embedding,
                 model,
-                serializer=serialize_float32,
+                serializer=sqlite_vec.serialize_float32,
             )
 
             conn.commit()
@@ -145,7 +136,7 @@ class VSSService:
             ) from e
         finally:
             if close_conn:
-                conn.close()
+                self._conn_manager.release_connection(conn)
 
     def search_similar_scenes(
         self,
@@ -181,7 +172,7 @@ class VSSService:
                 model,
                 limit=limit,
                 script_id=script_id,
-                serializer=serialize_float32,
+                serializer=sqlite_vec.serialize_float32,
             )
 
         except Exception as e:
@@ -192,7 +183,7 @@ class VSSService:
             ) from e
         finally:
             if close_conn:
-                conn.close()
+                self._conn_manager.release_connection(conn)
 
     def store_bible_embedding(
         self,
@@ -222,7 +213,7 @@ class VSSService:
                 chunk_id,
                 embedding,
                 model,
-                serializer=serialize_float32,
+                serializer=sqlite_vec.serialize_float32,
             )
 
             conn.commit()
@@ -239,7 +230,7 @@ class VSSService:
             ) from e
         finally:
             if close_conn:
-                conn.close()
+                self._conn_manager.release_connection(conn)
 
     def search_similar_bible_chunks(
         self,
@@ -275,7 +266,7 @@ class VSSService:
                 model,
                 limit=limit,
                 script_id=script_id,
-                serializer=serialize_float32,
+                serializer=sqlite_vec.serialize_float32,
             )
 
         except Exception as e:
@@ -286,7 +277,7 @@ class VSSService:
             ) from e
         finally:
             if close_conn:
-                conn.close()
+                self._conn_manager.release_connection(conn)
 
     def get_embedding_stats(
         self, conn: sqlite3.Connection | None = None
@@ -310,4 +301,4 @@ class VSSService:
 
         finally:
             if close_conn:
-                conn.close()
+                self._conn_manager.release_connection(conn)

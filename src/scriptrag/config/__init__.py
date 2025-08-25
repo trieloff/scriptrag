@@ -4,10 +4,16 @@ from typing import Any
 
 from scriptrag.config.logging import configure_logging
 from scriptrag.config.logging import get_logger as _get_logger
-from scriptrag.config.settings import ScriptRAGSettings, get_settings, set_settings
+from scriptrag.config.settings import (
+    ScriptRAGSettings,
+    clear_settings_cache,
+    get_settings,
+    set_settings,
+)
 
 __all__ = [
     "ScriptRAGSettings",
+    "clear_settings_cache",
     "configure_logging",
     "get_logger",
     "get_settings",

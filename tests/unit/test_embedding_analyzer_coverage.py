@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from scriptrag.analyzers.embedding import SceneEmbeddingAnalyzer
+from scriptrag.exceptions import EmbeddingGenerationError
 from scriptrag.llm.models import EmbeddingResponse, LLMProvider
 
 
@@ -290,8 +291,11 @@ class TestSceneEmbeddingAnalyzerCoverage:
 
         scene = {"content": "test scene"}
 
-        # Empty data should raise RuntimeError
-        with pytest.raises(RuntimeError, match="No embedding data in response"):
+        # Empty data should raise EmbeddingGenerationError (wrapping RuntimeError)
+        with pytest.raises(
+            EmbeddingGenerationError,
+            match="Failed to generate embedding: No embedding data in response",
+        ):
             await analyzer._generate_embedding(scene)
 
     @pytest.mark.asyncio

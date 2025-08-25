@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from scriptrag.api.bible.utils import LLMResponseParser
+from scriptrag.api.bible.utils import CHARACTER_KEYWORDS, LLMResponseParser
 from scriptrag.config import get_logger
 from scriptrag.llm import LLMClient
 from scriptrag.parser.bible_parser import BibleParser, ParsedBible
@@ -108,21 +108,11 @@ class BibleCharacterExtractor:
             a list containing "Main Characters\n\nJane Smith is the detective..."
         """
         character_chunks = []
-        character_keywords = [
-            "character",
-            "protagonist",
-            "antagonist",
-            "cast",
-            "role",
-            "player",
-            "person",
-            "name",
-        ]
 
         for chunk in parsed_bible.chunks:
             # Check if heading suggests character content
             heading_lower = (chunk.heading or "").lower()
-            if any(keyword in heading_lower for keyword in character_keywords):
+            if any(keyword in heading_lower for keyword in CHARACTER_KEYWORDS):
                 # Include heading with content for context
                 chunk_text = (
                     f"{chunk.heading}\n{chunk.content}"
@@ -134,7 +124,7 @@ class BibleCharacterExtractor:
 
             # Check if content has character mentions (quick heuristic)
             content_lower = chunk.content.lower()
-            if any(keyword in content_lower for keyword in character_keywords[:4]):
+            if any(keyword in content_lower for keyword in CHARACTER_KEYWORDS[:4]):
                 # Include heading with content for context
                 chunk_text = (
                     f"{chunk.heading}\n{chunk.content}"

@@ -221,8 +221,11 @@ class TestFieldValidators:
                 log_file="$TEST_HOME/logs/app.log",
             )
 
-            assert "/test/home/database.db" in str(settings.database_path)
-            assert "/test/home/logs/app.log" in str(settings.log_file)
+            # Check that the paths were expanded correctly for cross-platform
+            assert str(settings.database_path).endswith(
+                str(Path("test/home/database.db"))
+            )
+            assert str(settings.log_file).endswith(str(Path("test/home/logs/app.log")))
 
     def test_expand_path_with_home_directory(self):
         """Test path expansion with tilde home directory.
@@ -233,11 +236,11 @@ class TestFieldValidators:
             database_path="~/scriptrag/database.db", log_file="~/logs/scriptrag.log"
         )
 
-        # Should expand to actual home directory
+        # Should expand to actual home directory - use cross-platform checks
         assert str(Path.home()) in str(settings.database_path)
         assert str(Path.home()) in str(settings.log_file)
-        assert "scriptrag/database.db" in str(settings.database_path)
-        assert "logs/scriptrag.log" in str(settings.log_file)
+        assert str(settings.database_path).endswith(str(Path("scriptrag/database.db")))
+        assert str(settings.log_file).endswith(str(Path("logs/scriptrag.log")))
 
     def test_expand_path_with_none_values(self):
         """Test path expansion with None values.

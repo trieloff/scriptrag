@@ -352,16 +352,22 @@ class TestGetDefaultConfigPath:
         The standard case - when the system behaves as expected.
         """
         with patch("pathlib.Path.home") as mock_home:
-            mock_home.return_value = Path("/home/testuser")
+            # Create a mock Path object that returns itself when resolve() is called
+            mock_path = Path("/home/testuser")
+            mock_home.return_value = mock_path
 
             # Mock successful mkdir operation
             with patch("pathlib.Path.mkdir") as mock_mkdir:
                 mock_mkdir.return_value = None
 
-                result = get_default_config_path()
+                # Mock the resolve method to return the same path
+                with patch.object(mock_path, "resolve", return_value=mock_path):
+                    result = get_default_config_path()
 
-                expected = Path("/home/testuser/.config/scriptrag/config.yaml")
-                assert result == expected
+                    expected = (
+                        Path("/home/testuser") / ".config" / "scriptrag" / "config.yaml"
+                    )
+                    assert result == expected
 
                 # Should attempt to create the config directory
                 mock_mkdir.assert_called_once_with(parents=True, exist_ok=True)
@@ -417,7 +423,8 @@ class TestGetDefaultConfigPath:
 
                 result = get_default_config_path()
 
-                expected = Path("/current/dir/scriptrag.yaml")
+                # Use pathlib for cross-platform compatibility
+                expected = Path("/current/dir") / "scriptrag.yaml"
                 assert result == expected
 
     def test_get_default_config_path_cwd_resolution_error(self):
@@ -462,7 +469,8 @@ class TestGetDefaultConfigPath:
         OSError during directory creation should trigger fallback.
         """
         with patch("pathlib.Path.home") as mock_home:
-            mock_home.return_value = Path("/home/testuser")
+            mock_path = Path("/home/testuser")
+            mock_home.return_value = mock_path
 
             with patch("pathlib.Path.mkdir") as mock_mkdir:
                 mock_mkdir.side_effect = OSError("Filesystem error")
@@ -470,10 +478,13 @@ class TestGetDefaultConfigPath:
                 with patch("pathlib.Path.cwd") as mock_cwd:
                     mock_cwd.return_value = Path("/fallback/dir")
 
-                    result = get_default_config_path()
+                    # Mock the resolve method to return the same path
+                    with patch.object(mock_path, "resolve", return_value=mock_path):
+                        result = get_default_config_path()
 
-                    expected = Path("/fallback/dir/scriptrag.yaml")
-                    assert result == expected
+                        # Use pathlib for cross-platform compatibility
+                        expected = Path("/fallback/dir") / "scriptrag.yaml"
+                        assert result == expected
 
     def test_get_default_config_path_real_world_simulation(self, tmp_path):
         """Test with actual filesystem operations in a controlled environment.
@@ -608,6 +619,6 @@ class TestEdgeCasesAndIntegration:
         assert written_path.exists()
         assert written_path.read_text(encoding="utf-8") == template_content
 
-        # Verify path relationships
+        # Verify path relationships - use cross-platform path checking
         assert str(written_path).endswith("config.yaml")
-        assert ".config/scriptrag" in str(written_path)
+        assert str(Path(".config") / "scriptrag") in str(written_path)

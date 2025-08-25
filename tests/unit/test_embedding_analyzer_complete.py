@@ -539,7 +539,7 @@ class TestSceneEmbeddingAnalyzerComplete:
             assert embedding_path.exists()
 
             # Should add to git
-            expected_relative_path = f"embeddings/{content_hash}.npy"
+            expected_relative_path = str(Path("embeddings") / f"{content_hash}.npy")
             mock_repo.index.add.assert_called_once_with([expected_relative_path])
 
             # Should cache result

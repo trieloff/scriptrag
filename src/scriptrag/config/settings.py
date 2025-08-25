@@ -436,3 +436,14 @@ def set_settings(settings: ScriptRAGSettings) -> None:
     """
     global _settings
     _settings = settings
+
+
+def clear_settings_cache() -> None:
+    """Clear the global settings cache.
+
+    This forces get_settings() to re-read from environment variables
+    and configuration files on the next call. Useful for testing
+    when environment variables are changed via monkeypatch.
+    """
+    global _settings
+    _settings = None

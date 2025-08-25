@@ -113,7 +113,15 @@ class SceneFormatter(OutputFormatter[Any]):
                 Syntax(result.content, "markdown", theme="monokai"),
                 title="Bible Content",
             )
-            return str(panel)
+            # Convert panel to string for return
+            from io import StringIO
+
+            from rich.console import Console
+
+            string_io = StringIO()
+            temp_console = Console(file=string_io, force_terminal=True)
+            temp_console.print(panel)
+            return string_io.getvalue()
         # List of bible files
         lines = ["[green]Available bible files:[/green]", ""]
         for file_info in result.bible_files:

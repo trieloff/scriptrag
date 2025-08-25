@@ -342,16 +342,20 @@ class TestEmbeddingCache:
             max_size=3,
         )
 
-        # Fill cache to capacity
+        # Fill cache to capacity with small delays for Windows timing precision
         cache.put("text1", "model", [0.1])
+        time.sleep(0.001)  # Ensure distinct timestamps
         cache.put("text2", "model", [0.2])
+        time.sleep(0.001)  # Ensure distinct timestamps
         cache.put("text3", "model", [0.3])
         assert len(cache._index) == 3
 
-        # Access text1 to make it recently used
+        # Access text1 to make it recently used - with delay for clear last_access
+        time.sleep(0.001)
         cache.get("text1", "model")
 
         # Add another entry (should evict text2 as least recently used)
+        time.sleep(0.001)  # Ensure distinct timing for eviction logic
         cache.put("text4", "model", [0.4])
         assert len(cache._index) == 3
 

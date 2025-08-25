@@ -135,7 +135,22 @@ class DatabaseInitializer:
 
             close_connection_manager()
 
-            db_path.unlink()
+            # Windows-specific file deletion with retry logic
+            import platform
+
+            if platform.system() == "Windows":
+                import time
+
+                for attempt in range(3):
+                    try:
+                        db_path.unlink()
+                        break
+                    except PermissionError:
+                        if attempt == 2:
+                            raise
+                        time.sleep(0.1 * (attempt + 1))  # Progressive backoff
+            else:
+                db_path.unlink()
 
         # Create parent directories if needed
         db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -175,7 +190,27 @@ class DatabaseInitializer:
         except (OSError, sqlite3.Error, ValueError) as e:
             # Clean up on failure
             if db_path.exists() and connection is None:
-                db_path.unlink()
+                # Windows-specific file deletion with retry logic for cleanup
+                import platform
+
+                if platform.system() == "Windows":
+                    import time
+
+                    for attempt in range(3):
+                        try:
+                            db_path.unlink()
+                            break
+                        except PermissionError:
+                            if attempt == 2:
+                                # Log but don't re-raise since this is cleanup
+                                logger.warning(
+                                    "Failed to cleanup database file on Windows",
+                                    path=str(db_path),
+                                )
+                                break
+                            time.sleep(0.1 * (attempt + 1))  # Progressive backoff
+                else:
+                    db_path.unlink()
             raise DatabaseError(
                 message=f"Failed to initialize database: {e}",
                 hint="Check disk space and file permissions",

@@ -305,6 +305,8 @@ class ConnectionPool:
 
     def close(self) -> None:
         """Close all connections in the pool."""
+        import platform
+
         with self._lock:
             if self._closed:
                 return
@@ -321,6 +323,14 @@ class ConnectionPool:
                     break
 
             self._total_connections = self._active_connections
+
+            # Windows needs extra time for file handle cleanup
+            if platform.system() == "Windows":
+                import gc
+                import time
+
+                gc.collect()  # Force garbage collection
+                time.sleep(0.1)  # Allow Windows to release file handles
 
             logger.info("Connection pool closed")
 
@@ -523,6 +533,13 @@ class DatabaseConnectionManager:
     def close(self) -> None:
         """Close the connection manager and all connections."""
         self._pool.close()
+
+    def ensure_closed(self) -> bool:
+        """Ensure all connections are truly closed (Windows-specific)."""
+        return (
+            self._pool._closed
+            and self._pool._total_connections == self._pool._active_connections
+        )
 
     def __enter__(self) -> "DatabaseConnectionManager":
         """Context manager entry."""

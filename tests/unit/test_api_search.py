@@ -142,6 +142,9 @@ class TestSearchAPIInit:
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
             mock_settings.llm_force_static_models = False
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI(settings=None)
@@ -163,6 +166,9 @@ class TestSearchAPIInit:
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
             mock_settings.llm_force_static_models = False
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI(None)
@@ -204,6 +210,9 @@ class TestSearchAPIFromConfig:
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
             mock_settings.llm_force_static_models = False
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI.from_config()
@@ -238,6 +247,9 @@ class TestSearchAPIFromConfig:
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
             mock_settings.llm_force_static_models = False
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI.from_config(config_path=None)

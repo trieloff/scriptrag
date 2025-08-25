@@ -17,6 +17,9 @@ class TestQueryAPI:
         """Create test settings."""
         settings = MagicMock(spec=ScriptRAGSettings)
         settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         return settings
 
     @pytest.fixture

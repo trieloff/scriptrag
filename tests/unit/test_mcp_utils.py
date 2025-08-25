@@ -16,6 +16,9 @@ class TestGetApiSettings:
         """Test that get_api_settings returns configuration settings."""
         # Arrange
         mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings.database_journal_mode = "WAL"
+        mock_settings.database_synchronous = "NORMAL"
+        mock_settings.database_foreign_keys = True
         mock_get_settings.return_value = mock_settings
 
         # Act

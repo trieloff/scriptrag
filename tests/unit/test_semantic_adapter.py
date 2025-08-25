@@ -24,6 +24,9 @@ class TestSemanticSearchAdapter:
         settings.search_vector_result_limit_factor = 0.5
         settings.search_vector_min_results = 5
         settings.database_path = MagicMock()
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         return settings
 
     @pytest.fixture

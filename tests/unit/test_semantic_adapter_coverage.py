@@ -17,6 +17,9 @@ def mock_settings():
     settings = MagicMock(spec=ScriptRAGSettings)
     settings.database_path = "test.db"
     settings.search_vector_similarity_threshold = 0.7
+    settings.database_journal_mode = "WAL"
+    settings.database_synchronous = "NORMAL"
+    settings.database_foreign_keys = True
     return settings
 
 
@@ -43,6 +46,9 @@ def semantic_adapter_no_settings():
     ):
         mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.search_vector_similarity_threshold = 0.7
+        mock_settings.database_journal_mode = "WAL"
+        mock_settings.database_synchronous = "NORMAL"
+        mock_settings.database_foreign_keys = True
         mock_get_settings.return_value = mock_settings
 
         adapter = SemanticSearchAdapter(None)

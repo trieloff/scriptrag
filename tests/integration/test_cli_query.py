@@ -128,6 +128,7 @@ ORDER BY d.id""")
 
         return query_dir
 
+    @pytest.mark.integration
     def test_query_help(self, runner, temp_db, temp_query_dir, monkeypatch):
         """Test query command help."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
@@ -150,6 +151,7 @@ ORDER BY d.id""")
         # Check for commands section - may use Unicode box drawing
         assert "Commands" in output or "character_lines" in output
 
+    @pytest.mark.integration
     def test_query_list(self, runner, temp_db, temp_query_dir, monkeypatch):
         """Test listing available queries."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
@@ -159,7 +161,10 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "list"])
@@ -170,6 +175,7 @@ ORDER BY d.id""")
         assert "list_scenes" in output
         assert "character_lines" in output
 
+    @pytest.mark.integration
     def test_execute_query_no_params(
         self, runner, temp_db, temp_query_dir, monkeypatch
     ):
@@ -181,7 +187,10 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "list_scenes", "--limit", "2"])
@@ -191,6 +200,7 @@ ORDER BY d.id""")
         # Check for scene data in output
         assert "Test Script" in output or "Scene" in output
 
+    @pytest.mark.integration
     def test_execute_query_with_params(
         self, runner, temp_db, temp_query_dir, monkeypatch
     ):
@@ -202,7 +212,10 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(
@@ -213,6 +226,7 @@ ORDER BY d.id""")
         assert result.exit_code == 0
         assert "ALICE" in output or "Hello" in output or "dialogue" in output
 
+    @pytest.mark.integration
     def test_execute_query_json_output(
         self, runner, temp_db, temp_query_dir, monkeypatch
     ):
@@ -224,7 +238,10 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(
@@ -242,6 +259,7 @@ ORDER BY d.id""")
         assert len(data["results"]) == 1
         assert data["results"][0]["character"] == "BOB"
 
+    @pytest.mark.integration
     def test_query_missing_required_param(
         self, runner, temp_db, temp_query_dir, monkeypatch
     ):
@@ -253,7 +271,10 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "character_lines"])
@@ -261,6 +282,7 @@ ORDER BY d.id""")
         # Should fail because character is required
         assert result.exit_code != 0
 
+    @pytest.mark.integration
     def test_query_with_invalid_name(
         self, runner, temp_db, temp_query_dir, monkeypatch
     ):
@@ -272,7 +294,10 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "nonexistent"])
@@ -280,6 +305,7 @@ ORDER BY d.id""")
         # Should show error for unknown command
         assert result.exit_code != 0
 
+    @pytest.mark.integration
     def test_query_no_database(self, runner, temp_query_dir, tmp_path, monkeypatch):
         """Test query fails when database doesn't exist."""
         nonexistent_db = str(tmp_path / "nonexistent.db")
@@ -290,7 +316,10 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "list_scenes"])
@@ -299,6 +328,7 @@ ORDER BY d.id""")
         assert result.exit_code == 1
         assert "Database not found" in output or "Error" in output
 
+    @pytest.mark.integration
     def test_empty_query_directory(self, runner, temp_db, tmp_path, monkeypatch):
         """Test behavior when custom query directory is empty.
 

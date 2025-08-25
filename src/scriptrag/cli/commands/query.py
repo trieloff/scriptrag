@@ -93,6 +93,8 @@ class QueryCommandBuilder:
                         console.print("[dim]No queries available[/dim]")
                         return
 
+                    console.print("[bold]Available queries:[/bold]\n")
+
                     for query in queries:
                         info = self.formatter.format_query_info(
                             query.name,
@@ -217,6 +219,42 @@ class QueryCommandBuilder:
         app.command(name=spec.name)(create_command())
 
 
+class QueryAppManager:
+    """Manages the query Typer app and command registration state."""
+
+    def __init__(self) -> None:
+        """Initialize the query app manager."""
+        self.app: typer.Typer | None = None
+
+    def get_app(self) -> typer.Typer:
+        """Get or create the query app with registered commands.
+
+        This method uses lazy initialization to avoid issues with
+        import-time registration in test environments.
+
+        Returns:
+            Typer app with registered query commands
+        """
+        if self.app is None:
+            # Get or create API instance
+            settings = get_settings()
+            api = QueryAPI(settings)
+
+            # Build and return app
+            builder = QueryCommandBuilder(api)
+            self.app = builder.create_query_app()
+
+        return self.app
+
+    def reset(self) -> None:
+        """Reset the app to force recreation on next access.
+
+        This is useful for tests that modify environment variables
+        and need a fresh app with updated settings.
+        """
+        self.app = None
+
+
 def create_query_app() -> typer.Typer:
     """Create the query Typer app with all commands.
 
@@ -232,5 +270,28 @@ def create_query_app() -> typer.Typer:
     return builder.create_query_app()
 
 
-# Export the app
-query_app = create_query_app()
+# Manager instance for lazy initialization
+_query_app_manager = QueryAppManager()
+
+
+def get_query_app() -> typer.Typer:
+    """Get the query Typer app with lazy initialization.
+
+    Returns:
+        Configured Typer app
+    """
+    return _query_app_manager.get_app()
+
+
+def reset_query_app() -> None:
+    """Reset the query app manager.
+
+    This forces recreation of the app with fresh settings,
+    useful for tests that modify environment variables.
+    """
+    global _query_app_manager
+    _query_app_manager.reset()
+
+
+# Export the lazy-loaded app getter
+query_app = get_query_app

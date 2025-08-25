@@ -16,7 +16,7 @@ from scriptrag.cli.commands.config import config_app
 from scriptrag.cli.commands.init import init_command
 from scriptrag.cli.commands.list import list_command
 from scriptrag.cli.commands.mcp import mcp_command
-from scriptrag.cli.commands.query import create_query_app
+from scriptrag.cli.commands.query import get_query_app
 from scriptrag.cli.commands.scene import scene_app
 from scriptrag.cli.commands.search import search_command
 from scriptrag.cli.formatters.json_formatter import JsonFormatter
@@ -47,8 +47,7 @@ app.command(name="mcp")(mcp_command)
 
 # Register subapps
 app.add_typer(config_app, name="config")  # Config management subapp
-query_app = create_query_app()
-app.add_typer(query_app, name="query")  # Query subapp - use lazy loading
+app.add_typer(get_query_app(), name="query")  # Query subapp - use lazy loading
 app.add_typer(scene_app, name="scene")  # Scene subapp
 
 

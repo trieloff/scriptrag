@@ -436,3 +436,13 @@ def set_settings(settings: ScriptRAGSettings) -> None:
     """
     global _settings
     _settings = settings
+
+
+def reset_settings() -> None:
+    """Reset the global settings instance.
+
+    Forces recreation of settings on next call to get_settings(),
+    useful for tests that modify environment variables.
+    """
+    global _settings
+    _settings = None

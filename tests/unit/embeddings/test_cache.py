@@ -336,22 +336,28 @@ class TestEmbeddingCache:
 
     def test_eviction_lru(self, cache_dir):
         """Test LRU eviction strategy."""
+        import time
+
         cache = EmbeddingCache(
             cache_dir=cache_dir,
             strategy=InvalidationStrategy.LRU,
             max_size=3,
         )
 
-        # Fill cache to capacity
+        # Fill cache to capacity with small delays to ensure different timestamps
         cache.put("text1", "model", [0.1])
+        time.sleep(0.01)  # Small delay for Windows timestamp precision
         cache.put("text2", "model", [0.2])
+        time.sleep(0.01)
         cache.put("text3", "model", [0.3])
         assert len(cache._index) == 3
 
         # Access text1 to make it recently used
+        time.sleep(0.01)  # Ensure access time is different
         cache.get("text1", "model")
 
         # Add another entry (should evict text2 as least recently used)
+        time.sleep(0.01)
         cache.put("text4", "model", [0.4])
         assert len(cache._index) == 3
 

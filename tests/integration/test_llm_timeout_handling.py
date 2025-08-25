@@ -15,7 +15,7 @@ from typer.testing import CliRunner
 from scriptrag.analyzers.embedding import SceneEmbeddingAnalyzer
 from scriptrag.cli.main import app
 from scriptrag.config import set_settings
-from scriptrag.exceptions import LLMProviderError
+from scriptrag.exceptions import LLMProviderError, RateLimitError
 from tests.llm_test_utils import (
     TIMEOUT_INTEGRATION,
     TIMEOUT_LLM,
@@ -139,8 +139,8 @@ class TestLLMTimeoutHandling:
             response = await provider.complete(request)
             assert response.id == "mock-completion-1"
 
-        # Next call should hit rate limit
-        with pytest.raises(LLMProviderError, match="Rate limit exceeded"):
+        # Next call should hit rate limit - expect RateLimitError, not LLMProviderError
+        with pytest.raises(RateLimitError, match="Rate limit exceeded"):
             await provider.complete(request)
 
     @pytest.mark.integration
@@ -207,13 +207,17 @@ class TestLLMTimeoutHandling:
 
             mock_client = AsyncMock()
 
-            # Mock embedding response
+            # Mock embedding response - properly configure mock to support indexing
             mock_embedding = Mock()
             mock_embedding.embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
+            # Configure mock to support dictionary-style access
+            mock_embedding.__getitem__ = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
+            mock_embedding.get = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
 
             from scriptrag.llm.models import EmbeddingResponse
 
             response = Mock(spec=EmbeddingResponse)
+            # Make response.data subscriptable - just use a regular list
             response.data = [mock_embedding]
             mock_client.embed.return_value = response
 

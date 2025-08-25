@@ -227,6 +227,7 @@ class TestSearchAPIFromConfig:
             "scriptrag.api.search.ScriptRAGSettings.from_file"
         ) as mock_from_file:
             mock_settings = MagicMock()
+            mock_settings.database_path = "/tmp/test.db"
             mock_from_file.return_value = mock_settings
 
             api = SearchAPI.from_config(config_path="/path/to/config.json")

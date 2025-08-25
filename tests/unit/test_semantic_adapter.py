@@ -23,7 +23,7 @@ class TestSemanticSearchAdapter:
         settings.search_vector_similarity_threshold = 0.5
         settings.search_vector_result_limit_factor = 0.5
         settings.search_vector_min_results = 5
-        settings.database_path = MagicMock()
+        settings.database_path = "/tmp/test.db"
         settings.database_journal_mode = "WAL"
         settings.database_synchronous = "NORMAL"
         settings.database_foreign_keys = True

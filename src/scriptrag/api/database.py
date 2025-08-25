@@ -161,12 +161,12 @@ class DatabaseInitializer:
                 try:
                     # Configure connection with settings
                     self._configure_connection(conn, settings)
-                    self._initialize_with_connection(conn)  # type: ignore[arg-type]
+                    self._initialize_with_connection(conn, settings)  # type: ignore[arg-type]
                 finally:
                     manager.release_connection(conn)
             else:
                 # Use provided connection (for testing)
-                self._initialize_with_connection(connection)
+                self._initialize_with_connection(connection, settings)
 
             logger.info("Database initialized successfully", path=str(db_path))
             return db_path
@@ -177,11 +177,14 @@ class DatabaseInitializer:
                 db_path.unlink()
             raise RuntimeError(f"Failed to initialize database: {e}") from e
 
-    def _initialize_with_connection(self, conn: DatabaseConnection) -> None:
+    def _initialize_with_connection(
+        self, conn: DatabaseConnection, settings: ScriptRAGSettings | None = None
+    ) -> None:
         """Initialize database using provided connection.
 
         Args:
             conn: Database connection to use.
+            settings: Configuration settings to apply after initialization.
         """
         # Read initialization SQL
         init_sql = self._read_sql_file("init_database.sql")
@@ -204,6 +207,14 @@ class DatabaseInitializer:
             logger.info("VSS schema initialized successfully")
         except FileNotFoundError:
             logger.debug("No VSS schema file found, skipping")
+
+        # Re-apply foreign key setting after initialization scripts
+        # This ensures our settings override any hardcoded PRAGMA in the SQL files
+        if settings is not None:
+            if settings.database_foreign_keys:
+                conn.execute("PRAGMA foreign_keys = ON")
+            else:
+                conn.execute("PRAGMA foreign_keys = OFF")
 
         conn.commit()
 
@@ -228,6 +239,8 @@ class DatabaseInitializer:
 
         if settings.database_foreign_keys:
             pragmas.append("PRAGMA foreign_keys = ON")
+        else:
+            pragmas.append("PRAGMA foreign_keys = OFF")
 
         for pragma in pragmas:
             conn.execute(pragma)

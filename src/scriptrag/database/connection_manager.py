@@ -567,6 +567,8 @@ def get_connection_manager(
         force_new
         or _manager_instance is None
         or _manager_instance.db_path != settings.database_path
+        or _manager_instance.settings.database_foreign_keys
+        != settings.database_foreign_keys
     )
 
     if needs_new_manager:
@@ -576,6 +578,8 @@ def get_connection_manager(
                 force_new
                 or _manager_instance is None
                 or _manager_instance.db_path != settings.database_path
+                or _manager_instance.settings.database_foreign_keys
+                != settings.database_foreign_keys
             ):
                 if _manager_instance:
                     _manager_instance.close()

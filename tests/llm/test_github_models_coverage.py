@@ -18,7 +18,7 @@ class TestGitHubModelsProviderCoverage:
     @pytest.mark.asyncio
     async def test_parse_rate_limit_error_valid(self):
         """Test parsing valid rate limit error response."""
-        provider = GitHubModelsProvider(token=TEST_TOKEN)
+        from scriptrag.llm.rate_limiter import GitHubRateLimitParser
 
         error_text = json.dumps(
             {
@@ -29,33 +29,33 @@ class TestGitHubModelsProviderCoverage:
             }
         )
 
-        wait_seconds = provider._parse_rate_limit_error(error_text)
+        wait_seconds = GitHubRateLimitParser.parse_rate_limit_error(error_text)
         assert wait_seconds == 42911
 
     @pytest.mark.asyncio
     async def test_parse_rate_limit_error_invalid_json(self):
         """Test parsing invalid JSON error response."""
-        provider = GitHubModelsProvider(token=TEST_TOKEN)
+        from scriptrag.llm.rate_limiter import GitHubRateLimitParser
 
-        wait_seconds = provider._parse_rate_limit_error("not valid json")
+        wait_seconds = GitHubRateLimitParser.parse_rate_limit_error("not valid json")
         assert wait_seconds is None
 
     @pytest.mark.asyncio
     async def test_parse_rate_limit_error_wrong_code(self):
         """Test parsing error with wrong code."""
-        provider = GitHubModelsProvider(token=TEST_TOKEN)
+        from scriptrag.llm.rate_limiter import GitHubRateLimitParser
 
         error_text = json.dumps(
             {"error": {"code": "SomeOtherError", "message": "Different error message"}}
         )
 
-        wait_seconds = provider._parse_rate_limit_error(error_text)
+        wait_seconds = GitHubRateLimitParser.parse_rate_limit_error(error_text)
         assert wait_seconds is None
 
     @pytest.mark.asyncio
     async def test_parse_rate_limit_error_no_wait_time(self):
         """Test parsing rate limit error without wait time."""
-        provider = GitHubModelsProvider(token=TEST_TOKEN)
+        from scriptrag.llm.rate_limiter import GitHubRateLimitParser
 
         error_text = json.dumps(
             {
@@ -66,14 +66,16 @@ class TestGitHubModelsProviderCoverage:
             }
         )
 
-        wait_seconds = provider._parse_rate_limit_error(error_text)
+        wait_seconds = GitHubRateLimitParser.parse_rate_limit_error(error_text)
         assert wait_seconds is None
 
     @pytest.mark.asyncio
     async def test_is_available_rate_limited(self):
         """Test is_available when rate limited."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
-        provider._rate_limit_reset_time = time.time() + 3600  # 1 hour in future
+        provider.rate_limiter._rate_limit_reset_time = (
+            time.time() + 3600
+        )  # 1 hour in future
 
         result = await provider.is_available()
         assert result is False
@@ -82,9 +84,12 @@ class TestGitHubModelsProviderCoverage:
     async def test_is_available_rate_limit_expired(self):
         """Test is_available when rate limit has expired."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
-        provider._rate_limit_reset_time = time.time() - 1  # 1 second in past
-        provider._availability_cache = True
-        provider._cache_timestamp = time.time() - 10
+        provider._init_http_client()  # Initialize client before mocking
+        provider.rate_limiter._rate_limit_reset_time = (
+            time.time() - 1
+        )  # 1 second in past
+        provider.rate_limiter._availability_cache = True
+        provider.rate_limiter._cache_timestamp = time.time() - 10
 
         # Mock the HTTP client
         mock_response = MagicMock()
@@ -99,6 +104,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_list_models_rate_limited(self):
         """Test list_models when rate limited."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         # Mock the HTTP client to return 429
         mock_response = MagicMock()
@@ -125,6 +131,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_list_models_different_response_formats(self):
         """Test list_models with different response formats."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         # Test with list response format
         mock_response = MagicMock()
@@ -146,6 +153,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_list_models_dict_response(self):
         """Test list_models with dict response format."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         # Test with dict response format with "data" key
         mock_response = MagicMock()
@@ -167,6 +175,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_list_models_unknown_format(self):
         """Test list_models with unknown response format."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -184,6 +193,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_list_models_with_azure_registry_paths(self):
         """Test list_models with Azure registry paths."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -210,6 +220,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_complete_rate_limited(self):
         """Test complete when rate limited."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         from scriptrag.llm.models import CompletionRequest
 
@@ -235,12 +246,13 @@ class TestGitHubModelsProviderCoverage:
             with pytest.raises(ValueError, match="GitHub Models API error"):
                 await provider.complete(request)
 
-            assert provider._rate_limit_reset_time > time.time()
+            assert provider.rate_limiter._rate_limit_reset_time > time.time()
 
     @pytest.mark.asyncio
     async def test_complete_with_response_format(self):
         """Test complete with response_format parameter."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         from scriptrag.llm.models import CompletionRequest
 
@@ -280,6 +292,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_complete_with_system_message(self):
         """Test complete with system message."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         from scriptrag.llm.models import CompletionRequest
 
@@ -319,6 +332,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_embed_rate_limited(self):
         """Test embed when rate limited."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         from scriptrag.llm.models import EmbeddingRequest
 
@@ -341,12 +355,13 @@ class TestGitHubModelsProviderCoverage:
             with pytest.raises(ValueError, match="GitHub Models API error"):
                 await provider.embed(request)
 
-            assert provider._rate_limit_reset_time > time.time()
+            assert provider.rate_limiter._rate_limit_reset_time > time.time()
 
     @pytest.mark.asyncio
     async def test_embed_with_dimensions(self):
         """Test embed with dimensions parameter."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         from scriptrag.llm.models import EmbeddingRequest
 
@@ -377,6 +392,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_context_manager(self):
         """Test async context manager."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         # Mock aclose to prevent actual network calls
         with patch.object(
@@ -390,6 +406,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_complete_non_429_error(self):
         """Test complete with non-429 error status."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         from scriptrag.llm.models import CompletionRequest
 
@@ -412,6 +429,7 @@ class TestGitHubModelsProviderCoverage:
     async def test_list_models_http_error(self):
         """Test list_models with non-429 HTTP error."""
         provider = GitHubModelsProvider(token=TEST_TOKEN)
+        provider._init_http_client()  # Initialize client before mocking
 
         mock_response = MagicMock()
         mock_response.status_code = 500

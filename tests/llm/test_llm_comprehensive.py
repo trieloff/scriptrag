@@ -271,8 +271,8 @@ class TestGitHubModelsProviderExtended:
     async def test_is_available_cache_valid(self):
         """Test availability with valid cache."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
-        provider._availability_cache = True
-        provider._cache_timestamp = time.time()  # Recent timestamp
+        provider.rate_limiter._availability_cache = True
+        provider.rate_limiter._cache_timestamp = time.time()  # Recent timestamp
 
         # Should return cached value without making request
         result = await provider.is_available()
@@ -282,8 +282,10 @@ class TestGitHubModelsProviderExtended:
     async def test_is_available_cache_expired(self):
         """Test availability with expired cache."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
-        provider._availability_cache = False
-        provider._cache_timestamp = time.time() - 400  # Expired (>300s)
+        provider.rate_limiter._availability_cache = False
+        provider.rate_limiter._cache_timestamp = time.time() - 400  # Expired (>300s)
+        # Force client initialization before mocking
+        provider._init_http_client()
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -291,19 +293,21 @@ class TestGitHubModelsProviderExtended:
         with patch.object(provider.client, "get", return_value=mock_response):
             result = await provider.is_available()
             assert result is True
-            assert provider._availability_cache is True
+            assert provider.rate_limiter._availability_cache is True
 
     @pytest.mark.asyncio
     async def test_is_available_exception(self):
         """Test availability when request raises exception."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Force client initialization before mocking
+        provider._init_http_client()
 
         with patch.object(
             provider.client, "get", side_effect=httpx.RequestError("Network error")
         ):
             result = await provider.is_available()
             assert result is False
-            assert provider._availability_cache is False
+            assert provider.rate_limiter._availability_cache is False
 
     @pytest.mark.asyncio
     async def test_context_manager(self):
@@ -320,6 +324,8 @@ class TestGitHubModelsProviderExtended:
     async def test_list_models_error_status(self):
         """Test list models with error status code."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Force client initialization before mocking
+        provider._init_http_client()
 
         mock_response = Mock()
         mock_response.status_code = 500
@@ -336,6 +342,8 @@ class TestGitHubModelsProviderExtended:
     async def test_list_models_list_format(self):
         """Test list models with list response format."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Force client initialization before mocking
+        provider._init_http_client()
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -354,6 +362,8 @@ class TestGitHubModelsProviderExtended:
     async def test_list_models_empty_data(self):
         """Test list models with empty/invalid data format."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Force client initialization before mocking
+        provider._init_http_client()
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -371,6 +381,8 @@ class TestGitHubModelsProviderExtended:
     async def test_list_models_exception(self):
         """Test list models with exception."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Force client initialization before mocking
+        provider._init_http_client()
 
         with patch.object(
             provider.client, "get", side_effect=Exception("Request failed")
@@ -386,6 +398,8 @@ class TestGitHubModelsProviderExtended:
     async def test_complete_with_system_prompt(self):
         """Test completion with system prompt."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Force client initialization before mocking
+        provider._init_http_client()
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -424,6 +438,8 @@ class TestGitHubModelsProviderExtended:
     async def test_complete_api_error(self):
         """Test completion with API error."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Force client initialization before mocking
+        provider._init_http_client()
 
         mock_response = Mock()
         mock_response.status_code = 400
@@ -443,6 +459,8 @@ class TestGitHubModelsProviderExtended:
     async def test_embed_with_dimensions(self):
         """Test embedding with dimensions."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Force client initialization before mocking
+        provider._init_http_client()
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -467,6 +485,8 @@ class TestGitHubModelsProviderExtended:
     async def test_embed_api_error(self):
         """Test embedding with API error."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Force client initialization before mocking
+        provider._init_http_client()
 
         mock_response = Mock()
         mock_response.status_code = 404

@@ -590,9 +590,17 @@ class TestModelCacheCoverage:
             assert model.max_output_tokens == 4096
 
     def test_cache_with_long_provider_name(self, tmp_path):
-        """Test caching with a very long provider name."""
+        """Test caching with a very long provider name.
+
+        Windows MAX_PATH limit requires special handling to prevent CI failures.
+        """
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            long_provider = "a" * 255  # Max filename length on most systems
+            # Windows has MAX_PATH limit of 260 chars total, not just filename
+            # Account for temp path, dots, suffixes: use 200 chars max on Windows
+            import sys
+
+            max_chars = 200 if sys.platform == "win32" else 255
+            long_provider = "a" * max_chars
             cache = ModelDiscoveryCache(long_provider)
 
             test_models = [

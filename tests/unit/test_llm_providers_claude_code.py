@@ -387,7 +387,7 @@ class TestClaudeCodeProvider:
 
     def test_provider_initialization_with_settings(self):
         """Test provider initialization with different settings."""
-        with patch("scriptrag.llm.providers.claude_code.get_settings") as mock_settings:
+        with patch("scriptrag.config.get_settings") as mock_settings:
             mock_settings.return_value.llm_model_cache_ttl = 7200
             mock_settings.return_value.llm_force_static_models = True
 
@@ -399,7 +399,7 @@ class TestClaudeCodeProvider:
 
     def test_provider_initialization_no_cache(self):
         """Test provider initialization with caching disabled."""
-        with patch("scriptrag.llm.providers.claude_code.get_settings") as mock_settings:
+        with patch("scriptrag.config.get_settings") as mock_settings:
             mock_settings.return_value.llm_model_cache_ttl = 0  # Disable cache
             mock_settings.return_value.llm_force_static_models = False
 

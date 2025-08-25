@@ -336,6 +336,8 @@ class TestEmbeddingCache:
 
     def test_eviction_lru(self, cache_dir):
         """Test LRU eviction strategy."""
+        import time
+
         cache = EmbeddingCache(
             cache_dir=cache_dir,
             strategy=InvalidationStrategy.LRU,

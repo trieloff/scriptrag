@@ -21,6 +21,10 @@ class TestSearchEngineAsync:
         settings.database_timeout = 30.0
         settings.database_cache_size = 2000
         settings.database_temp_store = "MEMORY"
+        # Add missing database settings attributes that tests expect
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         settings.search_vector_threshold = 10
         settings.llm_embedding_model = "text-embedding-ada-002"
         settings.llm_embedding_dimensions = 1536

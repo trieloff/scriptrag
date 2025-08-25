@@ -12,6 +12,7 @@ from scriptrag.cli.commands import (
     pull,
     watch,
 )
+from scriptrag.cli.commands.config import config_app
 from scriptrag.cli.commands.init import init_command
 from scriptrag.cli.commands.list import list_command
 from scriptrag.cli.commands.mcp import mcp_command
@@ -43,11 +44,12 @@ app.command(name="analyze")(analyze_command)
 app.add_typer(watch.app, name="watch")
 app.add_typer(pull.app, name="pull")
 app.command(name="mcp")(mcp_command)
-app.add_typer(scene_app, name="scene")
 
-# Add query app dynamically
+# Register subapps
+app.add_typer(config_app, name="config")  # Config management subapp
 query_app = create_query_app()
-app.add_typer(query_app, name="query")
+app.add_typer(query_app, name="query")  # Query subapp - use lazy loading
+app.add_typer(scene_app, name="scene")  # Scene subapp
 
 
 @app.command()

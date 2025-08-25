@@ -467,7 +467,7 @@ class TestSearchResultParsing:
                         "build_count_query",
                         return_value=("SELECT COUNT(*)", []),
                     ):
-                        with patch("scriptrag.search.engine.logger") as mock_logger:
+                        with patch("scriptrag.search.utils.logger") as mock_logger:
                             response = asyncio.run(engine.search_async(query))
 
                             # Should create result with empty metadata
@@ -781,7 +781,7 @@ class TestMatchTypeDetermination:
         engine = SearchEngine()
         query = SearchQuery(raw_query="test", dialogue="Hello world")
 
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "dialogue"
 
     def test_determine_match_type_action_line_456(self):
@@ -789,7 +789,7 @@ class TestMatchTypeDetermination:
         engine = SearchEngine()
         query = SearchQuery(raw_query="test", action="Character walks")
 
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "action"
 
     def test_determine_match_type_character_line_460(self):
@@ -797,7 +797,7 @@ class TestMatchTypeDetermination:
         engine = SearchEngine()
         query = SearchQuery(raw_query="test", characters=["Alice", "Bob"])
 
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "character"
 
     def test_determine_match_type_location_line_462(self):
@@ -805,7 +805,7 @@ class TestMatchTypeDetermination:
         engine = SearchEngine()
         query = SearchQuery(raw_query="test", locations=["Coffee Shop", "Park"])
 
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "location"
 
     def test_determine_match_type_text_fallback(self):
@@ -814,12 +814,12 @@ class TestMatchTypeDetermination:
 
         # Query with text_query should return "text"
         query = SearchQuery(raw_query="test", text_query="some text")
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "text"
 
         # Query with no specific type should return "text"
         query = SearchQuery(raw_query="test")
-        match_type = engine._determine_match_type(query)
+        match_type = engine.result_utils.determine_match_type(query)
         assert match_type == "text"
 
 

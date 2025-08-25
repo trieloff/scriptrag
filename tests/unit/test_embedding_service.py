@@ -30,11 +30,14 @@ def mock_llm_client():
 def embedding_service(settings, mock_llm_client, tmp_path):
     """Create embedding service with mocks."""
     cache_dir = tmp_path / "cache"
-    return EmbeddingService(
+    service = EmbeddingService(
         settings=settings,
         llm_client=mock_llm_client,
         cache_dir=cache_dir,
     )
+    # Update lfs_store for testing
+    service.lfs_store.lfs_dir = tmp_path / ".embeddings"
+    return service
 
 
 class TestEmbeddingService:
@@ -44,17 +47,17 @@ class TestEmbeddingService:
         """Test embedding service initialization."""
         service = EmbeddingService(settings)
         assert service.settings == settings
-        assert service.cache_dir.exists()
-        assert service.lfs_dir == Path(".embeddings")
+        assert service.cache.cache_dir.exists()
+        assert service.lfs_store.lfs_dir == Path(".embeddings")
         assert service.default_model == "text-embedding-3-small"
         assert service.embedding_dimensions == 1536
 
     def test_cache_key_generation(self, embedding_service):
         """Test cache key generation."""
-        key1 = embedding_service._get_cache_key("test text", "model-1")
-        key2 = embedding_service._get_cache_key("test text", "model-1")
-        key3 = embedding_service._get_cache_key("different text", "model-1")
-        key4 = embedding_service._get_cache_key("test text", "model-2")
+        key1 = embedding_service.cache._get_cache_key("test text", "model-1")
+        key2 = embedding_service.cache._get_cache_key("test text", "model-1")
+        key3 = embedding_service.cache._get_cache_key("different text", "model-1")
+        key4 = embedding_service.cache._get_cache_key("test text", "model-2")
 
         # Same text and model should produce same key
         assert key1 == key2
@@ -68,19 +71,20 @@ class TestEmbeddingService:
         import numpy as np
 
         embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
-        cache_key = "test_key"
+        text = "test text"
+        model = "test-model"
 
-        # Save to cache
-        embedding_service._save_to_cache(cache_key, embedding)
+        # Save to cache using new interface
+        embedding_service.cache.put(text, model, embedding)
 
-        # Load from cache
-        loaded = embedding_service._load_from_cache(cache_key)
+        # Load from cache using new interface
+        loaded = embedding_service.cache.get(text, model)
 
         # Compare with tolerance due to float32 precision
         np.testing.assert_allclose(loaded, embedding, rtol=1e-6, atol=1e-7)
 
-        # Non-existent key returns None
-        assert embedding_service._load_from_cache("nonexistent") is None
+        # Non-existent text/model returns None
+        assert embedding_service.cache.get("nonexistent", model) is None
 
     @pytest.mark.asyncio
     async def test_generate_embedding(self, embedding_service, mock_llm_client):
@@ -161,7 +165,9 @@ class TestEmbeddingService:
 
     def test_save_embedding_to_lfs(self, embedding_service, tmp_path):
         """Test saving embeddings to LFS directory."""
-        embedding_service.lfs_dir = tmp_path / ".embeddings"
+        embedding_service.lfs_store.lfs_dir = tmp_path / ".embeddings"
+        # Ensure .gitattributes is created after changing the directory
+        embedding_service.lfs_store._ensure_gitattributes()
         embedding = [0.1, 0.2, 0.3]
 
         path = embedding_service.save_embedding_to_lfs(
@@ -179,13 +185,13 @@ class TestEmbeddingService:
         np.testing.assert_array_almost_equal(loaded, embedding)
 
         # Check .gitattributes was created
-        gitattributes = embedding_service.lfs_dir / ".gitattributes"
+        gitattributes = embedding_service.lfs_store.lfs_dir / ".gitattributes"
         assert gitattributes.exists()
         assert "*.npy filter=lfs" in gitattributes.read_text()
 
     def test_load_embedding_from_lfs(self, embedding_service, tmp_path):
         """Test loading embeddings from LFS directory."""
-        embedding_service.lfs_dir = tmp_path / ".embeddings"
+        embedding_service.lfs_store.lfs_dir = tmp_path / ".embeddings"
         embedding = [0.1, 0.2, 0.3]
 
         # Save first

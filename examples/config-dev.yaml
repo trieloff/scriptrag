@@ -1,0 +1,57 @@
+# ScriptRAG Development Configuration
+# Optimized for local development and testing
+#
+# Usage: scriptrag --config examples/config-dev.yaml <command>
+# Or copy to ~/.config/scriptrag/config.yaml for default use
+
+# Database - Use local SQLite with debugging enabled
+database_path: "./dev/scriptrag.db"
+database_timeout: 60.0
+database_wal_mode: true
+database_foreign_keys: true
+database_journal_mode: "WAL"
+database_synchronous: "NORMAL"
+database_cache_size: -4000  # 4MB cache for development
+
+# Application
+app_name: "scriptrag-dev"
+metadata_scan_size: 0  # Read entire file in dev for complete analysis
+skip_boneyard_filter: true  # Skip filtering for easier testing
+debug: true
+
+# Logging - Verbose for development
+log_level: "DEBUG"
+log_format: "console"
+log_file: "./dev/logs/scriptrag.log"
+log_file_rotation: "1 hour"
+log_file_retention: "1 day"
+
+# Search - Relaxed thresholds for testing
+search_vector_threshold: 5
+search_vector_similarity_threshold: 0.2
+search_vector_result_limit_factor: 0.7
+search_vector_min_results: 10
+search_thread_timeout: 600.0  # 10 minutes for debugging
+
+# LLM Configuration for Development
+# Option 1: Local Ollama server (recommended for development)
+llm_provider: "openai"
+llm_endpoint: "http://localhost:11434/v1"
+llm_model: "llama2"
+llm_embedding_model: "nomic-embed-text"
+llm_embedding_dimensions: 768
+
+# Option 2: Claude Code (when available)
+# llm_provider: "claude_code"
+# No additional configuration needed
+
+# Common LLM settings
+llm_temperature: 0.9
+llm_max_tokens: 4096
+llm_force_static_models: true  # Use static models in dev
+llm_model_cache_ttl: 60  # Short cache for development
+
+# Bible/Document Embeddings
+bible_embeddings_path: "./dev/embeddings/bible"
+bible_max_file_size: 52428800  # 50MB for testing large files
+bible_llm_context_limit: 4000  # Larger context for testing

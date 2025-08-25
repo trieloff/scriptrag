@@ -13,6 +13,9 @@ from scriptrag.parser.bible_parser import BibleParser
 from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import SearchQuery
 
+# Mark entire module as integration to exclude from canary runs
+pytestmark = pytest.mark.integration
+
 
 def _get_or_create_script_id(db_path: Path, script_path: Path) -> int:
     """Get or create script ID in database."""

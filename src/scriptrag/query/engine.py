@@ -34,9 +34,7 @@ class QueryEngine:
         This ensures we always use the latest database path,
         even if settings have been reset/reloaded.
         """
-        from scriptrag.config import get_settings
-
-        return get_settings().database_path
+        return self.settings.database_path
 
     def execute(
         self,
@@ -116,10 +114,8 @@ class QueryEngine:
             else:
                 sql = f"SELECT * FROM ({sql}) OFFSET :offset"
 
-        # Execute query - use fresh settings for dynamic database path resolution
-        from scriptrag.config import get_settings
-
-        with get_read_only_connection(get_settings()) as conn:
+        # Execute query using the engine's settings
+        with get_read_only_connection(self.settings) as conn:
             logger.debug(
                 f"Executing query '{spec.name}' with params: {validated_params}"
             )

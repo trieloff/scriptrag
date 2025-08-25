@@ -344,20 +344,20 @@ class TestEmbeddingCache:
             max_size=3,
         )
 
-        # Fill cache to capacity with small delays to ensure different timestamps
+        # Fill cache to capacity with small delays for Windows timing precision
         cache.put("text1", "model", [0.1])
-        time.sleep(0.01)  # Small delay for Windows timestamp precision
+        time.sleep(0.001)  # Ensure distinct timestamps
         cache.put("text2", "model", [0.2])
-        time.sleep(0.01)
+        time.sleep(0.001)  # Ensure distinct timestamps
         cache.put("text3", "model", [0.3])
         assert len(cache._index) == 3
 
-        # Access text1 to make it recently used
-        time.sleep(0.01)  # Ensure access time is different
+        # Access text1 to make it recently used - with delay for clear last_access
+        time.sleep(0.001)
         cache.get("text1", "model")
 
         # Add another entry (should evict text2 as least recently used)
-        time.sleep(0.01)
+        time.sleep(0.001)  # Ensure distinct timing for eviction logic
         cache.put("text4", "model", [0.4])
         assert len(cache._index) == 3
 
@@ -740,3 +740,34 @@ class TestEmbeddingCache:
 
         # Should not exceed max size
         assert len(cache._index) <= cache.max_size
+
+    def test_get_timestamp_adjustment_edge_case(self, cache, monkeypatch):
+        """Test timestamp adjustment when time.time() doesn't advance enough."""
+        embedding = [0.1, 0.2]
+        text = "test text"
+        model = "test-model"
+
+        # Put embedding
+        cache.put(text, model, embedding)
+        key = cache._get_cache_key(text, model)
+        entry = cache._index[key]
+
+        # Mock time.time() to return a value that's not greater than the timestamp
+        # This should trigger the timestamp adjustment logic
+        mock_time_value = entry.timestamp - 0.001  # Slightly before timestamp
+
+        def mock_time():
+            return mock_time_value
+
+        monkeypatch.setattr("time.time", mock_time)
+
+        # Get should trigger timestamp adjustment logic
+        result = cache.get(text, model)
+
+        # Verify the result is correct
+        assert result is not None
+        np.testing.assert_array_almost_equal(result, embedding)
+
+        # Verify that last_access was adjusted to be greater than timestamp
+        assert entry.last_access > entry.timestamp
+        assert entry.last_access == entry.timestamp + 0.001

@@ -1,5 +1,7 @@
 """Search filtering logic for different content types."""
 
+from abc import ABC, abstractmethod
+
 from scriptrag.search.models import (
     BibleSearchResult,
     SearchQuery,
@@ -44,9 +46,10 @@ class SearchFilterChain:
         return filtered
 
 
-class SearchFilter:
+class SearchFilter(ABC):
     """Base class for search filters."""
 
+    @abstractmethod
     def filter(
         self,
         results: list[SearchResult],
@@ -61,7 +64,6 @@ class SearchFilter:
         Returns:
             Filtered results
         """
-        raise NotImplementedError
 
 
 class CharacterFilter(SearchFilter):

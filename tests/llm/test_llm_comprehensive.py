@@ -334,7 +334,9 @@ class TestGitHubModelsProviderExtended:
             models = await provider.list_models()
             # Falls back to static models on error
             assert len(models) == 2  # Static models
-            assert models[0].id == "gpt-4o"
+            model_ids = {m.id for m in models}
+            assert "gpt-4o" in model_ids
+            assert "gpt-4o-mini" in model_ids
 
     @pytest.mark.asyncio
     async def test_list_models_list_format(self):
@@ -371,7 +373,9 @@ class TestGitHubModelsProviderExtended:
             models = await provider.list_models()
             # Falls back to static models on invalid data format
             assert len(models) == 2  # Static models
-            assert models[0].id == "gpt-4o"
+            model_ids = {m.id for m in models}
+            assert "gpt-4o" in model_ids
+            assert "gpt-4o-mini" in model_ids
 
     @pytest.mark.asyncio
     async def test_list_models_exception(self):
@@ -386,7 +390,9 @@ class TestGitHubModelsProviderExtended:
             models = await provider.list_models()
             # Falls back to static models on exception
             assert len(models) == 2  # Static models
-            assert models[0].id == "gpt-4o"
+            model_ids = {m.id for m in models}
+            assert "gpt-4o" in model_ids
+            assert "gpt-4o-mini" in model_ids
 
     @pytest.mark.asyncio
     async def test_complete_with_system_prompt(self):

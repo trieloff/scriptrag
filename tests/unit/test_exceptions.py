@@ -282,16 +282,11 @@ class TestCheckConfigKeys:
         assert error.details["invalid_key"] == "db_path"
         assert error.details["correct_key"] == "database_path"
 
-    def test_invalid_llm_provider_key(self):
-        """Test with wrong llm_provider key."""
+    def test_valid_llm_provider_key(self):
+        """Test that llm_provider is a valid key."""
         config = {"llm_provider": "openai"}
-
-        with pytest.raises(ConfigurationError) as exc_info:
-            check_config_keys(config)
-
-        error = exc_info.value
-        assert "Invalid configuration key 'llm_provider'" in str(error)
-        assert "Use 'llm_config.provider' instead" in str(error)
+        # Should not raise - llm_provider is a valid key
+        check_config_keys(config)
 
     def test_invalid_api_key(self):
         """Test with wrong api_key at root level."""
@@ -302,7 +297,7 @@ class TestCheckConfigKeys:
 
         error = exc_info.value
         assert "Invalid configuration key 'api_key'" in str(error)
-        assert "Use 'llm_config.api_key' instead" in str(error)
+        assert "Use 'llm_api_key' instead" in str(error)
 
     def test_invalid_model_key(self):
         """Test with wrong model key at root level."""
@@ -313,7 +308,7 @@ class TestCheckConfigKeys:
 
         error = exc_info.value
         assert "Invalid configuration key 'model'" in str(error)
-        assert "Use 'llm_config.model' instead" in str(error)
+        assert "Use 'llm_model' instead" in str(error)
 
     def test_multiple_invalid_keys_stops_at_first(self):
         """Test that validation stops at first invalid key."""

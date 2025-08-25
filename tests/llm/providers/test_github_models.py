@@ -119,7 +119,7 @@ class TestGitHubModelsProvider:
         # Initialize client before mocking
         provider._init_http_client()
         with patch.object(
-            provider.client, "get", side_effect=Exception("Network error")
+            provider.client, "get", side_effect=httpx.RequestError("Network error")
         ):
             result = await provider.is_available()
             assert result is False

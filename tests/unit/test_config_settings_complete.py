@@ -739,7 +739,6 @@ class TestMultipleSourcesLoading:
         # Load with no environment variables
         settings = ScriptRAGSettings.from_multiple_sources(
             config_files=[config1, config2],
-            env_vars={},  # Explicitly pass empty env vars
         )
 
         # Second file should override first

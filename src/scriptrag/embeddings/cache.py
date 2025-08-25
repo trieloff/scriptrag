@@ -166,7 +166,11 @@ class EmbeddingCache:
 
             # Update access metadata
             entry.access_count += 1
-            entry.last_access = time.time()
+            # Ensure last_access is always later than timestamp for deterministic LRU
+            new_access_time = time.time()
+            if new_access_time <= entry.timestamp:
+                new_access_time = entry.timestamp + 0.001
+            entry.last_access = new_access_time
 
             logger.debug(f"Cache hit: {key}")
             result: list[float] = embedding.tolist()
@@ -299,8 +303,15 @@ class EmbeddingCache:
                 ),
             )
         elif self.strategy == InvalidationStrategy.LFU:
-            # Evict least frequently used
-            key = min(self._index.keys(), key=lambda k: self._index[k].access_count)
+            # Evict least frequently used (with tiebreakers for determinism)
+            key = min(
+                self._index.keys(),
+                key=lambda k: (
+                    self._index[k].access_count,
+                    self._index[k].timestamp,
+                    k,  # Key as final tiebreaker for full determinism
+                ),
+            )
         elif self.strategy == InvalidationStrategy.FIFO:
             # Evict oldest
             key = min(self._index.keys(), key=lambda k: self._index[k].timestamp)

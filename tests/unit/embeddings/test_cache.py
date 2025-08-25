@@ -738,3 +738,34 @@ class TestEmbeddingCache:
 
         # Should not exceed max size
         assert len(cache._index) <= cache.max_size
+
+    def test_get_timestamp_adjustment_edge_case(self, cache, monkeypatch):
+        """Test timestamp adjustment when time.time() doesn't advance enough."""
+        embedding = [0.1, 0.2]
+        text = "test text"
+        model = "test-model"
+
+        # Put embedding
+        cache.put(text, model, embedding)
+        key = cache._get_cache_key(text, model)
+        entry = cache._index[key]
+
+        # Mock time.time() to return a value that's not greater than the timestamp
+        # This should trigger the timestamp adjustment logic
+        mock_time_value = entry.timestamp - 0.001  # Slightly before timestamp
+
+        def mock_time():
+            return mock_time_value
+
+        monkeypatch.setattr("time.time", mock_time)
+
+        # Get should trigger timestamp adjustment logic
+        result = cache.get(text, model)
+
+        # Verify the result is correct
+        assert result is not None
+        np.testing.assert_array_almost_equal(result, embedding)
+
+        # Verify that last_access was adjusted to be greater than timestamp
+        assert entry.last_access > entry.timestamp
+        assert entry.last_access == entry.timestamp + 0.001

@@ -53,7 +53,7 @@ class ClaudeCodeProvider(BaseLLMProvider):
             force_static = settings.llm_force_static_models
 
             # Validate settings values and provide defaults for testing
-            if not isinstance(cache_ttl, int | float) or cache_ttl <= 0:
+            if not isinstance(cache_ttl, int | float) or cache_ttl < 0:
                 # Fallback for testing or invalid configuration
                 cache_ttl = DEFAULT_MODEL_CACHE_TTL
                 use_cache = True

@@ -96,7 +96,10 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
             )
             self.rate_limiter.update_availability_cache(False)
             return False
-        except Exception as e:
+        except (httpx.RequestError, ValueError, TypeError, OSError) as e:
+            # RequestError: General httpx request errors
+            # ValueError/TypeError: JSON parsing or data validation issues
+            # OSError: Network/system level errors
             logger.warning(
                 "GitHub Models availability check failed",
                 error=str(e),

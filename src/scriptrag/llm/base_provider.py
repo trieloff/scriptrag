@@ -12,6 +12,10 @@ from scriptrag.llm.rate_limiter import RateLimiter
 
 logger = get_logger(__name__)
 
+# HTTP timeout constants
+DEFAULT_HTTP_TIMEOUT = 30.0  # seconds
+DEFAULT_AVAILABILITY_CACHE_TTL = 300  # 5 minutes
+
 
 class EnhancedBaseLLMProvider(BaseLLMProvider):
     """Enhanced base class with common functionality for LLM providers."""
@@ -19,7 +23,7 @@ class EnhancedBaseLLMProvider(BaseLLMProvider):
     def __init__(
         self,
         token: str | None = None,
-        timeout: float = 30.0,
+        timeout: float = DEFAULT_HTTP_TIMEOUT,
         base_url: str | None = None,
     ) -> None:
         """Initialize enhanced provider.
@@ -81,6 +85,28 @@ class EnhancedBaseLLMProvider(BaseLLMProvider):
         # Subclasses should implement actual availability check
         return True
 
+    def _validate_response_structure(
+        self, data: Any, required_fields: list[str], response_type: str = "API response"
+    ) -> None:
+        """Validate that response data contains required fields.
+
+        Args:
+            data: Response data to validate
+            required_fields: List of field names that must be present
+            response_type: Type description for error messages
+
+        Raises:
+            ValueError: If validation fails
+        """
+        if not isinstance(data, dict):
+            raise ValueError(f"{response_type} must be a dictionary, got {type(data)}")
+
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            raise ValueError(
+                f"{response_type} missing required fields: {', '.join(missing_fields)}"
+            )
+
     @abstractmethod
     async def _validate_availability(self) -> bool:
         """Validate provider availability with actual API call.
@@ -99,14 +125,30 @@ class EnhancedBaseLLMProvider(BaseLLMProvider):
         Subclasses can override for different auth schemes.
 
         Returns:
-            Dictionary of auth headers
+            Dictionary of auth headers with token masked for logging safety
         """
         if not self.token:
-            return {}
-        return {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json",
-        }
+            return {"Content-Type": "application/json"}
+
+        # Create a secure header dict that masks the token if accidentally logged
+        class SecureHeaders(dict):
+            def __str__(self) -> str:
+                return str(
+                    {
+                        k: "Bearer [REDACTED]" if k == "Authorization" else v
+                        for k, v in self.items()
+                    }
+                )
+
+            def __repr__(self) -> str:
+                return self.__str__()
+
+        return SecureHeaders(
+            {
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
+            }
+        )
 
     def _handle_rate_limit(
         self, status_code: int, error_text: str, wait_seconds: int | None = None

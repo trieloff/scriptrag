@@ -26,6 +26,10 @@ from scriptrag.llm.rate_limiter import RetryHandler
 
 logger = get_logger(__name__)
 
+# Configuration constants
+DEFAULT_MODEL_CACHE_TTL = 3600  # 1 hour
+DEFAULT_QUERY_TIMEOUT = 120  # 2 minutes
+
 
 class ClaudeCodeProvider(BaseLLMProvider):
     """Claude Code SDK provider for local development."""
@@ -48,20 +52,17 @@ class ClaudeCodeProvider(BaseLLMProvider):
             cache_ttl = settings.llm_model_cache_ttl
             force_static = settings.llm_force_static_models
 
-            # Check if we got real values or mocks (for testing)
-            is_mock = hasattr(cache_ttl, "__class__") and "Mock" in str(
-                cache_ttl.__class__
-            )
-            if is_mock:
-                # Fallback for testing when settings is mocked
-                cache_ttl = 3600
+            # Validate settings values and provide defaults for testing
+            if not isinstance(cache_ttl, int | float) or cache_ttl <= 0:
+                # Fallback for testing or invalid configuration
+                cache_ttl = DEFAULT_MODEL_CACHE_TTL
                 use_cache = True
                 force_static = False
             else:
                 use_cache = cache_ttl > 0
         except (ImportError, AttributeError):
             # Fallback for testing when settings cannot be imported
-            cache_ttl = 3600
+            cache_ttl = DEFAULT_MODEL_CACHE_TTL
             use_cache = True
             force_static = False
 
@@ -290,7 +291,7 @@ class ClaudeCodeProvider(BaseLLMProvider):
 
         try:
             # Execute the query with a timeout
-            query_timeout = 120  # 2 minutes timeout per query
+            query_timeout = DEFAULT_QUERY_TIMEOUT
             async with asyncio.timeout(query_timeout):
                 async for message in query(prompt=prompt, options=options):
                     messages.append(message)

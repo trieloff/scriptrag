@@ -56,10 +56,13 @@ class SceneFormatter(OutputFormatter[Any]):
             }
             return json.dumps(output)
 
-        # Text format - return formatted panel
+        # Text format - include scene panel and last read info
+        lines: list[str] = []
         if result.scene:
-            return self._create_scene_panel(result.scene)
-        return ""
+            lines.append(self._create_scene_panel(result.scene))
+        if result.last_read is not None:
+            lines.append(f"Last read: {result.last_read}")
+        return "\n".join(lines).strip()
 
     def _format_update_result(
         self, result: UpdateSceneResult, format_type: OutputFormat

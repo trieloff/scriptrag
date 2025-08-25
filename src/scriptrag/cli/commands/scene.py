@@ -330,8 +330,14 @@ async def delete_scene(
     episode: Annotated[
         int | None, typer.Option("--episode", "-e", help="Episode number (for TV)")
     ] = None,
-    force: Annotated[
-        bool, typer.Option("--force", "-f", help="Skip confirmation prompt")
+    confirm: Annotated[
+        bool,
+        typer.Option(
+            "--confirm",
+            "--force",
+            "-f",
+            help="Confirm deletion without interactive prompt",
+        ),
     ] = False,
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
     config: Annotated[
@@ -352,7 +358,7 @@ async def delete_scene(
     handler = CLIHandler(console)
 
     # Validate inputs
-    project_validator = ProjectValidator()
+    project_validator = ProjectValidator(allow_spaces=True)
     project = project_validator.validate(project)
 
     scene_validator = SceneValidator()
@@ -365,12 +371,17 @@ async def delete_scene(
         }
     )
 
-    # Confirm deletion if not forced
-    if not force and not json_output:
-        confirm = typer.confirm(f"Delete scene {scene_id.key}?")
-        if not confirm:
-            handler.handle_success("Deletion cancelled")
+    # Confirmation handling (non-interactive by default for tests/CI)
+    if not confirm:
+        if json_output:
+            handler.handle_error(
+                ValueError("Deletion requires confirmation (--confirm)"), json_output
+            )
             return
+        handler.handle_success(
+            "Warning: Deletion requires confirmation. Re-run with --confirm to proceed"
+        )
+        return
 
     # Load settings
     settings = load_config_with_validation(config)
@@ -379,7 +390,7 @@ async def delete_scene(
     api = SceneManagementAPI(settings=settings)
 
     # Delete scene through API
-    result = await api.delete_scene(scene_id)
+    result = await api.delete_scene(scene_id, confirm=True)
 
     if not result.success:
         handler.handle_error(Exception(result.error), json_output)

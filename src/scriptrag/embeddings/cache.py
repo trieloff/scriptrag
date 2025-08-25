@@ -286,11 +286,20 @@ class EmbeddingCache:
 
         # Determine which entry to evict
         if self.strategy == InvalidationStrategy.LRU:
-            # Evict least recently used
-            key = min(self._index.keys(), key=lambda k: self._index[k].last_access or 0)
+            # Evict least recently used (with timestamp as tiebreaker for determinism)
+            key = min(
+                self._index.keys(),
+                key=lambda k: (
+                    self._index[k].last_access or 0,
+                    self._index[k].timestamp,
+                ),
+            )
         elif self.strategy == InvalidationStrategy.LFU:
-            # Evict least frequently used
-            key = min(self._index.keys(), key=lambda k: self._index[k].access_count)
+            # Evict least frequently used (with timestamp as tiebreaker for determinism)
+            key = min(
+                self._index.keys(),
+                key=lambda k: (self._index[k].access_count, self._index[k].timestamp),
+            )
         elif self.strategy == InvalidationStrategy.FIFO:
             # Evict oldest
             key = min(self._index.keys(), key=lambda k: self._index[k].timestamp)

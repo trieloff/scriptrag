@@ -9,8 +9,8 @@ from rich.console import Console
 from scriptrag.cli.commands import (
     analyze_command,
     index_command,
-    pull,
-    watch,
+    pull_command,
+    watch_command,
 )
 from scriptrag.cli.commands.config import config_app
 from scriptrag.cli.commands.init import init_command
@@ -42,8 +42,8 @@ app.command(name="list")(list_command)
 app.command(name="ls")(list_command)  # Alias for list command
 app.command(name="search")(search_command)
 app.command(name="analyze")(analyze_command)
-app.add_typer(watch.app, name="watch")
-app.add_typer(pull.app, name="pull")
+app.command(name="watch")(watch_command)
+app.command(name="pull")(pull_command)
 app.command(name="mcp")(mcp_command)
 
 # Register subapps

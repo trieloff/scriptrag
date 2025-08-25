@@ -19,8 +19,6 @@ from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 logger = get_logger(__name__)
 console = Console()
 
-app = typer.Typer()
-
 # Global observer for signal handling
 _observer: Any = None
 _handler: Any = None
@@ -41,7 +39,6 @@ def signal_handler(_signum: int, _frame: Any) -> None:
     sys.exit(0)
 
 
-@app.command()
 def watch_command(
     path: Annotated[
         Path | None,

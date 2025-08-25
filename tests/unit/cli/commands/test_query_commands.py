@@ -16,6 +16,7 @@ from scriptrag.cli.commands.query import (
     get_query_app,
     register_query_commands,
 )
+from scriptrag.config import ScriptRAGSettings
 from scriptrag.query.spec import ParamSpec, QuerySpec
 
 
@@ -106,7 +107,7 @@ class TestCreateQueryCommand:
         """Test successful query command execution."""
         # Setup mocks
         mock_api.get_query.return_value = simple_spec
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_current_api = MagicMock()
@@ -133,7 +134,7 @@ class TestCreateQueryCommand:
         """Test query command execution with JSON output."""
         # Setup mocks
         mock_api.get_query.return_value = simple_spec
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_current_api = MagicMock()
@@ -164,7 +165,7 @@ class TestCreateQueryCommand:
         """Test query command execution with error."""
         # Setup mocks
         mock_api.get_query.return_value = simple_spec
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_current_api = MagicMock()
@@ -219,7 +220,7 @@ class TestRegisterQueryCommands:
         self, mock_api_class, mock_get_settings
     ):
         """Test registering commands when no queries found."""
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_api = MagicMock()
@@ -243,7 +244,7 @@ class TestRegisterQueryCommands:
     ):
         """Test registering commands with queries."""
         # Setup mocks
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_api = MagicMock()
@@ -270,7 +271,7 @@ class TestRegisterQueryCommands:
     ):
         """Test registering commands when command creation fails."""
         # Setup mocks
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_api = MagicMock()
@@ -318,7 +319,7 @@ class TestRegisterQueryCommands:
         mock_initial_api.get_query.return_value = spec
 
         # Setup runtime API that will succeed
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_runtime_api = MagicMock()
@@ -359,7 +360,7 @@ class TestRegisterQueryCommands:
         mock_initial_api.get_query.return_value = spec
 
         # Setup runtime API that will fail
-        mock_settings = MagicMock()
+        mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
         mock_runtime_api = MagicMock()
@@ -468,7 +469,7 @@ class TestHelperFunctions:
             patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings,
             patch("scriptrag.cli.commands.query.QueryAPI") as mock_api_class,
         ):
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = "/tmp/test.db"
             mock_get_settings.return_value = mock_settings
             mock_api = MagicMock()
@@ -819,7 +820,7 @@ class TestCoverageGaps:
             patch("scriptrag.config.settings._settings", None),
             patch("scriptrag.cli.commands.query.console") as mock_console,
         ):
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = "/tmp/test.db"
             mock_get_settings.return_value = mock_settings
             mock_runtime_api = MagicMock()

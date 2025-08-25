@@ -355,7 +355,10 @@ class TestGitHubModelsProvider:
         """Test completion with API error."""
         # Initialize client before mocking
         provider._init_http_client()
-        with patch.object(provider.client, "post", side_effect=Exception("API Error")):
+        # Use RuntimeError which is caught and wrapped in LLMProviderError
+        with patch.object(
+            provider.client, "post", side_effect=RuntimeError("API Error")
+        ):
             request = CompletionRequest(
                 model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
             )

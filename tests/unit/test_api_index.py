@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
+from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.index import IndexCommand, IndexOperationResult, IndexResult
 from scriptrag.api.list import FountainMetadata
 from scriptrag.config import ScriptRAGSettings
@@ -24,7 +25,7 @@ def settings(tmp_path):
 @pytest.fixture
 def mock_db_ops():
     """Create mock database operations."""
-    mock = MagicMock()
+    mock = MagicMock(spec=DatabaseOperations)
     mock.check_database_exists.return_value = True
     mock.get_existing_script.return_value = None
     mock.upsert_script.return_value = 1

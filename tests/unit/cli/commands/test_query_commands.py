@@ -118,7 +118,10 @@ class TestCreateQueryCommand:
         command = create_query_command(mock_api, "simple-query")
 
         # Execute command
-        with patch("scriptrag.config.settings._settings", None):
+        with patch(
+            "scriptrag.config.settings._settings",
+            MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
+        ):
             command(json=False, limit=None, offset=None)
 
         # Verify execution
@@ -146,7 +149,10 @@ class TestCreateQueryCommand:
 
         # Execute command with JSON output
         with (
-            patch("scriptrag.config.settings._settings", None),
+            patch(
+                "scriptrag.config.settings._settings",
+                MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
+            ),
             patch("builtins.print") as mock_print,
         ):
             command(json=True, limit=10, offset=5)
@@ -177,7 +183,10 @@ class TestCreateQueryCommand:
 
         # Execute command and expect error
         with (
-            patch("scriptrag.config.settings._settings", None),
+            patch(
+                "scriptrag.config.settings._settings",
+                MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
+            ),
             pytest.raises(typer.Exit),
         ):
             command(json=False, limit=None, offset=None)
@@ -227,7 +236,10 @@ class TestRegisterQueryCommands:
         mock_api_class.return_value = mock_api
         mock_api.list_queries.return_value = []
 
-        with patch("scriptrag.config.settings._settings", None):
+        with patch(
+            "scriptrag.config.settings._settings",
+            MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
+        ):
             # Force registration to ensure it runs
             register_query_commands(force=True)
 
@@ -256,7 +268,10 @@ class TestRegisterQueryCommands:
         mock_command = MagicMock()
         mock_create_command.return_value = mock_command
 
-        with patch("scriptrag.config.settings._settings", None):
+        with patch(
+            "scriptrag.config.settings._settings",
+            MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
+        ):
             # Force registration to ensure it runs
             register_query_commands(force=True)
 
@@ -283,7 +298,10 @@ class TestRegisterQueryCommands:
         # Command creation returns None (failure)
         mock_create_command.return_value = None
 
-        with patch("scriptrag.config.settings._settings", None):
+        with patch(
+            "scriptrag.config.settings._settings",
+            MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
+        ):
             # Force registration to ensure it runs
             register_query_commands(force=True)
 
@@ -332,7 +350,10 @@ class TestRegisterQueryCommands:
 
         # Execute with JSON output - creates new API via QueryAPI(current_settings)
         with (
-            patch("scriptrag.config.settings._settings", None),
+            patch(
+                "scriptrag.config.settings._settings",
+                MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
+            ),
             patch("builtins.print") as mock_print,
         ):
             command(json=True)
@@ -375,7 +396,10 @@ class TestRegisterQueryCommands:
 
         # Execute and expect typer.Exit - creates new API via QueryAPI(current_settings)
         with (
-            patch("scriptrag.config.settings._settings", None),
+            patch(
+                "scriptrag.config.settings._settings",
+                MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
+            ),
             patch("scriptrag.cli.commands.query.console") as mock_console,
             pytest.raises(typer.Exit) as exc_info,
         ):
@@ -703,7 +727,10 @@ class TestCoverageGaps:
         # Test execution with db_path
         with (
             patch("scriptrag.cli.commands.query.QueryAPI") as mock_api_class,
-            patch("scriptrag.config.settings._settings", None),
+            patch(
+                "scriptrag.config.settings._settings",
+                MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
+            ),
         ):
             mock_runtime_api = MagicMock()
             mock_api_class.return_value = mock_runtime_api
@@ -817,7 +844,10 @@ class TestCoverageGaps:
         with (
             patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings,
             patch("scriptrag.cli.commands.query.QueryAPI") as mock_api_class,
-            patch("scriptrag.config.settings._settings", None),
+            patch(
+                "scriptrag.config.settings._settings",
+                MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
+            ),
             patch("scriptrag.cli.commands.query.console") as mock_console,
         ):
             mock_settings = MagicMock(spec=ScriptRAGSettings)

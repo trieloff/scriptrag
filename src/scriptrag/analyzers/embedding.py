@@ -257,7 +257,7 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
 
             raise RuntimeError("No embedding data in response")
 
-        except (AttributeError, KeyError, TypeError) as e:
+        except (AttributeError, KeyError, TypeError, RuntimeError, Exception) as e:
             error_msg = f"Failed to generate embedding: {e}"
             logger.error(error_msg)
             raise EmbeddingGenerationError(

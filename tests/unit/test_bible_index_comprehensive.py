@@ -447,8 +447,8 @@ class TestBibleIndexComprehensiveCoverage:
             error=None,
         )
 
-        # Test the object properties are accessible
-        assert str(result.path) == "/test/bible.md"
+        # Test object properties (normalize path separators for cross-platform)
+        assert str(result.path).replace("\\", "/") == "/test/bible.md"
         assert result.bible_id == 42
         assert result.indexed is True
         assert result.updated is False  # Default value

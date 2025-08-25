@@ -616,15 +616,21 @@ class TestEmbeddingCache:
 
     def test_eviction_lru(self, embedding_cache):
         """When the memory palace becomes full - LRU eviction."""
+        import time
+
         embedding = [0.1, 0.2, 0.3]
 
         # Fill cache to capacity (max_size=3)
         embedding_cache.put("text1", "model", embedding)
+        time.sleep(0.001)  # Ensure distinct timestamps
         embedding_cache.put("text2", "model", embedding)
+        time.sleep(0.001)
         embedding_cache.put("text3", "model", embedding)
+        time.sleep(0.001)
 
         # Access text1 to make it recently used
         embedding_cache.get("text1", "model")
+        time.sleep(0.001)
 
         # Add one more - should evict text2 (least recently used)
         embedding_cache.put("text4", "model", embedding)

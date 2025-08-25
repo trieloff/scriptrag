@@ -2,16 +2,15 @@
 
 import json
 import os
-import re
-import time
-from typing import Any, ClassVar, Literal, TypedDict
+from typing import Any
 
 import httpx
 
 from scriptrag.config import get_logger
 from scriptrag.exceptions import LLMProviderError
-from scriptrag.llm.base import BaseLLMProvider
+from scriptrag.llm.base_provider import EnhancedBaseLLMProvider
 from scriptrag.llm.model_discovery import GitHubModelsDiscovery
+from scriptrag.llm.model_registry import ModelRegistry
 from scriptrag.llm.models import (
     CompletionChoice,
     CompletionMessage,
@@ -23,101 +22,15 @@ from scriptrag.llm.models import (
     Model,
     UsageInfo,
 )
+from scriptrag.llm.rate_limiter import GitHubRateLimitParser
 
 logger = get_logger(__name__)
 
 
-# Type definitions for structured data
-class GitHubErrorInfo(TypedDict, total=False):
-    """Type for GitHub API error information."""
-
-    code: str
-    message: str
-    type: str
-
-
-class GitHubErrorResponse(TypedDict, total=False):
-    """Type for GitHub API error response."""
-
-    error: GitHubErrorInfo
-
-
-class CompletionUsage(TypedDict):
-    """Type for completion usage stats."""
-
-    prompt_tokens: int
-    completion_tokens: int
-    total_tokens: int
-
-
-class EmbeddingData(TypedDict):
-    """Type for embedding data."""
-
-    index: int
-    embedding: list[float]
-    object: Literal["embedding"]
-
-
-class EmbeddingUsage(TypedDict):
-    """Type for embedding usage stats."""
-
-    prompt_tokens: int
-    total_tokens: int
-
-
-class GitHubModelsProvider(BaseLLMProvider):
+class GitHubModelsProvider(EnhancedBaseLLMProvider):
     """GitHub Models provider using OpenAI-compatible API."""
 
     provider_type = LLMProvider.GITHUB_MODELS
-    base_url = "https://models.inference.ai.azure.com"
-
-    # Map Azure registry paths to simple model IDs
-    MODEL_ID_MAP: ClassVar[dict[str, str]] = {
-        (
-            "azureml://registries/azureml-meta/models/Meta-Llama-3-70B-Instruct/"
-            "versions/6"
-        ): "Meta-Llama-3-70B-Instruct",
-        (
-            "azureml://registries/azureml-meta/models/Meta-Llama-3-8B-Instruct/"
-            "versions/6"
-        ): "Meta-Llama-3-8B-Instruct",
-        (
-            "azureml://registries/azureml-meta/models/Meta-Llama-3.1-405B-Instruct/"
-            "versions/1"
-        ): "Meta-Llama-3.1-405B-Instruct",
-        (
-            "azureml://registries/azureml-meta/models/Meta-Llama-3.1-70B-Instruct/"
-            "versions/1"
-        ): "Meta-Llama-3.1-70B-Instruct",
-        (
-            "azureml://registries/azureml-meta/models/Meta-Llama-3.1-8B-Instruct/"
-            "versions/1"
-        ): "Meta-Llama-3.1-8B-Instruct",
-        "azureml://registries/azure-openai/models/gpt-4o-mini/versions/1": (
-            "gpt-4o-mini"
-        ),
-        "azureml://registries/azure-openai/models/gpt-4o/versions/2": "gpt-4o",
-    }
-
-    # Static model list as fallback
-    STATIC_MODELS: ClassVar[list[Model]] = [
-        Model(
-            id="gpt-4o",
-            name="GPT-4o",
-            provider=LLMProvider.GITHUB_MODELS,
-            capabilities=["completion", "chat"],
-            context_window=128000,
-            max_output_tokens=16384,
-        ),
-        Model(
-            id="gpt-4o-mini",
-            name="GPT-4o Mini",
-            provider=LLMProvider.GITHUB_MODELS,
-            capabilities=["completion", "chat"],
-            context_window=128000,
-            max_output_tokens=16384,
-        ),
-    ]
 
     def __init__(self, token: str | None = None, timeout: float = 30.0) -> None:
         """Initialize GitHub Models provider.
@@ -126,32 +39,21 @@ class GitHubModelsProvider(BaseLLMProvider):
             token: GitHub token. If not provided, checks GITHUB_TOKEN env var.
             timeout: HTTP request timeout in seconds.
         """
-        self.token: str | None = token or os.getenv("GITHUB_TOKEN")
-        self.timeout: float = timeout
-        self.client: httpx.AsyncClient = httpx.AsyncClient(timeout=timeout)
-        self._availability_cache: bool | None = None
-        self._cache_timestamp: float = 0
-        self._rate_limit_reset_time: float = 0  # Track when rate limit resets
+        token = token or os.getenv("GITHUB_TOKEN")
+        super().__init__(
+            token=token,
+            timeout=timeout,
+            base_url="https://models.inference.ai.azure.com",
+        )
 
         # Initialize model discovery
-        from scriptrag.config import get_settings
-
-        settings = get_settings()
-
-        self.model_discovery: GitHubModelsDiscovery = GitHubModelsDiscovery(
-            provider_name="github_models",
-            static_models=self.STATIC_MODELS,
+        self.model_discovery: GitHubModelsDiscovery = self._init_model_discovery(
+            GitHubModelsDiscovery,
+            ModelRegistry.GITHUB_MODELS,
             client=self.client,
             token=self.token,
             base_url=self.base_url,
-            model_id_map=self.MODEL_ID_MAP,
-            cache_ttl=(
-                settings.llm_model_cache_ttl
-                if settings.llm_model_cache_ttl > 0
-                else None
-            ),
-            use_cache=settings.llm_model_cache_ttl > 0,
-            force_static=settings.llm_force_static_models,
+            model_id_map=ModelRegistry.GITHUB_MODEL_ID_MAP,
         )
 
         logger.info(
@@ -159,117 +61,67 @@ class GitHubModelsProvider(BaseLLMProvider):
             endpoint=self.base_url,
             has_token=bool(self.token),
             timeout=timeout,
-            force_static=settings.llm_force_static_models,
         )
 
-    async def is_available(self) -> bool:
-        """Check if GitHub token is available and valid."""
-        if not self.token:
-            logger.debug(
-                "GitHub Models not available",
-                reason="no token configured",
-            )
-            return False
-
-        # Check if we're rate limited
-        if (
-            self._rate_limit_reset_time > 0
-            and time.time() < self._rate_limit_reset_time
-        ):
-            logger.debug(
-                "GitHub Models not available due to rate limit",
-                reset_time=self._rate_limit_reset_time,
-                seconds_until_reset=self._rate_limit_reset_time - time.time(),
-            )
-            return False
-
-        # Check cache (valid for 5 minutes)
-        if (
-            self._availability_cache is not None
-            and (time.time() - self._cache_timestamp) < 300
-        ):
-            logger.debug(
-                "Using cached GitHub Models availability",
-                is_available=self._availability_cache,
-                cache_age=time.time() - self._cache_timestamp,
-            )
-            return self._availability_cache
-
+    async def _validate_availability(self) -> bool:
+        """Validate GitHub Models availability with API call."""
         try:
-            headers = {
-                "Authorization": f"Bearer {self.token}",
-                "Accept": "application/json",
-            }
-            models_url = f"{self.base_url}/models"
-            logger.debug(f"Checking GitHub Models availability at {models_url}")
-            response = await self.client.get(models_url, headers=headers)
+            if not self.client:
+                self._init_http_client()
+
+            if not self.client:
+                return False
+
+            headers = self._get_auth_headers()
+            headers["Accept"] = "application/json"
+
+            response = await self.client.get(
+                f"{self.base_url}/models",
+                headers=headers,
+            )
             result = bool(response.status_code == 200)
-            self._availability_cache = result
-            self._cache_timestamp = time.time()
+
+            self.rate_limiter.update_availability_cache(result)
             logger.info(
                 "GitHub Models availability check",
                 is_available=result,
                 status_code=response.status_code,
-                endpoint=self.base_url,
             )
             return result
+
         except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as e:
-            # httpx.ConnectError: Connection refused or network issues
-            # httpx.TimeoutException: Request timeout
-            # httpx.HTTPStatusError: Non-2xx status codes
             logger.warning(
                 "GitHub Models not available",
                 error=str(e),
                 error_type=type(e).__name__,
-                endpoint=self.base_url,
             )
-            self._availability_cache = False
-            self._cache_timestamp = time.time()
+            self.rate_limiter.update_availability_cache(False)
             return False
-        except Exception as e:
-            # Any other unexpected error during availability check
+        except (httpx.RequestError, ValueError, TypeError, OSError) as e:
+            # RequestError: General httpx request errors
+            # ValueError/TypeError: JSON parsing or data validation issues
+            # OSError: Network/system level errors
             logger.warning(
-                "GitHub Models not available due to unexpected error",
+                "GitHub Models availability check failed",
                 error=str(e),
                 error_type=type(e).__name__,
-                endpoint=self.base_url,
             )
-            self._availability_cache = False
-            self._cache_timestamp = time.time()
+            self.rate_limiter.update_availability_cache(False)
             return False
 
-    def _parse_rate_limit_error(self, error_text: str) -> int | None:
-        """Parse rate limit error and return seconds to wait.
+    async def is_available(self) -> bool:
+        """Check if GitHub Models is available."""
+        # Use base class implementation for common checks
+        if not await super().is_available():
+            return False
 
-        Args:
-            error_text: Error response text from API
+        # Check if we have a cached result that's still valid
+        cached_result = self.rate_limiter.check_availability_cache()
+        if cached_result is not None:
+            return cached_result
 
-        Returns:
-            Number of seconds to wait, or None if not a rate limit error
-        """
-        try:
-            # Parse JSON error response
-            error_data: GitHubErrorResponse = json.loads(error_text)
-            if "error" in error_data:
-                error_info: GitHubErrorInfo = error_data["error"]
-                if error_info.get("code") == "RateLimitReached":
-                    # Extract wait time from message
-                    # "Please wait 42911 seconds before retrying."
-                    message: str = error_info.get("message", "")
-                    match = re.search(r"wait (\d+) seconds", message)
-                    if match:
-                        return int(match.group(1))
-        except (json.JSONDecodeError, KeyError, ValueError):
-            pass
-        return None
-
-    async def __aenter__(self) -> "GitHubModelsProvider":
-        """Enter async context manager."""
-        return self
-
-    async def __aexit__(self, *_: Any) -> None:
-        """Exit async context manager and cleanup."""
-        await self.client.aclose()
+        # Perform actual availability validation only if no valid cache
+        return await self._validate_availability()
 
     async def list_models(self) -> list[Model]:
         """List available models using dynamic discovery with fallback."""
@@ -280,13 +132,12 @@ class GitHubModelsProvider(BaseLLMProvider):
         if not self.token:
             raise ValueError("GitHub token not configured")
 
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json",
-        }
+        if not self.client:
+            self._init_http_client()
+
+        headers = self._get_auth_headers()
 
         # Prepare OpenAI-compatible request
-        # GitHub Models API expects specific model IDs
         payload: dict[str, Any] = {
             "model": request.model,
             "messages": request.messages,
@@ -304,7 +155,7 @@ class GitHubModelsProvider(BaseLLMProvider):
             ]
             payload["messages"] = system_msg + request.messages
 
-        # Add response_format if specified (GitHub Models uses OpenAI-compatible API)
+        # Add response_format if specified
         if hasattr(request, "response_format") and request.response_format:
             payload["response_format"] = request.response_format
             logger.debug(
@@ -317,13 +168,14 @@ class GitHubModelsProvider(BaseLLMProvider):
         try:
             logger.info(
                 "Sending GitHub Models completion request",
-                endpoint=f"{self.base_url}/chat/completions",
                 model=request.model,
                 message_count=len(request.messages),
                 temperature=request.temperature,
                 max_tokens=request.max_tokens,
-                has_response_format=bool(payload.get("response_format")),
             )
+
+            if not self.client:
+                raise RuntimeError("HTTP client not initialized")
 
             response = await self.client.post(
                 f"{self.base_url}/chat/completions",
@@ -336,18 +188,11 @@ class GitHubModelsProvider(BaseLLMProvider):
 
                 # Check for rate limit error
                 if response.status_code == 429:
-                    wait_seconds = self._parse_rate_limit_error(error_text)
+                    wait_seconds = GitHubRateLimitParser.parse_rate_limit_error(
+                        error_text
+                    )
                     if wait_seconds:
-                        # Set rate limit reset time
-                        self._rate_limit_reset_time = time.time() + wait_seconds
-                        self._availability_cache = False
-                        self._cache_timestamp = time.time()
-                        logger.warning(
-                            "GitHub Models rate limited",
-                            wait_seconds=wait_seconds,
-                            reset_time=self._rate_limit_reset_time,
-                            model=request.model,
-                        )
+                        self.rate_limiter.set_rate_limit(wait_seconds, "GitHub Models")
 
                 logger.error(
                     "GitHub Models API error",
@@ -355,120 +200,45 @@ class GitHubModelsProvider(BaseLLMProvider):
                     error_text=error_text[:500]
                     if len(error_text) > 500
                     else error_text,
-                    endpoint=f"{self.base_url}/chat/completions",
                     model=request.model,
                 )
                 raise ValueError(f"GitHub Models API error: {response.text}")
 
             data: dict[str, Any] = response.json()
 
-            # Log successful response
-            choices: list[dict[str, Any]] = data.get("choices", [])
+            # Extract response content for logging (safely handle malformed data)
+            choices_raw = data.get("choices", [])
             response_content: str = ""
-            try:
-                if choices and len(choices) > 0:
-                    response_content = (
-                        choices[0].get("message", {}).get("content", "") or ""
-                    )
-            except (AttributeError, TypeError):
-                # Handle case where choices is not a list or has unexpected structure
-                response_content = ""
+            if isinstance(choices_raw, list) and len(choices_raw) > 0:
+                first_choice = choices_raw[0]
+                if isinstance(first_choice, dict):
+                    message = first_choice.get("message", {})
+                    if isinstance(message, dict):
+                        response_content = message.get("content", "") or ""
 
             logger.info(
                 "GitHub Models completion successful",
                 model=data.get("model", request.model),
                 response_length=len(response_content),
                 usage=data.get("usage", {}),
-                response_preview=response_content[:200]
-                if len(response_content) > 200
-                else response_content,
             )
 
-            # Extract usage data, handling GitHub Models' nested structure
-            usage_data: dict[str, Any] = data.get("usage", {})
-            usage: UsageInfo = {
-                "prompt_tokens": usage_data.get("prompt_tokens", 0),
-                "completion_tokens": usage_data.get("completion_tokens", 0),
-                "total_tokens": usage_data.get("total_tokens", 0),
-            }
-
-            try:
-                return CompletionResponse(
-                    id=data.get("id", ""),
-                    model=data.get("model", request.model),
-                    choices=data.get("choices", []),
-                    usage=usage,
-                    provider=self.provider_type,
-                )
-            except Exception as e:
-                # Handle cases where response data doesn't match expected structure
-                # Fall back to creating a proper CompletionResponse with sanitized data
-                logger.warning(
-                    "GitHub Models response validation failed, creating safe response",
-                    error=str(e),
-                    error_type=type(e).__name__,
-                    choices_type=type(data.get("choices", [])).__name__,
-                )
-
-                # Sanitize choices data to ensure proper structure
-                raw_choices = data.get("choices", [])
-                sanitized_choices: list[CompletionChoice] = []
-
-                for choice in raw_choices:
-                    if isinstance(choice, dict):
-                        # Ensure each choice has required fields
-                        message: CompletionMessage = {
-                            "role": choice.get("message", {}).get("role", "assistant"),
-                            "content": choice.get("message", {}).get("content") or "",
-                        }
-                        sanitized_choice: CompletionChoice = {
-                            "index": choice.get("index", 0),
-                            "message": message,
-                            "finish_reason": choice.get("finish_reason", "stop"),
-                        }
-                        sanitized_choices.append(sanitized_choice)
-
-                # If no valid choices, create a default empty response
-                if not sanitized_choices:
-                    default_message: CompletionMessage = {
-                        "role": "assistant",
-                        "content": "",
-                    }
-                    default_choice: CompletionChoice = {
-                        "index": 0,
-                        "message": default_message,
-                        "finish_reason": "stop",
-                    }
-                    sanitized_choices = [default_choice]
-
-                # Create proper CompletionResponse with sanitized data
-                return CompletionResponse(
-                    id=data.get("id", ""),
-                    model=data.get("model", request.model),
-                    choices=sanitized_choices,
-                    usage=usage,
-                    provider=self.provider_type,
-                )
+            # Parse and validate response
+            return self._parse_completion_response(data, request.model)
 
         except httpx.HTTPError as e:
-            # httpx.HTTPError: Base class for all httpx errors (network, timeout, etc.)
             logger.error(
                 "GitHub Models completion failed",
                 error=str(e),
                 error_type=type(e).__name__,
-                endpoint=f"{self.base_url}/chat/completions",
                 model=request.model,
             )
             raise
         except (json.JSONDecodeError, KeyError, TypeError) as e:
-            # json.JSONDecodeError: Invalid JSON in response
-            # KeyError: Missing required fields in response
-            # TypeError: Unexpected response structure
             logger.error(
                 "GitHub Models response parsing failed",
                 error=str(e),
                 error_type=type(e).__name__,
-                endpoint=f"{self.base_url}/chat/completions",
                 model=request.model,
             )
             raise ValueError(f"Invalid API response: {e}") from e
@@ -483,15 +253,88 @@ class GitHubModelsProvider(BaseLLMProvider):
             )
             raise LLMProviderError(f"GitHub Models API error: {e}") from e
 
+    def _parse_completion_response(
+        self, data: dict[str, Any], model: str
+    ) -> CompletionResponse:
+        """Parse completion response data.
+
+        Args:
+            data: Response data from API
+            model: Model name used
+
+        Returns:
+            Parsed completion response
+        """
+        # Extract usage data
+        usage_data: dict[str, Any] = data.get("usage", {})
+        usage: UsageInfo = {
+            "prompt_tokens": usage_data.get("prompt_tokens", 0),
+            "completion_tokens": usage_data.get("completion_tokens", 0),
+            "total_tokens": usage_data.get("total_tokens", 0),
+        }
+
+        try:
+            return CompletionResponse(
+                id=data.get("id", ""),
+                model=data.get("model", model),
+                choices=data.get("choices", []),
+                usage=usage,
+                provider=self.provider_type,
+            )
+        except Exception as e:
+            # Handle response validation errors
+            logger.warning(
+                "GitHub Models response validation failed, creating safe response",
+                error=str(e),
+            )
+
+            # Sanitize choices data
+            raw_choices = data.get("choices", [])
+            sanitized_choices: list[CompletionChoice] = []
+
+            for choice in raw_choices:
+                if isinstance(choice, dict):
+                    message: CompletionMessage = {
+                        "role": choice.get("message", {}).get("role", "assistant"),
+                        "content": choice.get("message", {}).get("content") or "",
+                    }
+                    sanitized_choice: CompletionChoice = {
+                        "index": choice.get("index", 0),
+                        "message": message,
+                        "finish_reason": choice.get("finish_reason", "stop"),
+                    }
+                    sanitized_choices.append(sanitized_choice)
+
+            # Create default if no valid choices
+            if not sanitized_choices:
+                default_message: CompletionMessage = {
+                    "role": "assistant",
+                    "content": "",
+                }
+                default_choice: CompletionChoice = {
+                    "index": 0,
+                    "message": default_message,
+                    "finish_reason": "stop",
+                }
+                sanitized_choices = [default_choice]
+
+            return CompletionResponse(
+                id=data.get("id", ""),
+                model=data.get("model", model),
+                choices=sanitized_choices,
+                usage=usage,
+                provider=self.provider_type,
+            )
+
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Generate embeddings using GitHub Models."""
         if not self.token:
             raise ValueError("GitHub token not configured")
 
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json",
-        }
+        if not self.client:
+            self._init_http_client()
+
+        headers = self._get_auth_headers()
 
         payload: dict[str, str | list[str] | int] = {
             "model": request.model,
@@ -502,6 +345,9 @@ class GitHubModelsProvider(BaseLLMProvider):
             payload["dimensions"] = request.dimensions
 
         try:
+            if not self.client:
+                raise RuntimeError("HTTP client not initialized")
+
             response = await self.client.post(
                 f"{self.base_url}/embeddings",
                 headers=headers,
@@ -513,18 +359,11 @@ class GitHubModelsProvider(BaseLLMProvider):
 
                 # Check for rate limit error
                 if response.status_code == 429:
-                    wait_seconds = self._parse_rate_limit_error(error_text)
+                    wait_seconds = GitHubRateLimitParser.parse_rate_limit_error(
+                        error_text
+                    )
                     if wait_seconds:
-                        # Set rate limit reset time
-                        self._rate_limit_reset_time = time.time() + wait_seconds
-                        self._availability_cache = False
-                        self._cache_timestamp = time.time()
-                        logger.warning(
-                            "GitHub Models rate limited on embeddings",
-                            wait_seconds=wait_seconds,
-                            reset_time=self._rate_limit_reset_time,
-                            model=request.model,
-                        )
+                        self.rate_limiter.set_rate_limit(wait_seconds, "GitHub Models")
 
                 raise ValueError(f"GitHub Models API error: {response.text}")
 
@@ -537,12 +376,8 @@ class GitHubModelsProvider(BaseLLMProvider):
             )
 
         except httpx.HTTPError as e:
-            # httpx.HTTPError: Base class for all httpx errors
             logger.error(f"GitHub Models embedding request failed: {e}")
             raise
         except (json.JSONDecodeError, KeyError, TypeError) as e:
-            # json.JSONDecodeError: Invalid JSON in response
-            # KeyError: Missing required fields in response
-            # TypeError: Unexpected response structure
             logger.error(f"GitHub Models embedding response parsing failed: {e}")
             raise ValueError(f"Invalid embedding response: {e}") from e

@@ -386,6 +386,8 @@ class TestEdgeCases:
     async def test_malformed_json_response(self):
         """Test handling of malformed JSON responses."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Initialize client to avoid None error
+        provider._init_http_client()
 
         mock_response = Mock()
         mock_response.status_code = 200
@@ -498,6 +500,7 @@ class TestEdgeCases:
             endpoint="https://test.com",
             api_key="test-key",  # pragma: allowlist secret
         )
+        # OpenAICompatibleProvider initializes client directly, no need to init
 
         # Test empty completion response
         mock_response = Mock()
@@ -520,6 +523,8 @@ class TestEdgeCases:
     async def test_partial_response_handling(self):
         """Test handling of partial/incomplete responses."""
         provider = GitHubModelsProvider(token="test-token")  # noqa: S106
+        # Initialize client to avoid None error
+        provider._init_http_client()
 
         incomplete_responses = [
             {"id": "test"},  # Missing choices
@@ -550,6 +555,8 @@ class TestEdgeCases:
             token="test-token",  # noqa: S106
             timeout=0.001,
         )  # Very short timeout
+        # Initialize client to avoid None error
+        provider._init_http_client()
 
         with patch.object(
             provider.client,

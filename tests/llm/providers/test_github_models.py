@@ -31,8 +31,8 @@ class TestGitHubModelsProvider:
         provider = GitHubModelsProvider(token="my-token", timeout=60.0)  # noqa: S106
         assert provider.token == "my-token"  # noqa: S105
         assert provider.timeout == 60.0
-        assert provider.client is not None
-        assert provider._availability_cache is None
+        assert provider.client is None  # Lazy initialization
+        assert provider.rate_limiter._availability_cache is None
 
     def test_init_with_env_token(self) -> None:
         """Test initialization with environment token."""
@@ -62,8 +62,8 @@ class TestGitHubModelsProvider:
         self, provider: GitHubModelsProvider
     ) -> None:
         """Test availability with cached positive result."""
-        provider._availability_cache = True
-        provider._cache_timestamp = time.time()
+        provider.rate_limiter._availability_cache = True
+        provider.rate_limiter._cache_timestamp = time.time()
 
         assert await provider.is_available() is True
 
@@ -72,8 +72,8 @@ class TestGitHubModelsProvider:
         self, provider: GitHubModelsProvider
     ) -> None:
         """Test availability with cached negative result."""
-        provider._availability_cache = False
-        provider._cache_timestamp = time.time()
+        provider.rate_limiter._availability_cache = False
+        provider.rate_limiter._cache_timestamp = time.time()
 
         assert await provider.is_available() is False
 
@@ -82,19 +82,21 @@ class TestGitHubModelsProvider:
         self, provider: GitHubModelsProvider
     ) -> None:
         """Test availability with expired cache."""
-        provider._availability_cache = True
-        provider._cache_timestamp = time.time() - 301  # Over 5 minutes old
+        provider.rate_limiter._availability_cache = True
+        provider.rate_limiter._cache_timestamp = time.time() - 301  # Over 5 minutes old
 
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = [{"id": "model1"}]
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             result = await provider.is_available()
             assert result is True
             # Cache should be updated
-            assert provider._availability_cache is True
-            assert time.time() - provider._cache_timestamp < 1
+            assert provider.rate_limiter._availability_cache is True
+            assert time.time() - provider.rate_limiter._cache_timestamp < 1
 
     @pytest.mark.asyncio
     async def test_is_available_api_success(
@@ -105,20 +107,24 @@ class TestGitHubModelsProvider:
         mock_response.status_code = 200
         mock_response.json.return_value = [{"id": "gpt-4o"}]
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             result = await provider.is_available()
             assert result is True
-            assert provider._availability_cache is True
+            assert provider.rate_limiter._availability_cache is True
 
     @pytest.mark.asyncio
     async def test_is_available_api_error(self, provider: GitHubModelsProvider) -> None:
         """Test API error during availability check."""
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(
-            provider.client, "get", side_effect=RuntimeError("Network error")
+            provider.client, "get", side_effect=httpx.RequestError("Network error")
         ):
             result = await provider.is_available()
             assert result is False
-            assert provider._availability_cache is False
+            assert provider.rate_limiter._availability_cache is False
 
     @pytest.mark.asyncio
     async def test_is_available_401_error(self, provider: GitHubModelsProvider) -> None:
@@ -129,6 +135,8 @@ class TestGitHubModelsProvider:
             "Unauthorized", request=MagicMock(), response=mock_response
         )
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             result = await provider.is_available()
             assert result is False
@@ -163,6 +171,8 @@ class TestGitHubModelsProvider:
         if provider.model_discovery.cache:
             provider.model_discovery.cache.clear()
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             models = await provider.list_models()
 
@@ -191,9 +201,9 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_list_models_api_error(self, provider: GitHubModelsProvider) -> None:
         """Test model listing with API error falls back to static models."""
-        with patch.object(
-            provider.client, "get", side_effect=RuntimeError("API Error")
-        ):
+        # Initialize client before mocking
+        provider._init_http_client()
+        with patch.object(provider.client, "get", side_effect=Exception("API Error")):
             models = await provider.list_models()
             # Should fall back to static models or use cached models
             assert len(models) >= 2  # At least static models
@@ -213,6 +223,8 @@ class TestGitHubModelsProvider:
             {"id": "Mistral-large", "object": "model"},
         ]
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             models = await provider.list_models()
 
@@ -243,6 +255,8 @@ class TestGitHubModelsProvider:
             "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
         }
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "post", return_value=mock_response):
             request = CompletionRequest(
                 model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
@@ -280,6 +294,8 @@ class TestGitHubModelsProvider:
             }
             return mock_response
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "post", side_effect=capture_post):
             request = CompletionRequest(
                 model="gpt-4o",
@@ -321,6 +337,8 @@ class TestGitHubModelsProvider:
             }
             return mock_response
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "post", side_effect=capture_post):
             request = CompletionRequest(
                 model="gpt-4o",
@@ -335,9 +353,9 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_complete_api_error(self, provider: GitHubModelsProvider) -> None:
         """Test completion with API error."""
-        with patch.object(
-            provider.client, "post", side_effect=RuntimeError("API Error")
-        ):
+        # Initialize client before mocking
+        provider._init_http_client()
+        with patch.object(provider.client, "post", side_effect=Exception("API Error")):
             request = CompletionRequest(
                 model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
             )
@@ -353,6 +371,8 @@ class TestGitHubModelsProvider:
         mock_response.status_code = 429
         mock_response.text = "Rate limit exceeded"
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "post", return_value=mock_response):
             request = CompletionRequest(
                 model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
@@ -373,6 +393,8 @@ class TestGitHubModelsProvider:
             "usage": {"total_tokens": 5},
         }
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "post", return_value=mock_response):
             request = EmbeddingRequest(
                 model="text-embedding-ada-002", input="Test text"
@@ -385,12 +407,14 @@ class TestGitHubModelsProvider:
             assert response.usage["total_tokens"] == 5
 
     def test_model_id_map(self) -> None:
-        """Test MODEL_ID_MAP contains expected mappings."""
+        """Test model ID mappings from registry."""
+        from scriptrag.llm.model_registry import ModelRegistry
+
         # Check that some key models are mapped
-        assert "gpt-4o-mini" in GitHubModelsProvider.MODEL_ID_MAP.values()
-        assert "gpt-4o" in GitHubModelsProvider.MODEL_ID_MAP.values()
+        assert "gpt-4o-mini" in ModelRegistry.GITHUB_MODEL_ID_MAP.values()
+        assert "gpt-4o" in ModelRegistry.GITHUB_MODEL_ID_MAP.values()
         assert (
-            "Meta-Llama-3.1-70B-Instruct" in GitHubModelsProvider.MODEL_ID_MAP.values()
+            "Meta-Llama-3.1-70B-Instruct" in ModelRegistry.GITHUB_MODEL_ID_MAP.values()
         )
 
     @pytest.mark.asyncio
@@ -418,6 +442,8 @@ class TestGitHubModelsProvider:
             }
             return mock_response
 
+        # Initialize client before mocking
+        provider._init_http_client()
         with patch.object(provider.client, "post", side_effect=capture_post):
             request = CompletionRequest(
                 model="gpt-4o",

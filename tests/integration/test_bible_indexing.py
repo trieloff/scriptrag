@@ -232,6 +232,7 @@ class TestBibleIndexing:
     """Test bible indexing functionality."""
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_index_single_bible(
         self,
         initialized_db: Path,
@@ -262,6 +263,7 @@ class TestBibleIndexing:
         assert result.error is None
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_reindex_unchanged_bible(
         self,
         initialized_db: Path,
@@ -292,6 +294,7 @@ class TestBibleIndexing:
         assert result2.updated is False
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_force_reindex(
         self,
         initialized_db: Path,
@@ -328,6 +331,7 @@ class TestBibleSearch:
     """Test searching bible content."""
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_search_bible_content(
         self,
         initialized_db: Path,
@@ -363,6 +367,7 @@ class TestBibleSearch:
         assert any("Project Genesis" in r.chunk_content for r in response.bible_results)
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_search_only_bible(
         self,
         initialized_db: Path,
@@ -397,6 +402,7 @@ class TestBibleSearch:
         assert len(response.bible_results) > 0  # Only bible results
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_exclude_bible_from_search(
         self,
         initialized_db: Path,
@@ -431,6 +437,7 @@ class TestBibleSearch:
         # Script results may or may not exist depending on content
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_bible_chunk_hierarchy(
         self,
         initialized_db: Path,

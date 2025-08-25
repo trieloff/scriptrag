@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm.models import CompletionRequest, EmbeddingRequest, LLMProvider
 from scriptrag.llm.providers.github_models import GitHubModelsProvider
 
@@ -354,12 +355,15 @@ class TestGitHubModelsProvider:
         """Test completion with API error."""
         # Initialize client before mocking
         provider._init_http_client()
-        with patch.object(provider.client, "post", side_effect=Exception("API Error")):
+        # Use RuntimeError which is caught and wrapped in LLMProviderError
+        with patch.object(
+            provider.client, "post", side_effect=RuntimeError("API Error")
+        ):
             request = CompletionRequest(
                 model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
             )
 
-            with pytest.raises(Exception) as exc_info:
+            with pytest.raises(LLMProviderError) as exc_info:
                 await provider.complete(request)
             assert "API Error" in str(exc_info.value)
 

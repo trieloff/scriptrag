@@ -66,6 +66,7 @@ The adventure begins here!
 
 
 @pytest.mark.asyncio
+@pytest.mark.requires_llm
 async def test_mcp_server_search_integration(temp_db_settings, sample_fountain_script):
     """Test MCP server search functionality with real data."""
     from unittest.mock import patch
@@ -141,6 +142,7 @@ async def test_mcp_server_search_integration(temp_db_settings, sample_fountain_s
 
 
 @pytest.mark.asyncio
+@pytest.mark.requires_llm
 async def test_mcp_server_query_integration(temp_db_settings):
     """Test MCP server query functionality."""
     from unittest.mock import patch
@@ -191,6 +193,7 @@ async def test_mcp_server_query_integration(temp_db_settings):
 
 
 @pytest.mark.asyncio
+@pytest.mark.requires_llm
 async def test_mcp_server_full_workflow(temp_db_settings, sample_fountain_script):
     """Test complete MCP server workflow."""
     from unittest.mock import patch

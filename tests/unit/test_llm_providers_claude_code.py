@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm.models import (
     CompletionRequest,
     CompletionResponse,
@@ -362,7 +363,7 @@ class TestClaudeCodeProvider:
         mock_claude_sdk.Message = MagicMock()
 
         with patch.dict("sys.modules", {"claude_code_sdk": mock_claude_sdk}):
-            with pytest.raises(Exception, match="SDK error"):
+            with pytest.raises(LLMProviderError, match="SDK error"):
                 await provider.complete(completion_request)
 
     @pytest.mark.asyncio

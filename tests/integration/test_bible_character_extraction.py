@@ -73,6 +73,7 @@ class TestBibleCharacterExtraction:
     """Test Bible character extraction functionality."""
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_extract_characters_from_bible(
         self, temp_bible_file, mock_llm_response
     ):
@@ -105,6 +106,7 @@ class TestBibleCharacterExtraction:
         mock_llm.complete.assert_called_once()
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_normalization_and_deduplication(self, temp_bible_file):
         """Test that characters are normalized and deduplicated."""
         # Mock LLM with duplicate and mixed-case entries
@@ -146,6 +148,7 @@ class TestBibleCharacterExtraction:
         assert set(bob["aliases"]) == {"BOBBY"}  # All uppercase, first name excluded
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_empty_bible_file(self, tmp_path):
         """Test handling of Bible file with no character content."""
         # Create Bible without character sections
@@ -165,6 +168,7 @@ class TestBibleCharacterExtraction:
         mock_llm.complete.assert_not_called()
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_llm_extraction_failure(self, temp_bible_file):
         """Test handling of LLM extraction failures."""
         # Mock LLM that raises an error
@@ -179,6 +183,7 @@ class TestBibleCharacterExtraction:
         assert result["characters"] == []
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_invalid_json_response(self, temp_bible_file):
         """Test handling of invalid JSON from LLM."""
         # Mock LLM with invalid JSON
@@ -193,6 +198,7 @@ class TestBibleCharacterExtraction:
         assert result["characters"] == []
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_json_extraction_from_text(self, temp_bible_file):
         """Test extraction of JSON from LLM response with extra text."""
         # Mock LLM response with JSON embedded in text
@@ -218,6 +224,7 @@ These are the main characters from the Bible."""
         assert result["characters"][0]["canonical"] == "JANE SMITH"
 
     @pytest.mark.asyncio
+    @pytest.mark.requires_llm
     async def test_character_chunk_detection(self, tmp_path):
         """Test detection of character-related chunks."""
         # Create Bible with various sections

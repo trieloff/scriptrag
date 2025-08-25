@@ -78,8 +78,12 @@ class TestVSSSchemaInitialization:
         finally:
             conn.close()
 
-    def test_vss_schema_fails_without_scenes_table(self, tmp_path):
-        """Test that VSS schema fails gracefully when scenes table doesn't exist."""
+    def test_vss_schema_creates_without_parent_tables(self, tmp_path):
+        """Test VSS schema tables can be created without parent tables.
+
+        SQLite allows creating tables with FK constraints to non-existent tables.
+        The constraint is only enforced during data insertion, not table creation.
+        """
         settings = ScriptRAGSettings(
             _env_file=None,
             database_path=tmp_path / "test.db",
@@ -90,6 +94,9 @@ class TestVSSSchemaInitialization:
         initializer = DatabaseInitializer()
 
         # Mock to skip main schema but execute VSS schema
+        # First read the actual VSS schema content
+        actual_vss_schema = initializer._read_sql_file("vss_schema.sql")
+
         def mock_read_side_effect(filename):
             if filename == "init_database.sql":
                 # Return empty schema - no tables created
@@ -99,17 +106,42 @@ class TestVSSSchemaInitialization:
                 return "-- No bible schema"
             if filename == "vss_schema.sql":
                 # Return actual VSS schema that depends on scenes
-                return initializer._read_sql_file("vss_schema.sql")
+                return actual_vss_schema
             return ""
 
         with patch.object(initializer, "_read_sql_file") as mock_read:
             mock_read.side_effect = mock_read_side_effect
 
-            # This should fail because scenes table doesn't exist
-            with pytest.raises(RuntimeError) as exc_info:
-                initializer.initialize_database(settings=settings)
+            # VSS schema creation should succeed (SQLite allows FK to missing tables)
+            db_path = initializer.initialize_database(settings=settings)
 
-            assert "Failed to initialize database" in str(exc_info.value)
+            # Verify the VSS tables were created
+            conn = sqlite3.connect(str(db_path))
+            try:
+                cursor = conn.cursor()
+
+                # Check that scene_embeddings table exists
+                cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' "
+                    "AND name='scene_embeddings'"
+                )
+                assert cursor.fetchone() is not None, (
+                    "scene_embeddings table should exist"
+                )
+
+                # But inserting data should fail due to FK constraint
+                cursor.execute("PRAGMA foreign_keys = ON")
+                with pytest.raises(sqlite3.OperationalError) as exc_info:
+                    cursor.execute(
+                        "INSERT INTO scene_embeddings "
+                        "(scene_id, embedding_model, embedding) VALUES (?, ?, ?)",
+                        (1, "test-model", b"fake_data"),  # scene_id 1 doesn't exist
+                    )
+
+                assert "no such table" in str(exc_info.value)
+
+            finally:
+                conn.close()
 
     def test_cascade_deletion_from_scenes(self, tmp_path):
         """Test that CASCADE deletion works when scenes are deleted."""

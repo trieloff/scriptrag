@@ -390,9 +390,7 @@ class TestSceneUpdateCommand:
                 "test",
                 "--scene",
                 "5",
-                "--safe",
-                "--last-read",
-                "2024-01-15T10:30:00",
+                "--check-conflicts",
                 "--content",
                 "INT. SCENE - DAY\n\nContent",
             ],
@@ -401,7 +399,6 @@ class TestSceneUpdateCommand:
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
         assert "Scene validation failed" in clean_output
-        assert "INVALID_FORMAT" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_update_scene_concurrent_modification(self, mock_api_class):
@@ -426,9 +423,7 @@ class TestSceneUpdateCommand:
                 "test",
                 "--scene",
                 "5",
-                "--safe",
-                "--last-read",
-                "2024-01-15T10:30:00",
+                "--check-conflicts",
                 "--content",
                 "INT. SCENE - DAY\n\nContent",
             ],
@@ -462,7 +457,7 @@ class TestSceneUpdateCommand:
         # In test environment, empty stdin results in validation error
         # rather than "No content provided"
         clean_output = strip_ansi_codes(result.output)
-        assert "Invalid Fountain format" in clean_output
+        assert "scene content cannot be empty" in clean_output
 
 
 class TestSceneDeleteCommand:

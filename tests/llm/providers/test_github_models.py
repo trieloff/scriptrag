@@ -85,7 +85,7 @@ class TestGitHubModelsProvider:
         provider.rate_limiter._availability_cache = True
         provider.rate_limiter._cache_timestamp = time.time() - 301  # Over 5 minutes old
 
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = [{"id": "model1"}]
 
@@ -103,7 +103,7 @@ class TestGitHubModelsProvider:
         self, provider: GitHubModelsProvider
     ) -> None:
         """Test successful API availability check."""
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = [{"id": "gpt-4o"}]
 
@@ -129,11 +129,11 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_is_available_401_error(self, provider: GitHubModelsProvider) -> None:
         """Test 401 unauthorized error."""
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
         mock_response.status_code = 401
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "Unauthorized",
-            request=MagicMock(spec=["content", "model", "provider", "usage"]),
+            request=MagicMock(spec=["method", "url"]),
             response=mock_response,
         )
 
@@ -146,7 +146,7 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_list_models_success(self, provider: GitHubModelsProvider) -> None:
         """Test successful model listing."""
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = [
             {
@@ -216,7 +216,7 @@ class TestGitHubModelsProvider:
         self, provider: GitHubModelsProvider
     ) -> None:
         """Test that model listing filters out unwanted models."""
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = [
             {"id": "Cohere-embed-v3-english", "object": "model"},
@@ -240,7 +240,7 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_complete_success(self, provider: GitHubModelsProvider) -> None:
         """Test successful completion."""
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "chatcmpl-123",
@@ -282,7 +282,7 @@ class TestGitHubModelsProvider:
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
-            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "choices": [
@@ -322,7 +322,7 @@ class TestGitHubModelsProvider:
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
-            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "choices": [
@@ -372,7 +372,7 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_complete_http_error(self, provider: GitHubModelsProvider) -> None:
         """Test completion with HTTP error."""
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
         mock_response.status_code = 429
         mock_response.text = "Rate limit exceeded"
 
@@ -390,7 +390,7 @@ class TestGitHubModelsProvider:
     @pytest.mark.asyncio
     async def test_embed_success(self, provider: GitHubModelsProvider) -> None:
         """Test successful embedding."""
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [{"embedding": [0.1, 0.2, 0.3]}],
@@ -433,7 +433,7 @@ class TestGitHubModelsProvider:
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
-            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "choices": [

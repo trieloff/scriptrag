@@ -376,7 +376,7 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test-model"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {"total_tokens": 50}
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
         analyzer.llm_client = mock_client
 
         # Mock context query executor to avoid database dependency
@@ -434,7 +434,7 @@ class TestMarkdownAgentAnalyzer:
             mock_response.model = "test-model"
             mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
             mock_response.usage = {"total_tokens": 50}
-            mock_client.complete.return_value = mock_response
+            mock_client.complete = AsyncMock(return_value=mock_response)
             mock_get_client.return_value = mock_client
 
             # Mock context query executor to avoid database dependency
@@ -464,7 +464,7 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test-model"
         mock_response.provider = None
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
         analyzer.llm_client = mock_client
 
         # Mock context query executor to avoid database dependency
@@ -503,7 +503,7 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test-model"
         mock_response.provider = None
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
         analyzer.llm_client = mock_client
 
         # Mock context query executor to avoid database dependency
@@ -539,7 +539,7 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test-model"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {"total_tokens": 50}
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
         analyzer.llm_client = mock_client
 
         # Mock context query executor to avoid database dependency

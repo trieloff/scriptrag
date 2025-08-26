@@ -30,9 +30,11 @@ class TestProjectValidator:
         assert validator.validate("my_project") == "my_project"
         assert validator.validate("project-123") == "project-123"
         assert validator.validate("MyScreenplay") == "MyScreenplay"
+        # Spaces now allowed by default
+        assert validator.validate("My Great Project") == "My Great Project"
 
-    def test_valid_project_with_spaces(self):
-        """Test project names with spaces when allowed."""
+    def test_valid_project_with_spaces_explicit(self):
+        """Test project names with spaces when explicitly enabled."""
         validator = ProjectValidator(allow_spaces=True)
 
         assert validator.validate("My Great Project") == "My Great Project"
@@ -51,8 +53,12 @@ class TestProjectValidator:
         with pytest.raises(ValidationError, match="only contain"):
             validator.validate("project@123")
 
+    def test_invalid_project_name_no_spaces(self):
+        """Test spaces rejected when explicitly disabled."""
+        validator = ProjectValidator(allow_spaces=False)
+
         with pytest.raises(ValidationError, match="only contain"):
-            validator.validate("my project")  # Space not allowed by default
+            validator.validate("my project")  # Space not allowed when disabled
 
     def test_project_name_length(self):
         """Test project name length validation."""

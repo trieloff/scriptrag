@@ -8,11 +8,12 @@ from scriptrag.cli.validators.base import ValidationError, Validator
 class ProjectValidator(Validator[str]):
     """Validator for project names."""
 
-    def __init__(self, allow_spaces: bool = False) -> None:
+    def __init__(self, allow_spaces: bool = True) -> None:
         """Initialize project validator.
 
         Args:
-            allow_spaces: Whether to allow spaces in project names
+            allow_spaces: Whether to allow spaces in project names (defaults to True
+                        since most real project names contain spaces)
         """
         self.allow_spaces = allow_spaces
 

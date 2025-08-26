@@ -4,7 +4,7 @@ import sqlite3
 import time
 from typing import Any
 
-from scriptrag.config import ScriptRAGSettings, get_logger
+from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 from scriptrag.database.readonly import get_read_only_connection
 from scriptrag.query.spec import QuerySpec
 
@@ -18,15 +18,34 @@ class QueryEngine:
         """Initialize query engine.
 
         Args:
-            settings: Configuration settings
+            settings: Configuration settings (deprecated, use get_settings())
         """
-        if settings is None:
-            from scriptrag.config import get_settings
+        # Store settings but prefer get_settings() for runtime configuration
+        # This ensures tests with environment variable changes work correctly
+        self._initial_settings = settings
 
-            settings = get_settings()
+    @property
+    def settings(self) -> ScriptRAGSettings:
+        """Get current settings, always fresh from configuration system.
 
-        self.settings = settings
-        self.db_path = settings.database_path
+        This ensures tests that modify environment variables and call reset_settings()
+        will see the updated configuration.
+        """
+        if self._initial_settings is not None:
+            # Use initial settings if provided (for backward compatibility)
+            return self._initial_settings
+
+        # Use module-level import to avoid circular import issues
+        return get_settings()
+
+    @property
+    def db_path(self) -> Any:
+        """Get current database path from settings.
+
+        This ensures we always use the latest database path,
+        even if settings have been reset/reloaded.
+        """
+        return self.settings.database_path
 
     def execute(
         self,
@@ -106,7 +125,7 @@ class QueryEngine:
             else:
                 sql = f"SELECT * FROM ({sql}) OFFSET :offset"
 
-        # Execute query
+        # Execute query using the engine's settings
         with get_read_only_connection(self.settings) as conn:
             logger.debug(
                 f"Executing query '{spec.name}' with params: {validated_params}"

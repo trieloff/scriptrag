@@ -14,17 +14,18 @@ SELECT
     sc.heading scene_heading,
     sc.location scene_location,
     sc.time_of_day scene_time,
-    d.character,
-    d.dialogue,
-    d.parenthetical,
+    c.name "character",
+    d.dialogue_text dialogue,
+    '' parenthetical,
     CAST(JSON_EXTRACT(s.metadata, '$.season') AS INTEGER) season,
     CAST(JSON_EXTRACT(s.metadata, '$.episode') AS INTEGER) episode
 FROM
     dialogues d
 INNER JOIN scenes sc ON d.scene_id = sc.id
 INNER JOIN scripts s ON sc.script_id = s.id
+INNER JOIN characters c ON d.character_id = c.id
 WHERE
-    d.character LIKE :character || '%'
+    c.name LIKE :character || '%'
     AND (:project IS NULL OR s.title LIKE '%' || :project || '%')
 ORDER BY
     COALESCE(
@@ -36,5 +37,5 @@ ORDER BY
         9999
     ),
     sc.scene_number,
-    d.dialogue_order
+    d.order_in_scene
 LIMIT :limit OFFSET :offset

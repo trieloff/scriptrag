@@ -24,7 +24,7 @@ class TestQueryCLI:
         db_path = tmp_path / "test.db"
         conn = sqlite3.connect(db_path)
 
-        # Create schema similar to ScriptRAG
+        # Create schema matching real ScriptRAG schema
         conn.executescript("""
             CREATE TABLE scripts (
                 id INTEGER PRIMARY KEY,
@@ -49,14 +49,21 @@ class TestQueryCLI:
                 FOREIGN KEY (script_id) REFERENCES scripts(id)
             );
 
+            CREATE TABLE characters (
+                id INTEGER PRIMARY KEY,
+                script_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                FOREIGN KEY (script_id) REFERENCES scripts(id)
+            );
+
             CREATE TABLE dialogues (
                 id INTEGER PRIMARY KEY,
                 scene_id INTEGER NOT NULL,
-                character TEXT NOT NULL,
-                dialogue TEXT,
-                parenthetical TEXT,
-                dialogue_order INTEGER,
-                FOREIGN KEY (scene_id) REFERENCES scenes(id)
+                character_id INTEGER NOT NULL,
+                dialogue_text TEXT NOT NULL,
+                order_in_scene INTEGER NOT NULL,
+                FOREIGN KEY (scene_id) REFERENCES scenes(id),
+                FOREIGN KEY (character_id) REFERENCES characters(id)
             );
 
             -- Insert test data
@@ -83,12 +90,18 @@ class TestQueryCLI:
                 ),
                 (3, 2, 1, 'INT. HOME - MORNING', 'Home', 'Morning', 'Morning routine.');
 
+            -- Insert characters first
+            INSERT INTO characters (id, script_id, name) VALUES
+                (1, 1, 'ALICE'),
+                (2, 1, 'BOB');
+
+            -- Insert dialogues with character_id references
             INSERT INTO dialogues (
-                id, scene_id, character, dialogue, parenthetical, dialogue_order
+                id, scene_id, character_id, dialogue_text, order_in_scene
             ) VALUES
-                (1, 1, 'ALICE', 'Hello, Bob!', NULL, 1),
-                (2, 1, 'BOB', 'Hi, Alice!', 'smiling', 2),
-                (3, 2, 'ALICE', 'Where are we going?', NULL, 1);
+                (1, 1, 1, 'Hello, Bob!', 1),
+                (2, 1, 2, 'Hi, Alice!', 2),
+                (3, 2, 1, 'Where are we going?', 3);
         """)
         conn.commit()
         conn.close()
@@ -119,15 +132,17 @@ LIMIT :limit""")
 -- description: Get dialogue for a character
 -- param: character str required help="Character name"
 SELECT
-    d.character,
-    d.dialogue,
-    d.parenthetical
+    c.name AS "character",
+    d.dialogue_text AS dialogue,
+    '' AS parenthetical
 FROM dialogues d
-WHERE d.character = :character
+INNER JOIN characters c ON d.character_id = c.id
+WHERE c.name LIKE :character || '%'
 ORDER BY d.id""")
 
         return query_dir
 
+    @pytest.mark.integration
     def test_query_help(self, runner, temp_db, temp_query_dir, monkeypatch):
         """Test query command help."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
@@ -150,6 +165,7 @@ ORDER BY d.id""")
         # Check for commands section - may use Unicode box drawing
         assert "Commands" in output or "character_lines" in output
 
+    @pytest.mark.integration
     def test_query_list(self, runner, temp_db, temp_query_dir, monkeypatch):
         """Test listing available queries."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
@@ -159,7 +175,12 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "list"])
@@ -170,6 +191,7 @@ ORDER BY d.id""")
         assert "list_scenes" in output
         assert "character_lines" in output
 
+    @pytest.mark.integration
     def test_execute_query_no_params(
         self, runner, temp_db, temp_query_dir, monkeypatch
     ):
@@ -181,7 +203,12 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "list_scenes", "--limit", "2"])
@@ -191,6 +218,7 @@ ORDER BY d.id""")
         # Check for scene data in output
         assert "Test Script" in output or "Scene" in output
 
+    @pytest.mark.integration
     def test_execute_query_with_params(
         self, runner, temp_db, temp_query_dir, monkeypatch
     ):
@@ -202,7 +230,12 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(
@@ -213,6 +246,7 @@ ORDER BY d.id""")
         assert result.exit_code == 0
         assert "ALICE" in output or "Hello" in output or "dialogue" in output
 
+    @pytest.mark.integration
     def test_execute_query_json_output(
         self, runner, temp_db, temp_query_dir, monkeypatch
     ):
@@ -224,7 +258,12 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(
@@ -242,6 +281,7 @@ ORDER BY d.id""")
         assert len(data["results"]) == 1
         assert data["results"][0]["character"] == "BOB"
 
+    @pytest.mark.integration
     def test_query_missing_required_param(
         self, runner, temp_db, temp_query_dir, monkeypatch
     ):
@@ -253,7 +293,12 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "character_lines"])
@@ -261,6 +306,7 @@ ORDER BY d.id""")
         # Should fail because character is required
         assert result.exit_code != 0
 
+    @pytest.mark.integration
     def test_query_with_invalid_name(
         self, runner, temp_db, temp_query_dir, monkeypatch
     ):
@@ -272,7 +318,12 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "nonexistent"])
@@ -280,6 +331,7 @@ ORDER BY d.id""")
         # Should show error for unknown command
         assert result.exit_code != 0
 
+    @pytest.mark.integration
     def test_query_no_database(self, runner, temp_query_dir, tmp_path, monkeypatch):
         """Test query fails when database doesn't exist."""
         nonexistent_db = str(tmp_path / "nonexistent.db")
@@ -290,7 +342,12 @@ ORDER BY d.id""")
         import importlib
 
         import scriptrag.cli.commands.query
+        from scriptrag.config import reset_settings
 
+        # Reset caches before reload
+        reset_settings()
+        # CRITICAL: Reset query app manager cache for new environment variables
+        scriptrag.cli.commands.query._query_app_manager.reset()
         importlib.reload(scriptrag.cli.commands.query)
 
         result = runner.invoke(app, ["query", "list_scenes"])
@@ -299,6 +356,7 @@ ORDER BY d.id""")
         assert result.exit_code == 1
         assert "Database not found" in output or "Error" in output
 
+    @pytest.mark.integration
     def test_empty_query_directory(self, runner, temp_db, tmp_path, monkeypatch):
         """Test behavior when custom query directory is empty.
 

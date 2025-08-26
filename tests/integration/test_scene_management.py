@@ -104,6 +104,7 @@ This is my confession."""
 class TestSceneManagement:
     """Test scene management commands."""
 
+    @pytest.mark.integration
     def test_scene_management_commands(self, tmp_path, sample_screenplay, monkeypatch):
         """Test scene management read/add/update/delete commands."""
         db_path = tmp_path / "test.db"
@@ -270,7 +271,7 @@ JAMES walks in."""
                 "Integration Test Script",
                 "--scene",
                 "2",
-                "--confirm",
+                "--force",
                 "--config",
                 str(config_path),
             ],
@@ -297,6 +298,7 @@ JAMES walks in."""
         output = strip_ansi_codes(result.stdout)
         assert "CITY STREET" in output  # This was the original scene 2
 
+    @pytest.mark.integration
     def test_scene_management_tv_series(
         self, tmp_path, sample_tv_screenplay, monkeypatch
     ):
@@ -367,6 +369,7 @@ JAMES walks in."""
         output = strip_ansi_codes(result.stdout)
         assert "DESERT" in output or "RV" in output
 
+    @pytest.mark.integration
     def test_scene_management_error_cases(
         self, tmp_path, sample_screenplay, monkeypatch
     ):
@@ -454,9 +457,15 @@ JAMES walks in."""
                 str(config_path),
             ],
         )
-        # Command may return 0 with a warning message
+        # Command may return 0 with a warning message or show confirmation prompt
         output = strip_ansi_codes(result.stdout)
-        assert "confirm" in output.lower() or "warning" in output.lower()
+        assert (
+            "confirm" in output.lower()
+            or "warning" in output.lower()
+            or "delete scene" in output.lower()
+            or "[y/n]" in output.lower()
+            or "Deletion requires --force in non-interactive environment" in output
+        )
 
         # Test 4: Read from non-existent project
         result = runner.invoke(

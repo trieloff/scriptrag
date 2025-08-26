@@ -455,4 +455,5 @@ def reset_settings() -> None:
     Forces recreation of settings on next call to get_settings(),
     useful for tests that modify environment variables.
     """
-    clear_settings_cache()  # Alias to clear_settings_cache
+    # Alias to clear_settings_cache for backwards compatibility
+    clear_settings_cache()

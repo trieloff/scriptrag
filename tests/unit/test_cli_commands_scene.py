@@ -232,6 +232,21 @@ class TestSceneCommandsConfigOption:
             error=None,
             validation_errors=[],
         )
+
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=3,
+                heading="INT. OFFICE - DAY",
+                content="Original content",
+                original_text="Original content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api_instance.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api_instance.update_scene = AsyncMock(return_value=mock_result)
 
         # Execute command with config file
@@ -915,6 +930,21 @@ class TestSceneCommandsComprehensiveCoverage:
             error="Scene validation failed",
             validation_errors=["Missing scene heading", "Invalid character format"],
         )
+
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=42,
+                heading="INT. OFFICE - DAY",
+                content="Original content",
+                original_text="Original content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api_instance.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api_instance.update_scene = AsyncMock(return_value=mock_result)
 
         result = runner.invoke(
@@ -1085,6 +1115,21 @@ class TestSceneCommandsComprehensiveCoverage:
             error=None,
             validation_errors=[],
         )
+
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=42,
+                heading="INT. TEST SCENE - DAY",
+                content="Original content",
+                original_text="Original content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api_instance.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api_instance.update_scene = AsyncMock(return_value=mock_result)
 
         # Mock stdin via CLIHandler

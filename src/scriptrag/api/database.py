@@ -190,25 +190,41 @@ class DatabaseInitializer:
         except (OSError, sqlite3.Error, ValueError) as e:
             # Clean up on failure
             if db_path.exists() and connection is None:
+                # First, ensure the connection manager is properly closed
+                # This is critical on Windows to release all file handles
+                from scriptrag.database.connection_manager import (
+                    close_connection_manager,
+                )
+
+                # Force close to ensure all connections are released
+                close_connection_manager(force=True)
+
                 # Windows-specific file deletion with retry logic for cleanup
                 import platform
 
                 if platform.system() == "Windows":
+                    import gc
                     import time
 
-                    for attempt in range(3):
+                    # Force garbage collection to help release file handles
+                    gc.collect()
+                    time.sleep(0.1)  # Give Windows time to release handles
+
+                    for attempt in range(5):  # Increase attempts from 3 to 5
                         try:
                             db_path.unlink()
                             break
                         except PermissionError:
-                            if attempt == 2:
+                            if attempt == 4:
                                 # Log but don't re-raise since this is cleanup
                                 logger.warning(
                                     "Failed to cleanup database file on Windows",
                                     path=str(db_path),
                                 )
                                 break
-                            time.sleep(0.1 * (attempt + 1))  # Progressive backoff
+                            # Progressive backoff with longer waits
+                            gc.collect()  # Try gc again
+                            time.sleep(0.2 * (attempt + 1))
                 else:
                     db_path.unlink()
             raise DatabaseError(

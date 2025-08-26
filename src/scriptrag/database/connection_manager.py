@@ -303,8 +303,12 @@ class ConnectionPool:
                 "closed": self._closed,
             }
 
-    def close(self) -> None:
-        """Close all connections in the pool."""
+    def close(self, force: bool = False) -> None:
+        """Close all connections in the pool.
+
+        Args:
+            force: If True, attempts to close even active connections (use with caution)
+        """
         import platform
 
         with self._lock:
@@ -319,10 +323,19 @@ class ConnectionPool:
                 try:
                     conn, _ = self._pool.get_nowait()
                     conn.close()
+                    self._total_connections -= 1
                 except Empty:
                     break
 
-            self._total_connections = self._active_connections
+            # If force is True and we're on Windows with active connections,
+            # reset the counts (connections will be closed when garbage collected)
+            if force and self._active_connections > 0:
+                logger.warning(
+                    "Forcefully closing connection pool with active connections",
+                    active=self._active_connections,
+                )
+                self._active_connections = 0
+                self._total_connections = 0
 
             # Windows needs extra time for file handle cleanup
             if platform.system() == "Windows":
@@ -330,7 +343,7 @@ class ConnectionPool:
                 import time
 
                 gc.collect()  # Force garbage collection
-                time.sleep(0.1)  # Allow Windows to release file handles
+                time.sleep(0.2)  # Increase wait time from 0.1 to 0.2
 
             logger.info("Connection pool closed")
 
@@ -530,9 +543,13 @@ class DatabaseConnectionManager:
         """
         return self._pool.get_stats()
 
-    def close(self) -> None:
-        """Close the connection manager and all connections."""
-        self._pool.close()
+    def close(self, force: bool = False) -> None:
+        """Close the connection manager and all connections.
+
+        Args:
+            force: If True, forcefully close even active connections
+        """
+        self._pool.close(force=force)
 
     def ensure_closed(self) -> bool:
         """Ensure all connections are truly closed (Windows-specific)."""
@@ -609,11 +626,15 @@ def get_connection_manager(
     return _manager_instance
 
 
-def close_connection_manager() -> None:
-    """Close the singleton connection manager."""
+def close_connection_manager(force: bool = False) -> None:
+    """Close the singleton connection manager.
+
+    Args:
+        force: If True, forcefully close even active connections
+    """
     global _manager_instance
 
     with _manager_lock:
         if _manager_instance:
-            _manager_instance.close()
+            _manager_instance.close(force=force)
             _manager_instance = None

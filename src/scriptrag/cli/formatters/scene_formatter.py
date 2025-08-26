@@ -119,7 +119,11 @@ class SceneFormatter(OutputFormatter[Any]):
             from rich.console import Console
 
             string_io = StringIO()
-            temp_console = Console(file=string_io, force_terminal=True)
+            temp_console = Console(
+                file=string_io,
+                force_terminal=False,  # Don't force terminal formatting
+                legacy_windows=False,  # Use consistent formatting across platforms
+            )
             temp_console.print(panel)
             return string_io.getvalue()
         # List of bible files
@@ -157,7 +161,11 @@ class SceneFormatter(OutputFormatter[Any]):
         from rich.console import Console
 
         string_io = StringIO()
-        temp_console = Console(file=string_io, force_terminal=True)
+        temp_console = Console(
+            file=string_io,
+            force_terminal=False,  # Don't force terminal formatting
+            legacy_windows=False,  # Use consistent formatting across platforms
+        )
         temp_console.print(panel)
         return string_io.getvalue()
 
@@ -200,7 +208,11 @@ class SceneFormatter(OutputFormatter[Any]):
             from rich.console import Console
 
             string_io = StringIO()
-            temp_console = Console(file=string_io, force_terminal=True)
+            temp_console = Console(
+                file=string_io,
+                force_terminal=False,  # Don't force terminal formatting
+                legacy_windows=False,  # Use consistent formatting across platforms
+            )
             temp_console.print(table)
             return string_io.getvalue()
 

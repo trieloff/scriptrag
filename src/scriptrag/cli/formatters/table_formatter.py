@@ -56,7 +56,11 @@ class TableFormatter(OutputFormatter[list[dict[str, Any]]]):
         string_io = io.StringIO()
         from rich.console import Console
 
-        temp_console = Console(file=string_io, force_terminal=True)
+        temp_console = Console(
+            file=string_io,
+            force_terminal=False,  # Don't force terminal formatting
+            legacy_windows=False,  # Use consistent formatting across platforms
+        )
         temp_console.print(table)
         return string_io.getvalue()
 
@@ -120,7 +124,11 @@ class TableFormatter(OutputFormatter[list[dict[str, Any]]]):
             string_io = io.StringIO()
             from rich.console import Console
 
-            temp_console = Console(file=string_io, force_terminal=True)
+            temp_console = Console(
+                file=string_io,
+                force_terminal=False,  # Don't force terminal formatting
+                legacy_windows=False,  # Use consistent formatting across platforms
+            )
             temp_console.print(table)
             return string_io.getvalue()
         # Simple text format

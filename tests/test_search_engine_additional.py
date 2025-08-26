@@ -54,9 +54,8 @@ class TestSearchEngineAsyncContextExecution:
         mock_get_running_loop.return_value = Mock(spec=object)
 
         # Create mocks for the new event loop
-        mock_loop = Mock(spec=object)
+        mock_loop = Mock(spec=["run_until_complete", "close"])
         mock_new_event_loop.return_value = mock_loop
-        mock_loop.run_until_complete = Mock(spec=object)
 
         # Mock successful search_async result
         expected_response = SearchResponse(
@@ -72,7 +71,7 @@ class TestSearchEngineAsyncContextExecution:
         mock_loop.run_until_complete.return_value = expected_response
 
         # Mock thread behavior
-        mock_thread = Mock(spec=object)
+        mock_thread = Mock(spec=["is_alive", "start", "join"])
         mock_thread_class.return_value = mock_thread
         mock_thread.is_alive.return_value = False  # Thread completes successfully
 
@@ -88,14 +87,14 @@ class TestSearchEngineAsyncContextExecution:
 
         # Mock the readonly connection to prevent connection manager initialization
         with patch("scriptrag.search.engine.get_read_only_connection") as mock_get_conn:
-            mock_conn = Mock(spec=object)
-            mock_context = Mock(spec=object)
+            mock_conn = Mock(spec=["execute", "close"])
+            mock_context = Mock(spec=["__enter__", "__exit__"])
             mock_context.__enter__ = Mock(return_value=mock_conn)
             mock_context.__exit__ = Mock(return_value=None)
             mock_get_conn.return_value = mock_context
 
             # Configure mock connection for basic query results
-            mock_cursor = Mock(spec=object)
+            mock_cursor = Mock(spec=["fetchall", "fetchone", "execute"])
             mock_cursor.fetchall.return_value = []
             mock_cursor.fetchone.return_value = {"total": 0}
             mock_conn.execute.return_value = mock_cursor
@@ -187,7 +186,7 @@ class TestSearchEngineAsyncContextExecution:
         mock_get_running_loop.return_value = Mock(spec=object)
 
         # Mock thread behavior
-        mock_thread = Mock(spec=object)
+        mock_thread = Mock(spec=["is_alive", "start", "join"])
         mock_thread_class.return_value = mock_thread
         mock_thread.is_alive.return_value = False
 
@@ -221,7 +220,7 @@ class TestSearchEngineAsyncContextExecution:
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
             # Configure mock connection for basic query results
-            mock_cursor = Mock(spec=object)
+            mock_cursor = Mock(spec=["fetchall", "fetchone", "execute"])
             mock_cursor.fetchall.return_value = []
             mock_cursor.fetchone.return_value = {"total": 0}
             mock_conn.execute.return_value = mock_cursor
@@ -312,7 +311,7 @@ class TestSemanticSearchIntegration:
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
             # Configure basic query results
-            mock_cursor = Mock(spec=object)
+            mock_cursor = Mock(spec=["fetchall", "fetchone", "execute"])
             mock_cursor.fetchall.return_value = []
             mock_cursor.fetchone.return_value = {"total": 0}
             mock_conn.execute.return_value = mock_cursor
@@ -419,7 +418,7 @@ class TestSemanticSearchIntegration:
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
             # Mock SQL search to return existing bible result
-            mock_cursor = Mock(spec=object)
+            mock_cursor = Mock(spec=["fetchall", "fetchone", "execute"])
             mock_cursor.fetchall.side_effect = [
                 [],  # Regular search results
                 [
@@ -506,7 +505,7 @@ class TestSemanticSearchIntegration:
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
             # Configure basic query results
-            mock_cursor = Mock(spec=object)
+            mock_cursor = Mock(spec=["fetchall", "fetchone", "execute"])
             mock_cursor.fetchall.return_value = []
             mock_cursor.fetchone.return_value = {"total": 0}
             mock_conn.execute.return_value = mock_cursor

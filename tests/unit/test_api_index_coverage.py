@@ -25,7 +25,23 @@ class TestIndexCommandCoverage:
             database_path=tmp_path / "test.db",
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Create a test script file
@@ -51,7 +67,23 @@ class TestIndexCommandCoverage:
             database_path=tmp_path / "test.db",
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Create a test script file
@@ -73,7 +105,23 @@ class TestIndexCommandCoverage:
             database_path=tmp_path / "test.db",
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Create a test script file
@@ -99,7 +147,23 @@ class TestIndexCommandCoverage:
             database_path=tmp_path / "test.db",
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Create a test script file
@@ -121,7 +185,23 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_metadata(self):
         """Test process_scene_embeddings with no boneyard metadata."""
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops,
             embedding_service=None,
@@ -140,7 +220,7 @@ class TestIndexCommandCoverage:
             boneyard_metadata=None,
         )
 
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
 
         # Should return early without processing
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
@@ -151,7 +231,23 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_analyzers(self):
         """Test process_scene_embeddings with no analyzers in metadata."""
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops,
             embedding_service=None,
@@ -170,7 +266,7 @@ class TestIndexCommandCoverage:
             boneyard_metadata={},
         )
 
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
 
         # Should return early without processing
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
@@ -181,7 +277,23 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_embedding_data(self):
         """Test process_scene_embeddings with no embedding data."""
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops,
             embedding_service=None,
@@ -200,7 +312,7 @@ class TestIndexCommandCoverage:
             boneyard_metadata={"analyzers": {"other_analyzer": {}}},
         )
 
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
 
         # Should return early without processing
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
@@ -211,7 +323,23 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_result(self):
         """Test process_scene_embeddings with no result data."""
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops,
             embedding_service=None,
@@ -230,7 +358,7 @@ class TestIndexCommandCoverage:
             boneyard_metadata={"analyzers": {"scene_embeddings": {}}},
         )
 
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
 
         # Should return early without processing
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
@@ -241,7 +369,23 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_with_error(self):
         """Test process_scene_embeddings with error in result."""
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops,
             embedding_service=None,
@@ -266,7 +410,7 @@ class TestIndexCommandCoverage:
             },
         )
 
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
 
         # Should return early due to error
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
@@ -277,7 +421,23 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_no_embedding_path(self):
         """Test process_scene_embeddings with no embedding path."""
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops,
             embedding_service=None,
@@ -298,7 +458,7 @@ class TestIndexCommandCoverage:
             },
         )
 
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
 
         # Should return early without embedding path
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
@@ -309,7 +469,23 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_file_exists(self, tmp_path):
         """Test process_scene_embeddings with existing embedding file."""
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops,
             embedding_service=None,
@@ -344,10 +520,10 @@ class TestIndexCommandCoverage:
             },
         )
 
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
 
         with patch("git.Repo") as mock_repo_class:
-            mock_repo = Mock(spec=object)
+            mock_repo = Mock(spec=["working_dir"])
             mock_repo.working_dir = str(tmp_path)
             mock_repo_class.return_value = mock_repo
 
@@ -370,7 +546,23 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_file_not_exists(self, tmp_path):
         """Test process_scene_embeddings with non-existing embedding file."""
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops,
             embedding_service=None,
@@ -399,10 +591,10 @@ class TestIndexCommandCoverage:
             },
         )
 
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
 
         with patch("git.Repo") as mock_repo_class:
-            mock_repo = Mock(spec=object)
+            mock_repo = Mock(spec=["working_dir"])
             mock_repo.working_dir = str(tmp_path)
             mock_repo_class.return_value = mock_repo
 
@@ -426,7 +618,23 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_processing_error(self):
         """Test _process_scene_embeddings with processing error."""
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops,
             embedding_service=None,
@@ -455,7 +663,7 @@ class TestIndexCommandCoverage:
             },
         )
 
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
 
         with patch("git.Repo", side_effect=Exception("Git error")):
             # Should handle error gracefully
@@ -467,7 +675,23 @@ class TestIndexCommandCoverage:
     @pytest.mark.asyncio
     async def test_process_scene_embeddings_scene_without_file_path(self, tmp_path):
         """Test process_scene_embeddings with scene that has no file_path attribute."""
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops,
             embedding_service=None,
@@ -475,7 +699,22 @@ class TestIndexCommandCoverage:
         )
 
         # Create scene without file_path attribute
-        scene = Mock(spec=object)
+        scene = Mock(
+            spec=[
+                "number",
+                "heading",
+                "content",
+                "original_text",
+                "content_hash",
+                "type",
+                "location",
+                "time_of_day",
+                "dialogue_lines",
+                "action_lines",
+                "boneyard_metadata",
+                "has_new_metadata",
+            ]
+        )
         scene.boneyard_metadata = {
             "analyzers": {
                 "scene_embeddings": {
@@ -489,10 +728,10 @@ class TestIndexCommandCoverage:
         # Remove file_path attribute so hasattr returns False
         del scene.file_path
 
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
 
         with patch("git.Repo") as mock_repo_class:
-            mock_repo = Mock(spec=object)
+            mock_repo = Mock(spec=["working_dir"])
             mock_repo.working_dir = str(tmp_path)
             mock_repo_class.return_value = mock_repo
 
@@ -508,11 +747,27 @@ class TestIndexCommandCoverage:
             database_path=tmp_path / "test.db",
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         # Setup transaction context manager
-        mock_conn = Mock(spec=object)
-        mock_context = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_context = Mock(spec=["__enter__", "__exit__"])
         mock_context.__enter__ = Mock(return_value=mock_conn)
         mock_context.__exit__ = Mock(return_value=None)
         mock_db_ops.transaction.return_value = mock_context
@@ -539,7 +794,18 @@ class TestIndexCommandCoverage:
         )
 
         # Mock existing script and scene with content change
-        existing_script = Mock(spec=object)
+        existing_script = Mock(
+            spec=[
+                "id",
+                "content_hash",
+                "metadata",
+                "title",
+                "author",
+                "file_path",
+                "created_at",
+                "updated_at",
+            ]
+        )
         existing_script.id = 1
         mock_db_ops.get_existing_script.return_value = existing_script
         mock_db_ops.upsert_script.return_value = 1
@@ -573,11 +839,27 @@ class TestIndexCommandCoverage:
             database_path=Path("test.db"),
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         # Setup transaction context manager
-        mock_conn = Mock(spec=object)
-        mock_context = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_context = Mock(spec=["__enter__", "__exit__"])
         mock_context.__enter__ = Mock(return_value=mock_conn)
         mock_context.__exit__ = Mock(return_value=None)
         mock_db_ops.transaction.return_value = mock_context
@@ -589,7 +871,18 @@ class TestIndexCommandCoverage:
         ]
 
         # Mock existing script with metadata but no last_indexed
-        existing_script = Mock(spec=object)
+        existing_script = Mock(
+            spec=[
+                "id",
+                "content_hash",
+                "metadata",
+                "title",
+                "author",
+                "file_path",
+                "created_at",
+                "updated_at",
+            ]
+        )
         existing_script.metadata = {"other_data": "value"}  # No last_indexed key
         mock_db_ops.get_existing_script.return_value = existing_script
 
@@ -605,11 +898,27 @@ class TestIndexCommandCoverage:
             database_path=tmp_path / "test.db",
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         # Setup transaction context
-        mock_conn = Mock(spec=object)
-        mock_context = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_context = Mock(spec=["__enter__", "__exit__"])
         mock_context.__enter__ = Mock(return_value=mock_conn)
         mock_context.__exit__ = Mock(return_value=None)
         mock_db_ops.transaction.return_value = mock_context
@@ -657,11 +966,27 @@ Hello world!
             database_path=tmp_path / "test.db",
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         # Setup transaction context
-        mock_conn = Mock(spec=object)
-        mock_context = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_context = Mock(spec=["__enter__", "__exit__"])
         mock_context.__enter__ = Mock(return_value=mock_conn)
         mock_context.__exit__ = Mock(return_value=None)
         mock_db_ops.transaction.return_value = mock_context
@@ -700,7 +1025,18 @@ Hello again!
         assert result1.updated is False  # First time = new
 
         # Second index - existing script
-        existing_script = Mock(spec=object)
+        existing_script = Mock(
+            spec=[
+                "id",
+                "content_hash",
+                "metadata",
+                "title",
+                "author",
+                "file_path",
+                "created_at",
+                "updated_at",
+            ]
+        )
         existing_script.id = 1
         mock_db_ops.get_existing_script.return_value = (
             existing_script  # Existing script
@@ -719,11 +1055,27 @@ Hello again!
             database_path=tmp_path / "test.db",
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         # Setup transaction context manager (needed even for dry run)
-        mock_conn = Mock(spec=object)
-        mock_context = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_context = Mock(spec=["__enter__", "__exit__"])
         mock_context.__enter__ = Mock(return_value=mock_conn)
         mock_context.__exit__ = Mock(return_value=None)
         mock_db_ops.transaction.return_value = mock_context
@@ -769,11 +1121,27 @@ Testing!
             database_path=tmp_path / "test.db",
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         # Setup transaction context
-        mock_conn = Mock(spec=object)
-        mock_context = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_context = Mock(spec=["__enter__", "__exit__"])
         mock_context.__enter__ = Mock(return_value=mock_conn)
         mock_context.__exit__ = Mock(return_value=None)
         mock_db_ops.transaction.return_value = mock_context
@@ -815,7 +1183,18 @@ This validates the comment behavior.
         assert result_new.updated is False  # Only updated if it existed (it didn't)
 
         # Test existing script scenario
-        existing_script = Mock(spec=object)
+        existing_script = Mock(
+            spec=[
+                "id",
+                "content_hash",
+                "metadata",
+                "title",
+                "author",
+                "file_path",
+                "created_at",
+                "updated_at",
+            ]
+        )
         existing_script.id = 1
         mock_db_ops.get_existing_script.return_value = (
             existing_script  # Existing script
@@ -837,7 +1216,23 @@ This validates the comment behavior.
             database_path=Path("test.db"),
             skip_boneyard_filter=False,  # Enable boneyard filtering
         )
-        mock_db_ops = Mock(spec=object)
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
         mock_db_ops.check_database_exists.return_value = True
 
         indexer = IndexCommand(settings, mock_db_ops)
@@ -866,8 +1261,8 @@ This validates the comment behavior.
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_no_bible_characters_key(self):
         """Test apply_bible_aliases when metadata has no bible.characters key."""
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_cursor = Mock(spec=["execute", "fetchone", "fetchall", "close"])
         mock_conn.cursor.return_value = mock_cursor
 
         # Mock metadata with no bible.characters at all
@@ -887,8 +1282,8 @@ This validates the comment behavior.
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_character_not_in_map(self):
         """Test apply_bible_aliases when character not found in character_map."""
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_cursor = Mock(spec=["execute", "fetchone", "fetchall", "close"])
         mock_conn.cursor.return_value = mock_cursor
 
         # Mock metadata with Bible characters

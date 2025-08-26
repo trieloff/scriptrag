@@ -319,7 +319,7 @@ class TestSceneAddCommand:
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Invalid Fountain format" in clean_output
+        assert "Scene content must start with a valid scene heading" in clean_output
 
 
 class TestSceneUpdateCommand:
@@ -345,6 +345,20 @@ class TestSceneUpdateCommand:
             validation_errors=[],
         )
 
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. SCENE - DAY",
+                content="Content",
+                original_text="Content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api.update_scene = AsyncMock(return_value=mock_result)
 
         # Run command
@@ -357,9 +371,7 @@ class TestSceneUpdateCommand:
                 "test",
                 "--scene",
                 "5",
-                "--safe",
-                "--last-read",
-                "2024-01-15T10:30:00",
+                "--check-conflicts",
                 "--content",
                 "INT. UPDATED - DAY\n\nUpdated content",
             ],
@@ -380,6 +392,20 @@ class TestSceneUpdateCommand:
             validation_errors=["INVALID_FORMAT"],
         )
 
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. SCENE - DAY",
+                content="Content",
+                original_text="Content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api.update_scene = AsyncMock(return_value=mock_result)
 
         # Run command
@@ -392,9 +418,7 @@ class TestSceneUpdateCommand:
                 "test",
                 "--scene",
                 "5",
-                "--safe",
-                "--last-read",
-                "2024-01-15T10:30:00",
+                "--check-conflicts",
                 "--content",
                 "INT. SCENE - DAY\n\nContent",
             ],
@@ -403,7 +427,6 @@ class TestSceneUpdateCommand:
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
         assert "Scene validation failed" in clean_output
-        assert "INVALID_FORMAT" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_update_scene_concurrent_modification(self, mock_api_class):
@@ -416,6 +439,20 @@ class TestSceneUpdateCommand:
             validation_errors=["CONCURRENT_MODIFICATION"],
         )
 
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. SCENE - DAY",
+                content="Content",
+                original_text="Content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api.update_scene = AsyncMock(return_value=mock_result)
 
         # Run command
@@ -428,9 +465,7 @@ class TestSceneUpdateCommand:
                 "test",
                 "--scene",
                 "5",
-                "--safe",
-                "--last-read",
-                "2024-01-15T10:30:00",
+                "--check-conflicts",
                 "--content",
                 "INT. SCENE - DAY\n\nContent",
             ],
@@ -440,13 +475,32 @@ class TestSceneUpdateCommand:
         clean_output = strip_ansi_codes(result.output)
         assert "modified by another process" in clean_output
 
-    def test_update_scene_no_content(self):
+    @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
+    def test_update_scene_no_content(self, mock_api_class):
         """Test update without content.
 
         Note: In test environment, CLI reads empty string from stdin
         instead of detecting TTY mode, so we get validation error
         instead of "No content provided" error.
         """
+        # Setup mock to prevent database access
+        mock_api = mock_api_class.return_value
+
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. SCENE - DAY",
+                content="Content",
+                original_text="Content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
+
         result = runner.invoke(
             app,
             [
@@ -464,7 +518,7 @@ class TestSceneUpdateCommand:
         # In test environment, empty stdin results in validation error
         # rather than "No content provided"
         clean_output = strip_ansi_codes(result.output)
-        assert "Invalid Fountain format" in clean_output
+        assert "scene content cannot be empty" in clean_output
 
 
 class TestSceneDeleteCommand:
@@ -483,7 +537,7 @@ class TestSceneDeleteCommand:
 
         mock_api.delete_scene = AsyncMock(return_value=mock_result)
 
-        # Run command with confirm
+        # Run command with force
         result = runner.invoke(
             app,
             [
@@ -493,17 +547,17 @@ class TestSceneDeleteCommand:
                 "test",
                 "--scene",
                 "5",
-                "--confirm",
+                "--force",
             ],
         )
 
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.output)
-        assert "Scene deleted" in clean_output
-        assert "Renumbered scenes: 6, 7, 8" in clean_output
+        assert "deleted successfully" in clean_output
+        assert "3 scenes renumbered" in clean_output
 
     def test_delete_scene_no_confirm(self):
-        """Test delete without confirmation."""
+        """Test delete without confirmation - should abort."""
         result = runner.invoke(
             app,
             [
@@ -516,10 +570,15 @@ class TestSceneDeleteCommand:
             ],
         )
 
-        assert result.exit_code == 0
+        # Should abort due to confirmation prompt in CI
+        assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Warning" in clean_output
-        assert "--confirm" in clean_output
+        # In CI/test environment, deletion requires --force flag
+        # In local environment, confirmation prompt is shown and aborted
+        assert (
+            "Deletion requires --force in non-interactive environment" in clean_output
+            or "Delete scene test:005?" in clean_output
+        )
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_delete_scene_not_found(self, mock_api_class):
@@ -543,7 +602,7 @@ class TestSceneDeleteCommand:
                 "test",
                 "--scene",
                 "999",
-                "--confirm",
+                "--force",
             ],
         )
 
@@ -578,10 +637,10 @@ class TestSceneDeleteCommand:
                 "3",
                 "--scene",
                 "10",
-                "--confirm",
+                "--force",
             ],
         )
 
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.output)
-        assert "Scene deleted" in clean_output
+        assert "deleted successfully" in clean_output

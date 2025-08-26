@@ -137,6 +137,26 @@ class QueryFormatter:
         # Convert rows to SearchResult objects
         results = []
         for row in rows:
+            # Handle different query result types
+            scene_content = row.get("scene_content", "")
+
+            # For character dialogue queries, include dialogue information
+            if "dialogue" in row and "character" in row:
+                character = row.get("character", "")
+                dialogue = row.get("dialogue", "")
+                parenthetical = row.get("parenthetical", "")
+
+                # Format dialogue content for display
+                dialogue_content = f"{character}: {dialogue}"
+                if parenthetical:
+                    dialogue_content = f"{character} ({parenthetical}): {dialogue}"
+
+                # Use dialogue content if scene_content is empty
+                if not scene_content:
+                    scene_content = dialogue_content
+                else:
+                    scene_content += f"\n\n{dialogue_content}"
+
             result = SearchResult(
                 script_id=row.get("script_id", 0),
                 script_title=row.get("script_title", ""),
@@ -146,7 +166,7 @@ class QueryFormatter:
                 scene_heading=row.get("scene_heading", ""),
                 scene_location=row.get("scene_location"),
                 scene_time=row.get("scene_time"),
-                scene_content=row.get("scene_content", ""),
+                scene_content=scene_content,
                 season=row.get("season"),
                 episode=row.get("episode"),
                 match_type="query",

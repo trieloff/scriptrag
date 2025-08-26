@@ -8,6 +8,7 @@ from scriptrag.config.settings import (
     ScriptRAGSettings,
     clear_settings_cache,
     get_settings,
+    reset_settings,
     set_settings,
 )
 
@@ -17,6 +18,7 @@ __all__ = [
     "configure_logging",
     "get_logger",
     "get_settings",
+    "reset_settings",
     "set_settings",
 ]
 

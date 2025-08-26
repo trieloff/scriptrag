@@ -267,6 +267,54 @@ class TestQueryFormatter:
             response = mock_format.call_args[0][0]
             assert response.has_more is False
 
+    def test_format_dialogue_in_scenes(self, formatter):
+        """Test formatting dialogue content in scene results."""
+        mock_result_formatter = MagicMock()
+        formatter.result_formatter = mock_result_formatter
+
+        # Test with dialogue and parenthetical
+        rows = [
+            {
+                "script_id": 1,
+                "script_title": "Test Script",
+                "scene_number": 1,
+                "scene_heading": "INT. OFFICE - DAY",
+                "scene_content": "Original scene content",
+                "character": "JOHN",
+                "dialogue": "Hello there",
+                "parenthetical": "nervously",
+            },
+            {
+                "script_id": 1,
+                "script_title": "Test Script",
+                "scene_number": 2,
+                "scene_heading": "EXT. STREET - DAY",
+                "scene_content": "",  # Empty scene content
+                "character": "JANE",
+                "dialogue": "Hi John!",
+                "parenthetical": "",
+            },
+        ]
+
+        formatter._format_as_scenes(
+            rows=rows,
+            query_name="dialogue_query",
+            execution_time_ms=15.0,
+            limit=None,
+            offset=None,
+        )
+
+        # Check the formatted results
+        response = mock_result_formatter.format_results.call_args[0][0]
+        assert len(response.results) == 2
+
+        # First result should have dialogue appended to scene content
+        assert "JOHN (nervously): Hello there" in response.results[0].scene_content
+        assert "Original scene content" in response.results[0].scene_content
+
+        # Second result should use dialogue as scene content (since original was empty)
+        assert response.results[1].scene_content == "JANE: Hi John!"
+
     def test_format_results_empty_rows_message(self):
         """Test format_results with empty rows shows message - lines 54-58 coverage."""
         formatter = QueryFormatter()

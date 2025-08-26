@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from scriptrag.api.bible.utils import LLMResponseParser
+from scriptrag.api.bible.utils import SCENE_KEYWORDS, LLMResponseParser
 from scriptrag.config import get_logger
 from scriptrag.llm import LLMClient
 from scriptrag.parser.bible_parser import BibleParser, ParsedBible
@@ -79,21 +79,11 @@ class SceneBibleExtractor:
             Returns empty list if no scene-related chunks are found.
         """
         scene_chunks = []
-        scene_keywords = [
-            "scene",
-            "location",
-            "setting",
-            "place",
-            "environment",
-            "interior",
-            "exterior",
-            "stage",
-        ]
 
         for chunk in parsed_bible.chunks:
             # Check if heading suggests scene content
             heading_lower = (chunk.heading or "").lower()
-            if any(keyword in heading_lower for keyword in scene_keywords):
+            if any(keyword in heading_lower for keyword in SCENE_KEYWORDS):
                 # Include heading with content for context
                 chunk_text = (
                     f"{chunk.heading}\n{chunk.content}"
@@ -105,7 +95,7 @@ class SceneBibleExtractor:
 
             # Check if content has scene mentions (quick heuristic)
             content_lower = chunk.content.lower()
-            if any(keyword in content_lower for keyword in scene_keywords[:4]):
+            if any(keyword in content_lower for keyword in SCENE_KEYWORDS[:4]):
                 # Include heading with content for context
                 chunk_text = (
                     f"{chunk.heading}\n{chunk.content}"

@@ -164,19 +164,21 @@ class SceneFormatter(OutputFormatter[Any]):
             title=f"Scene {scene.number}",
             subtitle=scene.heading,
         )
-        # Convert panel to string for return
-        from io import StringIO
+        # Use console's capture method for efficient string conversion
 
-        from rich.console import Console
+        # Reuse existing console if available, otherwise create a cached one
+        if not hasattr(self, "_string_console"):
+            from rich.console import Console
 
-        string_io = StringIO()
-        temp_console = Console(
-            file=string_io,
-            force_terminal=False,  # Don't force terminal formatting
-            legacy_windows=False,  # Use consistent formatting across platforms
-        )
-        temp_console.print(panel)
-        return string_io.getvalue()
+            self._string_console = Console(
+                force_terminal=False,  # Don't force terminal formatting
+                legacy_windows=False,  # Use consistent formatting across platforms
+            )
+
+        # Capture the output efficiently
+        with self._string_console.capture() as capture:
+            self._string_console.print(panel)
+        return str(capture.get())
 
     def format_scene_list(
         self, scenes: list[SceneData], format_type: OutputFormat = OutputFormat.TABLE

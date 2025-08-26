@@ -150,10 +150,22 @@ def cli_command(
                 raise
             except ValidationError as e:
                 # Handle validation errors
-                handler.handle_error(e, kwargs.get("json_output", False))
+                # Check for any JSON output parameter variations
+                json_output = (
+                    kwargs.get("json_output", False)
+                    or kwargs.get("json", False)
+                    or kwargs.get("output_json", False)
+                )
+                handler.handle_error(e, json_output)
             except Exception as e:
                 # Handle all other errors
-                handler.handle_error(e, kwargs.get("json_output", False))
+                # Check for any JSON output parameter variations
+                json_output = (
+                    kwargs.get("json_output", False)
+                    or kwargs.get("json", False)
+                    or kwargs.get("output_json", False)
+                )
+                handler.handle_error(e, json_output)
 
         return wrapper
 

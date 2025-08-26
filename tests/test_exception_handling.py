@@ -303,9 +303,12 @@ class TestClaudeCodeExceptions:
         request.response_format = {"type": "json_object"}
 
         # Mock SDK to return invalid JSON
-        mock_message = Mock(spec=object)
-        mock_message.__class__.__name__ = "AssistantMessage"
-        mock_block = Mock(spec=object)
+        mock_message = Mock(spec_set=["content", "__class__"])
+        # Create a mock class with __name__ attribute
+        mock_class = Mock(spec_set=["__name__"])
+        mock_class.__name__ = "AssistantMessage"
+        mock_message.__class__ = mock_class
+        mock_block = Mock(spec_set=["text"])
         mock_block.text = "not valid json"
         mock_message.content = [mock_block]
 
@@ -343,9 +346,12 @@ class TestClaudeCodeExceptions:
         )
 
         # Mock SDK to return object missing expected attributes
-        mock_message = Mock(spec=object)
-        mock_message.__class__.__name__ = "UnknownMessage"
-        del mock_message.content  # Remove expected attribute
+        mock_message = Mock(spec_set=["__class__"])
+        # Create a mock class with __name__ attribute
+        mock_class = Mock(spec_set=["__name__"])
+        mock_class.__name__ = "UnknownMessage"
+        mock_message.__class__ = mock_class
+        # Don't add content attribute to simulate missing attribute
 
         mock_query = AsyncMock(
             spec=[

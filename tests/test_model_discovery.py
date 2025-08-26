@@ -325,10 +325,6 @@ class TestClaudeCodeModelDiscovery:
         # Mock the SDK import
         mock_sdk = MagicMock(
             spec=[
-                "content",
-                "model",
-                "provider",
-                "usage",
                 "ClaudeSDKClient",
                 "ClaudeCodeOptions",
             ]
@@ -357,15 +353,11 @@ class TestClaudeCodeModelDiscovery:
         # Mock SDK with list_models method
         mock_sdk = MagicMock(
             spec=[
-                "content",
-                "model",
-                "provider",
-                "usage",
                 "ClaudeSDKClient",
                 "ClaudeCodeOptions",
             ]
         )
-        mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_client = MagicMock(spec=["list_models"])
         mock_client.list_models = AsyncMock(
             return_value=[
                 {"id": "claude-3-5-sonnet", "name": "Claude 3.5 Sonnet"},
@@ -397,10 +389,6 @@ class TestClaudeCodeModelDiscovery:
         # Mock SDK with models attribute (but no list_models or get_models)
         mock_sdk = MagicMock(
             spec=[
-                "content",
-                "model",
-                "provider",
-                "usage",
                 "ClaudeSDKClient",
                 "ClaudeCodeOptions",
             ]
@@ -436,10 +424,6 @@ class TestClaudeCodeModelDiscovery:
         # Mock SDK that raises an exception
         mock_sdk = MagicMock(
             spec=[
-                "content",
-                "model",
-                "provider",
-                "usage",
                 "ClaudeSDKClient",
                 "ClaudeCodeOptions",
             ]
@@ -469,15 +453,11 @@ class TestClaudeCodeModelDiscovery:
         # Mock SDK with list_models returning empty list
         mock_sdk = MagicMock(
             spec=[
-                "content",
-                "model",
-                "provider",
-                "usage",
                 "ClaudeSDKClient",
                 "ClaudeCodeOptions",
             ]
         )
-        mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_client = MagicMock(spec=["list_models"])
         mock_client.list_models = AsyncMock(return_value=[])
         mock_sdk.ClaudeSDKClient.return_value = mock_client
         mock_sdk.ClaudeCodeOptions = MagicMock
@@ -504,15 +484,11 @@ class TestClaudeCodeModelDiscovery:
         # Mock SDK with list_models returning invalid data
         mock_sdk = MagicMock(
             spec=[
-                "content",
-                "model",
-                "provider",
-                "usage",
                 "ClaudeSDKClient",
                 "ClaudeCodeOptions",
             ]
         )
-        mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_client = MagicMock(spec=["list_models"])
         # Return list with invalid items (no id)
         mock_client.list_models = AsyncMock(
             return_value=[
@@ -563,11 +539,9 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "test-api-key")
 
         # Mock httpx for successful API response
-        mock_httpx = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_httpx = MagicMock()
+        mock_client = AsyncMock(spec=["get", "post"])
+        mock_response = MagicMock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
@@ -598,11 +572,9 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock httpx for successful API response
-        mock_httpx = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_httpx = MagicMock()
+        mock_client = AsyncMock(spec=["get", "post"])
+        mock_response = MagicMock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
@@ -637,11 +609,9 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock httpx for non-200 response
-        mock_httpx = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_httpx = MagicMock()
+        mock_client = AsyncMock(spec=["get", "post"])
+        mock_response = MagicMock(spec=["status_code"])
         mock_response.status_code = 401
         mock_client.get.return_value = mock_response
         mock_httpx.AsyncClient.return_value.__aenter__.return_value = mock_client
@@ -665,11 +635,9 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock httpx for empty models response
-        mock_httpx = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_httpx = MagicMock()
+        mock_client = AsyncMock(spec=["get", "post"])
+        mock_response = MagicMock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {"data": []}
         mock_client.get.return_value = mock_response
@@ -712,7 +680,7 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock httpx to raise general exception
-        mock_httpx = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_httpx = MagicMock()
         mock_httpx.AsyncClient.side_effect = Exception("Network error")
 
         with patch.dict("sys.modules", {"httpx": mock_httpx}):
@@ -886,7 +854,7 @@ class TestGitHubModelsDiscovery:
     @pytest.fixture
     def mock_client(self):
         """Create mock HTTP client."""
-        return AsyncMock(spec=httpx.AsyncClient)
+        return AsyncMock(spec=["get", "post", "__aenter__", "__aexit__"])
 
     @pytest.mark.asyncio
     async def test_github_models_success(
@@ -896,7 +864,7 @@ class TestGitHubModelsDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock successful API response
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
@@ -945,7 +913,7 @@ class TestGitHubModelsDiscovery:
         ModelDiscoveryCache.clear_all_memory_cache()
 
         # Mock rate limited response
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "headers", "text"])
         mock_response.status_code = 429
         mock_response.headers = {"Retry-After": "60"}
         mock_response.text = "Rate limit exceeded. Please wait 60 seconds."
@@ -1027,7 +995,7 @@ class TestGitHubModelsDiscovery:
         ModelDiscoveryCache.clear_all_memory_cache()
 
         # Mock unexpected response format
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {"unexpected": "format"}
         mock_client.get.return_value = mock_response
@@ -1051,7 +1019,7 @@ class TestGitHubModelsDiscovery:
         discovery = GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
-            client=MagicMock(spec=["content", "model", "provider", "usage"]),
+            client=MagicMock(spec=["get", "post"]),
             token="test",  # noqa: S106
             base_url="https://api.test.com",
         )
@@ -1091,7 +1059,7 @@ class TestGitHubModelsDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock response as a list (not dict with "data" key)
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = [
             {"id": "gpt-4", "name": "GPT-4"},
@@ -1121,7 +1089,7 @@ class TestGitHubModelsDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock rate limited response without Retry-After header
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "headers", "text"])
         mock_response.status_code = 429
         mock_response.headers = {}
         mock_response.text = "Rate limit exceeded. Please wait 30 seconds."
@@ -1149,7 +1117,7 @@ class TestGitHubModelsDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock response with 403 Forbidden
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "text"])
         mock_response.status_code = 403
         mock_response.text = "Forbidden: Invalid token"
         mock_client.get.return_value = mock_response
@@ -1173,7 +1141,7 @@ class TestGitHubModelsDiscovery:
         discovery = GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
-            client=MagicMock(spec=["content", "model", "provider", "usage"]),
+            client=MagicMock(spec=["get", "post"]),
             token="test",  # noqa: S106
             base_url="https://api.test.com",
         )
@@ -1195,7 +1163,7 @@ class TestGitHubModelsDiscovery:
         discovery = GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
-            client=MagicMock(spec=["content", "model", "provider", "usage"]),
+            client=MagicMock(spec=["get", "post"]),
             token="test",  # noqa: S106
             base_url="https://api.test.com",
         )
@@ -1229,7 +1197,7 @@ class TestGitHubModelsDiscovery:
 
         # Mock rate limited response without Retry-After header
         # and no matching regex pattern
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "headers", "text"])
         mock_response.status_code = 429
         mock_response.headers = {}
         # No "wait X seconds" pattern in response text
@@ -1275,7 +1243,7 @@ class TestGitHubModelsDiscovery:
         ]
 
         # Mock API response with only 1 model (fewer than static)
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
@@ -1315,7 +1283,7 @@ class TestGitHubModelsDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock API response with Azure registry IDs
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = [
             {

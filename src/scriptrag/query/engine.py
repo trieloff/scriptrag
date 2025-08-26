@@ -4,7 +4,7 @@ import sqlite3
 import time
 from typing import Any
 
-from scriptrag.config import ScriptRAGSettings, get_logger
+from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 from scriptrag.database.readonly import get_read_only_connection
 from scriptrag.query.spec import QuerySpec
 
@@ -35,8 +35,7 @@ class QueryEngine:
             # Use initial settings if provided (for backward compatibility)
             return self._initial_settings
 
-        from scriptrag.config import get_settings
-
+        # Use module-level import to avoid circular import issues
         return get_settings()
 
     @property

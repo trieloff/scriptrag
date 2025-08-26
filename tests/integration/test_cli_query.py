@@ -24,7 +24,7 @@ class TestQueryCLI:
         db_path = tmp_path / "test.db"
         conn = sqlite3.connect(db_path)
 
-        # Create schema similar to ScriptRAG
+        # Create schema matching real ScriptRAG schema
         conn.executescript("""
             CREATE TABLE scripts (
                 id INTEGER PRIMARY KEY,
@@ -49,14 +49,21 @@ class TestQueryCLI:
                 FOREIGN KEY (script_id) REFERENCES scripts(id)
             );
 
+            CREATE TABLE characters (
+                id INTEGER PRIMARY KEY,
+                script_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                FOREIGN KEY (script_id) REFERENCES scripts(id)
+            );
+
             CREATE TABLE dialogues (
                 id INTEGER PRIMARY KEY,
                 scene_id INTEGER NOT NULL,
-                character TEXT NOT NULL,
-                dialogue TEXT,
-                parenthetical TEXT,
-                dialogue_order INTEGER,
-                FOREIGN KEY (scene_id) REFERENCES scenes(id)
+                character_id INTEGER NOT NULL,
+                dialogue_text TEXT NOT NULL,
+                order_in_scene INTEGER NOT NULL,
+                FOREIGN KEY (scene_id) REFERENCES scenes(id),
+                FOREIGN KEY (character_id) REFERENCES characters(id)
             );
 
             -- Insert test data
@@ -83,12 +90,18 @@ class TestQueryCLI:
                 ),
                 (3, 2, 1, 'INT. HOME - MORNING', 'Home', 'Morning', 'Morning routine.');
 
+            -- Insert characters first
+            INSERT INTO characters (id, script_id, name) VALUES
+                (1, 1, 'ALICE'),
+                (2, 1, 'BOB');
+
+            -- Insert dialogues with character_id references
             INSERT INTO dialogues (
-                id, scene_id, character, dialogue, parenthetical, dialogue_order
+                id, scene_id, character_id, dialogue_text, order_in_scene
             ) VALUES
-                (1, 1, 'ALICE', 'Hello, Bob!', NULL, 1),
-                (2, 1, 'BOB', 'Hi, Alice!', 'smiling', 2),
-                (3, 2, 'ALICE', 'Where are we going?', NULL, 1);
+                (1, 1, 1, 'Hello, Bob!', 1),
+                (2, 1, 2, 'Hi, Alice!', 2),
+                (3, 2, 1, 'Where are we going?', 3);
         """)
         conn.commit()
         conn.close()
@@ -119,11 +132,12 @@ LIMIT :limit""")
 -- description: Get dialogue for a character
 -- param: character str required help="Character name"
 SELECT
-    d.character,
-    d.dialogue,
-    d.parenthetical
+    c.name AS "character",
+    d.dialogue_text AS dialogue,
+    '' AS parenthetical
 FROM dialogues d
-WHERE d.character = :character
+INNER JOIN characters c ON d.character_id = c.id
+WHERE c.name LIKE :character || '%'
 ORDER BY d.id""")
 
         return query_dir

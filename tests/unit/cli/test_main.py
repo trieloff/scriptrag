@@ -8,6 +8,7 @@ import typer
 from typer.testing import CliRunner
 
 from scriptrag.cli.main import app, main, main_callback
+from tests.cli_fixtures import strip_ansi_codes
 
 
 class TestCLIMain:
@@ -91,7 +92,9 @@ class TestCLIMain:
 
             result = runner.invoke(app, ["status"])
             assert result.exit_code == 0
-            assert "ScriptRAG Status" in result.output
+            # Strip ANSI codes for Windows compatibility
+            output = strip_ansi_codes(result.output)
+            assert "ScriptRAG Status" in output
 
     def test_status_command_json(self, runner):
         """Test status command with JSON output."""
@@ -145,7 +148,9 @@ class TestCLIMain:
 
                 result = runner.invoke(app, ["status", "--verbose"])
                 assert result.exit_code == 0
-                assert "ScriptRAG Status" in result.output
+                # Strip ANSI codes for Windows compatibility
+                output = strip_ansi_codes(result.output)
+                assert "ScriptRAG Status" in output
 
     def test_status_command_error_handling(self, runner):
         """Test status command error handling."""
@@ -159,7 +164,9 @@ class TestCLIMain:
         """Test version command with default output."""
         result = runner.invoke(app, ["version"])
         assert result.exit_code == 0
-        assert "ScriptRAG v2.0.0" in result.output
+        # Strip ANSI codes for Windows compatibility
+        output = strip_ansi_codes(result.output)
+        assert "ScriptRAG v2.0.0" in output
 
     def test_version_command_json(self, runner):
         """Test version command with JSON output."""

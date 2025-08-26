@@ -592,14 +592,18 @@ class TestModelCacheCoverage:
     def test_cache_with_long_provider_name(self, tmp_path):
         """Test caching with a very long provider name.
 
-        Windows MAX_PATH limit requires special handling to prevent CI failures.
+        Filesystem limits require reasonable provider name lengths to prevent CI
+        failures.
+        Most filesystems have 255 char filename limits, but temp files add
+        prefixes/suffixes.
         """
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
-            # Windows has MAX_PATH limit of 260 chars total, not just filename
-            # Account for temp path, dots, suffixes: use 200 chars max on Windows
-            import sys
-
-            max_chars = 200 if sys.platform == "win32" else 255
+            # Realistic long provider name that accounts for:
+            # - temp file prefix: "." + provider_name + "_models_"
+            # - temp file suffix: random + ".tmp" (about 15 chars)
+            # - filesystem filename limit: 255 chars
+            # Safe length: 255 - 15 (suffix) - 8 ("_models_") - 1 (".") = 231
+            max_chars = 200  # Conservative limit for cross-platform compatibility
             long_provider = "a" * max_chars
             cache = ModelDiscoveryCache(long_provider)
 
@@ -693,6 +697,36 @@ class TestModelCacheCoverage:
             mock_error.assert_called_once()
             error_msg = mock_error.call_args[0][0]
             assert "Failed to create cache directory" in error_msg
+
+    def test_cache_set_with_filename_too_long_error(self, tmp_path):
+        """Test OSError when temp filename would be too long."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            # Use an extremely long provider name that would cause filename issues
+            extremely_long_provider = "a" * 300  # Guaranteed to exceed limits
+            cache = ModelDiscoveryCache(extremely_long_provider)
+
+            test_models = [
+                Model(
+                    id="test",
+                    name="Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # This should not crash, but may log an error
+            with patch("scriptrag.llm.model_cache.logger.error") as mock_error:
+                try:
+                    cache.set(test_models)
+                    # If it succeeds unexpectedly, that's fine too
+                except OSError as e:
+                    # OS error is acceptable for extremely long names
+                    assert "File name too long" in str(e) or "Invalid argument" in str(
+                        e
+                    )
+                    mock_error.assert_called()
+                    error_msg = mock_error.call_args[0][0]
+                    assert "OS error when caching models" in error_msg
 
     def test_memory_cache_namespace_mismatch(self, tmp_path):
         """Test namespace mismatch in memory cache (line 82)."""

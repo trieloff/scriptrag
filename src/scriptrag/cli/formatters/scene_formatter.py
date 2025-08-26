@@ -56,9 +56,18 @@ class SceneFormatter(OutputFormatter[Any]):
             }
             return json.dumps(output)
 
-        # Text format - return formatted panel
+        # Text format - return formatted panel with metadata
         if result.scene:
-            return self._create_scene_panel(result.scene)
+            scene_panel = self._create_scene_panel(result.scene)
+
+            # Add metadata if available
+            metadata_lines = []
+            if result.last_read:
+                metadata_lines.append(f"Last read: {result.last_read.isoformat()}")
+
+            if metadata_lines:
+                return scene_panel + "\n" + "\n".join(metadata_lines) + "\n"
+            return scene_panel
         return ""
 
     def _format_update_result(

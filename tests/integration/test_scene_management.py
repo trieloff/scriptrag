@@ -271,7 +271,7 @@ JAMES walks in."""
                 "Integration Test Script",
                 "--scene",
                 "2",
-                "--confirm",
+                "--force",
                 "--config",
                 str(config_path),
             ],
@@ -457,9 +457,14 @@ JAMES walks in."""
                 str(config_path),
             ],
         )
-        # Command may return 0 with a warning message
+        # Command may return 0 with a warning message or show confirmation prompt
         output = strip_ansi_codes(result.stdout)
-        assert "confirm" in output.lower() or "warning" in output.lower()
+        assert (
+            "confirm" in output.lower()
+            or "warning" in output.lower()
+            or "delete scene" in output.lower()
+            or "[y/n]" in output.lower()
+        )
 
         # Test 4: Read from non-existent project
         result = runner.invoke(

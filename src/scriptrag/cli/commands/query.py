@@ -145,7 +145,9 @@ class QueryCommandBuilder:
                     import time
 
                     start_time = time.time()
-                    results = self.api.execute_query(spec.name, kwargs)
+                    results = self.api.execute_query(
+                        spec.name, kwargs, output_json=json_output
+                    )
                     execution_time = time.time() - start_time
                     _ = execution_time  # Track for potential stats
 

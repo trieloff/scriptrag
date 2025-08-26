@@ -400,8 +400,8 @@ async def delete_scene(
     # Initialize API
     api = SceneManagementAPI(settings=settings)
 
-    # Delete scene through API
-    result = await api.delete_scene(scene_id)
+    # Delete scene through API with confirmation
+    result = await api.delete_scene(scene_id, confirm=True)
 
     if not result.success:
         handler.handle_error(Exception(result.error), json_output)

@@ -262,7 +262,17 @@ class TestRegisterQueryCommands:
         mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
-        mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_api = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "list_queries",
+                "get_query",
+                "reload_queries",
+            ]
+        )
         mock_api_class.return_value = mock_api
         mock_api.list_queries.return_value = []
 
@@ -289,7 +299,17 @@ class TestRegisterQueryCommands:
         mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
-        mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_api = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "list_queries",
+                "get_query",
+                "reload_queries",
+            ]
+        )
         mock_api_class.return_value = mock_api
 
         mock_spec = QuerySpec(name="test-query", description="Test", sql="SELECT 1")
@@ -319,7 +339,17 @@ class TestRegisterQueryCommands:
         mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
-        mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_api = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "list_queries",
+                "get_query",
+                "reload_queries",
+            ]
+        )
         mock_api_class.return_value = mock_api
 
         mock_spec = QuerySpec(name="test-query", description="Test", sql="SELECT 1")
@@ -340,7 +370,17 @@ class TestRegisterQueryCommands:
 
     def test_create_query_command_spec_none(self):
         """Test creating command when spec is None - line 33 coverage."""
-        mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_api = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "list_queries",
+                "get_query",
+                "reload_queries",
+            ]
+        )
         # get_query returns None
         mock_api.get_query.return_value = None
 
@@ -354,7 +394,9 @@ class TestRegisterQueryCommands:
     def test_query_command_json_output_path(self, mock_api_class, mock_get_settings):
         """Test query command JSON output path - line 68 coverage."""
         # Setup initial mock API for command creation
-        mock_initial_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_initial_api = MagicMock(
+            spec=["content", "model", "provider", "usage", "get_query", "execute_query"]
+        )
 
         # Create a simple spec
         spec = QuerySpec(
@@ -370,7 +412,9 @@ class TestRegisterQueryCommands:
         mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
-        mock_runtime_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_runtime_api = MagicMock(
+            spec=["content", "model", "provider", "usage", "execute_query"]
+        )
         mock_api_class.return_value = mock_runtime_api
         mock_runtime_api.execute_query.return_value = '{"result": "json output"}'
 
@@ -398,7 +442,9 @@ class TestRegisterQueryCommands:
     ):
         """Test query command error handling - lines 92, 94, 101-103 coverage."""
         # Setup initial mock API for command creation
-        mock_initial_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_initial_api = MagicMock(
+            spec=["content", "model", "provider", "usage", "get_query", "execute_query"]
+        )
 
         # Create a spec with error callback
         spec = QuerySpec(
@@ -414,7 +460,9 @@ class TestRegisterQueryCommands:
         mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
-        mock_runtime_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_runtime_api = MagicMock(
+            spec=["content", "model", "provider", "usage", "execute_query"]
+        )
         mock_api_class.return_value = mock_runtime_api
         mock_runtime_api.execute_query.side_effect = ValueError(
             "Query 'test_query' not found"
@@ -446,7 +494,17 @@ class TestRegisterQueryCommands:
         """Test empty query list command - lines 221-229 coverage."""
         # Test the case when no queries are found
         with patch("scriptrag.cli.commands.query.QueryAPI") as mock_api_class:
-            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_api = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "list_queries",
+                    "get_query",
+                    "reload_queries",
+                ]
+            )
             mock_api.list_queries.return_value = []
             mock_api_class.return_value = mock_api
 
@@ -526,7 +584,17 @@ class TestHelperFunctions:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = "/tmp/test.db"
             mock_get_settings.return_value = mock_settings
-            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_api = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "list_queries",
+                    "get_query",
+                    "reload_queries",
+                ]
+            )
             mock_api_class.return_value = mock_api
 
             result = _create_api_instance()
@@ -661,7 +729,17 @@ class TestQueryAppManager:
                 "scriptrag.cli.commands.query._register_list_command"
             ) as mock_register_list,
         ):
-            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_api = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "list_queries",
+                    "get_query",
+                    "reload_queries",
+                ]
+            )
             mock_create.return_value = mock_api
             mock_api.list_queries.return_value = []
 
@@ -693,7 +771,17 @@ class TestQueryAppManager:
                 "scriptrag.cli.commands.query._register_list_command"
             ) as mock_register_list,
         ):
-            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_api = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "list_queries",
+                    "get_query",
+                    "reload_queries",
+                ]
+            )
             mock_create.return_value = mock_api
             mock_api.reload_queries.side_effect = Exception("Load error")
 
@@ -715,7 +803,17 @@ class TestQueryAppManager:
                 "scriptrag.cli.commands.query._register_single_query"
             ) as mock_register_single,
         ):
-            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_api = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "list_queries",
+                    "get_query",
+                    "reload_queries",
+                ]
+            )
             mock_create.return_value = mock_api
 
             spec1 = QuerySpec(name="query1", description="Query 1", sql="SELECT 1")
@@ -762,7 +860,9 @@ class TestCoverageGaps:
                 MagicMock(spec=ScriptRAGSettings, database_path="/tmp/test.db"),
             ),
         ):
-            mock_runtime_api = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_runtime_api = MagicMock(
+                spec=["content", "model", "provider", "usage", "execute_query"]
+            )
             mock_api_class.return_value = mock_runtime_api
             mock_runtime_api.execute_query.return_value = None
 
@@ -883,7 +983,9 @@ class TestCoverageGaps:
             mock_settings = MagicMock(spec=ScriptRAGSettings)
             mock_settings.database_path = "/tmp/test.db"
             mock_get_settings.return_value = mock_settings
-            mock_runtime_api = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_runtime_api = MagicMock(
+                spec=["content", "model", "provider", "usage", "execute_query"]
+            )
             mock_api_class.return_value = mock_runtime_api
             mock_runtime_api.execute_query.return_value = "Result Table Data"
 

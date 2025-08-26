@@ -109,7 +109,9 @@ class TestSearchSyncWrapperComplexPath:
         query = SearchQuery(raw_query="test")
 
         # Mock that we're in an async context
-        mock_get_loop.return_value = Mock(spec=object)  # Simulate existing event loop
+        mock_get_loop.return_value = Mock(
+            spec=["close"]
+        )  # Simulate existing event loop
 
         # Create expected response
         expected_response = SearchResponse(
@@ -128,7 +130,7 @@ class TestSearchSyncWrapperComplexPath:
             # Simulate the threading code path with successful result
             # Create mock thread that "executes" and sets result
             with patch("threading.Thread") as mock_thread_class:
-                mock_thread = Mock(spec=object)
+                mock_thread = Mock(spec=["is_alive", "start", "join"])
                 mock_thread_class.return_value = mock_thread
                 mock_thread.is_alive.return_value = False  # Thread completes
 
@@ -158,7 +160,7 @@ class TestSearchSyncWrapperComplexPath:
         # Test the threading path - this is complex but tests the actual logic
         # For this test, we'll focus on the path structure rather than exact execution
         with patch("threading.Thread") as mock_thread_class:
-            mock_thread = Mock(spec=object)
+            mock_thread = Mock(spec=["is_alive", "start", "join"])
             mock_thread_class.return_value = mock_thread
             mock_thread.is_alive.return_value = False
 
@@ -180,16 +182,16 @@ class TestSearchSyncWrapperComplexPath:
         query = SearchQuery(raw_query="test")
 
         # Mock that we're in an async context
-        mock_get_loop.return_value = Mock(spec=object)
+        mock_get_loop.return_value = Mock(spec=["close"])
 
         # Mock thread that times out
-        mock_thread = Mock(spec=object)
+        mock_thread = Mock(spec=["is_alive", "start", "join"])
         mock_thread_class.return_value = mock_thread
         mock_thread.is_alive.return_value = True  # Thread is still alive (timeout)
 
         # Mock the thread.start() method to not actually start anything
-        mock_thread.start = Mock(spec=object)
-        mock_thread.join = Mock(spec=object)  # Mock join method
+        mock_thread.start = Mock()
+        mock_thread.join = Mock()  # Mock join method
 
         # Custom timeout exception to distinguish from "no event loop" RuntimeError
         class SearchTimeoutError(RuntimeError):
@@ -230,12 +232,12 @@ class TestSearchSyncWrapperComplexPath:
         query = SearchQuery(raw_query="test")
 
         # Mock that we're in an async context
-        mock_get_loop.return_value = Mock(spec=object)
+        mock_get_loop.return_value = Mock(spec=["close"])
 
         # For this test, we'll focus on the exception handling path
         # The key is to verify that exceptions from the thread are properly handled
         with patch("threading.Thread") as mock_thread_class:
-            mock_thread = Mock(spec=object)
+            mock_thread = Mock(spec=["is_alive", "start", "join"])
             mock_thread_class.return_value = mock_thread
             mock_thread.is_alive.return_value = False
 
@@ -292,7 +294,7 @@ class TestSearchAsyncDatabaseErrors:
         with patch("pathlib.Path") as mock_path_cls:
             # Mock the Path constructor to return different objects
             def mock_path_constructor(path_str):
-                mock_path = Mock(spec=object)
+                mock_path = Mock(spec=["exists", "__str__"])
                 if str(path_str) == "/nonexistent/test.db":
                     # Main database path - doesn't exist
                     mock_path.exists.return_value = False
@@ -391,11 +393,11 @@ class TestSearchResultParsing:
                 with patch.object(
                     engine, "get_read_only_connection"
                 ) as mock_conn_context:
-                    mock_conn = Mock(spec=object)
+                    mock_conn = Mock(spec=["execute", "close", "cursor"])
                     mock_conn_context.return_value.__enter__.return_value = mock_conn
 
                     # Mock search query execution
-                    mock_cursor = Mock(spec=object)
+                    mock_cursor = Mock(spec=["fetchone", "fetchall", "execute"])
                     mock_cursor.fetchall.return_value = []
                     mock_conn.execute.side_effect = [
                         mock_cursor,  # Main query
@@ -445,13 +447,13 @@ class TestSearchResultParsing:
         # Mock database exists check
         with patch("pathlib.Path.exists", return_value=True):
             with patch.object(engine, "get_read_only_connection") as mock_conn_context:
-                mock_conn = Mock(spec=object)
+                mock_conn = Mock(spec=["execute", "close", "cursor"])
                 mock_conn_context.return_value.__enter__.return_value = mock_conn
 
                 # Mock search query execution
-                mock_cursor = Mock(spec=object)
+                mock_cursor = Mock(spec=["fetchone", "fetchall", "execute"])
                 mock_cursor.fetchall.return_value = [mock_row]
-                mock_count_cursor = Mock(spec=object)
+                mock_count_cursor = Mock(spec=["fetchone", "fetchall", "execute"])
                 mock_count_cursor.fetchone.return_value = {"total": 1}
 
                 mock_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
@@ -551,13 +553,13 @@ class TestSemanticSearchIntegration:
         # Mock database exists check for semantic search test
         with patch("pathlib.Path.exists", return_value=True):
             with patch.object(engine, "get_read_only_connection") as mock_conn_context:
-                mock_conn = Mock(spec=object)
+                mock_conn = Mock(spec=["execute", "close", "cursor"])
                 mock_conn_context.return_value.__enter__.return_value = mock_conn
 
                 # Mock successful SQL query
-                mock_cursor = Mock(spec=object)
+                mock_cursor = Mock(spec=["fetchone", "fetchall", "execute"])
                 mock_cursor.fetchall.return_value = []
-                mock_count_cursor = Mock(spec=object)
+                mock_count_cursor = Mock(spec=["fetchone", "fetchall", "execute"])
                 mock_count_cursor.fetchone.return_value = {"total": 0}
                 mock_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
 
@@ -619,13 +621,13 @@ class TestSemanticSearchIntegration:
         # Mock database exists check for semantic error test
         with patch("pathlib.Path.exists", return_value=True):
             with patch.object(engine, "get_read_only_connection") as mock_conn_context:
-                mock_conn = Mock(spec=object)
+                mock_conn = Mock(spec=["execute", "close", "cursor"])
                 mock_conn_context.return_value.__enter__.return_value = mock_conn
 
                 # Mock successful SQL query
-                mock_cursor = Mock(spec=object)
+                mock_cursor = Mock(spec=["fetchone", "fetchall", "execute"])
                 mock_cursor.fetchall.return_value = []
-                mock_count_cursor = Mock(spec=object)
+                mock_count_cursor = Mock(spec=["fetchone", "fetchall", "execute"])
                 mock_count_cursor.fetchone.return_value = {"total": 0}
                 mock_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
 
@@ -688,10 +690,10 @@ class TestBibleSearchFunctionality:
         )
 
         # Mock database connection
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["execute", "close", "cursor"])
 
         # Mock successful bible search
-        mock_cursor = Mock(spec=object)
+        mock_cursor = Mock(spec=["fetchone", "fetchall", "execute"])
         mock_cursor.fetchall.return_value = [
             {
                 "script_id": 1,
@@ -705,7 +707,7 @@ class TestBibleSearchFunctionality:
             }
         ]
 
-        mock_count_cursor = Mock(spec=object)
+        mock_count_cursor = Mock(spec=["fetchone", "fetchall", "execute"])
         mock_count_cursor.fetchone.return_value = {"total": 1}
         mock_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
 
@@ -733,7 +735,7 @@ class TestBibleSearchFunctionality:
         query = SearchQuery(raw_query="test", include_bible=True)
 
         # Mock database connection that raises sqlite3.Error
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["execute", "close", "cursor"])
         mock_conn.execute.side_effect = sqlite3.Error("Database error")
 
         with patch("scriptrag.search.engine.logger") as mock_logger:
@@ -756,7 +758,7 @@ class TestBibleSearchFunctionality:
         query = SearchQuery(raw_query="test", include_bible=True)
 
         # Mock database connection that raises unexpected error
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["execute", "close", "cursor"])
         mock_conn.execute.side_effect = RuntimeError("Unexpected error")
 
         with patch("scriptrag.search.engine.logger") as mock_logger:
@@ -840,7 +842,7 @@ class TestSearchAsyncEventLoopHandling:
         mock_get_loop.side_effect = RuntimeError("No running event loop")
 
         # Mock new event loop
-        mock_loop = Mock(spec=object)
+        mock_loop = Mock(spec=["close", "run_until_complete"])
         mock_new_loop.return_value = mock_loop
 
         # Mock successful search
@@ -853,7 +855,7 @@ class TestSearchAsyncEventLoopHandling:
         )
 
         mock_loop.run_until_complete.return_value = expected_response
-        mock_loop.close = Mock(spec=object)
+        mock_loop.close = Mock()
 
         with patch("asyncio.all_tasks", return_value=[]):
             result = engine.search(query)
@@ -876,7 +878,7 @@ class TestSearchAsyncEventLoopHandling:
         mock_get_loop.side_effect = RuntimeError("No running event loop")
 
         # Mock new event loop
-        mock_loop = Mock(spec=object)
+        mock_loop = Mock(spec=["close", "run_until_complete"])
         mock_new_loop.return_value = mock_loop
 
         # Mock search that raises exception
@@ -907,12 +909,12 @@ class TestSearchAsyncEventLoopHandling:
         mock_get_loop.side_effect = RuntimeError("No running event loop")
 
         # Mock new event loop
-        mock_loop = Mock(spec=object)
+        mock_loop = Mock(spec=["close", "run_until_complete"])
         mock_new_loop.return_value = mock_loop
 
         # Mock pending tasks
-        mock_task1 = Mock(spec=object)
-        mock_task2 = Mock(spec=object)
+        mock_task1 = Mock(spec=["cancel"])
+        mock_task2 = Mock(spec=["cancel"])
         pending_tasks = [mock_task1, mock_task2]
 
         expected_response = SearchResponse(

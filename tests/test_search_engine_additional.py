@@ -51,7 +51,7 @@ class TestSearchEngineAsyncContextExecution:
         query = SearchQuery(raw_query="test", text_query="test")
 
         # Mock that we're in async context
-        mock_get_running_loop.return_value = Mock(spec=object)
+        mock_get_running_loop.return_value = Mock(spec=["close"])
 
         # Create mocks for the new event loop
         mock_loop = Mock(spec=["run_until_complete", "close"])
@@ -140,10 +140,10 @@ class TestSearchEngineAsyncContextExecution:
         query = SearchQuery(raw_query="test", text_query="test")
 
         # Mock that we're in async context
-        mock_get_running_loop.return_value = Mock(spec=object)
+        mock_get_running_loop.return_value = Mock(spec=["close"])
 
         # Mock thread that completes but with exception
-        mock_thread = Mock(spec=object)
+        mock_thread = Mock(spec=["is_alive", "start", "join"])
         mock_thread_class.return_value = mock_thread
         mock_thread.is_alive.return_value = False
 
@@ -183,7 +183,7 @@ class TestSearchEngineAsyncContextExecution:
         query = SearchQuery(raw_query="test", text_query="test")
 
         # Mock that we're in async context
-        mock_get_running_loop.return_value = Mock(spec=object)
+        mock_get_running_loop.return_value = Mock(spec=["close"])
 
         # Mock thread behavior
         mock_thread = Mock(spec=["is_alive", "start", "join"])
@@ -215,7 +215,7 @@ class TestSearchEngineAsyncContextExecution:
 
         # Mock database connection for successful execution
         with patch.object(engine, "get_read_only_connection") as mock_conn_mgr:
-            mock_conn = Mock(spec=object)
+            mock_conn = Mock(spec=["execute", "close", "cursor"])
             mock_conn_mgr.return_value.__enter__ = Mock(return_value=mock_conn)
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
@@ -306,7 +306,7 @@ class TestSemanticSearchIntegration:
 
         # Mock database connection to return empty results
         with patch.object(engine, "get_read_only_connection") as mock_conn_mgr:
-            mock_conn = Mock(spec=object)
+            mock_conn = Mock(spec=["execute", "close", "cursor"])
             mock_conn_mgr.return_value.__enter__ = Mock(return_value=mock_conn)
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
@@ -413,7 +413,7 @@ class TestSemanticSearchIntegration:
         )
 
         with patch.object(engine, "get_read_only_connection") as mock_conn_mgr:
-            mock_conn = Mock(spec=object)
+            mock_conn = Mock(spec=["execute", "close", "cursor"])
             mock_conn_mgr.return_value.__enter__ = Mock(return_value=mock_conn)
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
@@ -500,7 +500,7 @@ class TestSemanticSearchIntegration:
         )
 
         with patch.object(engine, "get_read_only_connection") as mock_conn_mgr:
-            mock_conn = Mock(spec=object)
+            mock_conn = Mock(spec=["execute", "close", "cursor"])
             mock_conn_mgr.return_value.__enter__ = Mock(return_value=mock_conn)
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 

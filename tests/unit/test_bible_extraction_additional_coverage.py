@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from scriptrag.api.bible.character_bible import BibleCharacter, BibleCharacterExtractor
+from scriptrag.api.bible.character_bible import BibleCharacter
+from scriptrag.api.bible_extraction import BibleExtractor
 
 
 class TestBibleExtractionAdditionalCoverage:
@@ -27,7 +28,7 @@ class TestBibleExtractionAdditionalCoverage:
         mock_llm = AsyncMock()
         mock_llm.complete.return_value = mock_response
 
-        extractor = BibleCharacterExtractor(llm_client=mock_llm)
+        extractor = BibleExtractor(llm_client=mock_llm)
         result = await extractor.extract_characters_from_bible(bible_path)
 
         # Should handle malformed JSON gracefully
@@ -45,7 +46,7 @@ class TestBibleExtractionAdditionalCoverage:
         mock_llm = AsyncMock()
         mock_llm.complete.return_value = mock_response
 
-        extractor = BibleCharacterExtractor(llm_client=mock_llm)
+        extractor = BibleExtractor(llm_client=mock_llm)
         result = await extractor.extract_characters_from_bible(bible_path)
 
         # Should return empty since response is not an array
@@ -53,7 +54,7 @@ class TestBibleExtractionAdditionalCoverage:
 
     def test_normalize_characters_complex_cases(self):
         """Test character normalization with complex cases."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         characters = [
             BibleCharacter(
@@ -92,7 +93,7 @@ class TestBibleExtractionAdditionalCoverage:
 
     def test_normalize_characters_first_name_logic(self):
         """Test first name exclusion logic in normalization."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         characters = [
             BibleCharacter(
@@ -132,7 +133,7 @@ Camera angles and lighting setup.
         bible_path = tmp_path / "bible.md"
         bible_path.write_text(bible_content)
 
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         # Mock the Bible parser
         from unittest.mock import MagicMock
@@ -175,8 +176,8 @@ Camera angles and lighting setup.
         mock_llm = AsyncMock()
         mock_llm.complete.return_value = invalid_response
 
-        extractor = BibleCharacterExtractor(llm_client=mock_llm)
-        result = await extractor.extract_via_llm(chunks)
+        extractor = BibleExtractor(llm_client=mock_llm)
+        result = await extractor._extract_via_llm(chunks)
 
         # Should extract valid characters
         # (note: some invalid data may still create characters)
@@ -192,7 +193,7 @@ Camera angles and lighting setup.
         bible_path = tmp_path / "bible.md"
         bible_path.write_text("# Bible\n## Characters\nContent")
 
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         # Mock parser to raise exception
         extractor.bible_parser.parse_file = MagicMock(
@@ -207,7 +208,7 @@ Camera angles and lighting setup.
 
     def test_find_character_chunks_no_heading(self):
         """Test chunk detection when chunk has no heading."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         # Mock parsed Bible with chunk that has no heading
         from unittest.mock import MagicMock
@@ -227,7 +228,7 @@ Camera angles and lighting setup.
 
     def test_find_character_chunks_with_heading(self):
         """Test chunk detection includes heading with content."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         from unittest.mock import MagicMock
 
@@ -247,7 +248,7 @@ Camera angles and lighting setup.
 
     def test_extract_json_regex_match_but_invalid_json(self):
         """Test JSON extraction when regex matches but JSON is invalid."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         # Response that matches the regex pattern but contains invalid JSON
         # This will match the regex but fail json.loads() - hitting lines 243-244
@@ -260,7 +261,7 @@ Camera angles and lighting setup.
 
     def test_extract_json_complex_invalid_patterns(self):
         """Test JSON extraction with complex invalid patterns that match regex."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         # Pattern that looks like valid JSON array but has syntax errors
         test_cases = [

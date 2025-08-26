@@ -71,9 +71,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         provider = ConcreteTestProvider()
 
         # Manually set client
-        existing_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        existing_client = AsyncMock(spec_set=httpx.AsyncClient)
         provider.client = existing_client
 
         # Should not reinitialize
@@ -276,12 +274,10 @@ class TestEnhancedBaseLLMProviderComprehensive:
 
         # Mock the client that gets created
         mock_response = Mock(spec=object)
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
+        mock_client.get.return_value = mock_response
 
         with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock(
-                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-            )
-            mock_client.get.return_value = mock_response
             mock_client_class.return_value = mock_client
 
             response = await provider._make_request("GET", "/test")
@@ -309,9 +305,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         provider = ConcreteTestProvider(base_url=None)
 
         # Set up a mock client
-        provider.client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        provider.client = AsyncMock(spec_set=httpx.AsyncClient)
 
         with pytest.raises(ValueError, match="Base URL not configured"):
             await provider._make_request("GET", "/test")  # Line 202
@@ -322,9 +316,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         provider = ConcreteTestProvider(base_url="https://api.example.com")
 
         mock_response = Mock(spec=object)
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
         mock_client.get.return_value = mock_response
         provider.client = mock_client
 
@@ -339,9 +331,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         provider = ConcreteTestProvider(base_url="https://api.example.com")
 
         mock_response = Mock(spec=object)
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
         mock_client.post.return_value = mock_response
         provider.client = mock_client
 
@@ -358,9 +348,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         """Test _make_request with unsupported HTTP method - covers line 213."""
         provider = ConcreteTestProvider(base_url="https://api.example.com")
 
-        provider.client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        provider.client = AsyncMock(spec_set=httpx.AsyncClient)
 
         with pytest.raises(ValueError, match="Unsupported HTTP method: PUT"):
             await provider._make_request("PUT", "/test")  # Line 213
@@ -370,9 +358,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         """Test _make_request HTTP error handling - covers lines 217-223."""
         provider = ConcreteTestProvider(base_url="https://api.example.com")
 
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
         mock_client.get.side_effect = httpx.RequestError("Connection failed")
         provider.client = mock_client
 
@@ -394,9 +380,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         )
 
         mock_response = Mock(spec=object)
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
         mock_client.get.return_value = mock_response
         provider.client = mock_client
 
@@ -417,9 +401,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         """Test _make_request URL building with different endpoint formats."""
         provider = ConcreteTestProvider(base_url="https://api.example.com")
 
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
         provider.client = mock_client
 
         # Test with leading slash in endpoint

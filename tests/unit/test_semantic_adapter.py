@@ -35,7 +35,7 @@ class TestSemanticSearchAdapter:
         with patch(
             "scriptrag.search.semantic_adapter.SemanticSearchService"
         ) as mock_service_class:
-            mock_service = MagicMock(spec=object)
+            mock_service = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_service_class.return_value = mock_service
             adapter = SemanticSearchAdapter(mock_settings)
             # Ensure the service is properly set up
@@ -79,7 +79,7 @@ class TestSemanticSearchAdapter:
     async def test_enhance_results_with_scenes(self, adapter):
         """Test enhance_results with scene results."""
         # Create mock search results
-        mock_scene_result = MagicMock(spec=object)
+        mock_scene_result = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_scene_result.scene_id = 123
         mock_scene_result.script_id = 1
         mock_scene_result.script_title = "Test Script"
@@ -123,7 +123,7 @@ class TestSemanticSearchAdapter:
     async def test_enhance_results_with_bible(self, adapter):
         """Test enhance_results with bible results."""
         # Create mock bible result
-        mock_bible_result = MagicMock(spec=object)
+        mock_bible_result = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_bible_result.script_id = 1
         mock_bible_result.script_title = "Test Script"
         mock_bible_result.bible_id = 1
@@ -181,7 +181,7 @@ class TestSemanticSearchAdapter:
         )
 
         # Create mock scene that duplicates existing
-        mock_scene_result = MagicMock(spec=object)
+        mock_scene_result = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_scene_result.scene_id = 123  # Same as existing
         mock_scene_result.script_id = 1
         mock_scene_result.script_title = "Test Script"

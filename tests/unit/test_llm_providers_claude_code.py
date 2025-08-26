@@ -129,8 +129,10 @@ class TestClaudeCodeProvider:
     async def test_is_available_with_sdk(self, provider):
         """Test availability check with SDK available."""
         # Mock claude_code_sdk at import level since it's imported inside the method
-        mock_sdk = MagicMock(spec=object)
-        mock_sdk.ClaudeCodeOptions = MagicMock(spec=object)
+        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_sdk.ClaudeCodeOptions = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
 
         with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
             result = await provider.is_available()
@@ -166,7 +168,7 @@ class TestClaudeCodeProvider:
         provider.sdk_available = False  # SDK not available
 
         # Create a mock module that raises AttributeError
-        mock_sdk = MagicMock(spec=object)
+        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
         del mock_sdk.ClaudeCodeOptions  # This will cause AttributeError
 
         with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
@@ -243,12 +245,12 @@ class TestClaudeCodeProvider:
         mock_response = "Hello! I'm doing well, thank you for asking."
 
         # Mock the imports that happen inside the complete method
-        mock_claude_sdk = MagicMock(spec=object)
+        mock_claude_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
 
         # Create a mock message with the response
-        mock_message = MagicMock(spec=object)
+        mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_message.__class__.__name__ = "AssistantMessage"
-        mock_text_block = MagicMock(spec=object)
+        mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_text_block.text = mock_response
         mock_message.content = [mock_text_block]
 
@@ -257,8 +259,12 @@ class TestClaudeCodeProvider:
             yield mock_message
 
         mock_claude_sdk.query = mock_query
-        mock_claude_sdk.ClaudeCodeOptions = MagicMock(spec=object)
-        mock_claude_sdk.Message = MagicMock(spec=object)
+        mock_claude_sdk.ClaudeCodeOptions = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
+        mock_claude_sdk.Message = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
 
         with patch.dict("sys.modules", {"claude_code_sdk": mock_claude_sdk}):
             response = await provider.complete(completion_request)
@@ -288,12 +294,12 @@ class TestClaudeCodeProvider:
         mock_response = mock_json_response
 
         # Mock the imports that happen inside the complete method
-        mock_claude_sdk = MagicMock(spec=object)
+        mock_claude_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
 
         # Create a mock message with the response
-        mock_message = MagicMock(spec=object)
+        mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_message.__class__.__name__ = "AssistantMessage"
-        mock_text_block = MagicMock(spec=object)
+        mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_text_block.text = mock_response
         mock_message.content = [mock_text_block]
 
@@ -302,8 +308,12 @@ class TestClaudeCodeProvider:
             yield mock_message
 
         mock_claude_sdk.query = mock_query
-        mock_claude_sdk.ClaudeCodeOptions = MagicMock(spec=object)
-        mock_claude_sdk.Message = MagicMock(spec=object)
+        mock_claude_sdk.ClaudeCodeOptions = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
+        mock_claude_sdk.Message = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
 
         with patch.dict("sys.modules", {"claude_code_sdk": mock_claude_sdk}):
             response = await provider.complete(request)
@@ -323,12 +333,12 @@ class TestClaudeCodeProvider:
         mock_response = "I cannot provide valid JSON."
 
         # Mock the imports that happen inside the complete method
-        mock_claude_sdk = MagicMock(spec=object)
+        mock_claude_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
 
         # Create a mock message with the response
-        mock_message = MagicMock(spec=object)
+        mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_message.__class__.__name__ = "AssistantMessage"
-        mock_text_block = MagicMock(spec=object)
+        mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_text_block.text = mock_response
         mock_message.content = [mock_text_block]
 
@@ -337,8 +347,12 @@ class TestClaudeCodeProvider:
             yield mock_message
 
         mock_claude_sdk.query = mock_query
-        mock_claude_sdk.ClaudeCodeOptions = MagicMock(spec=object)
-        mock_claude_sdk.Message = MagicMock(spec=object)
+        mock_claude_sdk.ClaudeCodeOptions = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
+        mock_claude_sdk.Message = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
 
         with patch.dict("sys.modules", {"claude_code_sdk": mock_claude_sdk}):
             response = await provider.complete(request)
@@ -350,7 +364,7 @@ class TestClaudeCodeProvider:
     async def test_complete_sdk_error(self, provider, completion_request):
         """Test completion with SDK error."""
         # Mock the imports that happen inside the complete method
-        mock_claude_sdk = MagicMock(spec=object)
+        mock_claude_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
 
         # Make query raise an exception
         async def mock_query(*args, **kwargs):
@@ -359,8 +373,12 @@ class TestClaudeCodeProvider:
             yield  # pragma: no cover
 
         mock_claude_sdk.query = mock_query
-        mock_claude_sdk.ClaudeCodeOptions = MagicMock(spec=object)
-        mock_claude_sdk.Message = MagicMock(spec=object)
+        mock_claude_sdk.ClaudeCodeOptions = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
+        mock_claude_sdk.Message = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
 
         with patch.dict("sys.modules", {"claude_code_sdk": mock_claude_sdk}):
             with pytest.raises(LLMProviderError, match="SDK error"):
@@ -442,8 +460,10 @@ class TestClaudeCodeProviderIntegration:
                 assert models[0].id == "claude-3-sonnet-20240229"
 
                 # Test availability
-                mock_sdk = MagicMock(spec=object)
-                mock_sdk.ClaudeCodeOptions = MagicMock(spec=object)
+                mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+                mock_sdk.ClaudeCodeOptions = MagicMock(
+                    spec=["content", "model", "provider", "usage"]
+                )
 
                 with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
                     available = await provider.is_available()
@@ -456,9 +476,11 @@ class TestClaudeCodeProviderIntegration:
                 )
 
                 # Create a proper mock for completion
-                mock_message = MagicMock(spec=object)
+                mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
                 mock_message.__class__.__name__ = "AssistantMessage"
-                mock_text_block = MagicMock(spec=object)
+                mock_text_block = MagicMock(
+                    spec=["content", "model", "provider", "usage"]
+                )
                 mock_text_block.text = "Hello! How can I help you?"
                 mock_message.content = [mock_text_block]
 
@@ -466,8 +488,12 @@ class TestClaudeCodeProviderIntegration:
                     yield mock_message
 
                 mock_sdk.query = mock_query
-                mock_sdk.ClaudeCodeOptions = MagicMock(spec=object)
-                mock_sdk.Message = MagicMock(spec=object)
+                mock_sdk.ClaudeCodeOptions = MagicMock(
+                    spec=["content", "model", "provider", "usage"]
+                )
+                mock_sdk.Message = MagicMock(
+                    spec=["content", "model", "provider", "usage"]
+                )
 
                 with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
                     response = await provider.complete(request)

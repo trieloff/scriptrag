@@ -255,12 +255,12 @@ class TestDatabaseOperationsEmbeddingCoverage:
     def test_upsert_embedding_failed_insert_no_lastrowid(self, db_ops_with_embeddings):
         """Test error handling when insert doesn't return lastrowid."""
         # Mock the entire connection
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.lastrowid = None
         mock_cursor.fetchone.return_value = None  # No existing embedding
         mock_conn.execute.return_value = mock_cursor
-        mock_conn.commit = MagicMock(spec=object)
+        mock_conn.commit = MagicMock(spec=["content", "model", "provider", "usage"])
 
         with pytest.raises(DatabaseError) as exc_info:
             db_ops_with_embeddings.upsert_embedding(

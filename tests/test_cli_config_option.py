@@ -300,8 +300,8 @@ class TestConfigOptionAnalyzeCommand:
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
-            mock_command = MagicMock(spec=object)
-            mock_result = MagicMock(spec=object)
+            mock_command = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.total_files_updated = 1
             mock_result.total_scenes_updated = 5
             mock_result.files = []
@@ -349,8 +349,8 @@ class TestConfigOptionListCommand:
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
-            mock_command = MagicMock(spec=object)
-            mock_result = MagicMock(spec=object)
+            mock_command = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.projects = ["project1", "project2"]
             mock_result.total_scripts = 2
             mock_result.total_scenes = 100
@@ -394,8 +394,8 @@ class TestConfigOptionIndexCommand:
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
-            mock_command = MagicMock(spec=object)
-            mock_result = MagicMock(spec=object)
+            mock_command = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.scripts_indexed = 5
             mock_result.total_scripts_indexed = 5
             mock_result.total_scripts_updated = 0
@@ -602,11 +602,13 @@ class TestConfigOptionSearchCommand:
             mock_get_settings.return_value = mock_settings
 
             # Mock the SearchAPI
-            mock_search_instance = MagicMock(spec=object)
+            mock_search_instance = MagicMock(
+                spec=["content", "model", "provider", "usage"]
+            )
             mock_search_api.return_value = mock_search_instance
 
             # Mock search result
-            mock_result = MagicMock(spec=object)
+            mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.results = []
             mock_result.total_found = 0
             mock_result.query = "test query"

@@ -124,7 +124,7 @@ class TestSearchEngine:
         engine.settings.database_path = db_path
 
         with patch("scriptrag.search.engine.get_read_only_connection") as mock_get_conn:
-            mock_conn = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_get_conn.return_value.__enter__.return_value = mock_conn
 
             with engine.get_read_only_connection() as conn:
@@ -135,7 +135,7 @@ class TestSearchEngine:
     def test_get_read_only_connection_path_traversal(self, settings):
         """Test path traversal protection."""
         # Create a mock path that simulates traversal
-        mock_traversal_path = MagicMock(spec=object)
+        mock_traversal_path = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_traversal_path.resolve.return_value = Path("/etc/passwd")
         mock_traversal_path.parent.resolve.return_value = Path("/safe/dir")
 
@@ -162,7 +162,7 @@ class TestSearchEngine:
     def test_search_success(self, mock_conn, engine):
         """Test successful search execution."""
         # Mock database connection and cursor
-        mock_cursor = MagicMock(spec=object)
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = [
             {
                 "script_id": 1,
@@ -178,10 +178,10 @@ class TestSearchEngine:
             }
         ]
 
-        mock_count_cursor = MagicMock(spec=object)
+        mock_count_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_count_cursor.fetchone.return_value = {"total": 1}
 
-        mock_db_conn = MagicMock(spec=object)
+        mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
         mock_conn.return_value.__enter__.return_value = mock_db_conn
 
@@ -218,7 +218,7 @@ class TestSearchEngine:
     def test_search_with_invalid_metadata(self, mock_conn, engine):
         """Test search with invalid JSON metadata."""
         # Mock database connection with invalid JSON metadata
-        mock_cursor = MagicMock(spec=object)
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = [
             {
                 "script_id": 1,
@@ -234,10 +234,10 @@ class TestSearchEngine:
             }
         ]
 
-        mock_count_cursor = MagicMock(spec=object)
+        mock_count_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_count_cursor.fetchone.return_value = {"total": 1}
 
-        mock_db_conn = MagicMock(spec=object)
+        mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
         mock_conn.return_value.__enter__.return_value = mock_db_conn
 
@@ -269,13 +269,13 @@ class TestSearchEngine:
     def test_search_with_vector_search_needed(self, mock_conn, engine):
         """Test search when vector search is needed."""
         # Mock database connection
-        mock_cursor = MagicMock(spec=object)
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = []
 
-        mock_count_cursor = MagicMock(spec=object)
+        mock_count_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_count_cursor.fetchone.return_value = {"total": 0}
 
-        mock_db_conn = MagicMock(spec=object)
+        mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
         mock_conn.return_value.__enter__.return_value = mock_db_conn
 
@@ -323,7 +323,7 @@ class TestSearchEngine:
     def test_search_with_invalid_metadata_json_warning(self, mock_conn, engine):
         """Test search with invalid metadata JSON logs warning."""
         # Mock database connection and cursor
-        mock_cursor = MagicMock(spec=object)
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = [
             {
                 "script_id": 2,
@@ -339,10 +339,10 @@ class TestSearchEngine:
             }
         ]
 
-        mock_count_cursor = MagicMock(spec=object)
+        mock_count_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_count_cursor.fetchone.return_value = {"total": 1}
 
-        mock_db_conn = MagicMock(spec=object)
+        mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
         mock_conn.return_value.__enter__.return_value = mock_db_conn
 
@@ -434,15 +434,15 @@ class TestSearchEngine:
     def test_search_count_result_key_error(self, mock_conn, engine):
         """Test search with count result that raises KeyError."""
         # Mock database connection and cursor for main search
-        mock_cursor = MagicMock(spec=object)
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = []
 
         # Mock count cursor that raises KeyError when accessing 'total'
-        mock_count_cursor = MagicMock(spec=object)
+        mock_count_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_count_result = {"not_total": 5}  # Missing 'total' key
         mock_count_cursor.fetchone.return_value = mock_count_result
 
-        mock_db_conn = MagicMock(spec=object)
+        mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
         mock_conn.return_value.__enter__.return_value = mock_db_conn
 
@@ -465,16 +465,16 @@ class TestSearchEngine:
     @patch("scriptrag.search.engine.get_read_only_connection")
     def test_search_count_result_type_error(self, mock_conn, engine):
         """Test search with count result that raises TypeError."""
-        mock_cursor = MagicMock(spec=object)
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = []
 
         # Mock count cursor that raises TypeError when accessing result
-        mock_count_cursor = MagicMock(spec=object)
+        mock_count_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_count_cursor.fetchone.return_value = (
             None  # This will cause TypeError when accessing ['total']
         )
 
-        mock_db_conn = MagicMock(spec=object)
+        mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
         mock_conn.return_value.__enter__.return_value = mock_db_conn
 
@@ -496,15 +496,15 @@ class TestSearchEngine:
     @patch("scriptrag.search.engine.get_read_only_connection")
     def test_search_count_result_index_error(self, mock_conn, engine):
         """Test search with count result that raises IndexError."""
-        mock_cursor = MagicMock(spec=object)
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = []
 
         # Mock count cursor that could raise IndexError
-        mock_count_cursor = MagicMock(spec=object)
+        mock_count_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_count_result = []  # Empty list, accessing ['total'] would raise IndexError
         mock_count_cursor.fetchone.return_value = mock_count_result
 
-        mock_db_conn = MagicMock(spec=object)
+        mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
         mock_conn.return_value.__enter__.return_value = mock_db_conn
 
@@ -527,13 +527,13 @@ class TestSearchEngine:
     def test_search_with_bible_semantic_results_deduplication(self, mock_conn, engine):
         """Test search with bible semantic results that need deduplication."""
         # Mock database connection
-        mock_cursor = MagicMock(spec=object)
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = []
 
-        mock_count_cursor = MagicMock(spec=object)
+        mock_count_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_count_cursor.fetchone.return_value = {"total": 0}
 
-        mock_db_conn = MagicMock(spec=object)
+        mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
         mock_conn.return_value.__enter__.return_value = mock_db_conn
 
@@ -614,13 +614,13 @@ class TestSearchEngine:
     def test_search_semantic_search_exception_handling(self, mock_conn, engine):
         """Test search with semantic search that raises an exception."""
         # Mock database connection
-        mock_cursor = MagicMock(spec=object)
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = []
 
-        mock_count_cursor = MagicMock(spec=object)
+        mock_count_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_count_cursor.fetchone.return_value = {"total": 0}
 
-        mock_db_conn = MagicMock(spec=object)
+        mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_conn.execute.side_effect = [mock_cursor, mock_count_cursor]
         mock_conn.return_value.__enter__.return_value = mock_db_conn
 

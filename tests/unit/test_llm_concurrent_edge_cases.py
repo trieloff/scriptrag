@@ -36,7 +36,9 @@ class TestConcurrentOperations:
     @pytest.fixture
     def mock_provider(self):
         """Create mock provider for testing."""
-        provider = AsyncMock(spec=object)
+        provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         provider.is_available = AsyncMock(return_value=True)
         provider.provider_type = LLMProvider.GITHUB_MODELS
         provider.list_models = AsyncMock(
@@ -115,11 +117,15 @@ class TestConcurrentOperations:
     async def test_concurrent_completions_with_fallback(self, client):
         """Test concurrent completions with fallback to different providers."""
         # Setup providers with different success patterns
-        github_provider = AsyncMock(spec=object)
+        github_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         github_provider.is_available = AsyncMock(return_value=True)
         github_provider.provider_type = LLMProvider.GITHUB_MODELS
 
-        claude_provider = AsyncMock(spec=object)
+        claude_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         claude_provider.is_available = AsyncMock(return_value=True)
         claude_provider.provider_type = LLMProvider.CLAUDE_CODE
 
@@ -217,7 +223,9 @@ class TestConcurrentOperations:
     @pytest.mark.asyncio
     async def test_concurrent_mixed_operations(self, client):
         """Test mix of completions and embeddings concurrently."""
-        github_provider = AsyncMock(spec=object)
+        github_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         github_provider.is_available = AsyncMock(return_value=True)
         # Mock list_models to return proper Model objects
         github_provider.list_models = AsyncMock(
@@ -312,7 +320,9 @@ class TestConcurrentOperations:
         registry = ProviderRegistry()
 
         # Create mock provider
-        provider = AsyncMock(spec=object)
+        provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         provider.is_available = AsyncMock(return_value=True)
         provider.list_models = AsyncMock(
             return_value=[
@@ -437,7 +447,9 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_provider_cleanup_during_operation(self, client):
         """Test provider cleanup while operation is in progress."""
-        provider = AsyncMock(spec=object)
+        provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         provider.is_available = AsyncMock(return_value=True)
         provider.list_models = AsyncMock(
             return_value=[
@@ -574,7 +586,9 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_unicode_handling_in_responses(self):
         """Test handling of Unicode characters in responses."""
-        provider = AsyncMock(spec=object)
+        provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         provider.is_available = AsyncMock(return_value=True)
         provider.list_models = AsyncMock(
             return_value=[
@@ -720,7 +734,9 @@ class TestEdgeCases:
     @pytest.mark.asyncio
     async def test_provider_switching_during_operation(self, client):
         """Test switching providers mid-operation."""
-        provider1 = AsyncMock(spec=object)
+        provider1 = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         provider1.is_available = AsyncMock(return_value=True)
         provider1.provider_type = LLMProvider.GITHUB_MODELS
         provider1.list_models = AsyncMock(
@@ -734,7 +750,9 @@ class TestEdgeCases:
             ]
         )
 
-        provider2 = AsyncMock(spec=object)
+        provider2 = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         provider2.is_available = AsyncMock(return_value=True)
         provider2.provider_type = LLMProvider.CLAUDE_CODE
         provider2.list_models = AsyncMock(

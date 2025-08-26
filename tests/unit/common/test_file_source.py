@@ -52,7 +52,7 @@ class TestFileSourceResolver:
         scriptrag_dir.mkdir(parents=True)
 
         with patch("git.Repo") as mock_repo_class:
-            mock_repo = MagicMock(spec=object)
+            mock_repo = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_repo.working_dir = str(git_root)
             mock_repo_class.return_value = mock_repo
 
@@ -154,7 +154,7 @@ class TestFileSourceResolver:
 
         # Mock git repo and default path
         with patch("git.Repo") as mock_repo_class:
-            mock_repo = MagicMock(spec=object)
+            mock_repo = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_repo.working_dir = str(tmp_path / "git")
             mock_repo_class.return_value = mock_repo
 

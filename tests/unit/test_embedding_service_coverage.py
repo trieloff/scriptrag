@@ -21,9 +21,9 @@ def settings():
 @pytest.fixture
 def mock_llm_client():
     """Create mock LLM client."""
-    client = MagicMock(spec=object)
+    client = MagicMock(spec=["content", "model", "provider", "usage"])
     # Mock the embed method that EmbeddingService actually uses
-    mock_response = MagicMock(spec=object)
+    mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
     mock_response.data = [{"embedding": [0.1, 0.2, 0.3]}]
     client.embed = AsyncMock(return_value=mock_response)
     return client

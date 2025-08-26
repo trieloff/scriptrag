@@ -40,7 +40,9 @@ def mock_db_ops():
         "dialogues": 2,
         "actions": 2,
     }
-    mock.transaction.return_value.__enter__ = Mock(return_value=MagicMock(spec=object))
+    mock.transaction.return_value.__enter__ = Mock(
+        return_value=MagicMock(spec=["content", "model", "provider", "usage"])
+    )
     mock.transaction.return_value.__exit__ = Mock(return_value=None)
     return mock
 

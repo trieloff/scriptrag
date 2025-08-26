@@ -23,13 +23,13 @@ class TestIndexCommandAdditionalCoverage:
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
 
         # Mock database operations
-        mock_db_ops = MagicMock(spec=object)
-        mock_existing_script = MagicMock(spec=object)
+        mock_db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_existing_script = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_existing_script.metadata = {"last_indexed": "2024-01-01T00:00:00"}
         mock_db_ops.get_existing_script.return_value = mock_existing_script
 
         # Mock connection
-        mock_conn = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_ops.transaction.return_value.__enter__ = Mock(return_value=mock_conn)
         mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
@@ -51,12 +51,12 @@ class TestIndexCommandAdditionalCoverage:
         """Test filtering when existing script has no last_indexed metadata."""
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
 
-        mock_db_ops = MagicMock(spec=object)
-        mock_existing_script = MagicMock(spec=object)
+        mock_db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_existing_script = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_existing_script.metadata = {}  # No last_indexed
         mock_db_ops.get_existing_script.return_value = mock_existing_script
 
-        mock_conn = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_ops.transaction.return_value.__enter__ = Mock(return_value=mock_conn)
         mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
@@ -75,8 +75,8 @@ class TestIndexCommandAdditionalCoverage:
     async def test_apply_bible_aliases_success(self, tmp_path):
         """Test successful application of Bible aliases to characters."""
         # Mock connection and cursor
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_conn.cursor.return_value = mock_cursor
 
         # Mock script metadata with Bible characters
@@ -108,8 +108,8 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_no_metadata(self, tmp_path):
         """Test Bible alias application when no script metadata exists."""
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_conn.cursor.return_value = mock_cursor
         mock_cursor.fetchone.return_value = None  # No metadata row
 
@@ -125,8 +125,8 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_invalid_data(self, tmp_path):
         """Test Bible alias application with invalid character data."""
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_conn.cursor.return_value = mock_cursor
 
         # Mock metadata with invalid bible characters
@@ -158,8 +158,8 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_exception(self, tmp_path):
         """Test Bible alias application with database exception."""
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_conn.cursor.side_effect = Exception("DB Error")
 
         # Should handle exception gracefully
@@ -175,7 +175,7 @@ class TestIndexCommandAdditionalCoverage:
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
 
         # Mock database operations
-        mock_db_ops = MagicMock(spec=object)
+        mock_db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
 
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
@@ -207,7 +207,7 @@ class TestIndexCommandAdditionalCoverage:
         )
 
         # Mock connection and git repo
-        mock_conn = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         with patch("git.Repo") as mock_repo_class:
             mock_repo = mock_repo_class.return_value
@@ -226,7 +226,7 @@ class TestIndexCommandAdditionalCoverage:
     async def test_process_scene_embeddings_lfs_file_missing(self, tmp_path):
         """Test processing scene embeddings when LFS file doesn't exist locally."""
         # Mock database operations
-        mock_db_ops = MagicMock(spec=object)
+        mock_db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
 
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
@@ -250,7 +250,7 @@ class TestIndexCommandAdditionalCoverage:
             },
         )
 
-        mock_conn = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         with patch("git.Repo") as mock_repo_class:
             mock_repo = mock_repo_class.return_value
@@ -271,7 +271,7 @@ class TestIndexCommandAdditionalCoverage:
     async def test_process_scene_embeddings_error_in_result(self, tmp_path):
         """Test processing scene embeddings when result contains error."""
         # Mock database operations
-        mock_db_ops = MagicMock(spec=object)
+        mock_db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
 
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
@@ -295,7 +295,7 @@ class TestIndexCommandAdditionalCoverage:
             },
         )
 
-        mock_conn = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
@@ -306,7 +306,7 @@ class TestIndexCommandAdditionalCoverage:
     async def test_process_scene_embeddings_git_exception(self, tmp_path):
         """Test handling of git/embedding processing exceptions."""
         # Mock database operations
-        mock_db_ops = MagicMock(spec=object)
+        mock_db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
 
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
@@ -327,7 +327,7 @@ class TestIndexCommandAdditionalCoverage:
             },
         )
 
-        mock_conn = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         with patch("git.Repo", side_effect=Exception("Git error")):
             # Should handle exception gracefully
@@ -339,10 +339,12 @@ class TestIndexCommandAdditionalCoverage:
     async def test_generate_new_embedding_success(self, tmp_path):
         """Test successful generation of new embeddings."""
         # Mock database operations
-        mock_db_ops = MagicMock(spec=object)
+        mock_db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
 
         # Mock embedding service
-        mock_embedding_service = AsyncMock(spec=object)
+        mock_embedding_service = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_embedding_service.generate_scene_embedding.return_value = np.array(
             [0.1, 0.2, 0.3]
         )
@@ -366,7 +368,7 @@ class TestIndexCommandAdditionalCoverage:
             content_hash="hash123",
         )
 
-        mock_conn = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
@@ -380,9 +382,11 @@ class TestIndexCommandAdditionalCoverage:
     async def test_generate_new_embedding_failure(self, tmp_path):
         """Test handling of embedding generation failures."""
         # Mock database operations
-        mock_db_ops = MagicMock(spec=object)
+        mock_db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
 
-        mock_embedding_service = AsyncMock(spec=object)
+        mock_embedding_service = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_embedding_service.generate_scene_embedding.side_effect = Exception(
             "Generation failed"
         )
@@ -401,7 +405,7 @@ class TestIndexCommandAdditionalCoverage:
             content_hash="hash123",
         )
 
-        mock_conn = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         # Should handle exception gracefully
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)

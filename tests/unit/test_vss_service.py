@@ -389,7 +389,7 @@ class TestVSSService:
             ),
         ):
             # Mock the connection to raise an error during execute
-            mock_conn = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_conn.execute.side_effect = sqlite3.Error("Test database error")
             mock_conn.rollback.return_value = None
             mock_conn.close.return_value = None
@@ -412,7 +412,7 @@ class TestVSSService:
             ),
         ):
             # Mock the connection to raise an error during execute
-            mock_conn = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_conn.execute.side_effect = sqlite3.Error("Search database error")
             mock_conn.close.return_value = None
 

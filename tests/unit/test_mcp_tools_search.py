@@ -22,7 +22,7 @@ class TestRegisterSearchTool:
         """Test that register_search_tool registers the search tool."""
         # Arrange
         mock_mcp = MagicMock(spec=FastMCP)
-        mock_tool_decorator = MagicMock(spec=object)
+        mock_tool_decorator = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_mcp.tool.return_value = mock_tool_decorator
 
         # Act
@@ -89,7 +89,7 @@ class TestRegisterSearchTool:
         )
 
         with patch("scriptrag.mcp.tools.search.SearchAPI") as mock_search_api_class:
-            mock_api = MagicMock(spec=object)
+            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_api.search_async = AsyncMock(return_value=mock_response)
             mock_search_api_class.from_config.return_value = mock_api
 
@@ -205,7 +205,7 @@ class TestRegisterSearchTool:
         )
 
         with patch("scriptrag.mcp.tools.search.SearchAPI") as mock_search_api_class:
-            mock_api = MagicMock(spec=object)
+            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_api.search_async = AsyncMock(return_value=mock_response)
             mock_search_api_class.from_config.return_value = mock_api
 
@@ -333,7 +333,7 @@ class TestRegisterSearchTool:
         mcp = FastMCP("test")
 
         with patch("scriptrag.mcp.tools.search.SearchAPI") as mock_search_api_class:
-            mock_api = MagicMock(spec=object)
+            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_api.search_async = AsyncMock(
                 side_effect=RuntimeError("Search engine failed")
             )
@@ -417,7 +417,7 @@ class TestRegisterSearchTool:
         )
 
         with patch("scriptrag.mcp.tools.search.SearchAPI") as mock_search_api_class:
-            mock_api = MagicMock(spec=object)
+            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_api.search_async = AsyncMock(return_value=mock_response)
             mock_search_api_class.from_config.return_value = mock_api
 
@@ -510,7 +510,7 @@ class TestRegisterSearchTool:
         )
 
         with patch("scriptrag.mcp.tools.search.SearchAPI") as mock_search_api_class:
-            mock_api = MagicMock(spec=object)
+            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_api.search_async = AsyncMock(return_value=mock_response)
             mock_search_api_class.from_config.return_value = mock_api
 
@@ -570,7 +570,7 @@ class TestRegisterSearchTool:
         )
 
         with patch("scriptrag.mcp.tools.search.SearchAPI") as mock_search_api_class:
-            mock_api = MagicMock(spec=object)
+            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_api.search_async = AsyncMock(return_value=mock_response)
             mock_search_api_class.from_config.return_value = mock_api
 
@@ -691,7 +691,7 @@ class TestRegisterSearchTool:
         )
 
         with patch("scriptrag.mcp.tools.search.SearchAPI") as mock_search_api_class:
-            mock_api = MagicMock(spec=object)
+            mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_api.search_async = AsyncMock(return_value=mock_response)
             mock_search_api_class.from_config.return_value = mock_api
 

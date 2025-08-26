@@ -93,7 +93,9 @@ class TestLLMClientCoverage:
         client.current_provider = None
 
         # Mock _select_provider to not set any provider
-        client._select_provider = AsyncMock(spec=object)
+        client._select_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         with pytest.raises(RuntimeError, match="No LLM provider available"):
             await client.ensure_provider()

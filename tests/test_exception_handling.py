@@ -269,7 +269,9 @@ class TestClaudeCodeExceptions:
         )
 
         # Mock the SDK
-        mock_query = AsyncMock(spec=object)
+        mock_query = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_query.__aiter__.side_effect = TimeoutError("Query timeout")
 
         # Skip these tests since they require the actual SDK to be installed
@@ -300,7 +302,9 @@ class TestClaudeCodeExceptions:
         mock_block.text = "not valid json"
         mock_message.content = [mock_block]
 
-        mock_query = AsyncMock(spec=object)
+        mock_query = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_query.__aiter__.return_value = [mock_message].__iter__()
 
         # Skip these tests since they require the actual SDK to be installed
@@ -329,7 +333,9 @@ class TestClaudeCodeExceptions:
         mock_message.__class__.__name__ = "UnknownMessage"
         del mock_message.content  # Remove expected attribute
 
-        mock_query = AsyncMock(spec=object)
+        mock_query = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_query.__aiter__.return_value = [mock_message].__iter__()
 
         # Skip these tests since they require the actual SDK to be installed

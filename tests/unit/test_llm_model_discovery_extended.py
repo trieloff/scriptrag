@@ -311,9 +311,11 @@ class TestClaudeCodeModelDiscoveryExtended:
     @pytest.mark.asyncio
     async def test_fetch_models_with_mock_sdk(self, discovery):
         """Test _fetch_models with mocked Claude SDK."""
-        mock_sdk = MagicMock(spec=object)
-        mock_sdk.ClaudeSDKClient = MagicMock(spec=object)
-        mock_client = MagicMock(spec=object)
+        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_sdk.ClaudeSDKClient = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
+        mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_client.list_models = MagicMock(
             return_value=[
                 {
@@ -424,7 +426,7 @@ class TestGitHubModelsDiscoveryExtended:
         return GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
-            client=MagicMock(spec=object),
+            client=MagicMock(spec=["content", "model", "provider", "usage"]),
             token="test-token",  # noqa: S106
             base_url="https://api.github.com",
             cache_ttl=3600,
@@ -583,7 +585,7 @@ class TestGitHubModelsDiscoveryExtended:
         discovery = GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
-            client=MagicMock(spec=object),
+            client=MagicMock(spec=["content", "model", "provider", "usage"]),
             token=None,
             base_url="https://api.github.com",
             cache_ttl=3600,
@@ -707,7 +709,7 @@ class TestModelDiscoveryIntegration:
         github_discovery = GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=github_static_models,
-            client=MagicMock(spec=object),
+            client=MagicMock(spec=["content", "model", "provider", "usage"]),
             token="test-token",  # noqa: S106
             base_url="https://api.github.com",
             cache_ttl=3600,

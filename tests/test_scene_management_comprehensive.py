@@ -59,7 +59,7 @@ class TestReadSceneEdgeCases:
         scene_id = SceneIdentifier("test_project", 1)
 
         # Mock transaction context manager to raise on entry
-        mock_transaction = MagicMock(spec=object)
+        mock_transaction = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_transaction.__enter__.side_effect = sqlite3.Error("Connection failed")
 
         with patch.object(api.db_ops, "transaction", return_value=mock_transaction):
@@ -654,7 +654,7 @@ class TestReadBibleComprehensive:
     async def test_read_bible_database_cursor_error(self, api):
         """Test read_bible when database cursor operations fail."""
         # Mock database operations to fail at cursor level
-        mock_cursor = MagicMock(spec=object)
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchone.side_effect = sqlite3.Error("Cursor error")
 
         with patch.object(api.db_ops, "transaction") as mock_trans:

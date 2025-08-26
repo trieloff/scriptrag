@@ -19,7 +19,9 @@ from scriptrag.llm.models import (
 @pytest.fixture
 def mock_provider():
     """Create a mock provider for testing."""
-    provider = AsyncMock(spec=object)
+    provider = AsyncMock(
+        spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+    )
     provider.name = "TestProvider"
     provider.is_available = AsyncMock(return_value=True)
     provider.complete = AsyncMock(
@@ -80,7 +82,9 @@ class TestLLMClientAdditionalCoverage:
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
         # Mock cleanup
-        cleanup_mock = AsyncMock(spec=object)
+        cleanup_mock = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         client.cleanup = cleanup_mock
 
         # Test async context manager
@@ -92,7 +96,9 @@ class TestLLMClientAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_select_provider_with_unavailable_preferred(self, mock_provider):
         """Test provider selection when preferred is unavailable."""
-        unavailable_provider = AsyncMock(spec=object)
+        unavailable_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         unavailable_provider.is_available = AsyncMock(return_value=False)
 
         client = LLMClient(
@@ -120,7 +126,9 @@ class TestLLMClientAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_list_models_specific_provider_unavailable(self, mock_provider):
         """Test list_models with specific unavailable provider."""
-        unavailable_provider = AsyncMock(spec=object)
+        unavailable_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         unavailable_provider.is_available = AsyncMock(return_value=False)
 
         client = LLMClient()
@@ -135,7 +143,9 @@ class TestLLMClientAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_list_models_specific_provider_error(self, mock_provider):
         """Test list_models with specific provider that raises error."""
-        error_provider = AsyncMock(spec=object)
+        error_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         error_provider.is_available = AsyncMock(return_value=True)
         error_provider.list_models = AsyncMock(side_effect=RuntimeError("API error"))
 
@@ -169,11 +179,15 @@ class TestLLMClientAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_complete_provider_error_fallback(self):
         """Test complete with provider error triggering fallback."""
-        error_provider = AsyncMock(spec=object)
+        error_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         error_provider.is_available = AsyncMock(return_value=True)
         error_provider.complete = AsyncMock(side_effect=RuntimeError("API error"))
 
-        fallback_provider = AsyncMock(spec=object)
+        fallback_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         fallback_provider.is_available = AsyncMock(return_value=True)
         fallback_provider.complete = AsyncMock(
             return_value=CompletionResponse(
@@ -233,13 +247,17 @@ class TestLLMClientAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_complete_all_providers_fail(self):
         """Test complete when all providers fail."""
-        error_provider1 = AsyncMock(spec=object)
+        error_provider1 = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         error_provider1.is_available = AsyncMock(return_value=True)
         error_provider1.complete = AsyncMock(
             side_effect=LLMProviderError("API error 1")
         )
 
-        error_provider2 = AsyncMock(spec=object)
+        error_provider2 = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         error_provider2.is_available = AsyncMock(return_value=True)
         error_provider2.complete = AsyncMock(
             side_effect=LLMProviderError("API error 2")
@@ -265,11 +283,15 @@ class TestLLMClientAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_embed_all_providers_fail(self):
         """Test embed when all providers fail."""
-        error_provider1 = AsyncMock(spec=object)
+        error_provider1 = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         error_provider1.is_available = AsyncMock(return_value=True)
         error_provider1.embed = AsyncMock(side_effect=LLMProviderError("API error 1"))
 
-        error_provider2 = AsyncMock(spec=object)
+        error_provider2 = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         error_provider2.is_available = AsyncMock(return_value=True)
         error_provider2.embed = AsyncMock(side_effect=LLMProviderError("API error 2"))
 
@@ -510,7 +532,9 @@ class TestLLMClientAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_switch_provider_unavailable(self):
         """Test switching to unavailable provider."""
-        unavailable_provider = AsyncMock(spec=object)
+        unavailable_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         unavailable_provider.is_available = AsyncMock(return_value=False)
 
         client = LLMClient()

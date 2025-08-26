@@ -317,7 +317,9 @@ SELECT * FROM test WHERE id = :id""")
         assert len(queries1) == 3
 
         # Modify cache manually
-        loader._cache = {"fake": MagicMock(spec=object)}
+        loader._cache = {
+            "fake": MagicMock(spec=["content", "model", "provider", "usage"])
+        }
 
         # Force reload should ignore cache
         queries2 = loader.discover_queries(force_reload=True)

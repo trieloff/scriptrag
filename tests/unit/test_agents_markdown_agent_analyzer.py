@@ -109,7 +109,7 @@ class TestMarkdownAgentAnalyzer:
         self, llm_analyzer: MarkdownAgentAnalyzer
     ) -> None:
         """Test initialization with LLM requirement."""
-        mock_client = MagicMock(spec=object)
+        mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
         with patch(
             "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client",
             return_value=mock_client,
@@ -122,7 +122,7 @@ class TestMarkdownAgentAnalyzer:
         self, llm_analyzer: MarkdownAgentAnalyzer
     ) -> None:
         """Test that initialize is idempotent."""
-        mock_client = MagicMock(spec=object)
+        mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
         llm_analyzer.llm_client = mock_client
 
         with patch(
@@ -136,7 +136,9 @@ class TestMarkdownAgentAnalyzer:
     @pytest.mark.asyncio
     async def test_cleanup(self, llm_analyzer: MarkdownAgentAnalyzer) -> None:
         """Test cleanup."""
-        llm_analyzer.llm_client = MagicMock(spec=object)
+        llm_analyzer.llm_client = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
         await llm_analyzer.cleanup()
         assert llm_analyzer.llm_client is None
 
@@ -182,7 +184,9 @@ class TestMarkdownAgentAnalyzer:
         self, llm_analyzer: MarkdownAgentAnalyzer, sample_scene: dict
     ) -> None:
         """Test successful LLM-based analysis."""
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = MagicMock(spec=CompletionResponse)
         mock_response.content = json.dumps(
             {"analysis": "Scene shows tension", "score": 0.8}
@@ -209,7 +213,9 @@ class TestMarkdownAgentAnalyzer:
         self, llm_analyzer: MarkdownAgentAnalyzer, sample_scene: dict
     ) -> None:
         """Test that analyze auto-initializes LLM client if needed."""
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = MagicMock(spec=CompletionResponse)
         mock_response.content = '{"analysis": "Initialized and analyzed"}'
         mock_response.model = "test-model"
@@ -231,7 +237,9 @@ class TestMarkdownAgentAnalyzer:
         self, llm_analyzer: MarkdownAgentAnalyzer, sample_scene: dict
     ) -> None:
         """Test LLM analysis with validation retry."""
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # First call returns invalid, second returns valid
         responses = [
@@ -263,7 +271,9 @@ class TestMarkdownAgentAnalyzer:
         self, llm_analyzer: MarkdownAgentAnalyzer, sample_scene: dict
     ) -> None:
         """Test LLM analysis when max retries exceeded."""
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # All attempts return invalid data
         mock_response = MagicMock(spec=CompletionResponse)
@@ -294,7 +304,9 @@ class TestMarkdownAgentAnalyzer:
         self, llm_analyzer: MarkdownAgentAnalyzer, sample_scene: dict
     ) -> None:
         """Test handling of LLM exceptions."""
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_client.complete.side_effect = Exception("LLM error")
         llm_analyzer.llm_client = mock_client
 
@@ -375,8 +387,10 @@ class TestMarkdownAgentAnalyzer:
         """Test LLM call with scene content replacement."""
         llm_analyzer.spec.analysis_prompt = "Analyze: {{scene_content}}"
 
-        mock_client = AsyncMock(spec=object)
-        mock_response = MagicMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
+        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_response.content = '{"analysis": "done"}'
         mock_response.model = "test"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
@@ -398,8 +412,10 @@ class TestMarkdownAgentAnalyzer:
         """Test LLM call with fountain code block replacement."""
         llm_analyzer.spec.analysis_prompt = "```fountain\n{{scene_content}}\n```"
 
-        mock_client = AsyncMock(spec=object)
-        mock_response = MagicMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
+        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_response.content = '{"analysis": "done"}'
         mock_response.model = "test"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
@@ -425,8 +441,10 @@ class TestMarkdownAgentAnalyzer:
         )
         llm_analyzer.spec.context_query = "SELECT * FROM scenes"
 
-        mock_client = AsyncMock(spec=object)
-        mock_response = MagicMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
+        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_response.content = '{"analysis": "done"}'
         mock_response.model = "test"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
@@ -449,8 +467,10 @@ class TestMarkdownAgentAnalyzer:
         """Test LLM call with JSON schema response format."""
         llm_analyzer.spec.analysis_prompt = "```json\n{schema}\n```\nAnalyze the scene"
 
-        mock_client = AsyncMock(spec=object)
-        mock_response = MagicMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
+        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_response.content = '{"analysis": "structured"}'
         mock_response.model = "test"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
@@ -489,8 +509,10 @@ class TestMarkdownAgentAnalyzer:
         self, llm_analyzer: MarkdownAgentAnalyzer, sample_scene: dict
     ) -> None:
         """Test LLM call with custom temperature."""
-        mock_client = AsyncMock(spec=object)
-        mock_response = MagicMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
+        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_response.content = '{"analysis": "temp test"}'
         mock_response.model = "test"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE

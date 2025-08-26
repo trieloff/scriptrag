@@ -79,7 +79,9 @@ class TestClaudeCodeProvider:
             patch("claude_code_sdk.ClaudeCodeOptions"),
             patch("httpx.AsyncClient") as mock_client,
         ):
-            mock_client.return_value.__aenter__.return_value = MagicMock(spec=object)
+            mock_client.return_value.__aenter__.return_value = MagicMock(
+                spec=["content", "model", "provider", "usage"]
+            )
             mock_client.return_value.__aexit__.return_value = None
             assert await provider.is_available() is True
 
@@ -328,9 +330,9 @@ class TestClaudeCodeProvider:
     async def test_complete_basic(self, provider: ClaudeCodeProvider) -> None:
         """Test basic completion."""
         # Mock the SDK components
-        mock_message = MagicMock(spec=object)
+        mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_message.__class__.__name__ = "AssistantMessage"
-        mock_text_block = MagicMock(spec=object)
+        mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_text_block.text = "Test response"
         mock_message.content = [mock_text_block]
 
@@ -354,9 +356,9 @@ class TestClaudeCodeProvider:
     @pytest.mark.asyncio
     async def test_complete_with_system(self, provider: ClaudeCodeProvider) -> None:
         """Test completion with system prompt."""
-        mock_message = MagicMock(spec=object)
+        mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_message.__class__.__name__ = "AssistantMessage"
-        mock_text_block = MagicMock(spec=object)
+        mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_text_block.text = "Response with system"
         mock_message.content = [mock_text_block]
 
@@ -389,7 +391,7 @@ class TestClaudeCodeProvider:
         self, provider: ClaudeCodeProvider
     ) -> None:
         """Test completion falling back to ResultMessage."""
-        mock_message = MagicMock(spec=object)
+        mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_message.__class__.__name__ = "ResultMessage"
         mock_message.result = "Result text"
 
@@ -414,9 +416,9 @@ class TestClaudeCodeProvider:
     ) -> None:
         """Test completion with JSON response format."""
         # Return valid JSON
-        mock_message = MagicMock(spec=object)
+        mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_message.__class__.__name__ = "AssistantMessage"
-        mock_text_block = MagicMock(spec=object)
+        mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_text_block.text = '{"result": "success", "value": 42}'
         mock_message.content = [mock_text_block]
 
@@ -454,9 +456,9 @@ class TestClaudeCodeProvider:
         self, provider: ClaudeCodeProvider
     ) -> None:
         """Test extracting JSON from markdown code block."""
-        mock_message = MagicMock(spec=object)
+        mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_message.__class__.__name__ = "AssistantMessage"
-        mock_text_block = MagicMock(spec=object)
+        mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_text_block.text = (
             'Here is the JSON:\n```json\n{"result": "extracted"}\n```\n'
         )
@@ -490,9 +492,9 @@ class TestClaudeCodeProvider:
             nonlocal call_count
             call_count += 1
 
-            mock_message = MagicMock(spec=object)
+            mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_message.__class__.__name__ = "AssistantMessage"
-            mock_text_block = MagicMock(spec=object)
+            mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
 
             if call_count == 1:
                 # First attempt: invalid JSON
@@ -526,9 +528,9 @@ class TestClaudeCodeProvider:
         """Test JSON validation fails after max retries."""
 
         async def mock_query(prompt: str, options: object) -> AsyncMock:
-            mock_message = MagicMock(spec=object)
+            mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_message.__class__.__name__ = "AssistantMessage"
-            mock_text_block = MagicMock(spec=object)
+            mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_text_block.text = "Always invalid"
             mock_message.content = [mock_text_block]
             yield mock_message
@@ -598,9 +600,9 @@ class TestClaudeCodeProvider:
             # Simulate slow response
             await asyncio.sleep(0.05)  # Small delay to test progress
 
-            mock_message = MagicMock(spec=object)
+            mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_message.__class__.__name__ = "AssistantMessage"
-            mock_text_block = MagicMock(spec=object)
+            mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_text_block.text = "Slow response"
             mock_message.content = [mock_text_block]
             yield mock_message
@@ -641,9 +643,9 @@ class TestClaudeCodeProvider:
             nonlocal call_count
             call_count += 1
 
-            mock_message = MagicMock(spec=object)
+            mock_message = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_message.__class__.__name__ = "AssistantMessage"
-            mock_text_block = MagicMock(spec=object)
+            mock_text_block = MagicMock(spec=["content", "model", "provider", "usage"])
 
             if call_count == 1:
                 # First call: missing required field (current behavior accepts this)

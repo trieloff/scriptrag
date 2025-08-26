@@ -163,7 +163,9 @@ class TestBibleCharacterExtractor:
         bible_path.write_text("# Test")
 
         # Mock LLM client
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [
@@ -265,7 +267,9 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [
@@ -295,7 +299,9 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client that raises error
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_client.complete.side_effect = Exception("LLM error")
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
@@ -309,7 +315,9 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client with invalid response
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [
@@ -331,7 +339,9 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client with response as string
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = json.dumps([{"canonical": "JANE", "aliases": ["J"]}])
         mock_client.complete.return_value = mock_response
 
@@ -664,7 +674,9 @@ class TestBibleExtractor:
         bible_path.write_text("# Test")
 
         # Mock LLM client for character extraction
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [
@@ -701,7 +713,9 @@ class TestBibleExtractor:
         bible_path.write_text("# Test")
 
         # Mock LLM client for character extraction
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [

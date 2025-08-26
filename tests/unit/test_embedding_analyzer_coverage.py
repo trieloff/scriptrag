@@ -118,7 +118,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
         with patch(
             "scriptrag.analyzers.embedding.get_default_llm_client"
         ) as mock_client:
-            mock_client.return_value = AsyncMock(spec=object)
+            mock_client.return_value = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
 
             await analyzer.initialize()
 
@@ -141,7 +143,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
         with patch(
             "scriptrag.analyzers.embedding.get_default_llm_client"
         ) as mock_client:
-            mock_client.return_value = AsyncMock(spec=object)
+            mock_client.return_value = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
 
             await analyzer.initialize()
 
@@ -154,7 +158,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
         """Test loading embedding when file load fails."""
         config = {"repo_path": str(tmp_path)}
         analyzer = SceneEmbeddingAnalyzer(config)
-        analyzer.llm_client = AsyncMock(spec=object)
+        analyzer.llm_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Mock embedding response - use dict to make it subscriptable
         mock_embedding = {"embedding": [0.1, 0.2, 0.3]}
@@ -186,7 +192,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
         """Test error handling when saving embedding fails."""
         config = {"repo_path": str(tmp_path)}
         analyzer = SceneEmbeddingAnalyzer(config)
-        analyzer.llm_client = AsyncMock(spec=object)
+        analyzer.llm_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Mock embedding response - use dict to make it subscriptable
         mock_embedding = {"embedding": [0.1, 0.2, 0.3]}
@@ -216,7 +224,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
         """Test error handling when git add fails."""
         config = {"repo_path": str(tmp_path)}
         analyzer = SceneEmbeddingAnalyzer(config)
-        analyzer.llm_client = AsyncMock(spec=object)
+        analyzer.llm_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Mock embedding response - use dict to make it subscriptable
         mock_embedding = {"embedding": [0.1, 0.2, 0.3]}
@@ -259,7 +269,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
     async def test_generate_embedding_dict_response_format(self):
         """Test generating embedding with dict response format."""
         analyzer = SceneEmbeddingAnalyzer()
-        analyzer.llm_client = AsyncMock(spec=object)
+        analyzer.llm_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Mock response with dict format
         response = Mock(spec=EmbeddingResponse)
@@ -280,7 +292,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
     async def test_generate_embedding_no_data(self):
         """Test generating embedding when response has no data."""
         analyzer = SceneEmbeddingAnalyzer()
-        analyzer.llm_client = AsyncMock(spec=object)
+        analyzer.llm_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Mock response with empty data list - this will raise RuntimeError
         response = Mock(spec=EmbeddingResponse)
@@ -303,7 +317,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
         """Test generating embedding exception propagation."""
         config = {"dimensions": 768}
         analyzer = SceneEmbeddingAnalyzer(config)
-        analyzer.llm_client = AsyncMock(spec=object)
+        analyzer.llm_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Mock LLM client to raise exception
         analyzer.llm_client.embed.side_effect = Exception("Network error")
@@ -318,7 +334,9 @@ class TestSceneEmbeddingAnalyzerCoverage:
     async def test_generate_embedding_exception_fallback_default_dimensions(self):
         """Test generating embedding exception propagation with default config."""
         analyzer = SceneEmbeddingAnalyzer()  # No dimensions configured
-        analyzer.llm_client = AsyncMock(spec=object)
+        analyzer.llm_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Mock LLM client to raise exception
         analyzer.llm_client.embed.side_effect = Exception("Network error")

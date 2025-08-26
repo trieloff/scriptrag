@@ -442,7 +442,7 @@ class TestQueryEngine:
         # Mock to raise a generic exception during SQL execution
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
             # Mock context manager
-            mock_context = MagicMock(spec=object)
+            mock_context = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_conn.return_value.__enter__.return_value = mock_context
             mock_context.execute.side_effect = RuntimeError("Unexpected database error")
 
@@ -467,7 +467,7 @@ class TestQueryEngine:
         engine = QueryEngine(settings)
 
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
-            mock_db_conn = MagicMock(spec=object)
+            mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             # Mock successful write operation (should not happen in read-only)
             mock_db_conn.execute.return_value = None
             mock_db_conn.commit.return_value = None
@@ -481,7 +481,7 @@ class TestQueryEngine:
     def test_check_read_only_with_readonly_error(self, engine):
         """Test read-only check when read-only error is raised."""
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
-            mock_db_conn = MagicMock(spec=object)
+            mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             # Mock read-only error
             mock_db_conn.execute.side_effect = sqlite3.OperationalError(
                 "database is read-only"
@@ -494,7 +494,7 @@ class TestQueryEngine:
     def test_check_read_only_with_other_error(self, engine):
         """Test read-only check with non-read-only error."""
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
-            mock_db_conn = MagicMock(spec=object)
+            mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             # Mock other error that should be treated as read-only
             mock_db_conn.execute.side_effect = sqlite3.OperationalError(
                 "some other error"
@@ -582,7 +582,7 @@ class TestQueryEngine:
 
         # Mock to raise IntegrityError
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
-            mock_db_conn = MagicMock(spec=object)
+            mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_db_conn.execute.side_effect = sqlite3.IntegrityError(
                 "UNIQUE constraint failed"
             )
@@ -616,7 +616,7 @@ class TestQueryEngine:
 
         # Mock to raise ProgrammingError
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
-            mock_db_conn = MagicMock(spec=object)
+            mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_db_conn.execute.side_effect = sqlite3.ProgrammingError(
                 "SQL syntax error"
             )
@@ -650,7 +650,7 @@ class TestQueryEngine:
 
         # Mock to raise generic Exception
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
-            mock_db_conn = MagicMock(spec=object)
+            mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_db_conn.execute.side_effect = RuntimeError("Unexpected database error")
             mock_conn.return_value.__enter__.return_value = mock_db_conn
 
@@ -660,7 +660,7 @@ class TestQueryEngine:
     def test_check_read_only_write_succeeds_error(self, engine):
         """Test check_read_only when write operation succeeds."""
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
-            mock_db_conn = MagicMock(spec=object)
+            mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             # Mock successful write operation (should not happen in read-only)
             mock_db_conn.execute.return_value = None
             mock_db_conn.commit.return_value = None
@@ -674,7 +674,7 @@ class TestQueryEngine:
     def test_check_read_only_reraise_runtime_error(self, engine):
         """Test check_read_only re-raises RuntimeError - lines 205-207 coverage."""
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
-            mock_db_conn = MagicMock(spec=object)
+            mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             # Mock the specific RuntimeError that should be re-raised
             mock_db_conn.execute.side_effect = RuntimeError(
                 "Database connection is not read-only!"
@@ -689,7 +689,7 @@ class TestQueryEngine:
     def test_check_read_only_other_exception_returns_true(self, engine):
         """Test check_read_only with other exceptions returns True."""
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
-            mock_db_conn = MagicMock(spec=object)
+            mock_db_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             # Mock other exception that should result in True
             mock_db_conn.execute.side_effect = ValueError("Some other error")
             mock_conn.return_value.__enter__.return_value = mock_db_conn

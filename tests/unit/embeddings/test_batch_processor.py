@@ -18,7 +18,9 @@ from scriptrag.llm.models import EmbeddingResponse, LLMProvider
 def mock_llm_client():
     """Create a mock LLM client."""
     client = MagicMock(spec=LLMClient)
-    client.embed = AsyncMock(spec=object)
+    client.embed = AsyncMock(
+        spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+    )
     return client
 
 

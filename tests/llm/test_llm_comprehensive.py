@@ -159,12 +159,16 @@ class TestProviderRegistry:
         # Create mock providers with client attribute
         mock_provider1 = Mock(spec=BaseLLMProvider)
         mock_provider1.provider_type = LLMProvider.GITHUB_MODELS
-        mock_client1 = AsyncMock(spec=object)
+        mock_client1 = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_provider1.client = mock_client1
 
         mock_provider2 = Mock(spec=BaseLLMProvider)
         mock_provider2.provider_type = LLMProvider.OPENAI_COMPATIBLE
-        mock_client2 = AsyncMock(spec=object)
+        mock_client2 = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_provider2.client = mock_client2
 
         registry.set_provider(LLMProvider.GITHUB_MODELS, mock_provider1)
@@ -186,8 +190,10 @@ class TestClaudeCodeProviderExtended:
         provider.sdk_available = True
 
         # Mock the SDK module in sys.modules
-        mock_sdk = MagicMock(spec=object)
-        mock_sdk.ClaudeCodeOptions = MagicMock(spec=object)
+        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_sdk.ClaudeCodeOptions = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
 
         with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
             result = await provider.is_available()
@@ -213,7 +219,7 @@ class TestClaudeCodeProviderExtended:
         provider = ClaudeCodeProvider()
 
         # Mock importing the SDK
-        mock_sdk = MagicMock(spec=object)
+        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
 
         # Create a mock AssistantMessage with proper structure
         mock_text_block = Mock(spec=object)
@@ -1061,7 +1067,9 @@ class TestLLMClientExtended:
         """Test cleanup method."""
         client = LLMClient()
 
-        mock_cleanup = AsyncMock(spec=object)
+        mock_cleanup = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         client.registry.cleanup = mock_cleanup
 
         await client.cleanup()
@@ -1073,7 +1081,9 @@ class TestLLMClientExtended:
         """Test async context manager."""
         client = LLMClient()
 
-        mock_cleanup = AsyncMock(spec=object)
+        mock_cleanup = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         client.cleanup = mock_cleanup
 
         async with client as c:

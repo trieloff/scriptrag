@@ -28,7 +28,7 @@ async def test_mcp_server_tools_registered():
     """Test that tools are properly registered."""
     with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_api_class:
         # Mock the query API
-        mock_api = MagicMock(spec=object)
+        mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_api_class.return_value = mock_api
         mock_api.list_queries.return_value = [
             QuerySpec(

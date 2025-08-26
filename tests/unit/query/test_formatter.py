@@ -103,7 +103,9 @@ class TestQueryFormatter:
     @patch("scriptrag.query.formatter.ResultFormatter")
     def test_format_as_scenes(self, _mock_result_formatter_class, formatter):
         """Test formatting scene-like results."""
-        mock_result_formatter = MagicMock(spec=object)
+        mock_result_formatter = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
         formatter.result_formatter = mock_result_formatter
 
         rows = [

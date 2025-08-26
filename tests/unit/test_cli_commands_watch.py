@@ -32,7 +32,7 @@ def mock_settings():
 def mock_observer():
     """Mock watchdog observer."""
     with patch("scriptrag.cli.commands.watch.Observer") as mock:
-        observer = MagicMock(spec=object)
+        observer = MagicMock(spec=["content", "model", "provider", "usage"])
         mock.return_value = observer
         yield observer
 
@@ -41,7 +41,7 @@ def mock_observer():
 def mock_handler():
     """Mock file handler."""
     with patch("scriptrag.cli.commands.watch.FountainFileHandler") as mock:
-        handler = MagicMock(spec=object)
+        handler = MagicMock(spec=["content", "model", "provider", "usage"])
         mock.return_value = handler
         yield handler
 
@@ -165,7 +165,7 @@ class TestWatchCommand:
             with patch(
                 "scriptrag.cli.commands.watch.FountainFileHandler"
             ) as mock_handler_class:
-                mock_handler = MagicMock(spec=object)
+                mock_handler = MagicMock(spec=["content", "model", "provider", "usage"])
                 mock_handler_class.return_value = mock_handler
 
                 # Run command with force
@@ -190,7 +190,7 @@ class TestWatchCommand:
             with patch(
                 "scriptrag.cli.commands.watch.FountainFileHandler"
             ) as mock_handler_class:
-                mock_handler = MagicMock(spec=object)
+                mock_handler = MagicMock(spec=["content", "model", "provider", "usage"])
                 mock_handler_class.return_value = mock_handler
 
                 # Run command with custom batch size
@@ -357,7 +357,7 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.FountainFileHandler"
         ) as mock_handler_class:
-            mock_handler = MagicMock(spec=object)
+            mock_handler = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_handler_class.return_value = mock_handler
             callback = None
 
@@ -410,7 +410,7 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.FountainFileHandler"
         ) as mock_handler_class:
-            mock_handler = MagicMock(spec=object)
+            mock_handler = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_handler_class.return_value = mock_handler
             callback = None
 
@@ -482,7 +482,7 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.FountainFileHandler"
         ) as mock_handler_class:
-            mock_handler = MagicMock(spec=object)
+            mock_handler = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_handler_class.return_value = mock_handler
             callback = None
 
@@ -584,7 +584,7 @@ class TestWatchCommand:
             with patch(
                 "scriptrag.cli.commands.watch.FountainFileHandler"
             ) as mock_handler_class:
-                mock_handler = MagicMock(spec=object)
+                mock_handler = MagicMock(spec=["content", "model", "provider", "usage"])
                 mock_handler_class.return_value = mock_handler
 
                 with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:

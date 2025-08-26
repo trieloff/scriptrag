@@ -12,7 +12,9 @@ from scriptrag.llm.models import EmbeddingResponse
 @pytest.fixture
 def mock_llm_client():
     """Create a mock LLM client."""
-    client = AsyncMock(spec=object)
+    client = AsyncMock(
+        spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+    )
     # Mock embedding response - needs to support both attribute and subscript access
     mock_embedding = Mock(spec=object)
     mock_embedding.embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
@@ -120,7 +122,9 @@ class TestSceneEmbeddingAnalyzer:
         with patch(
             "scriptrag.analyzers.embedding.get_default_llm_client"
         ) as mock_get_client:
-            mock_get_client.return_value = AsyncMock(spec=object)
+            mock_get_client.return_value = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
             await analyzer.initialize()
 
             # Check that embeddings directory was created

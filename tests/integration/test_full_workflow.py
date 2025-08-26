@@ -159,7 +159,9 @@ class TestFullWorkflow:
         with patch("scriptrag.utils.get_default_llm_client") as mock_get_client:
             from unittest.mock import AsyncMock
 
-            mock_client = AsyncMock(spec=object)
+            mock_client = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
 
             # Create mock scene analysis response
             mock_response = create_llm_completion_response("scene", "coffee_shop")

@@ -109,7 +109,7 @@ class TestMarkdownAgentAnalyzer:
         self, llm_analyzer: MarkdownAgentAnalyzer
     ) -> None:
         """Test initialization with LLM requirement."""
-        mock_client = MagicMock(spec=object)
+        mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
         with patch(
             "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client",
             return_value=mock_client,
@@ -122,7 +122,7 @@ class TestMarkdownAgentAnalyzer:
         self, llm_analyzer: MarkdownAgentAnalyzer
     ) -> None:
         """Test that initialize is idempotent."""
-        mock_client = MagicMock(spec=object)
+        mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
         llm_analyzer.llm_client = mock_client
 
         with patch(
@@ -136,7 +136,9 @@ class TestMarkdownAgentAnalyzer:
     @pytest.mark.asyncio
     async def test_cleanup(self, llm_analyzer: MarkdownAgentAnalyzer) -> None:
         """Test cleanup."""
-        llm_analyzer.llm_client = MagicMock(spec=object)
+        llm_analyzer.llm_client = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
         await llm_analyzer.cleanup()
         assert llm_analyzer.llm_client is None
 

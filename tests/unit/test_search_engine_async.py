@@ -181,9 +181,11 @@ class TestSearchEngineAsync:
         engine = SearchEngine(mock_settings)
 
         # Mock the LLM client for embeddings
-        mock_llm_client = AsyncMock(spec=object)
-        embedding_response = MagicMock(spec=object)
-        embedding_data = MagicMock(spec=object)
+        mock_llm_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
+        embedding_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        embedding_data = MagicMock(spec=["content", "model", "provider", "usage"])
         embedding_data.embedding = [0.1] * 1536  # Mock embedding
         embedding_response.data = [embedding_data]
         mock_llm_client.embed = AsyncMock(return_value=embedding_response)

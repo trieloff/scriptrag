@@ -71,7 +71,9 @@ class TestBibleIndexerEdgeCases:
         with patch(
             "scriptrag.api.bible_index.SceneEmbeddingAnalyzer"
         ) as mock_analyzer_class:
-            mock_analyzer = AsyncMock(spec=object)
+            mock_analyzer = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
             mock_analyzer_class.return_value = mock_analyzer
 
             indexer = BibleIndexer(settings=mock_settings)
@@ -88,7 +90,9 @@ class TestBibleIndexerEdgeCases:
         with patch(
             "scriptrag.api.bible_index.SceneEmbeddingAnalyzer"
         ) as mock_analyzer_class:
-            mock_analyzer = AsyncMock(spec=object)
+            mock_analyzer = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
             mock_analyzer_class.return_value = mock_analyzer
 
             indexer = BibleIndexer(settings=mock_settings)
@@ -289,7 +293,9 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _extract_bible_aliases with LLM configured."""
         # Mock LLM client and response
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = Mock(spec=object)
         mock_response.text = (
             '{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
@@ -316,7 +322,9 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _extract_bible_aliases handles JSON wrapped in code fences."""
         # Mock LLM client and response with code fence
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = Mock(spec=object)
         mock_response.text = (
             '```json\n{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
@@ -341,7 +349,9 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _extract_bible_aliases handles deduplication."""
         # Mock LLM client with duplicate aliases
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = Mock(spec=object)
         mock_response.text = (
             '{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
@@ -464,7 +474,9 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer
-        mock_analyzer = AsyncMock(spec=object)
+        mock_analyzer = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_analyzer.analyze.return_value = {
             "embedding_path": "/path/to/embedding",
             "dimensions": 128,
@@ -496,7 +508,9 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer that always fails
-        mock_analyzer = AsyncMock(spec=object)
+        mock_analyzer = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_analyzer.analyze.side_effect = Exception("API Error")
         indexer.embedding_analyzer = mock_analyzer
 
@@ -525,7 +539,9 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer that returns error in result
-        mock_analyzer = AsyncMock(spec=object)
+        mock_analyzer = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_analyzer.analyze.return_value = {"error": "Rate limit exceeded"}
         indexer.embedding_analyzer = mock_analyzer
 
@@ -635,7 +651,9 @@ class TestBibleIndexerEdgeCases:
         )
 
         # Mock LLM client and response
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_response = Mock(spec=object)
         mock_response.text = (
             '{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '

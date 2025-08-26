@@ -125,7 +125,9 @@ class TestBibleIndexComprehensiveCoverage:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer
-        mock_analyzer = AsyncMock(spec=object)
+        mock_analyzer = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor with empty chunks list
@@ -228,7 +230,9 @@ class TestBibleIndexComprehensiveCoverage:
         """
         indexer = BibleIndexer(settings=mock_settings)
 
-        mock_analyzer = AsyncMock(spec=object)
+        mock_analyzer = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         # Every call fails immediately with max retries exceeded
         mock_analyzer.analyze.side_effect = Exception("Immediate failure")
         indexer.embedding_analyzer = mock_analyzer
@@ -512,7 +516,9 @@ class TestBibleIndexComprehensiveCoverage:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer
-        mock_analyzer = AsyncMock(spec=object)
+        mock_analyzer = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor where fetchall() initially returns chunks
@@ -550,7 +556,9 @@ class TestBibleIndexComprehensiveCoverage:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer
-        mock_analyzer = AsyncMock(spec=object)
+        mock_analyzer = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_analyzer.analyze.return_value = {
             "embedding_path": "/path/embedding",
             "dimensions": 128,

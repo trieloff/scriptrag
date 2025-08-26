@@ -24,7 +24,9 @@ class TestSceneEmbeddingAnalyzerComplete:
     @pytest.fixture
     def mock_llm_client(self):
         """Create a comprehensive mock LLM client."""
-        client = AsyncMock(spec=object)
+        client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         # Create flexible mock embedding that supports both dict and object access
         mock_embedding_data = {
             "embedding": [0.1, 0.2, 0.3, 0.4, 0.5],
@@ -216,7 +218,9 @@ class TestSceneEmbeddingAnalyzerComplete:
         with patch(
             "scriptrag.analyzers.embedding.get_default_llm_client"
         ) as mock_get_client:
-            mock_client = AsyncMock(spec=object)
+            mock_client = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
             mock_get_client.return_value = mock_client
 
             await analyzer.initialize()
@@ -228,7 +232,9 @@ class TestSceneEmbeddingAnalyzerComplete:
     async def test_initialize_existing_llm_client(self, analyzer_config, tmp_path):
         """Test initialize when llm_client already exists (MISSING BRANCH COVERAGE)."""
         analyzer = SceneEmbeddingAnalyzer(analyzer_config)
-        existing_client = AsyncMock(spec=object)
+        existing_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         analyzer.llm_client = existing_client  # Pre-set client
 
         with patch(
@@ -368,7 +374,9 @@ class TestSceneEmbeddingAnalyzerComplete:
     async def test_generate_embedding_api_error_fallback(self, analyzer_config):
         """Test API errors now raise EmbeddingGenerationError instead of fallback."""
         analyzer = SceneEmbeddingAnalyzer(analyzer_config)
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_client.embed.side_effect = Exception("API Error")
         analyzer.llm_client = mock_client
 
@@ -384,7 +392,9 @@ class TestSceneEmbeddingAnalyzerComplete:
     async def test_generate_embedding_empty_response_fallback(self):
         """Test that empty response now raises RuntimeError instead of fallback."""
         analyzer = SceneEmbeddingAnalyzer()  # No dimensions configured
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Mock empty response
         response = Mock(spec=EmbeddingResponse)
@@ -405,7 +415,9 @@ class TestSceneEmbeddingAnalyzerComplete:
     async def test_generate_embedding_attribute_access_response(self):
         """Test embedding response with attribute access pattern."""
         analyzer = SceneEmbeddingAnalyzer()
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Mock response where embedding data has both attribute and dict access
         mock_embedding = Mock(spec=object)
@@ -596,7 +608,9 @@ class TestSceneEmbeddingAnalyzerComplete:
         """Test analyze with auto-selected model (None config)."""
         config = {"repo_path": str(tmp_path)}  # No embedding_model specified
         analyzer = SceneEmbeddingAnalyzer(config)
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Mock response
         response = Mock(spec=EmbeddingResponse)
@@ -634,7 +648,9 @@ class TestSceneEmbeddingAnalyzerComplete:
         analyzer = SceneEmbeddingAnalyzer()
 
         # Set up state to clean
-        analyzer.llm_client = AsyncMock(spec=object)
+        analyzer.llm_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         analyzer._embeddings_cache = {
             "hash1": np.array([1, 2, 3]),
             "hash2": np.array([4, 5, 6]),
@@ -690,7 +706,9 @@ class TestSceneEmbeddingAnalyzerComplete:
     async def test_embedding_statistics_calculation(self, analyzer_config, tmp_path):
         """Test embedding statistics calculation with known values."""
         analyzer = SceneEmbeddingAnalyzer(analyzer_config)
-        mock_client = AsyncMock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         # Use predictable embedding values for statistics testing
         known_embedding = [1.0, 2.0, 3.0, 4.0, 5.0]

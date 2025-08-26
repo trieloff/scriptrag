@@ -21,7 +21,7 @@ class TestDatabaseSettingsIntegration:
         initializer = DatabaseInitializer()
 
         with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_connect.return_value = mock_conn
 
             initializer.initialize_database(settings=settings)

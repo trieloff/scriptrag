@@ -20,7 +20,7 @@ def settings():
 def mock_db_ops():
     """Create mock database operations."""
     db_ops = MagicMock(spec=DatabaseOperations)
-    db_ops.transaction = MagicMock(spec=object)
+    db_ops.transaction = MagicMock(spec=["content", "model", "provider", "usage"])
     return db_ops
 
 
@@ -29,7 +29,9 @@ def mock_embedding_service():
     """Create mock embedding service."""
     service = MagicMock(spec=EmbeddingService)
     service.default_model = "test-model"
-    service.generate_embedding = AsyncMock(spec=object)
+    service.generate_embedding = AsyncMock(
+        spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+    )
     service.encode_embedding_for_db = Mock(spec=object)
     service.decode_embedding_from_db = Mock(spec=object)
     service.cosine_similarity = Mock(spec=object)
@@ -85,7 +87,7 @@ class TestBibleSemanticSearch:
             },
         ]
 
-        mock_conn = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
         mock_conn.execute.return_value.fetchall.return_value = mock_chunks
 
@@ -157,7 +159,7 @@ class TestBibleSemanticSearch:
             },
         ]
 
-        mock_conn = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
         mock_conn.execute.return_value.fetchall.return_value = mock_chunks
 
@@ -193,8 +195,8 @@ class TestBibleSemanticSearch:
             {"id": 2, "heading": "Chapter 2", "content": "Chapter 2 content"},
         ]
 
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = mock_chunks
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
@@ -233,8 +235,8 @@ class TestBibleSemanticSearch:
             {"id": 2, "heading": None, "content": "Chapter 2 content"},
         ]
 
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = mock_chunks
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn

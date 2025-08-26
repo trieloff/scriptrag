@@ -62,8 +62,8 @@ class TestAnalyzeCommandAdditionalCoverage:
                 mock_db_ops.check_database_exists.return_value = True
 
                 # Mock transaction context manager
-                mock_conn = MagicMock(spec=object)
-                mock_cursor = MagicMock(spec=object)
+                mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+                mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
                 mock_conn.cursor.return_value = mock_cursor
                 mock_cursor.fetchone.return_value = (
                     json.dumps({"bible.characters": bible_metadata}),
@@ -112,8 +112,8 @@ class TestAnalyzeCommandAdditionalCoverage:
                 mock_db_ops = mock_db_ops_class.return_value
                 mock_db_ops.check_database_exists.return_value = True
 
-                mock_conn = MagicMock(spec=object)
-                mock_cursor = MagicMock(spec=object)
+                mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+                mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
                 mock_conn.cursor.return_value = mock_cursor
                 mock_cursor.fetchone.return_value = None
 
@@ -139,8 +139,8 @@ class TestAnalyzeCommandAdditionalCoverage:
                 mock_db_ops = mock_db_ops_class.return_value
                 mock_db_ops.check_database_exists.return_value = True
 
-                mock_conn = MagicMock(spec=object)
-                mock_cursor = MagicMock(spec=object)
+                mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+                mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
                 mock_conn.cursor.return_value = mock_cursor
                 # Return metadata with invalid bible.characters (string instead of dict)
                 mock_cursor.fetchone.return_value = (
@@ -257,7 +257,9 @@ class TestAnalyzeCommandAdditionalCoverage:
             mock_parser_instance.parse_file.return_value = mock_script
 
             # Mock the write method to be callable
-            mock_parser_instance.write_with_updated_scenes = MagicMock(spec=object)
+            mock_parser_instance.write_with_updated_scenes = MagicMock(
+                spec=["content", "model", "provider", "usage"]
+            )
 
             result = await cmd.analyze(path=temp_fountain_file.parent, force=True)
 
@@ -466,8 +468,8 @@ class TestAnalyzeCommandAdditionalCoverage:
                 mock_db_ops = mock_db_ops_class.return_value
                 mock_db_ops.check_database_exists.return_value = True
 
-                mock_conn = MagicMock(spec=object)
-                mock_cursor = MagicMock(spec=object)
+                mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+                mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
                 mock_conn.cursor.return_value = mock_cursor
                 # Return metadata as dict directly (not JSON string)
                 mock_cursor.fetchone.return_value = (

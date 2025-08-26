@@ -79,7 +79,9 @@ class TestBibleCharacterExtraction:
     ):
         """Test extracting characters from a Bible file."""
         # Mock LLM client
-        mock_llm = AsyncMock(spec=object)
+        mock_llm = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_llm.complete.return_value = mock_llm_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
@@ -127,7 +129,9 @@ class TestBibleCharacterExtraction:
             ]
         )
 
-        mock_llm = AsyncMock(spec=object)
+        mock_llm = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_llm.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
@@ -155,7 +159,9 @@ class TestBibleCharacterExtraction:
         bible_path = tmp_path / "empty_bible.md"
         bible_path.write_text("# Script Bible\n\n## Setting\n\nA dark city...")
 
-        mock_llm = AsyncMock(spec=object)
+        mock_llm = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
 
         result = await extractor.extract_characters_from_bible(bible_path)
@@ -172,7 +178,9 @@ class TestBibleCharacterExtraction:
     async def test_llm_extraction_failure(self, temp_bible_file):
         """Test handling of LLM extraction failures."""
         # Mock LLM that raises an error
-        mock_llm = AsyncMock(spec=object)
+        mock_llm = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_llm.complete.side_effect = Exception("LLM API error")
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
@@ -187,7 +195,9 @@ class TestBibleCharacterExtraction:
     async def test_invalid_json_response(self, temp_bible_file):
         """Test handling of invalid JSON from LLM."""
         # Mock LLM with invalid JSON
-        mock_llm = AsyncMock(spec=object)
+        mock_llm = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_llm.complete.return_value = "This is not JSON"
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
@@ -213,7 +223,9 @@ class TestBibleCharacterExtraction:
 
 These are the main characters from the Bible."""
 
-        mock_llm = AsyncMock(spec=object)
+        mock_llm = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_llm.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
@@ -250,7 +262,9 @@ ALICE - Supporting character
         bible_path.write_text(bible_content)
 
         # Mock LLM
-        mock_llm = AsyncMock(spec=object)
+        mock_llm = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_llm.complete.return_value = json.dumps(
             [
                 {"canonical": "JANE", "aliases": []},

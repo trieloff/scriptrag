@@ -30,16 +30,20 @@ def mock_settings():
 @pytest.fixture
 def mock_vss_service():
     """Create mock VSS service."""
-    vss = MagicMock(spec=object)
-    vss.get_connection.return_value.__enter__ = MagicMock(spec=object)
-    vss.get_connection.return_value.__exit__ = MagicMock(spec=object)
+    vss = MagicMock(spec=["content", "model", "provider", "usage"])
+    vss.get_connection.return_value.__enter__ = MagicMock(
+        spec=["content", "model", "provider", "usage"]
+    )
+    vss.get_connection.return_value.__exit__ = MagicMock(
+        spec=["content", "model", "provider", "usage"]
+    )
     return vss
 
 
 @pytest.fixture
 def mock_embedding_service():
     """Create mock embedding service."""
-    embedding_service = MagicMock(spec=object)
+    embedding_service = MagicMock(spec=["content", "model", "provider", "usage"])
     embedding_service.default_model = "text-embedding-3-small"
     embedding_service.generate_embedding = AsyncMock(
         return_value=list(np.random.rand(1536))
@@ -47,7 +51,9 @@ def mock_embedding_service():
     embedding_service.generate_scene_embedding = AsyncMock(
         return_value=list(np.random.rand(1536))
     )
-    embedding_service.save_embedding_to_lfs = MagicMock(spec=object)
+    embedding_service.save_embedding_to_lfs = MagicMock(
+        spec=["content", "model", "provider", "usage"]
+    )
     return embedding_service
 
 
@@ -144,8 +150,8 @@ class TestSemanticSearchVSS:
     ):
         """Test finding related scenes."""
         # Mock database connection and scene lookup
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchone.return_value = {
             "heading": "Original Scene",
             "content": "Original content",
@@ -191,8 +197,8 @@ class TestSemanticSearchVSS:
     ):
         """Test finding related scenes when source scene not found."""
         # Mock scene not found
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchone.return_value = None
         mock_conn.execute.return_value = mock_cursor
         mock_vss_service.get_connection.return_value.__enter__.return_value = mock_conn
@@ -210,8 +216,8 @@ class TestSemanticSearchVSS:
     ):
         """Test generating missing embeddings."""
         # Mock database connection and missing scenes query
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = [
             {"id": 1, "heading": "Scene 1", "content": "Content 1"},
             {"id": 2, "heading": "Scene 2", "content": "Content 2"},
@@ -240,8 +246,8 @@ class TestSemanticSearchVSS:
     ):
         """Test generating embeddings with some failures."""
         # Mock database connection
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = [
             {"id": 1, "heading": "Scene 1", "content": "Content 1"},
             {"id": 2, "heading": "Scene 2", "content": "Content 2"},
@@ -313,8 +319,8 @@ class TestSemanticSearchVSS:
     ):
         """Test generating bible embeddings."""
         # Mock database connection
-        mock_conn = MagicMock(spec=object)
-        mock_cursor = MagicMock(spec=object)
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_cursor.fetchall.return_value = [
             {"id": 1, "heading": "Chapter 1", "content": "Content 1"},
             {"id": 2, "heading": None, "content": "Content 2"},

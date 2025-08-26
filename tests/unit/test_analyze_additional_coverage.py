@@ -370,7 +370,9 @@ class TestAnalyzeCommand:
         command = AnalyzeCommand(analyzers=[mock_scene_analyzer])
 
         # Make analyzer support cleanup
-        mock_scene_analyzer.cleanup = AsyncMock(spec=object)
+        mock_scene_analyzer.cleanup = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         with (
             patch("scriptrag.api.analyze.FountainParser") as mock_parser_class,
@@ -463,7 +465,9 @@ class TestAnalyzeCommand:
         """Test processing file with analyzer that has initialize method."""
         analyzer_with_init = Mock(spec=object)
         analyzer_with_init.name = "test"
-        analyzer_with_init.initialize = AsyncMock(spec=object)
+        analyzer_with_init.initialize = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         analyzer_with_init.analyze = AsyncMock(return_value={})
         # Remove cleanup attribute to prevent hasattr check from passing
         del analyzer_with_init.cleanup

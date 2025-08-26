@@ -358,7 +358,7 @@ class TestMarkdownAgentAnalyzer:
     async def test_cleanup(self, sample_spec: AgentSpec) -> None:
         """Test cleanup releases resources."""
         analyzer = MarkdownAgentAnalyzer(sample_spec)
-        analyzer.llm_client = MagicMock(spec=object)
+        analyzer.llm_client = MagicMock(spec=["content", "model", "provider", "usage"])
 
         await analyzer.cleanup()
 

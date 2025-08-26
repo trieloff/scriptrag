@@ -58,7 +58,7 @@ def fast_mock_llm_client(
     client = MagicMock(spec=LLMClient)
 
     # Mock provider with instant responses
-    provider = MagicMock(spec=object)
+    provider = MagicMock(spec=["content", "model", "provider", "usage"])
     provider.complete = AsyncMock(return_value=instant_llm_response)
     provider.embed = AsyncMock(return_value=instant_embedding_response)
     provider.list_models = AsyncMock(

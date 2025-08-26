@@ -121,7 +121,7 @@ class TestCLIMainFunction:
         from unittest.mock import MagicMock, patch
 
         # Mock the app itself rather than just __call__
-        mock_app = MagicMock(spec=object)
+        mock_app = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_app.side_effect = SystemExit(0)  # Simulate normal typer exit
 
         with patch("scriptrag.cli.main.app", mock_app):

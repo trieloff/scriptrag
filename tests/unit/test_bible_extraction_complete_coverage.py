@@ -280,7 +280,7 @@ class TestBibleCharacterExtractor:
         mock_client.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
-        characters = await extractor.extract_via_llm(chunks)
+        characters = await extractor._extract_via_llm(chunks)
 
         assert len(characters) == 1
         char = characters[0]
@@ -299,7 +299,7 @@ class TestBibleCharacterExtractor:
         mock_client.complete.side_effect = Exception("LLM error")
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
-        characters = await extractor.extract_via_llm(chunks)
+        characters = await extractor._extract_via_llm(chunks)
 
         assert characters == []
 
@@ -310,7 +310,7 @@ class TestBibleCharacterExtractor:
 
         # Mock LLM client with invalid response
         mock_client = AsyncMock()
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec_set=["content"])
         mock_response.content = json.dumps(
             [
                 {"aliases": ["JANE"]},  # No canonical
@@ -321,7 +321,7 @@ class TestBibleCharacterExtractor:
         mock_client.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
-        characters = await extractor.extract_via_llm(chunks)
+        characters = await extractor._extract_via_llm(chunks)
 
         assert characters == []
 
@@ -336,7 +336,7 @@ class TestBibleCharacterExtractor:
         mock_client.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
-        characters = await extractor.extract_via_llm(chunks)
+        characters = await extractor._extract_via_llm(chunks)
 
         assert len(characters) == 1
         assert characters[0].canonical == "JANE"

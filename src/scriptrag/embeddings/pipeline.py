@@ -64,16 +64,22 @@ class TextPreprocessor(ABC):
 class StandardPreprocessor(TextPreprocessor):
     """Standard text preprocessor with configurable steps."""
 
-    def __init__(self, steps: list[PreprocessingStep] | None = None):
+    def __init__(
+        self,
+        steps: list[PreprocessingStep] | None = None,
+        max_text_length: int = 8000,
+    ):
         """Initialize preprocessor.
 
         Args:
             steps: Preprocessing steps to apply
+            max_text_length: Maximum text length for truncation
         """
         self.steps = steps or [
             PreprocessingStep.REMOVE_EXTRA_WHITESPACE,
             PreprocessingStep.NORMALIZE_UNICODE,
         ]
+        self.max_text_length = max_text_length
 
     def process(self, text: str) -> str:
         """Apply preprocessing steps to text.
@@ -139,6 +145,12 @@ class StandardPreprocessor(TextPreprocessor):
             }
             for contraction, expansion in contractions.items():
                 text = text.replace(contraction, expansion)
+            return text
+
+        if step == PreprocessingStep.TRUNCATE:
+            # Truncate to max_text_length
+            if len(text) > self.max_text_length:
+                return text[: self.max_text_length] + "..."
             return text
 
         return text
@@ -222,7 +234,7 @@ class EmbeddingPipeline:
 
         # Initialize components
         self.preprocessor = preprocessor or StandardPreprocessor(
-            config.preprocessing_steps
+            config.preprocessing_steps, config.max_text_length
         )
 
         if config.use_cache and cache is None:

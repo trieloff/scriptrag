@@ -153,7 +153,11 @@ class QueryCommandBuilder:
 
                     # Query API returns formatted string, just print it
                     if results is not None:
-                        console.print(results)
+                        # Use plain print for JSON to avoid Rich formatting
+                        if json_output:
+                            print(results)
+                        else:
+                            console.print(results)
 
                     # Execution stats are handled by the API formatter
 

@@ -95,7 +95,8 @@ def status(
 
         # Output status
         if json_output:
-            console.print(formatter.format(status_info))
+            # Output pure JSON without ANSI escape codes
+            print(formatter.format(status_info))
         else:
             console.print("[bold cyan]ScriptRAG Status[/bold cyan]\n")
             for key, value in status_info.items():
@@ -119,7 +120,8 @@ def version(
 
     if json_output:
         formatter = JsonFormatter()
-        console.print(formatter.format(version_info))
+        # Output pure JSON without ANSI escape codes
+        print(formatter.format(version_info))
     else:
         console.print(f"ScriptRAG v{version_info['version']}")
 

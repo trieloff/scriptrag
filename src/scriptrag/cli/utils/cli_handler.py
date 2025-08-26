@@ -45,9 +45,8 @@ class CLIHandler:
         logger.error(f"Command failed: {error_msg}", exc_info=error)
 
         if json_output:
-            self.console.print(
-                self.json_formatter.format_error_response(error, exit_code)
-            )
+            # Output pure JSON without ANSI escape codes
+            print(self.json_formatter.format_error_response(error, exit_code))
         else:
             if isinstance(error, ValidationError):
                 self.console.print(f"[red]Validation Error: {error_msg}[/red]")
@@ -67,7 +66,8 @@ class CLIHandler:
             json_output: Whether to output JSON
         """
         if json_output:
-            self.console.print(self.json_formatter.format_success(message, data))
+            # Output pure JSON without ANSI escape codes
+            print(self.json_formatter.format_success(message, data))
         else:
             self.console.print(f"[green]{message}[/green]")
 

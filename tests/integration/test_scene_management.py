@@ -464,6 +464,7 @@ JAMES walks in."""
             or "warning" in output.lower()
             or "delete scene" in output.lower()
             or "[y/n]" in output.lower()
+            or "Deletion requires --force in non-interactive environment" in output
         )
 
         # Test 4: Read from non-existent project

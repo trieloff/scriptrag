@@ -351,7 +351,7 @@ class TestAnalyzeCommand:
             patch("scriptrag.api.analyze.FountainParser") as mock_parser_class,
             patch("scriptrag.api.analyze.file_needs_update", return_value=False),
         ):
-            mock_parser = Mock(spec=object)
+            mock_parser = Mock(spec=["parse_file"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser_class.return_value = mock_parser
 
@@ -379,7 +379,7 @@ class TestAnalyzeCommand:
             patch("scriptrag.api.analyze.file_needs_update", return_value=True),
             patch("scriptrag.api.analyze.scene_needs_update", return_value=True),
         ):
-            mock_parser = Mock(spec=object)
+            mock_parser = Mock(spec=["parse_file"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser_class.return_value = mock_parser
 
@@ -406,7 +406,7 @@ class TestAnalyzeCommand:
             patch("scriptrag.api.analyze.file_needs_update", return_value=True),
             patch("scriptrag.api.analyze.scene_needs_update", return_value=False),
         ):
-            mock_parser = Mock(spec=object)
+            mock_parser = Mock(spec=["parse_file"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser_class.return_value = mock_parser
 
@@ -446,7 +446,7 @@ class TestAnalyzeCommand:
                 return_value=bible_metadata,
             ),
         ):
-            mock_parser = Mock(spec=object)
+            mock_parser = Mock(spec=["parse_file"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser_class.return_value = mock_parser
 
@@ -479,7 +479,7 @@ class TestAnalyzeCommand:
             patch("scriptrag.api.analyze.file_needs_update", return_value=True),
             patch("scriptrag.api.analyze.scene_needs_update", return_value=False),
         ):
-            mock_parser = Mock(spec=object)
+            mock_parser = Mock(spec=["parse_file"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser_class.return_value = mock_parser
 
@@ -504,9 +504,9 @@ class TestAnalyzeCommand:
             patch("scriptrag.api.analyze.file_needs_update", return_value=True),
             patch("scriptrag.api.analyze.scene_needs_update", return_value=True),
         ):
-            mock_parser = Mock(spec=object)
+            mock_parser = Mock(spec=["parse_file", "write_with_updated_scenes"])
             mock_parser.parse_file.return_value = sample_script
-            mock_parser.write_with_updated_scenes = Mock(spec=object)
+            mock_parser.write_with_updated_scenes = Mock()
             mock_parser_class.return_value = mock_parser
 
             result = await command._process_file(

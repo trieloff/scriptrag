@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 from typing import Any, Protocol, runtime_checkable
 
 from scriptrag.config import get_logger
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.model_discovery import ClaudeCodeModelDiscovery
 from scriptrag.llm.model_registry import ModelRegistry
@@ -44,8 +45,14 @@ class ClaudeCodeSDKProtocol(Protocol):
         """Options class for Claude Code queries."""
 
         def __init__(self, max_turns: int = 1, system_prompt: str | None = None):
-            """Initialize Claude Code options."""
-            ...
+            """Initialize Claude Code options.
+
+            Args:
+                max_turns: Maximum number of conversation turns
+                system_prompt: Optional system prompt for the conversation
+            """
+            self.max_turns = max_turns
+            self.system_prompt = system_prompt
 
     def query(self, prompt: str, options: Any) -> AsyncIterator[Any]:
         """Execute a query against Claude Code.
@@ -277,6 +284,9 @@ class ClaudeCodeProvider(BaseLLMProvider):
                 "Claude Code environment detected but SDK not available. "
                 "Please use GitHub Models or OpenAI-compatible provider instead."
             ) from e
+        except RuntimeError:
+            # Re-raise RuntimeError exceptions (including ImportError-derived ones)
+            raise
         except (TimeoutError, json.JSONDecodeError, ValueError) as e:
             logger.error(f"Claude Code completion failed: {e}")
             raise
@@ -286,8 +296,6 @@ class ClaudeCodeProvider(BaseLLMProvider):
         except Exception as e:
             # Catch any other unexpected exceptions and wrap in LLMProviderError
             logger.error(f"Claude Code unexpected error: {e}")
-            from scriptrag.exceptions import LLMProviderError
-
             raise LLMProviderError(f"Failed to complete prompt: {e}") from e
 
     def _get_sdk(self) -> ClaudeCodeSDKProtocol:
@@ -313,7 +321,10 @@ class ClaudeCodeProvider(BaseLLMProvider):
                 )
             return sdk
         except ImportError as e:
-            raise RuntimeError(f"Claude Code SDK import failed: {e}") from e
+            raise RuntimeError(
+                "Claude Code environment detected but SDK not available. "
+                "Please use GitHub Models or OpenAI-compatible provider instead."
+            ) from e
 
     async def _execute_query(
         self,

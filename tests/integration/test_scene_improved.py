@@ -2,6 +2,8 @@
 
 from unittest.mock import patch
 
+import pytest
+
 from scriptrag.cli.main import app
 from tests.cli.base import CLITestBase
 from tests.factories import (
@@ -16,6 +18,7 @@ from tests.utils.async_helpers import async_raise, async_return
 class TestSceneCLIImproved(CLITestBase):
     """Improved scene CLI tests using test infrastructure."""
 
+    @pytest.mark.asyncio
     async def test_read_scene_success(self, cli_runner):
         """Test successful scene reading."""
         # Create test data using factories
@@ -42,6 +45,7 @@ class TestSceneCLIImproved(CLITestBase):
             assert "WALTER" in result.output
             assert "I am the one who knocks!" in result.output
 
+    @pytest.mark.asyncio
     async def test_read_scene_not_found(self, cli_runner):
         """Test scene not found error."""
         with patch("scriptrag.cli.commands.scene.SceneManagementAPI") as mock_api:
@@ -56,6 +60,7 @@ class TestSceneCLIImproved(CLITestBase):
 
             self.assert_failure(result, "Scene 999 not found")
 
+    @pytest.mark.asyncio
     async def test_read_bible_files(self, cli_runner):
         """Test reading script bible files."""
         bible_content = {
@@ -76,6 +81,7 @@ class TestSceneCLIImproved(CLITestBase):
             self.assert_success(result)
             assert "Bible Files Found: 2" in result.output
 
+    @pytest.mark.asyncio
     async def test_update_scene_with_file(self, cli_runner):
         """Test updating a scene from a file."""
         # Create content file
@@ -104,6 +110,7 @@ class TestSceneCLIImproved(CLITestBase):
             self.assert_success(result)
             assert "Scene 10 updated successfully" in result.output
 
+    @pytest.mark.asyncio
     async def test_scene_json_output(self, cli_runner):
         """Test JSON output format."""
         scene = SceneFactory.create_exterior(
@@ -127,6 +134,7 @@ class TestSceneCLIImproved(CLITestBase):
             assert data["scene"]["number"] == 1
             assert data["scene"]["location"] == "DESERT"
 
+    @pytest.mark.asyncio
     async def test_add_scene_workflow(self, cli_runner):
         """Test complete workflow of adding a new scene."""
         # Create a screenplay file
@@ -164,6 +172,7 @@ This is new dialogue.
             self.assert_success(result)
             assert "Scene added after scene 5" in result.output
 
+    @pytest.mark.asyncio
     async def test_delete_scene_requires_force(self, cli_runner):
         """Test that delete requires --force flag."""
         result = cli_runner.invoke(
@@ -173,6 +182,7 @@ This is new dialogue.
 
         self.assert_failure(result, "requires --force")
 
+    @pytest.mark.asyncio
     async def test_scene_with_config_file(self, cli_runner, mock_settings):
         """Test using a configuration file."""
         # Create config file

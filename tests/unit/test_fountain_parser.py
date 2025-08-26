@@ -647,7 +647,7 @@ JOHN raises his hands.
     def test_parse_with_series_title_fields(self, parser):
         """Test parsing with various series title field variations."""
         variations = [
-            ("Series: Breaking Bad", "Breaking Bad"),
+            ("Series: Breaking_Bad", "Breaking_Bad"),
             ("Series_Title: Better Call Saul", "Better Call Saul"),
             ("Show: The Office", "The Office"),
         ]

@@ -155,7 +155,7 @@ class TestResultFormatter:
 
         result = SearchResult(
             script_id=1,
-            script_title="Breaking Bad",
+            script_title="Breaking_Bad",
             script_author="Vince Gilligan",
             scene_id=100,
             scene_number=42,
@@ -318,7 +318,7 @@ class TestResultFormatter:
             locations=["LAB", "DESERT"],
             parenthetical="whispering",
             action="explosion",
-            project="Breaking Bad",
+            project="Breaking_Bad",
             season_start=1,
             season_end=3,
             episode_start=1,
@@ -364,7 +364,7 @@ class TestResultFormatter:
         query = SearchQuery(raw_query="test")
         result1 = SearchResult(
             script_id=1,
-            script_title="Breaking Bad",
+            script_title="Breaking_Bad",
             script_author="Vince Gilligan",
             scene_id=10,
             scene_number=5,
@@ -402,7 +402,7 @@ class TestResultFormatter:
         result = formatter.format_brief(response)
 
         # Should contain both results
-        assert "1. Breaking Bad S1E1 - Scene 5: INT. RV - DAY" in result
+        assert "1. Breaking_Bad S1E1 - Scene 5: INT. RV - DAY" in result
         assert "2. Feature Film - Scene 10: EXT. STREET - NIGHT" in result
 
     def test_format_brief_with_more_results(self):

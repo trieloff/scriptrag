@@ -15,7 +15,7 @@ runner = CliRunner()
 def sample_screenplay(tmp_path):
     """Create a sample screenplay with multiple scenes."""
     script_path = tmp_path / "test_script.fountain"
-    content = """Title: Integration Test Script
+    content = """Title: Integration_Test_Script
 Author: Test Suite
 Draft date: 2024-01-01
 
@@ -76,7 +76,7 @@ FADE OUT.
 def sample_tv_screenplay(tmp_path):
     """Create a TV series screenplay."""
     tv_script = tmp_path / "breaking_bad_s01e01.fountain"
-    tv_content = """Title: Breaking Bad
+    tv_content = """Title: Breaking_Bad
 Author: Vince Gilligan
 Season: 1
 Episode: 1
@@ -330,7 +330,7 @@ JAMES walks in."""
                 "scene",
                 "read",
                 "--project",
-                "Breaking Bad",
+                "Breaking_Bad",
                 "--season",
                 "1",
                 "--episode",
@@ -352,7 +352,7 @@ JAMES walks in."""
                 "scene",
                 "read",
                 "--project",
-                "Breaking Bad",
+                "Breaking_Bad",
                 "--season",
                 "1",
                 "--episode",

@@ -192,7 +192,8 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test-model"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {"total_tokens": 100}
-        mock_client.complete.return_value = mock_response
+        # Ensure complete method is properly awaitable
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         llm_analyzer.llm_client = mock_client
 
@@ -225,7 +226,8 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test-model"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        # Ensure complete method is properly awaitable
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         with patch(
             "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client",
@@ -260,7 +262,8 @@ class TestMarkdownAgentAnalyzer:
             r.provider = LLMProvider.OPENAI_COMPATIBLE
             r.usage = {}
 
-        mock_client.complete.side_effect = responses
+        # Ensure complete method is properly awaitable
+        mock_client.complete = AsyncMock(side_effect=responses)
         llm_analyzer.llm_client = mock_client
 
         # Mock context query executor to avoid database dependency
@@ -299,7 +302,8 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test-model"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        # Ensure complete method is properly awaitable
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         llm_analyzer.llm_client = mock_client
 
@@ -334,7 +338,8 @@ class TestMarkdownAgentAnalyzer:
     ) -> None:
         """Test handling of LLM exceptions."""
         mock_client = AsyncMock(spec=["complete", "cleanup"])
-        mock_client.complete.side_effect = Exception("LLM error")
+        # Ensure complete method is properly awaitable
+        mock_client.complete = AsyncMock(side_effect=Exception("LLM error"))
         llm_analyzer.llm_client = mock_client
 
         # Mock context query executor to avoid database dependency
@@ -442,7 +447,8 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        # Ensure complete method is properly awaitable
+        mock_client.complete = AsyncMock(return_value=mock_response)
         llm_analyzer.llm_client = mock_client
 
         await llm_analyzer._call_llm(sample_scene, {})
@@ -465,7 +471,8 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        # Ensure complete method is properly awaitable
+        mock_client.complete = AsyncMock(return_value=mock_response)
         llm_analyzer.llm_client = mock_client
 
         await llm_analyzer._call_llm(sample_scene, {})
@@ -492,7 +499,8 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        # Ensure complete method is properly awaitable
+        mock_client.complete = AsyncMock(return_value=mock_response)
         llm_analyzer.llm_client = mock_client
 
         await llm_analyzer._call_llm(sample_scene, {})
@@ -516,7 +524,8 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        # Ensure complete method is properly awaitable
+        mock_client.complete = AsyncMock(return_value=mock_response)
         llm_analyzer.llm_client = mock_client
 
         await llm_analyzer._call_llm(sample_scene, {})
@@ -551,7 +560,8 @@ class TestMarkdownAgentAnalyzer:
         mock_response.model = "test"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        # Ensure complete method is properly awaitable
+        mock_client.complete = AsyncMock(return_value=mock_response)
         llm_analyzer.llm_client = mock_client
 
         await llm_analyzer._call_llm(sample_scene, {}, temperature=0.7)

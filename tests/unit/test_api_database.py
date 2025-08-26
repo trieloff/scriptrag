@@ -200,7 +200,7 @@ class TestDatabaseInitializer:
         initializer = DatabaseInitializer(sql_dir=sql_dir)
 
         # Mock sqlite3.connect to raise error
-        mock_conn = Mock(spec=object)
+        mock_conn = Mock(spec=["executescript", "commit", "close", "execute"])
         mock_conn.executescript.side_effect = Exception("SQL error")
 
         with patch("sqlite3.connect") as mock_connect:

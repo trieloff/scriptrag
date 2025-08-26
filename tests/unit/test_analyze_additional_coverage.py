@@ -618,7 +618,22 @@ class TestAnalyzeCommand:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_class:
-            mock_db = Mock(spec=object)
+            mock_db = Mock(
+                spec=[
+                    "check_database_exists",
+                    "transaction",
+                    "get_connection",
+                    "get_existing_script",
+                    "upsert_script",
+                    "upsert_scene",
+                    "upsert_characters",
+                    "insert_dialogues",
+                    "insert_actions",
+                    "get_script_stats",
+                    "clear_script_data",
+                    "clear_scene_content",
+                ]
+            )
             mock_db.check_database_exists.return_value = False
             mock_db_class.return_value = mock_db
 
@@ -631,11 +646,26 @@ class TestAnalyzeCommand:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_class:
-            mock_db = Mock(spec=object)
+            mock_db = Mock(
+                spec=[
+                    "check_database_exists",
+                    "transaction",
+                    "get_connection",
+                    "get_existing_script",
+                    "upsert_script",
+                    "upsert_scene",
+                    "upsert_characters",
+                    "insert_dialogues",
+                    "insert_actions",
+                    "get_script_stats",
+                    "clear_script_data",
+                    "clear_scene_content",
+                ]
+            )
             mock_db.check_database_exists.return_value = True
 
-            mock_conn = Mock(spec=object)
-            mock_cursor = Mock(spec=object)
+            mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+            mock_cursor = Mock(spec=["execute", "fetchone", "fetchall", "close"])
             mock_cursor.fetchone.return_value = None  # No record found
             mock_conn.cursor.return_value = mock_cursor
             mock_db.transaction.return_value.__enter__ = Mock(return_value=mock_conn)
@@ -654,11 +684,26 @@ class TestAnalyzeCommand:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_class:
-            mock_db = Mock(spec=object)
+            mock_db = Mock(
+                spec=[
+                    "check_database_exists",
+                    "transaction",
+                    "get_connection",
+                    "get_existing_script",
+                    "upsert_script",
+                    "upsert_scene",
+                    "upsert_characters",
+                    "insert_dialogues",
+                    "insert_actions",
+                    "get_script_stats",
+                    "clear_script_data",
+                    "clear_scene_content",
+                ]
+            )
             mock_db.check_database_exists.return_value = True
 
-            mock_conn = Mock(spec=object)
-            mock_cursor = Mock(spec=object)
+            mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+            mock_cursor = Mock(spec=["execute", "fetchone", "fetchall", "close"])
             mock_cursor.fetchone.return_value = (json.dumps(metadata),)
             mock_conn.cursor.return_value = mock_cursor
             mock_db.transaction.return_value.__enter__ = Mock(return_value=mock_conn)

@@ -62,8 +62,12 @@ class TestAnalyzeCommandAdditionalCoverage:
                 mock_db_ops.check_database_exists.return_value = True
 
                 # Mock transaction context manager
-                mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-                mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+                mock_conn = MagicMock(
+                    spec=["cursor", "execute", "commit", "rollback", "close"]
+                )
+                mock_cursor = MagicMock(
+                    spec=["execute", "fetchone", "fetchall", "close"]
+                )
                 mock_conn.cursor.return_value = mock_cursor
                 mock_cursor.fetchone.return_value = (
                     json.dumps({"bible.characters": bible_metadata}),
@@ -92,8 +96,24 @@ class TestAnalyzeCommandAdditionalCoverage:
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings"):
-                mock_db_ops = mock_db_ops_class.return_value
+                mock_db_ops = Mock(
+                    spec=[
+                        "check_database_exists",
+                        "transaction",
+                        "get_connection",
+                        "get_existing_script",
+                        "upsert_script",
+                        "upsert_scene",
+                        "upsert_characters",
+                        "insert_dialogues",
+                        "insert_actions",
+                        "get_script_stats",
+                        "clear_script_data",
+                        "clear_scene_content",
+                    ]
+                )
                 mock_db_ops.check_database_exists.return_value = False
+                mock_db_ops_class.return_value = mock_db_ops
 
                 result = await load_bible_metadata(script_path)
 
@@ -109,11 +129,31 @@ class TestAnalyzeCommandAdditionalCoverage:
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings"):
-                mock_db_ops = mock_db_ops_class.return_value
+                mock_db_ops = Mock(
+                    spec=[
+                        "check_database_exists",
+                        "transaction",
+                        "get_connection",
+                        "get_existing_script",
+                        "upsert_script",
+                        "upsert_scene",
+                        "upsert_characters",
+                        "insert_dialogues",
+                        "insert_actions",
+                        "get_script_stats",
+                        "clear_script_data",
+                        "clear_scene_content",
+                    ]
+                )
                 mock_db_ops.check_database_exists.return_value = True
+                mock_db_ops_class.return_value = mock_db_ops
 
-                mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-                mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+                mock_conn = MagicMock(
+                    spec=["cursor", "execute", "commit", "rollback", "close"]
+                )
+                mock_cursor = MagicMock(
+                    spec=["execute", "fetchone", "fetchall", "close"]
+                )
                 mock_conn.cursor.return_value = mock_cursor
                 mock_cursor.fetchone.return_value = None
 
@@ -136,11 +176,31 @@ class TestAnalyzeCommandAdditionalCoverage:
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings"):
-                mock_db_ops = mock_db_ops_class.return_value
+                mock_db_ops = Mock(
+                    spec=[
+                        "check_database_exists",
+                        "transaction",
+                        "get_connection",
+                        "get_existing_script",
+                        "upsert_script",
+                        "upsert_scene",
+                        "upsert_characters",
+                        "insert_dialogues",
+                        "insert_actions",
+                        "get_script_stats",
+                        "clear_script_data",
+                        "clear_scene_content",
+                    ]
+                )
                 mock_db_ops.check_database_exists.return_value = True
+                mock_db_ops_class.return_value = mock_db_ops
 
-                mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-                mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+                mock_conn = MagicMock(
+                    spec=["cursor", "execute", "commit", "rollback", "close"]
+                )
+                mock_cursor = MagicMock(
+                    spec=["execute", "fetchone", "fetchall", "close"]
+                )
                 mock_conn.cursor.return_value = mock_cursor
                 # Return metadata with invalid bible.characters (string instead of dict)
                 mock_cursor.fetchone.return_value = (
@@ -166,8 +226,24 @@ class TestAnalyzeCommandAdditionalCoverage:
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings"):
-                mock_db_ops = mock_db_ops_class.return_value
+                mock_db_ops = Mock(
+                    spec=[
+                        "check_database_exists",
+                        "transaction",
+                        "get_connection",
+                        "get_existing_script",
+                        "upsert_script",
+                        "upsert_scene",
+                        "upsert_characters",
+                        "insert_dialogues",
+                        "insert_actions",
+                        "get_script_stats",
+                        "clear_script_data",
+                        "clear_scene_content",
+                    ]
+                )
                 mock_db_ops.check_database_exists.side_effect = Exception("DB Error")
+                mock_db_ops_class.return_value = mock_db_ops
 
                 result = await load_bible_metadata(script_path)
 
@@ -465,11 +541,31 @@ class TestAnalyzeCommandAdditionalCoverage:
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings"):
-                mock_db_ops = mock_db_ops_class.return_value
+                mock_db_ops = Mock(
+                    spec=[
+                        "check_database_exists",
+                        "transaction",
+                        "get_connection",
+                        "get_existing_script",
+                        "upsert_script",
+                        "upsert_scene",
+                        "upsert_characters",
+                        "insert_dialogues",
+                        "insert_actions",
+                        "get_script_stats",
+                        "clear_script_data",
+                        "clear_scene_content",
+                    ]
+                )
                 mock_db_ops.check_database_exists.return_value = True
+                mock_db_ops_class.return_value = mock_db_ops
 
-                mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-                mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+                mock_conn = MagicMock(
+                    spec=["cursor", "execute", "commit", "rollback", "close"]
+                )
+                mock_cursor = MagicMock(
+                    spec=["execute", "fetchone", "fetchall", "close"]
+                )
                 mock_conn.cursor.return_value = mock_cursor
                 # Return metadata as dict directly (not JSON string)
                 mock_cursor.fetchone.return_value = (

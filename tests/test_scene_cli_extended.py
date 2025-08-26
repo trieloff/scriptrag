@@ -517,8 +517,27 @@ class TestSceneUpdateCommandExtended:
         clean_output = strip_ansi_codes(result.output)
         assert "Scene updated" in clean_output
 
-    def test_update_scene_no_content(self):
+    @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
+    def test_update_scene_no_content(self, mock_api_class):
         """Test update without content."""
+        # Setup mock to prevent database access
+        mock_api = mock_api_class.return_value
+
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. SCENE - DAY",
+                content="Original content",
+                original_text="Original content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
+
         with patch("sys.stdin") as mock_stdin:
             mock_stdin.isatty.return_value = True  # Terminal, not piped
 

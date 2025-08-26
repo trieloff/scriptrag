@@ -573,7 +573,12 @@ class TestSceneDeleteCommand:
         # Should abort due to confirmation prompt in CI
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        # In CI, typer.confirm() raises Abort, so no warning message
+        # In CI/test environment, deletion requires --force flag
+        # In local environment, confirmation prompt is shown and aborted
+        assert (
+            "Deletion requires --force in non-interactive environment" in clean_output
+            or "Delete scene test:005?" in clean_output
+        )
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_delete_scene_not_found(self, mock_api_class):

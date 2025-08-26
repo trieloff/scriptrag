@@ -300,7 +300,9 @@ class TestConfigOptionAnalyzeCommand:
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
-            mock_command = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_command = MagicMock(
+                spec=["analyze", "content", "model", "provider", "usage"]
+            )
             mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.total_files_updated = 1
             mock_result.total_scenes_updated = 5
@@ -349,7 +351,9 @@ class TestConfigOptionListCommand:
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
-            mock_command = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_command = MagicMock(
+                spec=["list_scripts", "content", "model", "provider", "usage"]
+            )
             mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.projects = ["project1", "project2"]
             mock_result.total_scripts = 2
@@ -394,7 +398,9 @@ class TestConfigOptionIndexCommand:
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
-            mock_command = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_command = MagicMock(
+                spec=["index", "content", "model", "provider", "usage"]
+            )
             mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.scripts_indexed = 5
             mock_result.total_scripts_indexed = 5

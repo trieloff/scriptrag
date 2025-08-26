@@ -323,7 +323,16 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock the SDK import
-        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_sdk = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "ClaudeSDKClient",
+                "ClaudeCodeOptions",
+            ]
+        )
         mock_sdk.ClaudeSDKClient = MagicMock
         mock_sdk.ClaudeCodeOptions = MagicMock
         with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
@@ -346,7 +355,16 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock SDK with list_models method
-        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_sdk = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "ClaudeSDKClient",
+                "ClaudeCodeOptions",
+            ]
+        )
         mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_client.list_models = AsyncMock(
             return_value=[
@@ -377,7 +395,16 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock SDK with models attribute (but no list_models or get_models)
-        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_sdk = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "ClaudeSDKClient",
+                "ClaudeCodeOptions",
+            ]
+        )
         mock_client = MagicMock(spec=["models"])  # Only has models attribute
         mock_client.models = {
             "claude-3-5-haiku": {"name": "Claude 3.5 Haiku", "context_window": 200000},
@@ -407,7 +434,16 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock SDK that raises an exception
-        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_sdk = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "ClaudeSDKClient",
+                "ClaudeCodeOptions",
+            ]
+        )
         mock_sdk.ClaudeSDKClient.side_effect = RuntimeError("SDK initialization failed")
         mock_sdk.ClaudeCodeOptions = MagicMock
 
@@ -431,7 +467,16 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock SDK with list_models returning empty list
-        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_sdk = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "ClaudeSDKClient",
+                "ClaudeCodeOptions",
+            ]
+        )
         mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_client.list_models = AsyncMock(return_value=[])
         mock_sdk.ClaudeSDKClient.return_value = mock_client
@@ -457,7 +502,16 @@ class TestClaudeCodeModelDiscovery:
         monkeypatch.setattr(ModelDiscoveryCache, "CACHE_DIR", tmp_path)
 
         # Mock SDK with list_models returning invalid data
-        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_sdk = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "ClaudeSDKClient",
+                "ClaudeCodeOptions",
+            ]
+        )
         mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
         # Return list with invalid items (no id)
         mock_client.list_models = AsyncMock(

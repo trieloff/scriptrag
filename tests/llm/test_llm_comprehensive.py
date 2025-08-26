@@ -160,15 +160,33 @@ class TestProviderRegistry:
         mock_provider1 = Mock(spec=BaseLLMProvider)
         mock_provider1.provider_type = LLMProvider.GITHUB_MODELS
         mock_client1 = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            spec=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "aclose",
+            ]
         )
+        # Ensure aclose is properly configured as an async mock
+        mock_client1.aclose = AsyncMock()
         mock_provider1.client = mock_client1
 
         mock_provider2 = Mock(spec=BaseLLMProvider)
         mock_provider2.provider_type = LLMProvider.OPENAI_COMPATIBLE
         mock_client2 = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            spec=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "aclose",
+            ]
         )
+        # Ensure aclose is properly configured as an async mock
+        mock_client2.aclose = AsyncMock()
         mock_provider2.client = mock_client2
 
         registry.set_provider(LLMProvider.GITHUB_MODELS, mock_provider1)
@@ -219,17 +237,21 @@ class TestClaudeCodeProviderExtended:
         provider = ClaudeCodeProvider()
 
         # Mock importing the SDK
-        mock_sdk = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_sdk = MagicMock(spec=["query", "ClaudeCodeOptions", "Message"])
 
         # Create a mock AssistantMessage with proper structure
-        mock_text_block = Mock(spec=object)
+        mock_text_block = Mock(spec=["text"])
         mock_text_block.text = "Test response"
 
-        mock_message = Mock(spec=object)
-        mock_message.__class__.__name__ = "AssistantMessage"
+        # Create a properly configured mock message with class name
+        mock_message = Mock(spec=["content"])
         mock_message.content = [
             mock_text_block
         ]  # Content is a list of TextBlock objects
+        # Create a proper mock class to avoid immutable __name__ issue
+        mock_message_class = Mock(spec=["__name__"])
+        mock_message_class.__name__ = "AssistantMessage"
+        mock_message.__class__ = mock_message_class
 
         async def mock_query(*args, **kwargs):
             for msg in [mock_message]:
@@ -351,7 +373,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = [
             {"id": "gpt-4o", "name": "GPT-4o"},
@@ -371,7 +393,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = "invalid"  # Not a list or dict
 
@@ -407,7 +429,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "chat-123",
@@ -468,7 +490,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "model": "text-embedding",
@@ -588,7 +610,7 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {"invalid": "format"}
 
@@ -618,7 +640,7 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "completion-1",
@@ -676,7 +698,7 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {"data": [{"embedding": [0.1]}]}
 

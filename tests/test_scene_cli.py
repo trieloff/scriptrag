@@ -345,6 +345,20 @@ class TestSceneUpdateCommand:
             validation_errors=[],
         )
 
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. SCENE - DAY",
+                content="Content",
+                original_text="Content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api.update_scene = AsyncMock(return_value=mock_result)
 
         # Run command
@@ -378,6 +392,20 @@ class TestSceneUpdateCommand:
             validation_errors=["INVALID_FORMAT"],
         )
 
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. SCENE - DAY",
+                content="Content",
+                original_text="Content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api.update_scene = AsyncMock(return_value=mock_result)
 
         # Run command
@@ -411,6 +439,20 @@ class TestSceneUpdateCommand:
             validation_errors=["CONCURRENT_MODIFICATION"],
         )
 
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. SCENE - DAY",
+                content="Content",
+                original_text="Content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api.update_scene = AsyncMock(return_value=mock_result)
 
         # Run command
@@ -433,13 +475,32 @@ class TestSceneUpdateCommand:
         clean_output = strip_ansi_codes(result.output)
         assert "modified by another process" in clean_output
 
-    def test_update_scene_no_content(self):
+    @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
+    def test_update_scene_no_content(self, mock_api_class):
         """Test update without content.
 
         Note: In test environment, CLI reads empty string from stdin
         instead of detecting TTY mode, so we get validation error
         instead of "No content provided" error.
         """
+        # Setup mock to prevent database access
+        mock_api = mock_api_class.return_value
+
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. SCENE - DAY",
+                content="Content",
+                original_text="Content",
+                content_hash="hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
+
         result = runner.invoke(
             app,
             [

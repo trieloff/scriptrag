@@ -219,8 +219,8 @@ class TestBibleIndexerEdgeCases:
 
         # Mock database operations
         mock_db_ops = Mock(spec=object)
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock()  # Remove restrictive spec to allow database methods
+        mock_cursor = Mock()  # Remove restrictive spec to allow fetchone
 
         # Mock no existing entry
         mock_cursor.fetchone.return_value = None
@@ -376,7 +376,7 @@ class TestBibleIndexerEdgeCases:
         """Test _attach_alias_map_to_script updates script metadata."""
         # Mock connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock(spec=object)
+        mock_cursor = Mock()  # Remove restrictive spec to allow fetchone
         mock_cursor.fetchone.return_value = ('{"existing": "data"}',)
         mock_conn.execute.return_value = mock_cursor
 
@@ -399,7 +399,7 @@ class TestBibleIndexerEdgeCases:
         """Test _attach_alias_map_to_script with no existing metadata."""
         # Mock connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock(spec=object)
+        mock_cursor = Mock()  # Remove restrictive spec to allow fetchone
         mock_cursor.fetchone.return_value = None
         mock_conn.execute.return_value = mock_cursor
 
@@ -485,8 +485,8 @@ class TestBibleIndexerEdgeCases:
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock()  # Remove restrictive spec to allow database methods
+        mock_cursor = Mock()  # Remove restrictive spec to allow fetchall
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Test Heading", "Test content"),
             (2, "hash2", "Sub Heading", "Sub content"),
@@ -515,8 +515,8 @@ class TestBibleIndexerEdgeCases:
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock()  # Remove restrictive spec to allow database methods
+        mock_cursor = Mock()  # Remove restrictive spec to allow fetchall
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Test Heading", "Test content")
         ]
@@ -546,8 +546,8 @@ class TestBibleIndexerEdgeCases:
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock()  # Remove restrictive spec to allow database methods
+        mock_cursor = Mock()  # Remove restrictive spec to allow fetchall
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Test Heading", "Test content")
         ]
@@ -577,8 +577,8 @@ class TestBibleIndexerEdgeCases:
 
         # Mock database operations
         mock_db_ops = Mock(spec=object)
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock()  # Remove restrictive spec to allow database methods
+        mock_cursor = Mock()  # Remove restrictive spec to allow fetchone
 
         # Mock no existing entry
         mock_cursor.fetchone.return_value = None

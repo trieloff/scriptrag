@@ -6,9 +6,12 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from scriptrag.api.bible.character_bible import BibleCharacter, BibleCharacterExtractor
+from scriptrag.api.bible.character_bible import BibleCharacter
+from scriptrag.api.bible.character_bible import (
+    BibleCharacterExtractor as RealBibleCharacterExtractor,
+)
 from scriptrag.api.bible.scene_bible import BibleScene
-from scriptrag.api.bible_extraction import BibleExtractor
+from scriptrag.api.bible_extraction import BibleCharacterExtractor, BibleExtractor
 from scriptrag.parser.bible_parser import BibleChunk, ParsedBible
 
 
@@ -79,21 +82,21 @@ class TestBibleCharacter:
 
 
 class TestBibleCharacterExtractor:
-    """Test BibleCharacterExtractor class."""
+    """Test REAL BibleCharacterExtractor class from bible.character_bible."""
 
     def test_init_with_llm_client(self) -> None:
         """Test initialization with provided LLM client."""
         mock_client = Mock(spec=object)
-        extractor = BibleCharacterExtractor(llm_client=mock_client)
+        extractor = RealBibleCharacterExtractor(llm_client=mock_client)
         assert extractor.llm_client is mock_client
 
     def test_init_without_llm_client(self) -> None:
         """Test initialization without LLM client."""
-        with patch("scriptrag.api.bible_extraction.LLMClient") as mock_llm_class:
+        with patch("scriptrag.api.bible.character_bible.LLMClient") as mock_llm_class:
             mock_client = Mock(spec=object)
             mock_llm_class.return_value = mock_client
 
-            extractor = BibleCharacterExtractor()
+            extractor = RealBibleCharacterExtractor()
             assert extractor.llm_client is mock_client
 
     @pytest.mark.asyncio

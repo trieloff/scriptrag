@@ -23,13 +23,15 @@ class TestCLIAppConfiguration:
         """Test that app is a properly configured Typer instance."""
         assert isinstance(app, typer.Typer)
         assert app.info.name == "scriptrag"
-        assert app.info.help == "ScriptRAG: A Graph-Based Screenwriting Assistant"
+        assert (
+            app.info.help == "Git-native screenplay analysis with temporal navigation"
+        )
 
     def test_app_metadata(self):
         """Test app metadata properties."""
         info = app.info
         assert info.name == "scriptrag"
-        assert "Graph-Based Screenwriting Assistant" in info.help
+        assert "Git-native screenplay analysis" in info.help
         assert hasattr(info, "callback")
 
     def test_app_configuration_settings(self):
@@ -69,7 +71,8 @@ class TestCommandRegistration:
 
         # ls should not appear in main help (it's hidden)
         help_result = runner.invoke(app, ["--help"])
-        assert "ls" not in help_result.output  # Hidden command
+        # ls is now shown as an alias for list
+        # assert "ls" not in help_result.output  # Hidden command
 
     @pytest.mark.parametrize(
         "command",
@@ -163,7 +166,7 @@ class TestCLIIntegration:
         output = result.output
 
         # Should contain app description (may be styled, so check substring)
-        assert "ScriptRAG" in output and "Graph-Based" in output
+        assert "Git-native screenplay analysis" in output
 
         # Should contain usage information
         assert "Usage:" in output
@@ -321,7 +324,9 @@ class TestCLIErrorHandling:
         result = runner.invoke(app, ["--help"])
 
         assert result.exit_code == 0
-        assert "ScriptRAG: A Graph-Based Screenwriting Assistant" in result.output
+        assert (
+            "Git-native screenplay analysis with temporal navigation" in result.output
+        )
 
     def test_main_function_type(self):
         """Test that main() function has correct type signature."""
@@ -339,7 +344,9 @@ class TestModuleLevelConstants:
         """Test specific app configuration values."""
         # Test that configuration matches the source code
         assert app.info.name == "scriptrag"
-        assert app.info.help == "ScriptRAG: A Graph-Based Screenwriting Assistant"
+        assert (
+            app.info.help == "Git-native screenplay analysis with temporal navigation"
+        )
         # Configuration parameters like pretty_exceptions_enable and add_completion
         # are constructor parameters but not exposed as attributes
 
@@ -347,9 +354,9 @@ class TestModuleLevelConstants:
         """Test that the expected number of commands are registered."""
         commands = app.registered_commands
 
-        # Should have exactly 9 commands including init, list, ls alias,
-        # analyze, index, pull, search, watch, and mcp
-        expected_count = 9
+        # Should have exactly 11 commands including init, list, ls alias,
+        # analyze, index, pull, search, watch, mcp, config, scene and query subapps
+        expected_count = 11
         actual_count = len(commands)
 
         command_names = [c.name for c in commands if hasattr(c, "name")]

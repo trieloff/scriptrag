@@ -16,10 +16,7 @@ from scriptrag.config import ScriptRAGSettings, get_logger, get_settings
 logger = get_logger(__name__)
 console = Console()
 
-app = typer.Typer()
 
-
-@app.command()
 def pull_command(
     path: Annotated[
         Path | None,

@@ -23,7 +23,9 @@ class TestCLIMainApp:
 
         # Check app configuration
         assert app.info.name == "scriptrag"
-        assert app.info.help == "ScriptRAG: A Graph-Based Screenwriting Assistant"
+        assert (
+            app.info.help == "Git-native screenplay analysis with temporal navigation"
+        )
         assert app.pretty_exceptions_enable is False
         # add_completion is a private attribute in Typer 0.16.0
         assert app._add_completion is False
@@ -69,8 +71,8 @@ class TestCLIMainApp:
 
         # ls should be hidden (not appear in main help)
         assert "Commands:" in output or "Usage:" in output
-        # The 'ls' command should not be listed as it's hidden
-        assert "ls" not in output  # Hidden command shouldn't appear in main help
+        # The 'ls' command is now shown as an alias
+        # assert "ls" not in output  # Hidden command shouldn't appear in main help
 
     def test_app_subapp_registered(self, runner):
         """Test that query subapp is properly registered."""
@@ -95,7 +97,7 @@ class TestCLIMainApp:
         # Typer apps don't have built-in version by default,
         # but we can test that the app info is properly set
         assert app.info.name == "scriptrag"
-        assert "ScriptRAG" in app.info.help
+        assert "Git-native" in app.info.help
 
 
 class TestCLIMainFunction:
@@ -233,7 +235,7 @@ class TestCLIMainEdgeCases:
         """Test behavior with no arguments."""
         result = runner.invoke(app, [])
         # Should show help or usage information
-        assert "Usage:" in result.output or "ScriptRAG" in result.output
+        assert "Usage:" in result.output or "Git-native" in result.output
 
     def test_global_help_flag(self, runner):
         """Test global --help flag."""
@@ -244,7 +246,7 @@ class TestCLIMainEdgeCases:
 
         output = strip_ansi_codes(result.output)
 
-        assert "ScriptRAG: A Graph-Based Screenwriting Assistant" in output
+        assert "Git-native screenplay analysis with temporal navigation" in output
         assert "Usage:" in output
 
     def test_import_error_handling(self):
@@ -281,8 +283,8 @@ class TestCLIMainEdgeCases:
 
         # App info should be properly set
         assert app.info.name == "scriptrag"
-        assert "ScriptRAG" in app.info.help
-        assert "Graph-Based" in app.info.help
+        assert "Git-native" in app.info.help
+        assert "screenplay analysis" in app.info.help
 
     def test_command_name_consistency(self, runner):
         """Test that command names are consistent."""

@@ -40,6 +40,7 @@ class TestCLICommandsInit:
 
         expected_exports = [
             "analyze_command",
+            "create_query_app",
             "get_query_app",
             "index_command",
             "init_command",
@@ -70,7 +71,7 @@ class TestCLICommandsInit:
         }
 
         # Verify we get the expected number of items
-        assert len(star_imports) == 9  # Number of items in __all__
+        assert len(star_imports) == 10  # Number of items in __all__
 
         # Verify specific key commands are present
         assert "mcp_command" in star_imports

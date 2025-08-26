@@ -15,7 +15,9 @@ class TestCLIMain:
         """Test that the main app is configured correctly."""
         assert isinstance(app, typer.Typer)
         assert app.info.name == "scriptrag"
-        assert "Graph-Based Screenwriting Assistant" in app.info.help
+        assert (
+            "Git-native screenplay analysis with temporal navigation" in app.info.help
+        )
         assert app.pretty_exceptions_enable is False
 
     def test_app_has_commands(self):

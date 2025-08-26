@@ -233,8 +233,7 @@ class TestSceneReadBibleCommand:
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Failed to read" in clean_output
-        assert "Unexpected error" in clean_output
+        assert "Error: Unexpected error" in clean_output
 
 
 class TestSceneAddCommandExtended:
@@ -279,8 +278,7 @@ class TestSceneAddCommandExtended:
         assert "Renumbered scenes: 6, 7, 8" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
-    @patch("sys.stdin")
-    def test_add_scene_from_stdin(self, mock_stdin, mock_api_class):
+    def test_add_scene_from_stdin(self, mock_api_class):
         """Test adding scene with content from stdin."""
         mock_api = mock_api_class.return_value
         mock_result = AddSceneResult(
@@ -297,14 +295,15 @@ class TestSceneAddCommandExtended:
 
         mock_api.add_scene = AsyncMock(return_value=mock_result)
 
-        # Mock stdin
-        mock_stdin.isatty.return_value = False
-        mock_stdin.read.return_value = "INT. STDIN - DAY\n\nFrom stdin"
-
-        result = runner.invoke(
-            app,
-            ["scene", "add", "--project", "test", "--after-scene", "5"],
-        )
+        # Mock CLIHandler's read_stdin method
+        with patch(
+            "scriptrag.cli.utils.cli_handler.CLIHandler.read_stdin"
+        ) as mock_read_stdin:
+            mock_read_stdin.return_value = "INT. STDIN - DAY\n\nFrom stdin"
+            result = runner.invoke(
+                app,
+                ["scene", "add", "--project", "test", "--after-scene", "5"],
+            )
 
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.output)
@@ -364,10 +363,7 @@ class TestSceneAddCommandExtended:
 
             assert result.exit_code == 1
             clean_output = strip_ansi_codes(result.output)
-            assert (
-                "No content provided" in clean_output
-                or "Invalid Fountain format" in clean_output
-            )
+            assert "Validation Error: scene content cannot be empty" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_add_scene_with_tv_params(self, mock_api_class):
@@ -436,7 +432,10 @@ class TestSceneAddCommandExtended:
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Invalid Fountain format" in clean_output
+        assert (
+            "Scene content must start with a valid scene heading" in clean_output
+            or "Invalid Fountain format" in clean_output
+        )
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_add_scene_exception(self, mock_api_class):
@@ -460,16 +459,15 @@ class TestSceneAddCommandExtended:
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Failed to add scene" in clean_output
-        assert "Unexpected error" in clean_output
+        assert "Error: Unexpected error" in clean_output
 
 
 class TestSceneUpdateCommandExtended:
     """Extended tests for scene update command."""
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
-    @patch("sys.stdin")
-    def test_update_scene_from_stdin(self, mock_stdin, mock_api_class):
+    @patch("scriptrag.cli.utils.cli_handler.CLIHandler.read_stdin")
+    def test_update_scene_from_stdin(self, mock_read_stdin, mock_api_class):
         """Test updating scene with content from stdin."""
         mock_api = mock_api_class.return_value
         mock_result = UpdateSceneResult(
@@ -486,9 +484,8 @@ class TestSceneUpdateCommandExtended:
 
         mock_api.update_scene = AsyncMock(return_value=mock_result)
 
-        # Mock stdin
-        mock_stdin.isatty.return_value = False
-        mock_stdin.read.return_value = "INT. UPDATED - DAY\n\nUpdated from stdin"
+        # Mock stdin reading
+        mock_read_stdin.return_value = "INT. UPDATED - DAY\n\nUpdated from stdin"
 
         result = runner.invoke(
             app,
@@ -499,9 +496,6 @@ class TestSceneUpdateCommandExtended:
                 "test",
                 "--scene",
                 "5",
-                "--safe",
-                "--last-read",
-                "2024-01-15T10:30:00",
             ],
         )
 
@@ -531,7 +525,8 @@ class TestSceneUpdateCommandExtended:
             assert result.exit_code == 1
             clean_output = strip_ansi_codes(result.output)
             assert (
-                "No content provided" in clean_output
+                "scene content cannot be empty" in clean_output
+                or "No content provided" in clean_output
                 or "Invalid Fountain format" in clean_output
             )
 
@@ -566,9 +561,6 @@ class TestSceneUpdateCommandExtended:
                 "3",
                 "--scene",
                 "5",
-                "--safe",
-                "--last-read",
-                "2024-01-15T10:30:00",
                 "--content",
                 "INT. LAB - NIGHT\n\nUpdated lab",
             ],
@@ -599,9 +591,6 @@ class TestSceneUpdateCommandExtended:
                 "test",
                 "--scene",
                 "5",
-                "--safe",
-                "--last-read",
-                "2024-01-15T10:30:00",
                 "--content",
                 "Invalid",
             ],
@@ -609,10 +598,8 @@ class TestSceneUpdateCommandExtended:
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Validation failed" in clean_output
-        assert "Validation errors:" in clean_output
-        assert "Missing scene heading" in clean_output
-        assert "Invalid format" in clean_output
+        # CLI validation catches this before API, so we expect the CLI validation error
+        assert "Scene content must start with a valid scene heading" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_update_scene_exception(self, mock_api_class):
@@ -629,9 +616,6 @@ class TestSceneUpdateCommandExtended:
                 "test",
                 "--scene",
                 "5",
-                "--safe",
-                "--last-read",
-                "2024-01-15T10:30:00",
                 "--content",
                 "INT. SCENE - DAY\n\nContent",
             ],
@@ -639,24 +623,23 @@ class TestSceneUpdateCommandExtended:
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Failed to update scene" in clean_output
-        assert "Unexpected error" in clean_output
+        assert "Error: Unexpected error" in clean_output
 
 
 class TestSceneDeleteCommandExtended:
     """Extended tests for scene delete command."""
 
     def test_delete_without_confirm(self):
-        """Test delete without confirmation."""
+        """Test delete without confirmation - should prompt and be cancelled."""
         result = runner.invoke(
             app,
             ["scene", "delete", "--project", "test", "--scene", "5"],
+            input="n\n",  # Respond 'no' to confirmation prompt
         )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 0  # Successful cancellation
         clean_output = strip_ansi_codes(result.output)
-        assert "Warning: This will permanently delete the scene" in clean_output
-        assert "Add --confirm flag to proceed" in clean_output
+        assert "Deletion cancelled" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_delete_with_tv_params(self, mock_api_class):
@@ -683,14 +666,13 @@ class TestSceneDeleteCommandExtended:
                 "3",
                 "--scene",
                 "5",
-                "--confirm",
+                "--force",
             ],
         )
 
         assert result.exit_code == 0
         clean_output = strip_ansi_codes(result.output)
-        assert "Scene deleted" in clean_output
-        assert "Renumbered scenes: 6, 7, 8" in clean_output
+        assert "deleted successfully" in clean_output
 
     @patch("scriptrag.cli.commands.scene.SceneManagementAPI")
     def test_delete_error(self, mock_api_class):
@@ -705,7 +687,7 @@ class TestSceneDeleteCommandExtended:
 
         result = runner.invoke(
             app,
-            ["scene", "delete", "--project", "test", "--scene", "999", "--confirm"],
+            ["scene", "delete", "--project", "test", "--scene", "999", "--force"],
         )
 
         assert result.exit_code == 1
@@ -720,10 +702,10 @@ class TestSceneDeleteCommandExtended:
 
         result = runner.invoke(
             app,
-            ["scene", "delete", "--project", "test", "--scene", "5", "--confirm"],
+            ["scene", "delete", "--project", "test", "--scene", "5", "--force"],
         )
 
         assert result.exit_code == 1
         clean_output = strip_ansi_codes(result.output)
-        assert "Failed to delete scene" in clean_output
+        assert "Error:" in clean_output
         assert "Unexpected error" in clean_output

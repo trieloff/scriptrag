@@ -22,6 +22,30 @@ class TestClaudeCodeProvider:
             provider.sdk_available = True
             return provider
 
+    @pytest.fixture
+    def provider_with_mock_sdk(self) -> ClaudeCodeProvider:
+        """Create provider instance with a mocked SDK using dependency injection."""
+        mock_sdk = MagicMock()
+
+        # Set up the SDK protocol interface
+        mock_sdk.ClaudeCodeOptions = MagicMock()
+
+        async def mock_query(prompt: str, options: object):
+            """Mock query that returns test messages."""
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+            mock_text_block.text = "Mocked response"
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        mock_sdk.query = mock_query
+
+        with patch.object(ClaudeCodeProvider, "_check_sdk"):
+            provider = ClaudeCodeProvider(sdk=mock_sdk)
+            provider.sdk_available = True
+            return provider
+
     def test_provider_type(self, provider: ClaudeCodeProvider) -> None:
         """Test provider type."""
         assert provider.provider_type == LLMProvider.CLAUDE_CODE
@@ -687,3 +711,18 @@ class TestClaudeCodeProvider:
             content = json.loads(response.choices[0]["message"]["content"])
             # First call returns {"optional": "value"} - this is what we get
             assert "optional" in content
+
+    @pytest.mark.asyncio
+    async def test_dependency_injection_pattern(
+        self, provider_with_mock_sdk: ClaudeCodeProvider
+    ) -> None:
+        """Test that dependency injection works correctly with mocked SDK."""
+        request = CompletionRequest(
+            model="claude-3-opus",
+            messages=[{"role": "user", "content": "Test DI"}],
+        )
+
+        # The provider should use the injected mock SDK
+        response = await provider_with_mock_sdk.complete(request)
+        assert response.choices[0]["message"]["content"] == "Mocked response"
+        assert response.provider == LLMProvider.CLAUDE_CODE

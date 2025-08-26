@@ -205,13 +205,17 @@ class QueryFormatter:
         if not rows:
             return
 
-        # Create table
+        # Create table with overflow handling
         table = Table(show_header=True, header_style="bold magenta")
 
-        # Add columns based on first row
+        # Add columns based on first row with proper overflow handling
         first_row = rows[0]
         for column in first_row:
-            table.add_column(column)
+            # For title columns, prevent truncation
+            if "title" in column.lower() or "name" in column.lower():
+                table.add_column(column, overflow="fold", no_wrap=False)
+            else:
+                table.add_column(column)
 
         # Add rows
         for row in rows:

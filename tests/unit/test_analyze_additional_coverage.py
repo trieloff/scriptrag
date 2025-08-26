@@ -183,7 +183,7 @@ class TestAnalyzeCommand:
 
         mock_agent = Mock(spec=object)
         mock_agent.name = "agent_test"
-        mock_loader = Mock(spec=object)
+        mock_loader = Mock(spec=["load_agent"])
         mock_loader.load_agent.return_value = mock_agent
 
         with (
@@ -204,7 +204,7 @@ class TestAnalyzeCommand:
             patch("scriptrag.analyzers.builtin.BUILTIN_ANALYZERS", {}),
             patch("scriptrag.agents.AgentLoader") as mock_loader_class,
         ):
-            mock_loader = Mock(spec=object)
+            mock_loader = Mock(spec=["load_agent"])
             mock_loader.load_agent.side_effect = ValueError("Unknown agent")
             mock_loader_class.return_value = mock_loader
 
@@ -217,7 +217,7 @@ class TestAnalyzeCommand:
         command = AnalyzeCommand()
 
         with patch("scriptrag.api.analyze.ScriptLister") as mock_lister_class:
-            mock_lister = Mock(spec=object)
+            mock_lister = Mock(spec=["list_scripts"])
             mock_lister.list_scripts.return_value = []
             mock_lister_class.return_value = mock_lister
 
@@ -248,7 +248,7 @@ class TestAnalyzeCommand:
                 command, "_process_file", new_callable=AsyncMock
             ) as mock_process,
         ):
-            mock_lister = Mock(spec=object)
+            mock_lister = Mock(spec=["list_scripts"])
             mock_lister.list_scripts.return_value = [script_meta]
             mock_lister_class.return_value = mock_lister
 
@@ -278,7 +278,7 @@ class TestAnalyzeCommand:
                 command, "_process_file", new_callable=AsyncMock
             ) as mock_process,
         ):
-            mock_lister = Mock(spec=object)
+            mock_lister = Mock(spec=["list_scripts"])
             mock_lister.list_scripts.return_value = [script_meta]
             mock_lister_class.return_value = mock_lister
 
@@ -302,7 +302,7 @@ class TestAnalyzeCommand:
                 command, "_process_file", new_callable=AsyncMock
             ) as mock_process,
         ):
-            mock_lister = Mock(spec=object)
+            mock_lister = Mock(spec=["list_scripts"])
             mock_lister.list_scripts.return_value = [script_meta]
             mock_lister_class.return_value = mock_lister
 

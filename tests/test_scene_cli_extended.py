@@ -705,6 +705,7 @@ class TestSceneUpdateCommandExtended:
 class TestSceneDeleteCommandExtended:
     """Extended tests for scene delete command."""
 
+    @patch.dict("os.environ", {"CI": "", "_": ""}, clear=False)
     def test_delete_without_confirm(self):
         """Test delete without confirmation - should prompt and be cancelled."""
         result = runner.invoke(

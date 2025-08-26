@@ -110,7 +110,17 @@ class TestCreateQueryCommand:
         mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
-        mock_current_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_current_api = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "execute_query",
+                "list_queries",
+                "get_query",
+            ]
+        )
         mock_api_class.return_value = mock_current_api
         mock_current_api.execute_query.return_value = None
 
@@ -140,7 +150,17 @@ class TestCreateQueryCommand:
         mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
-        mock_current_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_current_api = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "execute_query",
+                "list_queries",
+                "get_query",
+            ]
+        )
         mock_api_class.return_value = mock_current_api
         mock_current_api.execute_query.return_value = '{"results": []}'
 
@@ -174,7 +194,17 @@ class TestCreateQueryCommand:
         mock_settings = MagicMock(spec=ScriptRAGSettings)
         mock_settings.database_path = "/tmp/test.db"
         mock_get_settings.return_value = mock_settings
-        mock_current_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_current_api = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "execute_query",
+                "list_queries",
+                "get_query",
+            ]
+        )
         mock_api_class.return_value = mock_current_api
         mock_current_api.execute_query.side_effect = RuntimeError("Database error")
 

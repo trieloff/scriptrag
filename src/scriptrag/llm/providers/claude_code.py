@@ -39,8 +39,17 @@ class ClaudeCodeProvider(BaseLLMProvider):
     # Static models for testing compatibility
     STATIC_MODELS = ModelRegistry.CLAUDE_CODE_MODELS
 
-    def __init__(self) -> None:
-        """Initialize Claude Code provider."""
+    def __init__(self, sdk: Any | None = None) -> None:
+        """Initialize Claude Code provider.
+
+        Args:
+            sdk: Optional Claude Code SDK-like module for dependency injection.
+                 Must expose attributes compatible with the real SDK (e.g.,
+                 query, ClaudeCodeOptions, and message classes). When None,
+                 the provider imports the real SDK on demand.
+        """
+        # Optional SDK module for DI in tests
+        self._sdk = sdk
         self.sdk_available: bool = False
         self._check_sdk()
 
@@ -149,7 +158,15 @@ class ClaudeCodeProvider(BaseLLMProvider):
     async def complete(self, request: CompletionRequest) -> CompletionResponse:
         """Generate completion using Claude Code SDK."""
         try:
-            from claude_code_sdk import ClaudeCodeOptions
+            # Resolve SDK (DI-friendly): prefer injected module, else import lazily
+            if self._sdk is None:
+                import importlib
+
+                _sdk = importlib.import_module("claude_code_sdk")
+            else:
+                _sdk = self._sdk
+            # Use SDK options class via DI/lazy import
+            claude_code_options_cls = _sdk.ClaudeCodeOptions
 
             # Convert messages to prompt
             prompt = self._messages_to_prompt(request.messages)
@@ -168,7 +185,7 @@ class ClaudeCodeProvider(BaseLLMProvider):
                     )
 
             # Set up options
-            options = ClaudeCodeOptions(
+            options = claude_code_options_cls(
                 max_turns=1,
                 system_prompt=request.system,
             )
@@ -271,9 +288,20 @@ class ClaudeCodeProvider(BaseLLMProvider):
         Raises:
             TimeoutError: If query times out
         """
-        from claude_code_sdk import Message, query
+        # Resolve SDK (DI-friendly): prefer injected module, else import lazily
+        if self._sdk is None:
+            try:
+                import importlib
 
-        messages: list[Message] = []
+                _sdk = importlib.import_module("claude_code_sdk")
+            except Exception as _e:  # pragma: no cover - validated in higher layer
+                raise RuntimeError(f"Claude Code SDK import failed: {_e}") from _e
+        else:
+            _sdk = self._sdk
+
+        query = _sdk.query
+
+        messages: list[Any] = []
         query_start_time = time.time()
         logger.info(
             f"Claude Code query started (attempt {attempt + 1}/{max_retries})",
@@ -337,23 +365,27 @@ class ClaudeCodeProvider(BaseLLMProvider):
             ) from None
 
         # Extract response text
+        # Use attribute-based detection to extract response content.
         response_text = ""
-        # Look for AssistantMessage which contains the actual response
+        # Look for messages with content blocks containing text
         for msg in messages:
-            if msg.__class__.__name__ == "AssistantMessage" and hasattr(msg, "content"):
-                # Content is a list of TextBlock objects
-                for block in msg.content:
-                    if hasattr(block, "text"):
-                        response_text += block.text
-                break
+            if hasattr(msg, "content"):
+                content_blocks = getattr(msg, "content", [])
+                for block in content_blocks:
+                    text = getattr(block, "text", None)
+                    if isinstance(text, str):
+                        response_text += text
+                if response_text:
+                    break
 
         # Fallback: Check ResultMessage for the result text
         if not response_text:
             for msg in messages:
-                if msg.__class__.__name__ == "ResultMessage" and hasattr(msg, "result"):
-                    result = msg.result
+                if hasattr(msg, "result"):
+                    result = getattr(msg, "result", None)
                     response_text = str(result) if result is not None else ""
-                    break
+                    if response_text:
+                        break
 
         return response_text
 

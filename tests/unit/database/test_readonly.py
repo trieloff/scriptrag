@@ -136,7 +136,9 @@ class TestGetReadOnlyConnection:
                 spec=["content", "model", "provider", "usage", "close"]
             )
             mock_get_manager.return_value = mock_manager
-            mock_context = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_context = MagicMock(
+                spec=["content", "model", "provider", "usage", "__enter__", "__exit__"]
+            )
             mock_context.__enter__ = MagicMock(return_value=mock_conn)
             mock_context.__exit__ = MagicMock(
                 return_value=None

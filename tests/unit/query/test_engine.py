@@ -443,7 +443,15 @@ class TestQueryEngine:
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
             # Mock context manager
             mock_context = MagicMock(
-                spec=["content", "model", "provider", "usage", "__enter__", "__exit__"]
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "__enter__",
+                    "__exit__",
+                    "execute",
+                ]
             )
             mock_conn.return_value.__enter__.return_value = mock_context
             mock_context.execute.side_effect = RuntimeError("Unexpected database error")
@@ -478,6 +486,7 @@ class TestQueryEngine:
                     "execute",
                     "fetchall",
                     "fetchone",
+                    "commit",
                     "__enter__",
                     "__exit__",
                 ]
@@ -743,6 +752,7 @@ class TestQueryEngine:
                     "execute",
                     "fetchall",
                     "fetchone",
+                    "commit",
                     "__enter__",
                     "__exit__",
                 ]

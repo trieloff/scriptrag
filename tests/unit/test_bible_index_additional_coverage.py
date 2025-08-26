@@ -71,9 +71,9 @@ class TestBibleIndexerEdgeCases:
         with patch(
             "scriptrag.api.bible_index.SceneEmbeddingAnalyzer"
         ) as mock_analyzer_class:
-            mock_analyzer = AsyncMock(
-                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-            )
+            mock_analyzer = AsyncMock()
+            # Make initialize explicitly async
+            mock_analyzer.initialize = AsyncMock()
             mock_analyzer_class.return_value = mock_analyzer
 
             indexer = BibleIndexer(settings=mock_settings)
@@ -90,9 +90,9 @@ class TestBibleIndexerEdgeCases:
         with patch(
             "scriptrag.api.bible_index.SceneEmbeddingAnalyzer"
         ) as mock_analyzer_class:
-            mock_analyzer = AsyncMock(
-                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-            )
+            mock_analyzer = AsyncMock()
+            # Make initialize explicitly async
+            mock_analyzer.initialize = AsyncMock()
             mock_analyzer_class.return_value = mock_analyzer
 
             indexer = BibleIndexer(settings=mock_settings)
@@ -137,9 +137,9 @@ class TestBibleIndexerEdgeCases:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock(spec=object)
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_db_ops = Mock(spec_set=["transaction"])
+        mock_conn = Mock(spec_set=["cursor"])
+        mock_cursor = Mock(spec_set=["fetchone", "execute", "lastrowid", "fetchall"])
 
         # Mock existing entry with same hash
         mock_cursor.fetchone.return_value = (1, mock_parsed_bible.file_hash)
@@ -169,9 +169,9 @@ class TestBibleIndexerEdgeCases:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock(spec=object)
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_db_ops = Mock(spec_set=["transaction"])
+        mock_conn = Mock(spec_set=["cursor"])
+        mock_cursor = Mock(spec_set=["fetchone", "execute", "lastrowid", "fetchall"])
 
         # Mock existing entry with different hash
         mock_cursor.fetchone.return_value = (1, "different_hash")

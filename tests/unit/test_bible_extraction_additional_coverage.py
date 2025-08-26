@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from scriptrag.api.bible_extraction import BibleCharacter, BibleCharacterExtractor
+from scriptrag.api.bible.character_bible import BibleCharacter, BibleCharacterExtractor
 
 
 class TestBibleExtractionAdditionalCoverage:
@@ -24,9 +24,7 @@ class TestBibleExtractionAdditionalCoverage:
             "broken": json
         ```"""
 
-        mock_llm = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_llm = AsyncMock()
         mock_llm.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
@@ -44,9 +42,7 @@ class TestBibleExtractionAdditionalCoverage:
         # Response is valid JSON but not array format
         mock_response = json.dumps({"not": "array"})
 
-        mock_llm = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_llm = AsyncMock()
         mock_llm.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
@@ -176,13 +172,11 @@ Camera angles and lighting setup.
             ]
         )
 
-        mock_llm = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_llm = AsyncMock()
         mock_llm.complete.return_value = invalid_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
-        result = await extractor._extract_via_llm(chunks)
+        result = await extractor.extract_via_llm(chunks)
 
         # Should extract valid characters
         # (note: some invalid data may still create characters)

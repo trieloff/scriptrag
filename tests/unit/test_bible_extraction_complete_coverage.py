@@ -6,12 +6,9 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from scriptrag.api.bible.character_bible import BibleCharacter, BibleCharacterExtractor
 from scriptrag.api.bible.scene_bible import BibleScene
-from scriptrag.api.bible_extraction import (
-    BibleCharacter,
-    BibleCharacterExtractor,
-    BibleExtractor,
-)
+from scriptrag.api.bible_extraction import BibleExtractor
 from scriptrag.parser.bible_parser import BibleChunk, ParsedBible
 
 
@@ -105,7 +102,7 @@ class TestBibleCharacterExtractor:
         bible_path = tmp_path / "bad_bible.md"
         bible_path.write_text("# Test")
 
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         # Mock parser to raise error
         with patch.object(
@@ -125,7 +122,7 @@ class TestBibleCharacterExtractor:
         bible_path = tmp_path / "bible.md"
         bible_path.write_text("# Test")
 
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         # Mock parsed bible with no character chunks
         empty_bible = ParsedBible(
@@ -163,10 +160,8 @@ class TestBibleCharacterExtractor:
         bible_path.write_text("# Test")
 
         # Mock LLM client
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
-        mock_response = Mock(spec=object)
+        mock_client = AsyncMock()
+        mock_response = Mock(spec_set=["content"])
         mock_response.content = json.dumps(
             [
                 {
@@ -179,7 +174,7 @@ class TestBibleCharacterExtractor:
         )
         mock_client.complete.return_value = mock_response
 
-        extractor = BibleCharacterExtractor(llm_client=mock_client)
+        extractor = BibleExtractor(llm_client=mock_client)
 
         with patch.object(
             extractor.bible_parser, "parse_file", return_value=mock_parsed_bible
@@ -197,7 +192,7 @@ class TestBibleCharacterExtractor:
         self, mock_parsed_bible: ParsedBible
     ) -> None:
         """Test finding character chunks by heading keywords."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
         chunks = extractor._find_character_chunks(mock_parsed_bible)
 
         # Should find chunks with "Characters" and "Cast" in headings
@@ -226,7 +221,7 @@ class TestBibleCharacterExtractor:
             chunks=chunks,
         )
 
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
         found_chunks = extractor._find_character_chunks(bible)
 
         # Should find chunk with "protagonist" in content
@@ -254,7 +249,7 @@ class TestBibleCharacterExtractor:
             chunks=chunks,
         )
 
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
         found_chunks = extractor._find_character_chunks(bible)
 
         # Should find chunk even without heading
@@ -267,10 +262,8 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
-        mock_response = Mock(spec=object)
+        mock_client = AsyncMock()
+        mock_response = Mock(spec_set=["content"])
         mock_response.content = json.dumps(
             [
                 {
@@ -284,7 +277,7 @@ class TestBibleCharacterExtractor:
         mock_client.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
-        characters = await extractor._extract_via_llm(chunks)
+        characters = await extractor.extract_via_llm(chunks)
 
         assert len(characters) == 1
         char = characters[0]
@@ -299,13 +292,11 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client that raises error
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_client = AsyncMock()
         mock_client.complete.side_effect = Exception("LLM error")
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
-        characters = await extractor._extract_via_llm(chunks)
+        characters = await extractor.extract_via_llm(chunks)
 
         assert characters == []
 
@@ -315,9 +306,7 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client with invalid response
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_client = AsyncMock()
         mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [
@@ -329,7 +318,7 @@ class TestBibleCharacterExtractor:
         mock_client.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
-        characters = await extractor._extract_via_llm(chunks)
+        characters = await extractor.extract_via_llm(chunks)
 
         assert characters == []
 
@@ -339,21 +328,19 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client with response as string
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_client = AsyncMock()
         mock_response = json.dumps([{"canonical": "JANE", "aliases": ["J"]}])
         mock_client.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
-        characters = await extractor._extract_via_llm(chunks)
+        characters = await extractor.extract_via_llm(chunks)
 
         assert len(characters) == 1
         assert characters[0].canonical == "JANE"
 
     def test_extract_json_array_pattern(self) -> None:
         """Test JSON extraction with array pattern."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         response = 'Here is the data: [{"canonical": "JANE", "aliases": ["J"]}]'
         result = extractor._extract_json(response)
@@ -363,7 +350,7 @@ class TestBibleCharacterExtractor:
 
     def test_extract_json_whole_response(self) -> None:
         """Test JSON extraction of whole response."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         response = '[{"canonical": "JANE", "aliases": ["J"]}]'
         result = extractor._extract_json(response)
@@ -373,7 +360,7 @@ class TestBibleCharacterExtractor:
 
     def test_extract_json_invalid_json(self) -> None:
         """Test JSON extraction with invalid JSON."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         response = "This is not JSON"
         result = extractor._extract_json(response)
@@ -382,7 +369,7 @@ class TestBibleCharacterExtractor:
 
     def test_extract_json_not_array(self) -> None:
         """Test JSON extraction when result is not an array."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
 
         response = '{"canonical": "JANE", "aliases": ["J"]}'
         result = extractor._extract_json(response)
@@ -402,7 +389,7 @@ class TestBibleCharacterExtractor:
             )
         ]
 
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
         normalized = extractor._normalize_characters(characters)
 
         assert len(normalized) == 1
@@ -422,7 +409,7 @@ class TestBibleCharacterExtractor:
             ),  # Duplicate canonical
         ]
 
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
         normalized = extractor._normalize_characters(characters)
 
         # Should only have one character
@@ -445,7 +432,7 @@ class TestBibleCharacterExtractor:
             ),
         ]
 
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
         normalized = extractor._normalize_characters(characters)
 
         assert len(normalized) == 2
@@ -469,7 +456,7 @@ class TestBibleCharacterExtractor:
             )
         ]
 
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
         normalized = extractor._normalize_characters(characters)
 
         assert len(normalized) == 1
@@ -478,7 +465,7 @@ class TestBibleCharacterExtractor:
 
     def test_create_empty_result(self) -> None:
         """Test creating empty result structure."""
-        extractor = BibleCharacterExtractor()
+        extractor = BibleExtractor()
         result = extractor._create_empty_result()
 
         assert result["version"] == 1
@@ -674,10 +661,8 @@ class TestBibleExtractor:
         bible_path.write_text("# Test")
 
         # Mock LLM client for character extraction
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
-        mock_response = Mock(spec=object)
+        mock_client = AsyncMock()
+        mock_response = Mock(spec_set=["content"])
         mock_response.content = json.dumps(
             [
                 {
@@ -713,10 +698,8 @@ class TestBibleExtractor:
         bible_path.write_text("# Test")
 
         # Mock LLM client for character extraction
-        mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
-        mock_response = Mock(spec=object)
+        mock_client = AsyncMock()
+        mock_response = Mock(spec_set=["content"])
         mock_response.content = json.dumps(
             [
                 {

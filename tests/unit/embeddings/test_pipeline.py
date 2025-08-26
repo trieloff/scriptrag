@@ -229,6 +229,63 @@ class TestStandardPreprocessor:
         assert "they will" in result.lower()
         assert "we would" in result.lower()
 
+    def test_apply_step_truncate(self):
+        """Test text truncation step."""
+        # Test with default max_text_length
+        processor = StandardPreprocessor()
+        text = "a" * 10000  # Longer than default 8000
+        result = processor._apply_step(text, PreprocessingStep.TRUNCATE)
+        assert len(result) == 8003  # 8000 + "..."
+        assert result.endswith("...")
+        assert result.startswith("a" * 8000)
+
+    def test_apply_step_truncate_short_text(self):
+        """Test truncation step with text shorter than limit."""
+        processor = StandardPreprocessor()
+        text = "Short text"
+        result = processor._apply_step(text, PreprocessingStep.TRUNCATE)
+        assert result == text  # Should remain unchanged
+
+    def test_apply_step_truncate_exact_length(self):
+        """Test truncation with text exactly at the limit."""
+        processor = StandardPreprocessor(max_text_length=100)
+        text = "b" * 100
+        result = processor._apply_step(text, PreprocessingStep.TRUNCATE)
+        assert result == text  # Should remain unchanged
+        assert len(result) == 100
+
+    def test_apply_step_truncate_custom_length(self):
+        """Test truncation with custom max_text_length."""
+        processor = StandardPreprocessor(max_text_length=50)
+        text = "c" * 100
+        result = processor._apply_step(text, PreprocessingStep.TRUNCATE)
+        assert len(result) == 53  # 50 + "..."
+        assert result == "c" * 50 + "..."
+
+    def test_truncate_in_pipeline(self):
+        """Test TRUNCATE step as part of preprocessing pipeline."""
+        steps = [
+            PreprocessingStep.LOWERCASE,
+            PreprocessingStep.TRUNCATE,
+            PreprocessingStep.REMOVE_EXTRA_WHITESPACE,
+        ]
+        processor = StandardPreprocessor(steps=steps, max_text_length=20)
+        text = "THIS IS A VERY LONG TEXT THAT WILL BE TRUNCATED"
+        result = processor.process(text)
+        # Should be lowercased, truncated to 20 chars + "...", then whitespace cleaned
+        assert len(result) <= 23
+        assert result.startswith("this is a very long ")
+        assert result.endswith("...")
+
+    def test_truncate_preserves_unicode(self):
+        """Test that truncation handles Unicode characters properly."""
+        processor = StandardPreprocessor(max_text_length=10)
+        text = "café " * 10  # 50 characters with accented chars
+        result = processor._apply_step(text, PreprocessingStep.TRUNCATE)
+        assert len(result) == 13  # 10 + "..."
+        assert "café" in result
+        assert result.endswith("...")
+
     def test_apply_step_unknown_step(self):
         """Test applying unknown preprocessing step."""
         processor = StandardPreprocessor()
@@ -279,6 +336,49 @@ class TestStandardPreprocessor:
         assert "..." not in result
         # Extra whitespace should be cleaned
         assert "  " not in result
+
+    def test_complex_pipeline_with_truncate(self):
+        """Test complex pipeline including TRUNCATE step."""
+        steps = [
+            PreprocessingStep.LOWERCASE,  # Lowercase first so contractions work
+            PreprocessingStep.EXPAND_CONTRACTIONS,
+            PreprocessingStep.TRUNCATE,
+            PreprocessingStep.REMOVE_EXTRA_WHITESPACE,
+        ]
+        processor = StandardPreprocessor(steps=steps, max_text_length=30)
+
+        text = "Don't forget: This is a VERY LONG message that we're sending!"
+        result = processor.process(text)
+
+        # Should lowercase, expand contractions, truncate, clean whitespace
+        assert "don't" not in result.lower()
+        assert "do not" in result
+        assert len(result) <= 33  # 30 + "..."
+        assert result.islower()
+        assert result.endswith("...")
+
+    def test_backward_compatibility_default_args(self):
+        """Test that StandardPreprocessor works with old calling patterns."""
+        # Test with no arguments (should work with defaults)
+        processor1 = StandardPreprocessor()
+        assert processor1.max_text_length == 8000
+        assert processor1.steps == [
+            PreprocessingStep.REMOVE_EXTRA_WHITESPACE,
+            PreprocessingStep.NORMALIZE_UNICODE,
+        ]
+
+        # Test with only steps argument (backward compatibility)
+        steps = [PreprocessingStep.LOWERCASE]
+        processor2 = StandardPreprocessor(steps)
+        assert processor2.max_text_length == 8000
+        assert processor2.steps == steps
+
+        # Test both can process text
+        text = "Test TEXT"
+        result1 = processor1.process(text)
+        result2 = processor2.process(text)
+        assert result1 == "Test TEXT"
+        assert result2 == "test text"
 
 
 class TestScreenplayPreprocessor:

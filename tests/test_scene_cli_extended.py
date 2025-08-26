@@ -482,6 +482,20 @@ class TestSceneUpdateCommandExtended:
             ),
         )
 
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. TEST SCENE - DAY",
+                content="Original content",
+                original_text="Original content",
+                content_hash="original_hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api.update_scene = AsyncMock(return_value=mock_result)
 
         # Mock stdin reading
@@ -546,6 +560,20 @@ class TestSceneUpdateCommandExtended:
             ),
         )
 
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. LAB - NIGHT",
+                content="Original content",
+                original_text="Original content",
+                content_hash="original_hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api.update_scene = AsyncMock(return_value=mock_result)
 
         result = runner.invoke(
@@ -580,6 +608,20 @@ class TestSceneUpdateCommandExtended:
             validation_errors=["Missing scene heading", "Invalid format"],
         )
 
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. TEST SCENE - DAY",
+                content="Original content",
+                original_text="Original content",
+                content_hash="original_hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api.update_scene = AsyncMock(return_value=mock_result)
 
         result = runner.invoke(
@@ -605,6 +647,21 @@ class TestSceneUpdateCommandExtended:
     def test_update_scene_exception(self, mock_api_class):
         """Test update command with exception."""
         mock_api = mock_api_class.return_value
+
+        # Mock read_scene to return success (scene exists)
+        mock_read_result = ReadSceneResult(
+            success=True,
+            error=None,
+            scene=Scene(
+                number=5,
+                heading="INT. TEST SCENE - DAY",
+                content="Original content",
+                original_text="Original content",
+                content_hash="original_hash",
+            ),
+            last_read=None,
+        )
+        mock_api.read_scene = AsyncMock(return_value=mock_read_result)
         mock_api.update_scene = AsyncMock(side_effect=Exception("Unexpected error"))
 
         result = runner.invoke(

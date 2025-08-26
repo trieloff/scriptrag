@@ -157,6 +157,20 @@ class TestConfigOptionSceneCommands:
                 validation_errors=[],
             )
 
+            # Mock read_scene to return success (scene exists)
+            mock_read_result = ReadSceneResult(
+                success=True,
+                error=None,
+                scene=Scene(
+                    number=3,
+                    heading="INT. OFFICE - DAY",
+                    content="Original content",
+                    original_text="Original content",
+                    content_hash="original_hash",
+                ),
+                last_read=None,
+            )
+            mock_api.read_scene = AsyncMock(return_value=mock_read_result)
             mock_api.update_scene = AsyncMock(return_value=mock_result)
 
             # Run command with config

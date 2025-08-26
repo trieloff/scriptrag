@@ -474,8 +474,9 @@ class TestGetDefaultConfigPath:
             mock_home.side_effect = OSError("No home directory")
 
             with patch("pathlib.Path.cwd") as mock_cwd:
-                mock_cwd.return_value = Mock()
-                mock_cwd.return_value.resolve.side_effect = RuntimeError("Path error")
+                mock_path = Mock(spec=Path)
+                mock_path.resolve.side_effect = RuntimeError("Path error")
+                mock_cwd.return_value = mock_path
 
                 result = get_default_config_path()
 

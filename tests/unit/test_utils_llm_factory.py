@@ -13,7 +13,7 @@ def mock_llm_client():
     """Mock LLMClient to avoid creating real HTTP clients."""
     with patch("scriptrag.utils.llm_factory.LLMClient") as mock_client_class:
         # Create a mock that behaves like LLMClient
-        mock_instance = Mock()
+        mock_instance = Mock(spec=object)
         mock_instance.preferred_provider = None
         mock_instance.fallback_order = None
         mock_instance.github_token = None
@@ -522,7 +522,7 @@ class TestGetDefaultLLMClient:
     @patch("scriptrag.utils.llm_factory.create_llm_client")
     async def test_get_default_client(self, mock_create):
         """Test getting default LLM client."""
-        mock_client = Mock()
+        mock_client = Mock(spec=object)
         mock_create.return_value = mock_client
 
         client = await get_default_llm_client()
@@ -533,8 +533,8 @@ class TestGetDefaultLLMClient:
     @patch("scriptrag.utils.llm_factory.create_llm_client")
     async def test_get_default_client_creates_new_each_time(self, mock_create):
         """Test that get_default_llm_client creates new client each time."""
-        mock_client1 = Mock()
-        mock_client2 = Mock()
+        mock_client1 = Mock(spec=object)
+        mock_client2 = Mock(spec=object)
         mock_create.side_effect = [mock_client1, mock_client2]
 
         client1 = await get_default_llm_client()

@@ -86,14 +86,14 @@ class TestBibleCharacterExtractor:
 
     def test_init_with_llm_client(self) -> None:
         """Test initialization with provided LLM client."""
-        mock_client = Mock()
+        mock_client = Mock(spec=object)
         extractor = BibleCharacterExtractor(llm_client=mock_client)
         assert extractor.llm_client is mock_client
 
     def test_init_without_llm_client(self) -> None:
         """Test initialization without LLM client."""
         with patch("scriptrag.api.bible_extraction.LLMClient") as mock_llm_class:
-            mock_client = Mock()
+            mock_client = Mock(spec=object)
             mock_llm_class.return_value = mock_client
 
             extractor = BibleCharacterExtractor()
@@ -163,8 +163,8 @@ class TestBibleCharacterExtractor:
         bible_path.write_text("# Test")
 
         # Mock LLM client
-        mock_client = AsyncMock()
-        mock_response = Mock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [
                 {
@@ -265,8 +265,8 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client
-        mock_client = AsyncMock()
-        mock_response = Mock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [
                 {
@@ -295,7 +295,7 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client that raises error
-        mock_client = AsyncMock()
+        mock_client = AsyncMock(spec=object)
         mock_client.complete.side_effect = Exception("LLM error")
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
@@ -309,8 +309,8 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client with invalid response
-        mock_client = AsyncMock()
-        mock_response = Mock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [
                 {"aliases": ["JANE"]},  # No canonical
@@ -331,7 +331,7 @@ class TestBibleCharacterExtractor:
         chunks = ["Main Characters\nJANE SMITH - Lead detective"]
 
         # Mock LLM client with response as string
-        mock_client = AsyncMock()
+        mock_client = AsyncMock(spec=object)
         mock_response = json.dumps([{"canonical": "JANE", "aliases": ["J"]}])
         mock_client.complete.return_value = mock_response
 
@@ -481,14 +481,14 @@ class TestBibleExtractor:
 
     def test_init_with_llm_client(self) -> None:
         """Test BibleExtractor initialization with provided LLM client."""
-        mock_client = Mock()
+        mock_client = Mock(spec=object)
         extractor = BibleExtractor(llm_client=mock_client)
         assert extractor.llm_client is mock_client
 
     def test_init_without_llm_client(self) -> None:
         """Test BibleExtractor initialization without LLM client."""
         with patch("scriptrag.api.bible_extraction.LLMClient") as mock_llm_class:
-            mock_client = Mock()
+            mock_client = Mock(spec=object)
             mock_llm_class.return_value = mock_client
 
             extractor = BibleExtractor()
@@ -664,8 +664,8 @@ class TestBibleExtractor:
         bible_path.write_text("# Test")
 
         # Mock LLM client for character extraction
-        mock_client = AsyncMock()
-        mock_response = Mock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [
                 {
@@ -701,8 +701,8 @@ class TestBibleExtractor:
         bible_path.write_text("# Test")
 
         # Mock LLM client for character extraction
-        mock_client = AsyncMock()
-        mock_response = Mock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = Mock(spec=object)
         mock_response.content = json.dumps(
             [
                 {
@@ -762,7 +762,7 @@ class TestBibleExtractorLegacyAlias:
 
     def test_legacy_alias_initialization(self) -> None:
         """Test initialization through legacy alias."""
-        mock_client = Mock()
+        mock_client = Mock(spec=object)
         extractor = BibleCharacterExtractor(llm_client=mock_client)
 
         # Should be same type as BibleExtractor

@@ -152,7 +152,7 @@ class TestQueryAPI:
 
     def test_reload_queries(self, api):
         """Test reloading queries from disk."""
-        api.loader.discover_queries = MagicMock()
+        api.loader.discover_queries = MagicMock(spec=object)
 
         api.reload_queries()
 

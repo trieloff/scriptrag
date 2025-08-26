@@ -101,7 +101,7 @@ class TestBibleIndexComprehensiveCoverage:
 
         # Mock database connection and cursor with lastrowid = None
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.lastrowid = None  # This is the key to trigger the missing branch
         mock_conn.cursor.return_value = mock_cursor
 
@@ -125,12 +125,12 @@ class TestBibleIndexComprehensiveCoverage:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer
-        mock_analyzer = AsyncMock()
+        mock_analyzer = AsyncMock(spec=object)
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor with empty chunks list
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchall.return_value = []  # Empty list - no chunks
         mock_conn.cursor.return_value = mock_cursor
 
@@ -193,7 +193,7 @@ class TestBibleIndexComprehensiveCoverage:
 
         # Mock database connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
 
         # Track execute calls and simulate mixed success/failure
         execute_calls = []
@@ -205,7 +205,7 @@ class TestBibleIndexComprehensiveCoverage:
                 mock_cursor.lastrowid = lastrowid_sequence.pop(0)
             else:
                 mock_cursor.lastrowid = None
-            return Mock()
+            return Mock(spec=object)
 
         mock_cursor.execute.side_effect = mock_execute
         mock_conn.cursor.return_value = mock_cursor
@@ -228,14 +228,14 @@ class TestBibleIndexComprehensiveCoverage:
         """
         indexer = BibleIndexer(settings=mock_settings)
 
-        mock_analyzer = AsyncMock()
+        mock_analyzer = AsyncMock(spec=object)
         # Every call fails immediately with max retries exceeded
         mock_analyzer.analyze.side_effect = Exception("Immediate failure")
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor with multiple chunks
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Heading 1", "Content 1"),
             (2, "hash2", "Heading 2", "Content 2"),
@@ -267,9 +267,9 @@ class TestBibleIndexComprehensiveCoverage:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock()
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_db_ops = Mock(spec=object)
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
 
         # Mock existing entry with SAME hash (unchanged file)
         mock_cursor.fetchone.return_value = (1, mock_parsed_bible.file_hash)
@@ -311,9 +311,9 @@ class TestBibleIndexComprehensiveCoverage:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock()
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_db_ops = Mock(spec=object)
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
 
         # Mock no existing entry (new file)
         mock_cursor.fetchone.return_value = None
@@ -379,9 +379,9 @@ class TestBibleIndexComprehensiveCoverage:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock()
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_db_ops = Mock(spec=object)
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
 
         # Mock no existing entry (new file)
         mock_cursor.fetchone.return_value = None
@@ -488,7 +488,7 @@ class TestBibleIndexComprehensiveCoverage:
 
         # Mock database connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.lastrowid = 0  # Zero is falsy but could be valid ID
         mock_conn.cursor.return_value = mock_cursor
 
@@ -512,13 +512,13 @@ class TestBibleIndexComprehensiveCoverage:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer
-        mock_analyzer = AsyncMock()
+        mock_analyzer = AsyncMock(spec=object)
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor where fetchall() initially returns chunks
         # but through some external intervention, the chunks become unavailable
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
 
         # This is the edge case: empty chunks after the initial query setup
         # This could happen due to concurrent deletion or transactional issues
@@ -550,7 +550,7 @@ class TestBibleIndexComprehensiveCoverage:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer
-        mock_analyzer = AsyncMock()
+        mock_analyzer = AsyncMock(spec=object)
         mock_analyzer.analyze.return_value = {
             "embedding_path": "/path/embedding",
             "dimensions": 128,
@@ -559,8 +559,8 @@ class TestBibleIndexComprehensiveCoverage:
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor that initially has chunks but then they disappear
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
 
         # Simulate a race condition: chunks exist in query but disappear
         # This could happen with concurrent bible updates or deletions

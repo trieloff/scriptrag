@@ -71,7 +71,7 @@ class TestBibleIndexerEdgeCases:
         with patch(
             "scriptrag.api.bible_index.SceneEmbeddingAnalyzer"
         ) as mock_analyzer_class:
-            mock_analyzer = AsyncMock()
+            mock_analyzer = AsyncMock(spec=object)
             mock_analyzer_class.return_value = mock_analyzer
 
             indexer = BibleIndexer(settings=mock_settings)
@@ -88,7 +88,7 @@ class TestBibleIndexerEdgeCases:
         with patch(
             "scriptrag.api.bible_index.SceneEmbeddingAnalyzer"
         ) as mock_analyzer_class:
-            mock_analyzer = AsyncMock()
+            mock_analyzer = AsyncMock(spec=object)
             mock_analyzer_class.return_value = mock_analyzer
 
             indexer = BibleIndexer(settings=mock_settings)
@@ -133,9 +133,9 @@ class TestBibleIndexerEdgeCases:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock()
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_db_ops = Mock(spec=object)
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
 
         # Mock existing entry with same hash
         mock_cursor.fetchone.return_value = (1, mock_parsed_bible.file_hash)
@@ -165,9 +165,9 @@ class TestBibleIndexerEdgeCases:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock()
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_db_ops = Mock(spec=object)
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
 
         # Mock existing entry with different hash
         mock_cursor.fetchone.return_value = (1, "different_hash")
@@ -214,9 +214,9 @@ class TestBibleIndexerEdgeCases:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock()
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_db_ops = Mock(spec=object)
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
 
         # Mock no existing entry
         mock_cursor.fetchone.return_value = None
@@ -289,8 +289,8 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _extract_bible_aliases with LLM configured."""
         # Mock LLM client and response
-        mock_client = AsyncMock()
-        mock_response = Mock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = Mock(spec=object)
         mock_response.text = (
             '{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
             '"characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}]}'
@@ -316,8 +316,8 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _extract_bible_aliases handles JSON wrapped in code fences."""
         # Mock LLM client and response with code fence
-        mock_client = AsyncMock()
-        mock_response = Mock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = Mock(spec=object)
         mock_response.text = (
             '```json\n{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
             '"characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}]}\n```'
@@ -341,8 +341,8 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _extract_bible_aliases handles deduplication."""
         # Mock LLM client with duplicate aliases
-        mock_client = AsyncMock()
-        mock_response = Mock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = Mock(spec=object)
         mock_response.text = (
             '{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
             '"characters": [{"canonical": "JANE", '
@@ -366,7 +366,7 @@ class TestBibleIndexerEdgeCases:
         """Test _attach_alias_map_to_script updates script metadata."""
         # Mock connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.return_value = ('{"existing": "data"}',)
         mock_conn.execute.return_value = mock_cursor
 
@@ -389,7 +389,7 @@ class TestBibleIndexerEdgeCases:
         """Test _attach_alias_map_to_script with no existing metadata."""
         # Mock connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.return_value = None
         mock_conn.execute.return_value = mock_cursor
 
@@ -449,7 +449,7 @@ class TestBibleIndexerEdgeCases:
         # Ensure no embedding analyzer
         indexer.embedding_analyzer = None
 
-        mock_conn = Mock()
+        mock_conn = Mock(spec=object)
         result = await indexer._generate_embeddings(
             mock_conn, bible_id=1, parsed_bible=mock_parsed_bible
         )
@@ -464,7 +464,7 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer
-        mock_analyzer = AsyncMock()
+        mock_analyzer = AsyncMock(spec=object)
         mock_analyzer.analyze.return_value = {
             "embedding_path": "/path/to/embedding",
             "dimensions": 128,
@@ -473,8 +473,8 @@ class TestBibleIndexerEdgeCases:
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Test Heading", "Test content"),
             (2, "hash2", "Sub Heading", "Sub content"),
@@ -496,13 +496,13 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer that always fails
-        mock_analyzer = AsyncMock()
+        mock_analyzer = AsyncMock(spec=object)
         mock_analyzer.analyze.side_effect = Exception("API Error")
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Test Heading", "Test content")
         ]
@@ -525,13 +525,13 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer that returns error in result
-        mock_analyzer = AsyncMock()
+        mock_analyzer = AsyncMock(spec=object)
         mock_analyzer.analyze.return_value = {"error": "Rate limit exceeded"}
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Test Heading", "Test content")
         ]
@@ -560,9 +560,9 @@ class TestBibleIndexerEdgeCases:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock()
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_db_ops = Mock(spec=object)
+        mock_conn = Mock(spec=object)
+        mock_cursor = Mock(spec=object)
 
         # Mock no existing entry
         mock_cursor.fetchone.return_value = None
@@ -635,8 +635,8 @@ class TestBibleIndexerEdgeCases:
         )
 
         # Mock LLM client and response
-        mock_client = AsyncMock()
-        mock_response = Mock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = Mock(spec=object)
         mock_response.text = (
             '{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
             '"characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}]}'
@@ -751,7 +751,7 @@ class TestBibleIndexerEdgeCases:
 
         # Mock database connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.lastrowid = 456
         mock_conn.cursor.return_value = mock_cursor
 
@@ -776,7 +776,7 @@ class TestBibleIndexerEdgeCases:
 
         # Mock database connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_conn.cursor.return_value = mock_cursor
 
         await indexer._update_bible(
@@ -844,7 +844,7 @@ class TestBibleIndexerEdgeCases:
 
         # Mock database connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
 
         # Track execute calls and simulate lastrowid
         execute_calls = []
@@ -857,7 +857,7 @@ class TestBibleIndexerEdgeCases:
                 mock_cursor.lastrowid = lastrowid_sequence.pop(0)
             else:
                 mock_cursor.lastrowid = None
-            return Mock()
+            return Mock(spec=object)
 
         mock_cursor.execute.side_effect = mock_execute
         mock_conn.cursor.return_value = mock_cursor
@@ -944,7 +944,7 @@ class TestBibleIndexerEdgeCases:
         """Test _attach_alias_map_to_script handles JSON parsing errors."""
         # Mock connection and cursor with invalid JSON
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.return_value = ("invalid json {",)  # Malformed JSON
         mock_conn.execute.return_value = mock_cursor
 

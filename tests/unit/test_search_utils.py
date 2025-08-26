@@ -469,13 +469,13 @@ class TestSearchResultUtils:
 
     def test_merge_results_with_duplicates(self) -> None:
         """Test merging results with duplicates."""
-        mock_result1 = MagicMock()
+        mock_result1 = MagicMock(spec=object)
         mock_result1.id = 1
-        mock_result2 = MagicMock()
+        mock_result2 = MagicMock(spec=object)
         mock_result2.id = 2
-        mock_result3 = MagicMock()
+        mock_result3 = MagicMock(spec=object)
         mock_result3.id = 1  # Duplicate
-        mock_result4 = MagicMock()
+        mock_result4 = MagicMock(spec=object)
         mock_result4.id = 3
 
         primary = [mock_result1, mock_result2]

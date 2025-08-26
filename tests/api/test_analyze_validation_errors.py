@@ -40,7 +40,7 @@ Come in, John.
     @pytest.fixture
     def failing_analyzer(self) -> MarkdownAgentAnalyzer:
         """Create an analyzer that always fails validation."""
-        spec = MagicMock()
+        spec = MagicMock(spec=object)
         spec.name = "failing_agent"
         spec.version = "1.0.0"
         spec.requires_llm = True
@@ -56,8 +56,8 @@ Come in, John.
         analyzer = MarkdownAgentAnalyzer(spec)
 
         # Mock LLM to return invalid data
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = MagicMock(spec=object)
         mock_response.content = '{"wrong_field": "value"}'
         mock_response.model = "test-model"
         mock_response.provider = None
@@ -125,7 +125,7 @@ Come in, John.
     ) -> None:
         """Test that successful analyzers still write when one fails."""
         # Create a successful analyzer
-        success_spec = MagicMock()
+        success_spec = MagicMock(spec=object)
         success_spec.name = "success_agent"
         success_spec.version = "1.0.0"
         success_spec.requires_llm = False

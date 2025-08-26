@@ -159,7 +159,7 @@ class TestLoggingConfiguration:
         logger = get_logger("test")
 
         # Log something and check that it includes callsite info
-        with patch("sys.stderr", MagicMock()):
+        with patch("sys.stderr", MagicMock(spec=object)):
             logger.debug("debug message")
             # In debug mode, structlog should add filename, lineno, func_name
 

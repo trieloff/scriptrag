@@ -325,7 +325,7 @@ class TestMarkdownAgentAnalyzer:
         with patch(
             "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client"
         ) as mock_get_client:
-            mock_client = AsyncMock()
+            mock_client = AsyncMock(spec=object)
             mock_get_client.return_value = mock_client
 
             await analyzer.initialize()
@@ -358,7 +358,7 @@ class TestMarkdownAgentAnalyzer:
     async def test_cleanup(self, sample_spec: AgentSpec) -> None:
         """Test cleanup releases resources."""
         analyzer = MarkdownAgentAnalyzer(sample_spec)
-        analyzer.llm_client = MagicMock()
+        analyzer.llm_client = MagicMock(spec=object)
 
         await analyzer.cleanup()
 
@@ -370,8 +370,8 @@ class TestMarkdownAgentAnalyzer:
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
         # Mock LLM client
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = MagicMock(spec=object)
         mock_response.content = '{"result": "analyzed"}'
         mock_response.model = "test-model"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
@@ -428,8 +428,8 @@ class TestMarkdownAgentAnalyzer:
         with patch(
             "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client"
         ) as mock_get_client:
-            mock_client = AsyncMock()
-            mock_response = MagicMock()
+            mock_client = AsyncMock(spec=object)
+            mock_response = MagicMock(spec=object)
             mock_response.content = '{"result": "test"}'
             mock_response.model = "test-model"
             mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
@@ -458,8 +458,8 @@ class TestMarkdownAgentAnalyzer:
 
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = MagicMock(spec=object)
         mock_response.content = "not valid json"
         mock_response.model = "test-model"
         mock_response.provider = None
@@ -496,8 +496,8 @@ class TestMarkdownAgentAnalyzer:
         """Test schema validation of LLM response."""
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = MagicMock(spec=object)
         # Missing required "result" field
         mock_response.content = '{"wrong_field": "value"}'
         mock_response.model = "test-model"
@@ -533,8 +533,8 @@ class TestMarkdownAgentAnalyzer:
         """Test that analysis prompt is properly formatted."""
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = MagicMock(spec=object)
         mock_response.content = '{"result": "ok"}'
         mock_response.model = "test-model"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE

@@ -24,7 +24,7 @@ class TestBibleExtractionAdditionalCoverage:
             "broken": json
         ```"""
 
-        mock_llm = AsyncMock()
+        mock_llm = AsyncMock(spec=object)
         mock_llm.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
@@ -42,7 +42,7 @@ class TestBibleExtractionAdditionalCoverage:
         # Response is valid JSON but not array format
         mock_response = json.dumps({"not": "array"})
 
-        mock_llm = AsyncMock()
+        mock_llm = AsyncMock(spec=object)
         mock_llm.complete.return_value = mock_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
@@ -137,14 +137,14 @@ Camera angles and lighting setup.
         # Mock the Bible parser
         from unittest.mock import MagicMock
 
-        mock_chunk = MagicMock()
+        mock_chunk = MagicMock(spec=object)
         mock_chunk.heading = "Plot Overview"
         mock_chunk.content = (
             "This section mentions the character development and protagonist journey.\n"
             "The cast includes various roles for the story."
         )
 
-        mock_parsed = MagicMock()
+        mock_parsed = MagicMock(spec=object)
         mock_parsed.chunks = [mock_chunk]
 
         extractor.bible_parser.parse_file = MagicMock(return_value=mock_parsed)
@@ -172,7 +172,7 @@ Camera angles and lighting setup.
             ]
         )
 
-        mock_llm = AsyncMock()
+        mock_llm = AsyncMock(spec=object)
         mock_llm.complete.return_value = invalid_response
 
         extractor = BibleCharacterExtractor(llm_client=mock_llm)
@@ -212,11 +212,11 @@ Camera angles and lighting setup.
         # Mock parsed Bible with chunk that has no heading
         from unittest.mock import MagicMock
 
-        mock_chunk = MagicMock()
+        mock_chunk = MagicMock(spec=object)
         mock_chunk.heading = None
         mock_chunk.content = "The main character is Jane."
 
-        mock_parsed = MagicMock()
+        mock_parsed = MagicMock(spec=object)
         mock_parsed.chunks = [mock_chunk]
 
         chunks = extractor._find_character_chunks(mock_parsed)
@@ -231,11 +231,11 @@ Camera angles and lighting setup.
 
         from unittest.mock import MagicMock
 
-        mock_chunk = MagicMock()
+        mock_chunk = MagicMock(spec=object)
         mock_chunk.heading = "Main Cast"
         mock_chunk.content = "Jane is the protagonist."
 
-        mock_parsed = MagicMock()
+        mock_parsed = MagicMock(spec=object)
         mock_parsed.chunks = [mock_chunk]
 
         chunks = extractor._find_character_chunks(mock_parsed)

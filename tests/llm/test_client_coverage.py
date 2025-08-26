@@ -93,7 +93,7 @@ class TestLLMClientCoverage:
         client.current_provider = None
 
         # Mock _select_provider to not set any provider
-        client._select_provider = AsyncMock()
+        client._select_provider = AsyncMock(spec=object)
 
         with pytest.raises(RuntimeError, match="No LLM provider available"):
             await client.ensure_provider()
@@ -277,7 +277,7 @@ class TestLLMClientCoverage:
 
         # Mock settings to return default embedding model
         with patch("scriptrag.llm.client.get_settings") as mock_get_settings:
-            mock_settings = Mock()
+            mock_settings = Mock(spec=object)
             mock_settings.llm_embedding_model = None  # Not explicitly configured
             mock_get_settings.return_value = mock_settings
 

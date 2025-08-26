@@ -32,7 +32,7 @@ class TestEmbeddingServiceUltraComprehensive:
     def mock_llm_client(self):
         """Create comprehensive mock LLM client."""
         client = MagicMock(spec=LLMClient)
-        client.embed = AsyncMock()
+        client.embed = AsyncMock(spec=object)
         return client
 
     @pytest.fixture

@@ -55,7 +55,7 @@ class TestProgressCallbacks:
     def test_index_script_with_progress_callback(self, scriptrag, sample_fountain):
         """Test that index_script calls progress callback correctly."""
         # Create a mock callback
-        progress_callback = MagicMock()
+        progress_callback = MagicMock(spec=object)
 
         # Index with progress callback
         result = scriptrag.index_script(
@@ -85,7 +85,7 @@ class TestProgressCallbacks:
 
     def test_index_script_dry_run_with_progress(self, scriptrag, sample_fountain):
         """Test progress callback during dry run."""
-        progress_callback = MagicMock()
+        progress_callback = MagicMock(spec=object)
 
         # Dry run with progress callback
         result = scriptrag.index_script(
@@ -114,7 +114,7 @@ Action happens here.
             )
 
         # Create a mock callback
-        progress_callback = MagicMock()
+        progress_callback = MagicMock(spec=object)
 
         # Index directory with progress callback
         result = scriptrag.index_directory(
@@ -163,7 +163,7 @@ Action.
 """
             )
 
-        progress_callback = MagicMock()
+        progress_callback = MagicMock(spec=object)
 
         # Index recursively with progress callback
         result = scriptrag.index_directory(
@@ -198,7 +198,7 @@ Action.
 """
         )
 
-        progress_callback = MagicMock()
+        progress_callback = MagicMock(spec=object)
 
         # Index directory with mixed results
         result = scriptrag.index_directory(

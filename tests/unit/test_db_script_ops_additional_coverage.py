@@ -27,7 +27,7 @@ def script_ops() -> ScriptOperations:
 @pytest.fixture
 def sample_script() -> Mock:
     """Create a sample script for testing."""
-    script = Mock()
+    script = Mock(spec=object)
     script.title = "Test Script"
     script.author = "Test Author"
     script.metadata = {
@@ -76,7 +76,7 @@ class TestScriptOperationsGetExistingScript:
     ) -> None:
         """Test getting existing script when found."""
         # Mock cursor and row data
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_row = {
             "id": 1,
             "title": "Test Script",
@@ -101,7 +101,7 @@ class TestScriptOperationsGetExistingScript:
         self, script_ops: ScriptOperations, mock_connection: sqlite3.Connection
     ) -> None:
         """Test getting existing script when not found."""
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.return_value = None
         mock_connection.execute.return_value = mock_cursor
 
@@ -114,7 +114,7 @@ class TestScriptOperationsGetExistingScript:
         self, script_ops: ScriptOperations, mock_connection: sqlite3.Connection
     ) -> None:
         """Test getting existing script with null metadata."""
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_row = {
             "id": 1,
             "title": "Test Script",
@@ -143,7 +143,7 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test upserting a new script."""
         # Mock no existing script
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.return_value = None  # No existing script
         mock_cursor.lastrowid = 123
         mock_connection.execute.return_value = mock_cursor
@@ -164,7 +164,7 @@ class TestScriptOperationsUpsertScript:
         """Test upserting an existing script."""
         # Mock existing script
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             (existing_id,),  # First call for SELECT id
             (
@@ -187,14 +187,14 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test metadata merging during upsert."""
         # Create script with bible metadata
-        script = Mock()
+        script = Mock(spec=object)
         script.title = "Test"
         script.author = "Test Author"
         script.metadata = {"bible": {"new": "data"}, "other": "value"}
 
         # Mock existing script with existing bible metadata
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             (existing_id,),  # First call for SELECT id
             (
@@ -226,13 +226,13 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test upsert with missing title/author fields."""
         # Create script with minimal data
-        script = Mock()
+        script = Mock(spec=object)
         script.title = None
         script.author = None
         script.metadata = None
 
         # Mock no existing script
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.return_value = None
         mock_cursor.lastrowid = 123
         mock_connection.execute.return_value = mock_cursor
@@ -258,7 +258,7 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test upsert raises error when lastrowid is None."""
         # Mock no existing script
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.return_value = None
         mock_cursor.lastrowid = None  # Simulate failed insert
         mock_connection.execute.return_value = mock_cursor
@@ -281,7 +281,7 @@ class TestScriptOperationsUpsertScript:
         """Test upsert handles existing metadata parse errors gracefully."""
         # Mock existing script with invalid JSON metadata
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             (existing_id,),  # First call for SELECT id
             ("invalid json",),  # Second call for SELECT metadata - invalid JSON
@@ -301,14 +301,14 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test bible metadata merging with different types."""
         # Test case where one bible is dict and other is not
-        script = Mock()
+        script = Mock(spec=object)
         script.title = "Test"
         script.author = "Test Author"
         script.metadata = {"bible": {"new": "data"}}
 
         # Mock existing script where bible is not a dict
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             (existing_id,),
             ('{"bible": "string_value"}',),  # Bible as string, not dict
@@ -333,14 +333,14 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test bible metadata merging when both existing and new are non-dict types."""
         # Test case where both bible values are non-dict (lines 120-122)
-        script = Mock()
+        script = Mock(spec=object)
         script.title = "Test"
         script.author = "Test Author"
         script.metadata = {"bible": "new_string_value"}  # Non-dict bible
 
         # Mock existing script where bible is also not a dict
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             (existing_id,),
             ('{"bible": "old_string_value"}',),  # Bible as string, not dict
@@ -365,14 +365,14 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test bible metadata merging when existing is dict and new is non-dict."""
         # Test case for lines 118-119: existing bible is dict, new is not
-        script = Mock()
+        script = Mock(spec=object)
         script.title = "Test"
         script.author = "Test Author"
         script.metadata = {"bible": "new_string_value"}  # Non-dict bible
 
         # Mock existing script where bible is a dict
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             (existing_id,),
             ('{"bible": {"existing": "dict_value"}}',),  # Bible as dict
@@ -397,14 +397,14 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test bible metadata merging when new is dict and existing is non-dict."""
         # Test case for lines 116-117: new bible is dict, existing is not
-        script = Mock()
+        script = Mock(spec=object)
         script.title = "Test"
         script.author = "Test Author"
         script.metadata = {"bible": {"new": "dict_value"}}  # Dict bible
 
         # Mock existing script where bible is not a dict
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             (existing_id,),
             ('{"bible": "existing_string_value"}',),  # Bible as string
@@ -429,14 +429,14 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test bible metadata merging when bible values are missing/None."""
         # Test case for lines 110-111: handling None/missing bible values
-        script = Mock()
+        script = Mock(spec=object)
         script.title = "Test"
         script.author = "Test Author"
         script.metadata = {"bible": {"new": "value"}}  # Dict bible
 
         # Mock existing script where bible is None/missing
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             (existing_id,),
             ("{}",),  # No bible metadata at all
@@ -461,14 +461,14 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test bible metadata merging when both values are None or empty strings."""
         # Test case: both existing and new bible are non-dict empty values
-        script = Mock()
+        script = Mock(spec=object)
         script.title = "Test"
         script.author = "Test Author"
         script.metadata = {"bible": None}  # None is non-dict
 
         # Mock existing script where bible is also None/empty
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             (existing_id,),
             ('{"bible": null}',),  # Bible as null in JSON
@@ -522,7 +522,7 @@ class TestScriptOperationsGetScriptStats:
         script_id = 123
 
         # Mock cursor responses for each count query
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             {"count": 10},  # scenes count
             {"count": 5},  # characters count
@@ -553,7 +553,7 @@ class TestScriptOperationsGetScriptStats:
         script_id = 456
 
         # Mock cursor responses for empty script
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec=object)
         mock_cursor.fetchone.side_effect = [
             {"count": 0},  # scenes count
             {"count": 0},  # characters count

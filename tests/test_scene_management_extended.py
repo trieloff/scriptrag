@@ -127,7 +127,7 @@ class TestSceneManagementAPIExtended:
     def mock_conn(self):
         """Create mock database connection."""
         conn = MagicMock(spec=sqlite3.Connection)
-        cursor = MagicMock()
+        cursor = MagicMock(spec=object)
         conn.execute.return_value = cursor
         return conn
 
@@ -358,7 +358,7 @@ class TestSceneManagementAPIExtended:
         scene_id = SceneIdentifier(project="test", scene_number=5)
 
         # Mock the cursor for SELECT query (positive shift uses SELECT-first approach)
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=object)
         mock_cursor.fetchall.return_value = [(10, 6), (11, 7)]  # (id, scene_number)
         mock_conn.execute.return_value = mock_cursor
 
@@ -394,7 +394,7 @@ class TestSceneManagementAPIExtended:
         )
 
         # Mock the cursor for SELECT query (positive shift uses SELECT-first approach)
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=object)
         mock_cursor.fetchall.return_value = [(10, 6)]  # (id, scene_number)
         mock_conn.execute.return_value = mock_cursor
 
@@ -414,7 +414,7 @@ class TestSceneManagementAPIExtended:
         scene_id = SceneIdentifier(project="test", scene_number=5)
 
         # Mock the cursor for SELECT query (positive shift uses SELECT-first approach)
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=object)
         mock_cursor.fetchall.return_value = [(10, 5), (11, 6)]  # (id, scene_number)
         mock_conn.execute.return_value = mock_cursor
 

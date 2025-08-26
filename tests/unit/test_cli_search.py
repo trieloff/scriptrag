@@ -89,11 +89,11 @@ class TestSearchCommand:
     ) -> None:
         """Test basic search command with successful results."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command
@@ -131,11 +131,11 @@ class TestSearchCommand:
     ) -> None:
         """Test search command with all possible options."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command with all options
@@ -184,11 +184,11 @@ class TestSearchCommand:
     ) -> None:
         """Test search command with brief output format."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter_instance.format_brief.return_value = "Brief result text"
         mock_formatter.return_value = mock_formatter_instance
 
@@ -259,11 +259,11 @@ class TestSearchCommand:
     ) -> None:
         """Test various combinations of search options."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command
@@ -312,11 +312,11 @@ class TestSearchCommand:
     ) -> None:
         """Test different pagination combinations."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command
@@ -357,11 +357,11 @@ class TestSearchCommand:
     ) -> None:
         """Test different search mode combinations."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command
@@ -402,11 +402,11 @@ class TestSearchCommand:
     ) -> None:
         """Test different output format options."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter_instance.format_brief.return_value = "Brief output"
         mock_formatter.return_value = mock_formatter_instance
 
@@ -493,7 +493,7 @@ class TestSearchCommand:
     ) -> None:
         """Test handling of search execution error."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         error = RuntimeError("Search failed")
         mock_api_instance.search.side_effect = error
         mock_search_api.return_value = mock_api_instance
@@ -525,11 +525,11 @@ class TestSearchCommand:
     ) -> None:
         """Test handling of formatter error."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         error = RuntimeError("Format error")
         mock_formatter_instance.format_results.side_effect = error
         mock_formatter.return_value = mock_formatter_instance
@@ -561,11 +561,11 @@ class TestSearchCommand:
     ) -> None:
         """Test handling of brief formatter error."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         error = RuntimeError("Brief format error")
         mock_formatter_instance.format_brief.side_effect = error
         mock_formatter.return_value = mock_formatter_instance
@@ -594,11 +594,11 @@ class TestSearchCommand:
     ) -> None:
         """Test that default parameters are correctly applied."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command with minimal parameters
@@ -634,11 +634,11 @@ class TestSearchCommand:
     ) -> None:
         """Test search with empty query string."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command with empty query
@@ -669,11 +669,11 @@ class TestSearchCommand:
     ) -> None:
         """Test search with special characters in query."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         special_query = 'SARAH "Hello, world!" (whisper) @#$%^&*()'
@@ -706,11 +706,11 @@ class TestSearchCommand:
     ) -> None:
         """Test search with unicode characters."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         unicode_query = "café résumé naïve 中文 русский"
@@ -743,11 +743,11 @@ class TestSearchCommand:
     ) -> None:
         """Test search with extreme pagination values."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command with extreme values
@@ -778,11 +778,11 @@ class TestSearchCommand:
     ) -> None:
         """Test search with complex range filter."""
         # Setup mocks
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         complex_range = "s10e15-s12e25"
@@ -899,15 +899,15 @@ class TestSearchCommandConfigOption:
         config_file.write_text("database_path: /custom/test.db\n")
 
         # Setup mocks
-        mock_settings = Mock()
+        mock_settings = Mock(spec=object)
         mock_settings.database_path = Path("/custom/test.db")
         mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
 
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command with config file
@@ -968,20 +968,20 @@ class TestSearchCommandConfigOption:
         override_db_path = tmp_path / "override.db"
 
         # Setup mocks
-        mock_settings = Mock()
+        mock_settings = Mock(spec=object)
         mock_settings.database_path = Path("/config/test.db")
         mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
 
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Mock copy.deepcopy to track db_path override
         with patch("copy.deepcopy") as mock_deepcopy:
-            copied_settings = Mock()
+            copied_settings = Mock(spec=object)
             copied_settings.database_path = override_db_path
             mock_deepcopy.return_value = copied_settings
 
@@ -1012,15 +1012,15 @@ class TestSearchCommandConfigOption:
     ) -> None:
         """Test search command falls back to default settings when no config."""
         # Setup mocks
-        default_settings = Mock()
+        default_settings = Mock(spec=object)
         default_settings.database_path = Path("/default/test.db")
         mock_get_settings.return_value = default_settings
 
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command without config
@@ -1051,15 +1051,15 @@ class TestSearchCommandConfigOption:
         )
 
         # Setup mocks
-        mock_settings = Mock()
+        mock_settings = Mock(spec=object)
         mock_settings.database_path = Path("/custom/test.db")
         mock_scriptrag_settings.from_multiple_sources.return_value = mock_settings
 
-        mock_api_instance = Mock()
+        mock_api_instance = Mock(spec=object)
         mock_api_instance.search.return_value = sample_search_response
         mock_search_api.return_value = mock_api_instance
 
-        mock_formatter_instance = Mock()
+        mock_formatter_instance = Mock(spec=object)
         mock_formatter.return_value = mock_formatter_instance
 
         # Execute command with config and all options

@@ -35,7 +35,7 @@ def mock_settings(tmp_path):
 def vss_service(mock_settings):
     """Create VSS service with mocked sqlite_vec."""
     with patch("scriptrag.storage.vss_service.sqlite_vec") as mock_vec:
-        mock_vec.load = Mock()
+        mock_vec.load = Mock(spec=object)
         mock_vec.serialize_float32 = mock_serialize_float32
 
         # Create database with necessary tables

@@ -536,7 +536,7 @@ class TestEmbeddingPipeline:
     def mock_llm_client(self):
         """Create mock LLM client."""
         client = MagicMock(spec=LLMClient)
-        client.embed = AsyncMock()
+        client.embed = AsyncMock(spec=object)
         return client
 
     @pytest.fixture
@@ -735,7 +735,7 @@ class TestEmbeddingPipeline:
         """Test embedding generation without cache."""
         config = PipelineConfig(model="test-model", use_cache=False)
         mock_llm_client = MagicMock(spec=LLMClient)
-        mock_llm_client.embed = AsyncMock()
+        mock_llm_client.embed = AsyncMock(spec=object)
 
         pipeline = EmbeddingPipeline(
             config=config,
@@ -990,7 +990,7 @@ class TestEmbeddingPipeline:
     async def test_metadata_preservation_in_caching(self, pipeline, mock_llm_client):
         """Test that metadata is preserved through caching process."""
         with patch.object(pipeline.batch_processor, "process_parallel") as mock_process:
-            mock_result = MagicMock()
+            mock_result = MagicMock(spec=object)
             mock_result.id = "0"
             mock_result.embedding = [0.1, 0.2]
             mock_result.error = None

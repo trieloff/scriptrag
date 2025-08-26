@@ -92,7 +92,7 @@ class TestGitHubModelsProviderCoverage:
         provider.rate_limiter._cache_timestamp = time.time() - 10
 
         # Mock the HTTP client
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
 
         with patch.object(provider.client, "get", new_callable=AsyncMock) as mock_get:
@@ -107,7 +107,7 @@ class TestGitHubModelsProviderCoverage:
         provider._init_http_client()  # Initialize client before mocking
 
         # Mock the HTTP client to return 429
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 429
         mock_response.text = json.dumps(
             {
@@ -134,7 +134,7 @@ class TestGitHubModelsProviderCoverage:
         provider._init_http_client()  # Initialize client before mocking
 
         # Test with list response format
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = [
             {"id": "gpt-4o-mini", "name": "GPT-4 Mini"},
@@ -156,7 +156,7 @@ class TestGitHubModelsProviderCoverage:
         provider._init_http_client()  # Initialize client before mocking
 
         # Test with dict response format with "data" key
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
@@ -177,7 +177,7 @@ class TestGitHubModelsProviderCoverage:
         provider = GitHubModelsProvider(token=TEST_TOKEN)
         provider._init_http_client()  # Initialize client before mocking
 
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = "unexpected_string"
 
@@ -195,7 +195,7 @@ class TestGitHubModelsProviderCoverage:
         provider = GitHubModelsProvider(token=TEST_TOKEN)
         provider._init_http_client()  # Initialize client before mocking
 
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = [
             {
@@ -229,7 +229,7 @@ class TestGitHubModelsProviderCoverage:
             messages=[{"role": "user", "content": "Hello"}],
         )
 
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 429
         mock_response.text = json.dumps(
             {
@@ -262,7 +262,7 @@ class TestGitHubModelsProviderCoverage:
             response_format={"type": "json_object"},
         )
 
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "test-id",
@@ -302,7 +302,7 @@ class TestGitHubModelsProviderCoverage:
             system="You are a helpful assistant.",
         )
 
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "test-id",
@@ -338,7 +338,7 @@ class TestGitHubModelsProviderCoverage:
 
         request = EmbeddingRequest(model="text-embedding-ada-002", input="Test text")
 
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 429
         mock_response.text = json.dumps(
             {
@@ -369,7 +369,7 @@ class TestGitHubModelsProviderCoverage:
             model="text-embedding-ada-002", input="Test text", dimensions=512
         )
 
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "model": "text-embedding-ada-002",
@@ -415,7 +415,7 @@ class TestGitHubModelsProviderCoverage:
             messages=[{"role": "user", "content": "Hello"}],
         )
 
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 500
         mock_response.text = "Internal server error"
 
@@ -431,7 +431,7 @@ class TestGitHubModelsProviderCoverage:
         provider = GitHubModelsProvider(token=TEST_TOKEN)
         provider._init_http_client()  # Initialize client before mocking
 
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 500
 
         with patch.object(provider.client, "get", new_callable=AsyncMock) as mock_get:

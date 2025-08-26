@@ -302,8 +302,8 @@ def test_mcp_server_main_entry_point():
     """Test the main entry point."""
     from unittest.mock import MagicMock, patch
 
-    mock_server = MagicMock()
-    mock_server.run = MagicMock()
+    mock_server = MagicMock(spec=object)
+    mock_server.run = MagicMock(spec=object)
 
     with patch("scriptrag.mcp.server.create_server", return_value=mock_server):
         from scriptrag.mcp.server import main

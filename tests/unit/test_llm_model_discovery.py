@@ -432,7 +432,7 @@ class TestClaudeCodeModelDiscovery:
     async def test_fetch_models_sdk_available(self, discovery):
         """Test model fetching when Claude SDK is available."""
         # Mock SDK client with list_models method
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=object)
         mock_models_data = [
             {
                 "id": "claude-3-5-sonnet-20241022",
@@ -531,7 +531,7 @@ class TestGitHubModelsDiscovery:
     @pytest.fixture
     def discovery(self, static_models):
         """Create GitHub model discovery instance."""
-        mock_client = AsyncMock()
+        mock_client = AsyncMock(spec=object)
         return GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
@@ -562,7 +562,7 @@ class TestGitHubModelsDiscovery:
         }
 
         # Configure the mock client that's already in the discovery fixture
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = mock_api_response
         discovery.client.get = AsyncMock(return_value=mock_response)
@@ -580,7 +580,7 @@ class TestGitHubModelsDiscovery:
     async def test_fetch_models_api_error(self, discovery):
         """Test GitHub API error handling."""
         # Configure the mock client to return an error response
-        mock_response = AsyncMock()
+        mock_response = AsyncMock(spec=object)
         mock_response.status_code = 401
         mock_response.text = "Unauthorized"
         discovery.client.get.return_value = mock_response
@@ -615,7 +615,7 @@ class TestGitHubModelsDiscovery:
         mock_api_response = {"models": []}
 
         # Configure the mock client to return invalid response format
-        mock_response = AsyncMock()
+        mock_response = AsyncMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = mock_api_response
         discovery.client.get.return_value = mock_response

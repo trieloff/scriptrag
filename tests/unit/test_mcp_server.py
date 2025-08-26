@@ -21,7 +21,7 @@ from scriptrag.search.models import (
 def mock_search_api():
     """Create a mock SearchAPI."""
     with patch("scriptrag.mcp.tools.search.SearchAPI") as mock_class:
-        mock_api = MagicMock()
+        mock_api = MagicMock(spec=object)
         mock_class.from_config.return_value = mock_api
 
         # Configure search response
@@ -69,7 +69,7 @@ def mock_search_api():
 def mock_query_api():
     """Create a mock QueryAPI."""
     with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_class:
-        mock_api = MagicMock()
+        mock_api = MagicMock(spec=object)
         mock_class.return_value = mock_api
         mock_class.from_config.return_value = mock_api
 
@@ -312,7 +312,7 @@ async def test_query_list_tool(mock_query_api):
 async def test_no_queries_available():
     """Test behavior when no queries are available."""
     with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_class:
-        mock_api = MagicMock()
+        mock_api = MagicMock(spec=object)
         mock_class.return_value = mock_api
         mock_api.list_queries.return_value = []
         mock_api.loader.reload_queries.return_value = None
@@ -394,7 +394,7 @@ def test_main_function():
     from scriptrag.mcp.server import main
 
     with patch("scriptrag.mcp.server.create_server") as mock_create:
-        mock_server = MagicMock()
+        mock_server = MagicMock(spec=object)
         mock_create.return_value = mock_server
 
         # Call main function

@@ -151,8 +151,8 @@ class TestVSSServiceExtended:
             ),
         ):
             # Mock the connection execute to simulate VSS search
-            mock_conn = MagicMock()
-            mock_cursor = MagicMock()
+            mock_conn = MagicMock(spec=object)
+            mock_cursor = MagicMock(spec=object)
 
             # Mock results - only scenes from script 10
             mock_rows = [
@@ -175,7 +175,7 @@ class TestVSSServiceExtended:
             # Create proper mock Row objects that behave like dictionaries
             mock_row_objects = []
             for row in mock_rows:
-                mock_row = MagicMock()
+                mock_row = MagicMock(spec=object)
                 mock_row.__getitem__ = lambda _self, key, r=row: r[key]
                 mock_row.keys = lambda r=row: r.keys()
                 # Make it dict-like
@@ -191,12 +191,12 @@ class TestVSSServiceExtended:
                     "MATCH" in query and params and len(params) > 1 and params[1] == 10
                 ):  # script_id filter
                     return mock_cursor
-                return MagicMock()
+                return MagicMock(spec=object)
 
             mock_conn.execute = mock_execute
-            mock_conn.rollback = Mock()
-            mock_conn.commit = Mock()
-            mock_conn.close = Mock()
+            mock_conn.rollback = Mock(spec=object)
+            mock_conn.commit = Mock(spec=object)
+            mock_conn.close = Mock(spec=object)
 
             # Patch get_connection to return our mock
             with patch.object(vss_service, "get_connection", return_value=mock_conn):
@@ -225,8 +225,8 @@ class TestVSSServiceExtended:
             ),
         ):
             # Mock the connection execute to simulate VSS search
-            mock_conn = MagicMock()
-            mock_cursor = MagicMock()
+            mock_conn = MagicMock(spec=object)
+            mock_cursor = MagicMock(spec=object)
 
             # Mock results - only chunks from script 10
             mock_rows = [
@@ -253,7 +253,7 @@ class TestVSSServiceExtended:
             # Create proper mock Row objects that behave like dictionaries
             mock_row_objects = []
             for row in mock_rows:
-                mock_row = MagicMock()
+                mock_row = MagicMock(spec=object)
                 mock_row.__getitem__ = lambda _self, key, r=row: r[key]
                 mock_row.keys = lambda r=row: r.keys()
                 # Make it dict-like
@@ -273,12 +273,12 @@ class TestVSSServiceExtended:
                     and params[1] == 10
                 ):  # script_id filter
                     return mock_cursor
-                return MagicMock()
+                return MagicMock(spec=object)
 
             mock_conn.execute = mock_execute
-            mock_conn.rollback = Mock()
-            mock_conn.commit = Mock()
-            mock_conn.close = Mock()
+            mock_conn.rollback = Mock(spec=object)
+            mock_conn.commit = Mock(spec=object)
+            mock_conn.close = Mock(spec=object)
 
             # Patch get_connection to return our mock
             with patch.object(vss_service, "get_connection", return_value=mock_conn):
@@ -403,7 +403,7 @@ CREATE TABLE IF NOT EXISTS another_table (id INTEGER PRIMARY KEY);
             mock_conn = MagicMock(spec=sqlite3.Connection)
             del mock_conn.enable_load_extension  # Remove the attribute
             mock_conn.row_factory = None
-            mock_conn.execute = MagicMock()
+            mock_conn.execute = MagicMock(spec=object)
 
             with patch("sqlite3.connect", return_value=mock_conn):
                 service = VSSService(mock_settings, db_path)

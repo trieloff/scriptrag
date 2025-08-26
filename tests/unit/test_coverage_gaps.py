@@ -190,9 +190,9 @@ class TestConfigShowCoverage:
         This targets specific branches in the tree generation logic.
         """
         # Mock settings object with specific field structure
-        mock_settings = Mock()
+        mock_settings = Mock(spec=object)
         # Create simple mock fields
-        mock_field = Mock()
+        mock_field = Mock(spec=object)
         mock_settings.model_fields = {
             "unknown_field": mock_field,  # Should go to 'application' group
             "database_path": mock_field,  # Should go to 'database' group
@@ -243,7 +243,7 @@ class TestConfigShowCoverage:
 
         with patch("scriptrag.cli.commands.config.show.Path") as mock_path_class:
             # Create mock path instances
-            mock_path_instance = Mock()
+            mock_path_instance = Mock(spec=object)
             mock_path_instance.exists.return_value = True  # Simulate file exists
             mock_path_class.return_value = mock_path_instance
 

@@ -28,7 +28,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             patch("pathlib.Path.open") as mock_path_open,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_client.return_value = AsyncMock()
+            mock_client.return_value = AsyncMock(spec=object)
 
             # First call for reading existing file raises PermissionError
             mock_path_open.side_effect = PermissionError("Permission denied")
@@ -58,7 +58,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             patch("pathlib.Path.open") as mock_path_open,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_client.return_value = AsyncMock()
+            mock_client.return_value = AsyncMock(spec=object)
 
             # Reading raises IOError
             mock_path_open.side_effect = OSError("I/O error")
@@ -87,7 +87,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             ) as mock_client,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_client.return_value = AsyncMock()
+            mock_client.return_value = AsyncMock(spec=object)
 
             # Mock Path.open to succeed on read but fail on append
             original_open = Path.open
@@ -130,7 +130,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             ) as mock_client,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_client.return_value = AsyncMock()
+            mock_client.return_value = AsyncMock(spec=object)
 
             # Mock Path.open to succeed on read but fail on append
             original_open = Path.open
@@ -169,7 +169,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             ) as mock_client,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_client.return_value = AsyncMock()
+            mock_client.return_value = AsyncMock(spec=object)
 
             # Mock Path.open to fail on write mode
             def mock_path_open(self, mode="r", *args, **kwargs):
@@ -201,7 +201,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             ) as mock_client,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_client.return_value = AsyncMock()
+            mock_client.return_value = AsyncMock(spec=object)
 
             # Mock Path.open to fail on write mode
             def mock_path_open(self, mode="r", *args, **kwargs):
@@ -234,7 +234,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_client.return_value = AsyncMock()
+            mock_client.return_value = AsyncMock(spec=object)
             mock_mkdir.side_effect = PermissionError("Permission denied")
 
             await analyzer.initialize()
@@ -259,7 +259,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_client.return_value = AsyncMock()
+            mock_client.return_value = AsyncMock(spec=object)
             mock_mkdir.side_effect = OSError("Disk error")
 
             await analyzer.initialize()
@@ -285,7 +285,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             patch("pathlib.Path.open") as mock_path_open,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_llm_client = AsyncMock()
+            mock_llm_client = AsyncMock(spec=object)
             mock_client.return_value = mock_llm_client
             mock_mkdir.side_effect = OSError("Disk error")
             mock_path_open.side_effect = PermissionError("Permission denied")
@@ -318,7 +318,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             ) as mock_client,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_client.return_value = AsyncMock()
+            mock_client.return_value = AsyncMock(spec=object)
 
             # Mock Path.open to fail on append but succeed on read
             original_open = Path.open
@@ -364,7 +364,7 @@ class TestSceneEmbeddingAnalyzerErrorHandling:
             patch("pathlib.Path.mkdir") as mock_mkdir,
             patch("scriptrag.analyzers.embedding.logger") as mock_logger,
         ):
-            mock_client.return_value = AsyncMock()
+            mock_client.return_value = AsyncMock(spec=object)
 
             # Create OSError with ENOSPC errno (no space left)
             os_error = OSError("No space left on device")

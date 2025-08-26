@@ -30,7 +30,7 @@ def mock_settings():
 def mock_db_ops():
     """Mock database operations."""
     with patch("scriptrag.cli.commands.pull.DatabaseOperations") as mock:
-        db_ops = MagicMock()
+        db_ops = MagicMock(spec=object)
         mock.return_value = db_ops
         yield db_ops
 
@@ -39,7 +39,7 @@ def mock_db_ops():
 def mock_analyze_cmd():
     """Mock analyze command."""
     with patch("scriptrag.cli.commands.pull.AnalyzeCommand") as mock:
-        cmd = MagicMock()
+        cmd = MagicMock(spec=object)
 
         # Make analyze return a coroutine
         async def mock_analyze(*args, **kwargs):
@@ -47,7 +47,7 @@ def mock_analyze_cmd():
 
         # Keep cmd.analyze as a MagicMock but with side_effect for async behavior
         cmd.analyze.side_effect = mock_analyze
-        cmd.analyze_return_value = MagicMock()
+        cmd.analyze_return_value = MagicMock(spec=object)
         mock.from_config.return_value = cmd
         yield cmd
 
@@ -56,7 +56,7 @@ def mock_analyze_cmd():
 def mock_index_cmd():
     """Mock index command."""
     with patch("scriptrag.cli.commands.pull.IndexCommand") as mock:
-        cmd = MagicMock()
+        cmd = MagicMock(spec=object)
 
         # Make index return a coroutine
         async def mock_index(*args, **kwargs):
@@ -64,7 +64,7 @@ def mock_index_cmd():
 
         # Keep cmd.index as a MagicMock but with side_effect for async behavior
         cmd.index.side_effect = mock_index
-        cmd.index_return_value = MagicMock()
+        cmd.index_return_value = MagicMock(spec=object)
         mock.from_config.return_value = cmd
         yield cmd
 
@@ -73,7 +73,7 @@ def mock_index_cmd():
 def mock_initializer():
     """Mock database initializer."""
     with patch("scriptrag.api.DatabaseInitializer") as mock:
-        init = MagicMock()
+        init = MagicMock(spec=object)
         mock.return_value = init
         yield init
 
@@ -100,14 +100,14 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = True
 
         # Mock analyze result
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 5
         analyze_result.total_scenes_updated = 25
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 3
         index_result.total_scripts_updated = 2
         index_result.total_scenes_indexed = 25
@@ -146,14 +146,14 @@ class TestPullCommand:
         mock_initializer.initialize_database.return_value = Path("/tmp/test.db")
 
         # Mock analyze result
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 1
         analyze_result.total_scenes_updated = 5
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 1
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 5
@@ -187,14 +187,14 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = False
 
         # Mock analyze result
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 0
         analyze_result.total_scenes_updated = 0
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 0
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 0
@@ -225,13 +225,13 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = True
 
         # Mock results
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 10
         analyze_result.total_scenes_updated = 50
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 0
         index_result.total_scripts_updated = 10
         index_result.total_scenes_indexed = 50
@@ -271,7 +271,7 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = True
 
         # Mock analyze result with errors
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 1
         analyze_result.total_scenes_updated = 3
         analyze_result.errors = [
@@ -281,7 +281,7 @@ class TestPullCommand:
         mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result with errors
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 0
         index_result.total_scripts_updated = 1
         index_result.total_scenes_indexed = 3
@@ -315,13 +315,13 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = True
 
         # Mock results
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 2
         analyze_result.total_scenes_updated = 10
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 2
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 10
@@ -359,13 +359,13 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = True
 
         # Mock results
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 20
         analyze_result.total_scenes_updated = 100
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 20
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 100
@@ -394,13 +394,13 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = True
 
         # Mock results
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 1
         analyze_result.total_scenes_updated = 5
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 1
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 5
@@ -444,13 +444,13 @@ class TestPullCommand:
             mock_db_ops.check_database_exists.return_value = True
 
             # Mock results
-            analyze_result = MagicMock()
+            analyze_result = MagicMock(spec=object)
             analyze_result.total_files_updated = 1
             analyze_result.total_scenes_updated = 5
             analyze_result.errors = []
             mock_analyze_cmd.analyze_return_value = analyze_result
 
-            index_result = MagicMock()
+            index_result = MagicMock(spec=object)
             index_result.total_scripts_indexed = 1
             index_result.total_scripts_updated = 0
             index_result.total_scenes_indexed = 5
@@ -479,14 +479,14 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = True
 
         # Mock analyze result with no updates
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 0
         analyze_result.total_scenes_updated = 0
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result with no updates
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 0
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 0
@@ -546,7 +546,7 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = True
 
         # Mock analyze result with many errors
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 1
         analyze_result.total_scenes_updated = 3
         analyze_result.errors = [
@@ -556,7 +556,7 @@ class TestPullCommand:
         mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 1
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 3
@@ -604,13 +604,13 @@ class TestPullCommand:
         mock_index_cmd.index.side_effect = capture_index_callback
 
         # Mock results
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 1
         analyze_result.total_scenes_updated = 5
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 1
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 5
@@ -642,13 +642,13 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = False
 
         # Mock results (should still run in dry-run mode)
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 0
         analyze_result.total_scenes_updated = 0
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 0
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 0
@@ -679,14 +679,14 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = True
 
         # Mock analyze result
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 3
         analyze_result.total_scenes_updated = 15
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
         # Mock index result
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 3
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 15
@@ -725,13 +725,13 @@ class TestPullCommand:
         mock_db_ops.check_database_exists.return_value = True
 
         # Mock results
-        analyze_result = MagicMock()
+        analyze_result = MagicMock(spec=object)
         analyze_result.total_files_updated = 2
         analyze_result.total_scenes_updated = 8
         analyze_result.errors = []
         mock_analyze_cmd.analyze_return_value = analyze_result
 
-        index_result = MagicMock()
+        index_result = MagicMock(spec=object)
         index_result.total_scripts_indexed = 2
         index_result.total_scripts_updated = 0
         index_result.total_scenes_indexed = 8
@@ -818,13 +818,13 @@ class TestPullCommand:
             mock_db_ops.check_database_exists.return_value = True
 
             # Mock results
-            analyze_result = MagicMock()
+            analyze_result = MagicMock(spec=object)
             analyze_result.total_files_updated = 3
             analyze_result.total_scenes_updated = 15
             analyze_result.errors = []
             mock_analyze_cmd.analyze_return_value = analyze_result
 
-            index_result = MagicMock()
+            index_result = MagicMock(spec=object)
             index_result.total_scripts_indexed = 3
             index_result.total_scripts_updated = 0
             index_result.total_scenes_indexed = 15

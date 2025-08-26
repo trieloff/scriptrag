@@ -311,9 +311,9 @@ class TestClaudeCodeModelDiscoveryExtended:
     @pytest.mark.asyncio
     async def test_fetch_models_with_mock_sdk(self, discovery):
         """Test _fetch_models with mocked Claude SDK."""
-        mock_sdk = MagicMock()
-        mock_sdk.ClaudeSDKClient = MagicMock()
-        mock_client = MagicMock()
+        mock_sdk = MagicMock(spec=object)
+        mock_sdk.ClaudeSDKClient = MagicMock(spec=object)
+        mock_client = MagicMock(spec=object)
         mock_client.list_models = MagicMock(
             return_value=[
                 {
@@ -424,7 +424,7 @@ class TestGitHubModelsDiscoveryExtended:
         return GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
-            client=MagicMock(),
+            client=MagicMock(spec=object),
             token="test-token",  # noqa: S106
             base_url="https://api.github.com",
             cache_ttl=3600,
@@ -435,7 +435,7 @@ class TestGitHubModelsDiscoveryExtended:
     @pytest.mark.asyncio
     async def test_discover_models_with_api_response(self, discovery):
         """Test model discovery with API response."""
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
@@ -583,7 +583,7 @@ class TestGitHubModelsDiscoveryExtended:
         discovery = GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
-            client=MagicMock(),
+            client=MagicMock(spec=object),
             token=None,
             base_url="https://api.github.com",
             cache_ttl=3600,
@@ -707,7 +707,7 @@ class TestModelDiscoveryIntegration:
         github_discovery = GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=github_static_models,
-            client=MagicMock(),
+            client=MagicMock(spec=object),
             token="test-token",  # noqa: S106
             base_url="https://api.github.com",
             cache_ttl=3600,

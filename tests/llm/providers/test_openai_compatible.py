@@ -108,7 +108,7 @@ class TestOpenAICompatibleProvider:
         provider._availability_cache = True
         provider._cache_timestamp = time.time() - 301  # Over 5 minutes old
 
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
 
         with patch.object(provider.client, "get", return_value=mock_response):
@@ -123,7 +123,7 @@ class TestOpenAICompatibleProvider:
         self, provider: OpenAICompatibleProvider
     ) -> None:
         """Test successful API availability check."""
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
 
         with patch.object(provider.client, "get", return_value=mock_response):
@@ -148,7 +148,7 @@ class TestOpenAICompatibleProvider:
         self, provider: OpenAICompatibleProvider
     ) -> None:
         """Test 404 error during availability check."""
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 404
 
         with patch.object(provider.client, "get", return_value=mock_response):
@@ -160,7 +160,7 @@ class TestOpenAICompatibleProvider:
         self, provider: OpenAICompatibleProvider
     ) -> None:
         """Test successful model listing."""
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
@@ -206,7 +206,7 @@ class TestOpenAICompatibleProvider:
         self, provider: OpenAICompatibleProvider
     ) -> None:
         """Test that models are sorted according to preference order."""
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
@@ -231,7 +231,7 @@ class TestOpenAICompatibleProvider:
     @pytest.mark.asyncio
     async def test_complete_success(self, provider: OpenAICompatibleProvider) -> None:
         """Test successful completion."""
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "chatcmpl-123",
@@ -271,7 +271,7 @@ class TestOpenAICompatibleProvider:
             call_times.append(time.time())
             await asyncio.sleep(0.1)  # Simulate processing time
 
-            mock_response = MagicMock()
+            mock_response = MagicMock(spec=object)
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "choices": [
@@ -322,7 +322,7 @@ class TestOpenAICompatibleProvider:
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
-            mock_response = MagicMock()
+            mock_response = MagicMock(spec=object)
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "choices": [
@@ -360,7 +360,7 @@ class TestOpenAICompatibleProvider:
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
-            mock_response = MagicMock()
+            mock_response = MagicMock(spec=object)
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "choices": [
@@ -420,7 +420,7 @@ class TestOpenAICompatibleProvider:
     @pytest.mark.asyncio
     async def test_embed_success(self, provider: OpenAICompatibleProvider) -> None:
         """Test successful embedding."""
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "object": "list",
@@ -473,7 +473,7 @@ class TestOpenAICompatibleProvider:
             nonlocal captured_json
             captured_json = kwargs.get("json")
 
-            mock_response = MagicMock()
+            mock_response = MagicMock(spec=object)
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "choices": [

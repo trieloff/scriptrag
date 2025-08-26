@@ -39,7 +39,7 @@ class TestSceneBibleExtractor:
 
     def test_init_with_llm_client(self) -> None:
         """Test initialization with provided LLM client."""
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=object)
         extractor = SceneBibleExtractor(llm_client=mock_client)
         assert extractor.llm_client == mock_client
         assert extractor.bible_parser is not None
@@ -154,8 +154,8 @@ class TestSceneBibleExtractor:
     @pytest.mark.asyncio
     async def test_extract_scenes_via_llm_success(self) -> None:
         """Test successful scene extraction via LLM."""
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = MagicMock(spec=object)
         mock_response.content = """
         [
             {
@@ -199,8 +199,8 @@ class TestSceneBibleExtractor:
     @pytest.mark.asyncio
     async def test_extract_scenes_via_llm_invalid_response(self) -> None:
         """Test extraction with invalid LLM response."""
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = MagicMock(spec=object)
         mock_response.content = "This is not valid JSON"
         mock_client.complete.return_value = mock_response
 
@@ -211,8 +211,8 @@ class TestSceneBibleExtractor:
     @pytest.mark.asyncio
     async def test_extract_scenes_via_llm_missing_location(self) -> None:
         """Test extraction skips scenes without location."""
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = MagicMock(spec=object)
         mock_response.content = """
         [
             {"location": "OFFICE", "type": "INT"},
@@ -233,7 +233,7 @@ class TestSceneBibleExtractor:
     @pytest.mark.asyncio
     async def test_extract_scenes_via_llm_exception_handling(self) -> None:
         """Test extraction handles exceptions gracefully."""
-        mock_client = AsyncMock()
+        mock_client = AsyncMock(spec=object)
         mock_client.complete.side_effect = Exception("LLM API error")
 
         extractor = SceneBibleExtractor(llm_client=mock_client)
@@ -243,7 +243,7 @@ class TestSceneBibleExtractor:
     @pytest.mark.asyncio
     async def test_extract_scenes_via_llm_response_without_content_attr(self) -> None:
         """Test extraction when response doesn't have content attribute."""
-        mock_client = AsyncMock()
+        mock_client = AsyncMock(spec=object)
         mock_response = '[{"location": "HOUSE", "type": "INT"}]'
         mock_client.complete.return_value = mock_response
 
@@ -256,8 +256,8 @@ class TestSceneBibleExtractor:
     @pytest.mark.asyncio
     async def test_extract_scenes_via_llm_uppercase_location(self) -> None:
         """Test that locations are converted to uppercase."""
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = MagicMock(spec=object)
         mock_response.content = '[{"location": "police station", "type": "INT"}]'
         mock_client.complete.return_value = mock_response
 
@@ -270,8 +270,8 @@ class TestSceneBibleExtractor:
     @pytest.mark.asyncio
     async def test_extract_scenes_via_llm_invalid_dict_items(self) -> None:
         """Test extraction skips non-dict items in response."""
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=object)
+        mock_response = MagicMock(spec=object)
         mock_response.content = """
         [
             {"location": "OFFICE", "type": "INT"},

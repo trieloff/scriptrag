@@ -53,8 +53,8 @@ class TestAnalyzeCommandMarkdownAgents:
             (agents_dir / "test-agent.md").write_text(sample_agent_markdown)
 
             with patch("scriptrag.agents.AgentLoader") as mock_loader_class:
-                mock_loader = MagicMock()
-                mock_analyzer = MagicMock()
+                mock_loader = MagicMock(spec=object)
+                mock_analyzer = MagicMock(spec=object)
                 mock_analyzer.name = "test-agent"
                 mock_loader.load_agent.return_value = mock_analyzer
                 mock_loader_class.return_value = mock_loader
@@ -91,7 +91,7 @@ class TestAnalyzeCommandMarkdownAgents:
             patch("scriptrag.analyzers.builtin.BUILTIN_ANALYZERS", {}),
             patch("scriptrag.agents.AgentLoader") as mock_loader_class,
         ):
-            mock_loader = MagicMock()
+            mock_loader = MagicMock(spec=object)
             mock_loader.load_agent.side_effect = ValueError("Agent not found")
             mock_loader_class.return_value = mock_loader
 
@@ -103,7 +103,7 @@ class TestAnalyzeCommandMarkdownAgents:
     ) -> None:
         """Test that built-in analyzers take precedence over markdown agents."""
         # Create a mock built-in analyzer
-        mock_builtin = MagicMock()
+        mock_builtin = MagicMock(spec=object)
         mock_builtin.name = "builtin-test"
 
         with (
@@ -125,7 +125,7 @@ class TestAnalyzeCommandMarkdownAgents:
     def test_load_analyzer_already_loaded(self, analyze_cmd: AnalyzeCommand) -> None:
         """Test that loading an already loaded analyzer is skipped."""
         # Add an analyzer with a specific name
-        mock_analyzer = MagicMock()
+        mock_analyzer = MagicMock(spec=object)
         mock_analyzer.name = "already-loaded"
         analyze_cmd.analyzers.append(mock_analyzer)
 
@@ -157,7 +157,7 @@ class TestAnalyzeCommandMarkdownAgents:
             patch("scriptrag.analyzers.builtin.BUILTIN_ANALYZERS", {}),
             patch("scriptrag.agents.AgentLoader") as mock_loader_class,
         ):
-            mock_loader = MagicMock()
+            mock_loader = MagicMock(spec=object)
             mock_analyzer = MagicMock(name="test2")
             mock_loader.load_agent.return_value = mock_analyzer
             mock_loader_class.return_value = mock_loader
@@ -173,7 +173,7 @@ class TestAnalyzeCommandMarkdownAgents:
             patch("scriptrag.analyzers.builtin.BUILTIN_ANALYZERS", {}),
             patch("scriptrag.agents.AgentLoader") as mock_loader_class,
         ):
-            mock_loader = MagicMock()
+            mock_loader = MagicMock(spec=object)
             mock_loader.load_agent.side_effect = ValueError("Not found")
             mock_loader_class.return_value = mock_loader
 

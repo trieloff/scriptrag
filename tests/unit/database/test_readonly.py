@@ -34,8 +34,8 @@ class TestGetReadOnlyConnection:
         with patch(
             "scriptrag.database.readonly.get_connection_manager"
         ) as mock_get_manager:
-            mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_manager = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=object)
             mock_get_manager.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -109,10 +109,10 @@ class TestGetReadOnlyConnection:
         with patch(
             "scriptrag.database.readonly.get_connection_manager"
         ) as mock_get_manager:
-            mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_manager = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=object)
             mock_get_manager.return_value = mock_manager
-            mock_context = MagicMock()
+            mock_context = MagicMock(spec=object)
             mock_context.__enter__ = MagicMock(return_value=mock_conn)
             mock_context.__exit__ = MagicMock(
                 return_value=None
@@ -192,8 +192,8 @@ class TestGetReadOnlyConnection:
         with patch(
             "scriptrag.database.readonly.get_connection_manager"
         ) as mock_get_manager:
-            mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_manager = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=object)
             mock_get_manager.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -246,8 +246,8 @@ class TestGetReadOnlyConnection:
         with patch(
             "scriptrag.database.readonly.get_connection_manager"
         ) as mock_get_manager:
-            mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_manager = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=object)
             mock_get_manager.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -279,8 +279,8 @@ class TestGetReadOnlyConnection:
         with patch(
             "scriptrag.database.readonly.get_connection_manager"
         ) as mock_get_manager:
-            mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_manager = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=object)
             mock_get_manager.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -355,8 +355,8 @@ class TestGetReadOnlyConnection:
         with patch(
             "scriptrag.database.readonly.get_connection_manager"
         ) as mock_get_manager:
-            mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_manager = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=object)
             mock_get_manager.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -388,8 +388,8 @@ class TestGetReadOnlyConnection:
         with patch(
             "scriptrag.database.readonly.get_connection_manager"
         ) as mock_get_manager:
-            mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_manager = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=object)
             mock_get_manager.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -420,8 +420,8 @@ class TestGetReadOnlyConnection:
         with patch(
             "scriptrag.database.readonly.get_connection_manager"
         ) as mock_get_manager:
-            mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_manager = MagicMock(spec=object)
+            mock_conn = MagicMock(spec=object)
             mock_get_manager.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -522,8 +522,8 @@ class TestGetReadOnlyConnection:
             with patch(
                 "scriptrag.database.readonly.get_connection_manager"
             ) as mock_get_manager:
-                mock_manager = MagicMock()
-                mock_conn = MagicMock()
+                mock_manager = MagicMock(spec=object)
+                mock_conn = MagicMock(spec=object)
                 mock_get_manager.return_value = mock_manager
                 mock_manager.readonly.return_value.__enter__ = MagicMock(
                     return_value=mock_conn

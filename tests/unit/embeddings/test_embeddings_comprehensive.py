@@ -57,7 +57,7 @@ class TestBatchProcessor:
     def mock_llm_client(self):
         """Create a reliable witness - our mock LLM client."""
         client = AsyncMock(spec=LLMClient)
-        client.embed = AsyncMock()
+        client.embed = AsyncMock(spec=object)
         return client
 
     @pytest.fixture

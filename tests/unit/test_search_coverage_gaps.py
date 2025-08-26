@@ -90,7 +90,7 @@ class TestCLISearchCoverage:
         with patch(
             "scriptrag.cli.commands.search.SearchAPI.from_config"
         ) as mock_from_config:
-            mock_api = MagicMock()
+            mock_api = MagicMock(spec=object)
             mock_from_config.return_value = mock_api
 
             with (
@@ -121,7 +121,7 @@ class TestCLISearchCoverage:
         with patch(
             "scriptrag.cli.commands.search.SearchAPI.from_config"
         ) as mock_from_config:
-            mock_api = MagicMock()
+            mock_api = MagicMock(spec=object)
             mock_from_config.return_value = mock_api
             # Simulate database error - can be OperationalError or DatabaseError
             mock_api.search.side_effect = sqlite3.OperationalError(

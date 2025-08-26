@@ -12,9 +12,9 @@ from scriptrag.llm.models import EmbeddingResponse
 @pytest.fixture
 def mock_llm_client():
     """Create a mock LLM client."""
-    client = AsyncMock()
+    client = AsyncMock(spec=object)
     # Mock embedding response - needs to support both attribute and subscript access
-    mock_embedding = Mock()
+    mock_embedding = Mock(spec=object)
     mock_embedding.embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
     mock_embedding.get = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
     mock_embedding.__getitem__ = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
@@ -29,10 +29,10 @@ def mock_llm_client():
 def mock_repo(tmp_path):
     """Create a mock git repository."""
     with patch("scriptrag.analyzers.embedding.git.Repo") as mock_repo_class:
-        mock_repo_instance = Mock()
+        mock_repo_instance = Mock(spec=object)
         mock_repo_instance.working_dir = str(tmp_path)
-        mock_repo_instance.index = Mock()
-        mock_repo_instance.index.add = Mock()
+        mock_repo_instance.index = Mock(spec=object)
+        mock_repo_instance.index.add = Mock(spec=object)
         mock_repo_class.return_value = mock_repo_instance
         yield mock_repo_instance
 
@@ -120,7 +120,7 @@ class TestSceneEmbeddingAnalyzer:
         with patch(
             "scriptrag.analyzers.embedding.get_default_llm_client"
         ) as mock_get_client:
-            mock_get_client.return_value = AsyncMock()
+            mock_get_client.return_value = AsyncMock(spec=object)
             await analyzer.initialize()
 
             # Check that embeddings directory was created
@@ -282,7 +282,7 @@ class TestSceneEmbeddingAnalyzer:
     async def test_cleanup(self, analyzer_config):
         """Test analyzer cleanup."""
         analyzer = SceneEmbeddingAnalyzer(analyzer_config)
-        analyzer.llm_client = Mock()
+        analyzer.llm_client = Mock(spec=object)
         analyzer._embeddings_cache["test"] = np.array([1, 2, 3])
 
         await analyzer.cleanup()

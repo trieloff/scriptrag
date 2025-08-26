@@ -28,7 +28,7 @@ class TestSemanticSearchDecodeError:
         """Test that find_related_scenes handles decode errors gracefully."""
         # Mock the database operations
         with patch.object(semantic_search_service, "db_ops") as mock_db_ops:
-            mock_conn = Mock()
+            mock_conn = Mock(spec=object)
             mock_db_ops.transaction.return_value.__enter__ = Mock(
                 return_value=mock_conn
             )
@@ -73,7 +73,7 @@ class TestSemanticSearchDecodeError:
     ) -> None:
         """Test handling when source is valid but candidate embeddings are corrupted."""
         with patch.object(semantic_search_service, "db_ops") as mock_db_ops:
-            mock_conn = Mock()
+            mock_conn = Mock(spec=object)
             mock_db_ops.transaction.return_value.__enter__ = Mock(
                 return_value=mock_conn
             )
@@ -140,7 +140,7 @@ class TestSemanticSearchDecodeError:
         corrupted_bytes = b"\xff\xff"  # Too short to be valid
 
         with patch.object(semantic_search_service.db_ops, "transaction") as mock_trans:
-            mock_conn = Mock()
+            mock_conn = Mock(spec=object)
             mock_trans.return_value.__enter__ = Mock(return_value=mock_conn)
             mock_trans.return_value.__exit__ = Mock(return_value=None)
 

@@ -34,7 +34,7 @@ class TestSceneDatabaseCoverage:
         )
 
         # Mock the cursor for SELECT query
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=object)
         mock_cursor.fetchall.return_value = [(101, 6), (102, 7), (103, 8)]
         mock_conn.execute.return_value = mock_cursor
 
@@ -66,7 +66,7 @@ class TestSceneDatabaseCoverage:
         )
 
         # Mock the cursor for SELECT query
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=object)
         mock_cursor.fetchall.return_value = [(201, 11), (202, 12)]
         mock_conn.execute.return_value = mock_cursor
 
@@ -98,7 +98,7 @@ class TestSceneDatabaseCoverage:
         )
 
         # Mock the cursor for SELECT query
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=object)
         mock_cursor.fetchall.return_value = [(301, 16), (302, 17), (303, 18), (304, 19)]
         mock_conn.execute.return_value = mock_cursor
 
@@ -131,7 +131,7 @@ class TestSceneDatabaseCoverage:
         )
 
         # Mock the cursor for SELECT query
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=object)
         mock_cursor.fetchall.return_value = [(401, 3), (402, 4), (403, 5)]
         mock_conn.execute.return_value = mock_cursor
 
@@ -163,7 +163,7 @@ class TestSceneDatabaseCoverage:
         )
 
         # Mock the cursor for SELECT query
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=object)
         mock_cursor.fetchall.return_value = [(501, 20), (502, 21)]
         mock_conn.execute.return_value = mock_cursor
 
@@ -196,7 +196,7 @@ class TestSceneDatabaseCoverage:
         )
 
         # Mock the cursor for SELECT query
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=object)
         mock_cursor.fetchall.return_value = [
             (601, 8),
             (602, 9),
@@ -290,7 +290,7 @@ class TestSceneDatabaseCoverage:
         )
 
         # Mock empty result for SELECT query
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=object)
         mock_cursor.fetchall.return_value = []  # No scenes to shift
         mock_conn.execute.return_value = mock_cursor
 

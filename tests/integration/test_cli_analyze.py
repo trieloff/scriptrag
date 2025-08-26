@@ -219,9 +219,9 @@ class TestAnalyzeCommand:
         )
 
         # Mock the analyze method
-        mock_analyze_cmd = MagicMock()
+        mock_analyze_cmd = MagicMock(spec=object)
         mock_analyze_cmd.analyze = AsyncMock(return_value=mock_result)
-        mock_analyze_cmd.load_analyzer = MagicMock()
+        mock_analyze_cmd.load_analyzer = MagicMock(spec=object)
 
         # Patch the AnalyzeCommand.from_config
         def mock_from_config():
@@ -272,9 +272,9 @@ class TestAnalyzeCommand:
         async def mock_analyze(*_args, **_kwargs):
             raise RuntimeError("Test runtime error")
 
-        mock_analyze_cmd = MagicMock()
+        mock_analyze_cmd = MagicMock(spec=object)
         mock_analyze_cmd.analyze = mock_analyze
-        mock_analyze_cmd.load_analyzer = MagicMock()
+        mock_analyze_cmd.load_analyzer = MagicMock(spec=object)
 
         def mock_from_config():
             return mock_analyze_cmd
@@ -304,9 +304,9 @@ class TestAnalyzeCommand:
             # Use asyncio.run to ensure we're in the right context for the CLI
             raise ValueError("Specific test exception for coverage")
 
-        mock_analyze_cmd = MagicMock()
+        mock_analyze_cmd = MagicMock(spec=object)
         mock_analyze_cmd.analyze = mock_analyze_with_exception
-        mock_analyze_cmd.load_analyzer = MagicMock()
+        mock_analyze_cmd.load_analyzer = MagicMock(spec=object)
 
         def mock_from_config():
             return mock_analyze_cmd
@@ -347,9 +347,9 @@ class TestAnalyzeCommand:
         )
 
         # Mock the analyze method
-        mock_analyze_cmd = MagicMock()
+        mock_analyze_cmd = MagicMock(spec=object)
         mock_analyze_cmd.analyze = AsyncMock(return_value=mock_result)
-        mock_analyze_cmd.load_analyzer = MagicMock()
+        mock_analyze_cmd.load_analyzer = MagicMock(spec=object)
 
         def mock_from_config():
             return mock_analyze_cmd
@@ -385,9 +385,9 @@ class TestAnalyzeCommand:
         )
 
         # Mock the analyze method
-        mock_analyze_cmd = MagicMock()
+        mock_analyze_cmd = MagicMock(spec=object)
         mock_analyze_cmd.analyze = AsyncMock(return_value=mock_result)
-        mock_analyze_cmd.load_analyzer = MagicMock()
+        mock_analyze_cmd.load_analyzer = MagicMock(spec=object)
 
         def mock_from_config():
             return mock_analyze_cmd

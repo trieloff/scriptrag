@@ -413,8 +413,8 @@ def create_mock_llm_client_sync(
 
     # Setup other methods
     client.list_models = AsyncMock(return_value=[])
-    client.add_provider = AsyncMock()
-    client.remove_provider = AsyncMock()
+    client.add_provider = AsyncMock(spec=object)
+    client.remove_provider = AsyncMock(spec=object)
 
     return client
 

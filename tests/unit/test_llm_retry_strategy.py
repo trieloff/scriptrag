@@ -157,7 +157,7 @@ class TestRetryStrategy:
     async def test_execute_with_retry_success_first_attempt(self, retry_strategy):
         """Test successful execution on first attempt."""
         mock_func = AsyncMock(return_value="success")
-        mock_metrics = Mock()
+        mock_metrics = Mock(spec=object)
 
         result = await retry_strategy.execute_with_retry(
             mock_func,
@@ -183,7 +183,7 @@ class TestRetryStrategy:
                 raise ConnectionError("Temporary network error")
             return "success_after_retries"
 
-        mock_metrics = Mock()
+        mock_metrics = Mock(spec=object)
 
         with patch("asyncio.sleep") as mock_sleep:
             result = await retry_strategy.execute_with_retry(
@@ -204,7 +204,7 @@ class TestRetryStrategy:
         async def mock_func():
             raise ConnectionError("Connection timeout")  # Use retryable error message
 
-        mock_metrics = Mock()
+        mock_metrics = Mock(spec=object)
 
         with patch("asyncio.sleep"):
             with pytest.raises(LLMRetryableError) as exc_info:
@@ -230,7 +230,7 @@ class TestRetryStrategy:
         async def mock_func():
             raise non_retryable
 
-        mock_metrics = Mock()
+        mock_metrics = Mock(spec=object)
 
         with pytest.raises(ValueError) as exc_info:
             await retry_strategy.execute_with_retry(
@@ -256,7 +256,7 @@ class TestRetryStrategy:
                 raise error
             return "success"
 
-        mock_metrics = Mock()
+        mock_metrics = Mock(spec=object)
 
         with patch("asyncio.sleep") as mock_sleep:
             result = await retry_strategy.execute_with_retry(
@@ -348,7 +348,7 @@ class TestRetryStrategy:
             call_count += 1
             return "success"
 
-        mock_metrics = Mock()
+        mock_metrics = Mock(spec=object)
         sleep_calls = []
 
         async def mock_sleep(delay):

@@ -159,7 +159,7 @@ class TestLLMTimeoutHandling:
             # Create a mock client that returns quickly
             from unittest.mock import AsyncMock
 
-            mock_client = AsyncMock()
+            mock_client = AsyncMock(spec=object)
             mock_client.complete = AsyncMock(
                 return_value=type(
                     "Response",
@@ -205,10 +205,10 @@ class TestLLMTimeoutHandling:
         ) as mock_get_client:
             from unittest.mock import AsyncMock, Mock
 
-            mock_client = AsyncMock()
+            mock_client = AsyncMock(spec=object)
 
             # Mock embedding response - properly configure mock to support indexing
-            mock_embedding = Mock()
+            mock_embedding = Mock(spec=object)
             mock_embedding.embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
             # Configure mock to support dictionary-style access
             mock_embedding.__getitem__ = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
@@ -268,7 +268,7 @@ class TestTimeoutConfiguration:
         with patch("scriptrag.utils.get_default_llm_client") as mock_get_client:
             from unittest.mock import AsyncMock
 
-            mock_client = AsyncMock()
+            mock_client = AsyncMock(spec=object)
             mock_client.complete = AsyncMock(
                 return_value=type(
                     "Response",

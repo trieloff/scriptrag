@@ -159,12 +159,12 @@ class TestProviderRegistry:
         # Create mock providers with client attribute
         mock_provider1 = Mock(spec=BaseLLMProvider)
         mock_provider1.provider_type = LLMProvider.GITHUB_MODELS
-        mock_client1 = AsyncMock()
+        mock_client1 = AsyncMock(spec=object)
         mock_provider1.client = mock_client1
 
         mock_provider2 = Mock(spec=BaseLLMProvider)
         mock_provider2.provider_type = LLMProvider.OPENAI_COMPATIBLE
-        mock_client2 = AsyncMock()
+        mock_client2 = AsyncMock(spec=object)
         mock_provider2.client = mock_client2
 
         registry.set_provider(LLMProvider.GITHUB_MODELS, mock_provider1)
@@ -186,8 +186,8 @@ class TestClaudeCodeProviderExtended:
         provider.sdk_available = True
 
         # Mock the SDK module in sys.modules
-        mock_sdk = MagicMock()
-        mock_sdk.ClaudeCodeOptions = MagicMock()
+        mock_sdk = MagicMock(spec=object)
+        mock_sdk.ClaudeCodeOptions = MagicMock(spec=object)
 
         with patch.dict("sys.modules", {"claude_code_sdk": mock_sdk}):
             result = await provider.is_available()
@@ -213,13 +213,13 @@ class TestClaudeCodeProviderExtended:
         provider = ClaudeCodeProvider()
 
         # Mock importing the SDK
-        mock_sdk = MagicMock()
+        mock_sdk = MagicMock(spec=object)
 
         # Create a mock AssistantMessage with proper structure
-        mock_text_block = Mock()
+        mock_text_block = Mock(spec=object)
         mock_text_block.text = "Test response"
 
-        mock_message = Mock()
+        mock_message = Mock(spec=object)
         mock_message.__class__.__name__ = "AssistantMessage"
         mock_message.content = [
             mock_text_block
@@ -287,7 +287,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 200
 
         with patch.object(provider.client, "get", return_value=mock_response):
@@ -327,7 +327,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 500
 
         with patch.object(provider.client, "get", return_value=mock_response):
@@ -345,7 +345,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = [
             {"id": "gpt-4o", "name": "GPT-4o"},
@@ -365,7 +365,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = "invalid"  # Not a list or dict
 
@@ -401,7 +401,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "chat-123",
@@ -441,7 +441,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 400
         mock_response.text = "Bad request"
 
@@ -462,7 +462,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "model": "text-embedding",
@@ -488,7 +488,7 @@ class TestGitHubModelsProviderExtended:
         # Force client initialization before mocking
         provider._init_http_client()
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 404
         mock_response.text = "Model not found"
 
@@ -527,7 +527,7 @@ class TestOpenAICompatibleProviderExtended:
         provider._availability_cache = False
         provider._cache_timestamp = time.time() - 400
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 200
 
         with patch.object(provider.client, "get", return_value=mock_response):
@@ -567,7 +567,7 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 403
 
         with patch.object(provider.client, "get", return_value=mock_response):
@@ -582,7 +582,7 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {"invalid": "format"}
 
@@ -612,7 +612,7 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "completion-1",
@@ -650,7 +650,7 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 500
         mock_response.text = "Internal server error"
 
@@ -670,7 +670,7 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 200
         mock_response.json.return_value = {"data": [{"embedding": [0.1]}]}
 
@@ -693,7 +693,7 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.status_code = 401
         mock_response.text = "Unauthorized"
 
@@ -1061,7 +1061,7 @@ class TestLLMClientExtended:
         """Test cleanup method."""
         client = LLMClient()
 
-        mock_cleanup = AsyncMock()
+        mock_cleanup = AsyncMock(spec=object)
         client.registry.cleanup = mock_cleanup
 
         await client.cleanup()
@@ -1073,7 +1073,7 @@ class TestLLMClientExtended:
         """Test async context manager."""
         client = LLMClient()
 
-        mock_cleanup = AsyncMock()
+        mock_cleanup = AsyncMock(spec=object)
         client.cleanup = mock_cleanup
 
         async with client as c:

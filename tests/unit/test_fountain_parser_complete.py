@@ -138,7 +138,7 @@ SCRIPTRAG-META-END */
 
     def test_extract_doc_metadata_complete_fields(self, parser):
         """Test _extract_doc_metadata with all possible fields."""
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         mock_doc.title_values = {
             "title": "Complete Test",
             "author": "Full Author",
@@ -168,7 +168,7 @@ SCRIPTRAG-META-END */
         }
 
         for field_name, expected_author in author_fields.items():
-            mock_doc = MagicMock()
+            mock_doc = MagicMock(spec=object)
             mock_doc.title_values = {"title": "Test", field_name: expected_author}
 
             _, author, _ = parser._extract_doc_metadata(mock_doc)
@@ -176,7 +176,7 @@ SCRIPTRAG-META-END */
 
     def test_extract_doc_metadata_author_priority(self, parser):
         """Test author field priority (first match wins)."""
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         # author should win over writer
         mock_doc.title_values = {
             "author": "Primary Author",
@@ -190,7 +190,7 @@ SCRIPTRAG-META-END */
     def test_extract_doc_metadata_series_field_priority(self, parser):
         """Test series field priority: series > series_title > show."""
         # Test priority: series wins
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         mock_doc.title_values = {
             "series": "Primary Series",
             "series_title": "Secondary Series",
@@ -218,7 +218,7 @@ SCRIPTRAG-META-END */
     def test_extract_doc_metadata_project_field_priority(self, parser):
         """Test project field priority: project > project_title."""
         # Test priority: project wins
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         mock_doc.title_values = {
             "project": "Primary Project",
             "project_title": "Secondary Project",
@@ -235,7 +235,7 @@ SCRIPTRAG-META-END */
 
     def test_extract_doc_metadata_episode_season_value_error(self, parser):
         """Test ValueError handling in episode/season parsing."""
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         # These should trigger ValueError in int() conversion (lines 86, 94)
         mock_doc.title_values = {
             "episode": None,  # TypeError: int() argument must be a string
@@ -249,7 +249,7 @@ SCRIPTRAG-META-END */
 
     def test_extract_doc_metadata_episode_season_type_error(self, parser):
         """Test TypeError handling in episode/season parsing."""
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         # These should trigger TypeError in int() conversion
         mock_doc.title_values = {
             "episode": ["list", "not", "string"],  # TypeError
@@ -263,7 +263,7 @@ SCRIPTRAG-META-END */
 
     def test_extract_doc_metadata_empty_title_values(self, parser):
         """Test when title_values is empty dict."""
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         mock_doc.title_values = {}
 
         title, author, metadata = parser._extract_doc_metadata(mock_doc)
@@ -273,7 +273,7 @@ SCRIPTRAG-META-END */
 
     def test_extract_doc_metadata_none_title_values(self, parser):
         """Test when title_values is None."""
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         mock_doc.title_values = None
 
         title, author, metadata = parser._extract_doc_metadata(mock_doc)
@@ -287,7 +287,7 @@ SCRIPTRAG-META-END */
 
     def test_process_scenes_empty_scenes_list(self, parser):
         """Test _process_scenes with empty scenes list."""
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         mock_doc.scenes = []
 
         scenes = parser._process_scenes(mock_doc, "Empty content")
@@ -296,17 +296,17 @@ SCRIPTRAG-META-END */
     def test_process_scenes_scenes_without_headers(self, parser):
         """Test _process_scenes skips scenes without headers (line 127)."""
         # Create scenes without headers (like FADE IN)
-        mock_scene1 = MagicMock()
+        mock_scene1 = MagicMock(spec=object)
         mock_scene1.header = None  # No header
 
-        mock_scene2 = MagicMock()
+        mock_scene2 = MagicMock(spec=object)
         mock_scene2.header = ""  # Empty header
 
-        mock_scene3 = MagicMock()
+        mock_scene3 = MagicMock(spec=object)
         mock_scene3.header = "INT. ROOM - DAY"  # Valid header
         mock_scene3.paragraphs = []
 
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         mock_doc.scenes = [mock_scene1, mock_scene2, mock_scene3]
 
         content = "FADE IN:\n\nINT. ROOM - DAY\n\nAction."
@@ -330,18 +330,18 @@ SCRIPTRAG-META-END */
     def test_process_scenes_scene_numbering(self, parser):
         """Test scene numbering increments correctly."""
         # Create multiple scenes with headers
-        mock_scene1 = MagicMock()
+        mock_scene1 = MagicMock(spec=object)
         mock_scene1.header = "INT. ROOM - DAY"
         mock_scene1.paragraphs = []
 
-        mock_scene2 = MagicMock()
+        mock_scene2 = MagicMock(spec=object)
         mock_scene2.header = None  # Skip this one
 
-        mock_scene3 = MagicMock()
+        mock_scene3 = MagicMock(spec=object)
         mock_scene3.header = "EXT. PARK - NIGHT"
         mock_scene3.paragraphs = []
 
-        mock_doc = MagicMock()
+        mock_doc = MagicMock(spec=object)
         mock_doc.scenes = [mock_scene1, mock_scene2, mock_scene3]
 
         content = "INT. ROOM - DAY\n\nEXT. PARK - NIGHT\n"
@@ -377,10 +377,10 @@ SCRIPTRAG-META-END */
         with patch(
             "scriptrag.parser.fountain_parser.JouvenceParser"
         ) as mock_parser_class:
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parseString"])
             mock_parser_class.return_value = mock_parser
 
-            mock_doc = MagicMock()
+            mock_doc = MagicMock(spec=object)
             mock_doc.title_values = {"title": "Test"}
             mock_doc.scenes = []
             mock_parser.parseString.return_value = mock_doc
@@ -414,10 +414,10 @@ Action line.
         with patch(
             "scriptrag.parser.fountain_parser.JouvenceParser"
         ) as mock_parser_class:
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parseString"])
             mock_parser_class.return_value = mock_parser
 
-            mock_doc = MagicMock()
+            mock_doc = MagicMock(spec=object)
             mock_doc.title_values = {}
             mock_doc.scenes = []
             mock_parser.parseString.return_value = mock_doc
@@ -448,10 +448,10 @@ Action line.
         with patch(
             "scriptrag.parser.fountain_parser.JouvenceParser"
         ) as mock_parser_class:
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parseString"])
             mock_parser_class.return_value = mock_parser
 
-            mock_doc = MagicMock()
+            mock_doc = MagicMock(spec=object)
             mock_doc.title_values = {"title": "Tëst Scrîpt"}
             mock_doc.scenes = []
             mock_parser.parseString.return_value = mock_doc
@@ -477,7 +477,7 @@ Action line.
         with patch(
             "scriptrag.parser.fountain_parser.JouvenceParser"
         ) as mock_parser_class:
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parseString"])
             mock_parser_class.return_value = mock_parser
             # Simulate jouvence parser failure
             mock_parser.parseString.side_effect = RuntimeError(
@@ -507,10 +507,10 @@ Action line.
         with patch(
             "scriptrag.parser.fountain_parser.JouvenceParser"
         ) as mock_parser_class:
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parseString"])
             mock_parser_class.return_value = mock_parser
 
-            mock_doc = MagicMock()
+            mock_doc = MagicMock(spec=object)
             mock_doc.title_values = {}
             mock_doc.scenes = []
             mock_parser.parseString.return_value = mock_doc
@@ -759,10 +759,10 @@ Complex action.
         with patch(
             "scriptrag.parser.fountain_parser.JouvenceParser"
         ) as mock_parser_class:
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parseString"])
             mock_parser_class.return_value = mock_parser
 
-            mock_doc = MagicMock()
+            mock_doc = MagicMock(spec=object)
             mock_doc.title_values = None
             mock_doc.scenes = []
             mock_parser.parseString.return_value = mock_doc
@@ -782,10 +782,10 @@ Complex action.
         with patch(
             "scriptrag.parser.fountain_parser.JouvenceParser"
         ) as mock_parser_class:
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parseString"])
             mock_parser_class.return_value = mock_parser
 
-            mock_doc = MagicMock()
+            mock_doc = MagicMock(spec=object)
             mock_doc.title_values = None
             mock_doc.scenes = []
             mock_parser.parseString.return_value = mock_doc
@@ -815,7 +815,7 @@ Complex action.
         with patch(
             "scriptrag.parser.fountain_parser.JouvenceParser"
         ) as mock_parser_class:
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parseString"])
             mock_parser_class.return_value = mock_parser
             mock_parser.parseString.side_effect = exception_type(exception_msg)
 
@@ -859,10 +859,10 @@ Complex action.
             with patch(
                 "scriptrag.parser.fountain_parser.JouvenceParser"
             ) as mock_parser_class:
-                mock_parser = Mock()
+                mock_parser = Mock(spec=["parseString"])
                 mock_parser_class.return_value = mock_parser
 
-                mock_doc = MagicMock()
+                mock_doc = MagicMock(spec=object)
                 mock_doc.title_values = {}
                 mock_doc.scenes = []
                 mock_parser.parseString.return_value = mock_doc
@@ -883,7 +883,7 @@ Complex action.
             with patch(
                 "scriptrag.parser.fountain_parser.JouvenceParser"
             ) as mock_parser_class:
-                mock_parser = Mock()
+                mock_parser = Mock(spec=["parseString"])
                 mock_parser_class.return_value = mock_parser
                 error_msg = "Test parsing error"
                 mock_parser.parseString.side_effect = RuntimeError(error_msg)

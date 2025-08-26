@@ -29,11 +29,11 @@ def semantic_adapter(mock_settings):
     with patch("scriptrag.search.semantic_adapter.SemanticSearchService"):
         adapter = SemanticSearchAdapter(mock_settings)
         # Mock the semantic service
-        adapter.semantic_service = MagicMock()
-        adapter.semantic_service.search_similar_scenes = AsyncMock()
-        adapter.semantic_service.search_similar_bible_content = AsyncMock()
-        adapter.semantic_service.generate_missing_embeddings = AsyncMock()
-        adapter.semantic_service.generate_bible_embeddings = AsyncMock()
+        adapter.semantic_service = MagicMock(spec=object)
+        adapter.semantic_service.search_similar_scenes = AsyncMock(spec=object)
+        adapter.semantic_service.search_similar_bible_content = AsyncMock(spec=object)
+        adapter.semantic_service.generate_missing_embeddings = AsyncMock(spec=object)
+        adapter.semantic_service.generate_bible_embeddings = AsyncMock(spec=object)
         return adapter
 
 
@@ -52,9 +52,9 @@ def semantic_adapter_no_settings():
         mock_get_settings.return_value = mock_settings
 
         adapter = SemanticSearchAdapter(None)
-        adapter.semantic_service = MagicMock()
-        adapter.semantic_service.search_similar_scenes = AsyncMock()
-        adapter.semantic_service.search_similar_bible_content = AsyncMock()
+        adapter.semantic_service = MagicMock(spec=object)
+        adapter.semantic_service.search_similar_scenes = AsyncMock(spec=object)
+        adapter.semantic_service.search_similar_bible_content = AsyncMock(spec=object)
         return adapter
 
 
@@ -173,7 +173,7 @@ class TestSemanticAdapterCoverage:
         existing_results = []
 
         # Mock scene search results
-        mock_scene_result = MagicMock()
+        mock_scene_result = MagicMock(spec=object)
         mock_scene_result.scene_id = 10
         mock_scene_result.script_id = 1
         mock_scene_result.heading = "Scene Heading"
@@ -186,7 +186,7 @@ class TestSemanticAdapterCoverage:
         ]
 
         # Mock bible search results
-        mock_bible_result = MagicMock()
+        mock_bible_result = MagicMock(spec=object)
         mock_bible_result.script_id = 1
         mock_bible_result.bible_id = 1
         mock_bible_result.bible_title = "Test Bible"
@@ -228,7 +228,7 @@ class TestSemanticAdapterCoverage:
         existing_results = []
 
         # Mock bible search results with None values for optional fields
-        mock_bible_result = MagicMock()
+        mock_bible_result = MagicMock(spec=object)
         mock_bible_result.script_id = 1
         mock_bible_result.bible_id = 1
         mock_bible_result.bible_title = None  # Test None handling
@@ -281,7 +281,7 @@ class TestSemanticAdapterCoverage:
         ]
 
         # Mock semantic search returning duplicate and new scenes
-        mock_duplicate = MagicMock()
+        mock_duplicate = MagicMock(spec=object)
         mock_duplicate.scene_id = 1  # Duplicate
         mock_duplicate.script_id = 1
         mock_duplicate.heading = "Duplicate"
@@ -289,7 +289,7 @@ class TestSemanticAdapterCoverage:
         mock_duplicate.content = "Content"
         mock_duplicate.similarity_score = 0.95
 
-        mock_new = MagicMock()
+        mock_new = MagicMock(spec=object)
         mock_new.scene_id = 2  # New
         mock_new.script_id = 1
         mock_new.heading = "New Scene"
@@ -322,7 +322,7 @@ class TestSemanticAdapterCoverage:
         # Mock many semantic search results
         mock_results = []
         for i in range(10):
-            mock_result = MagicMock()
+            mock_result = MagicMock(spec=object)
             mock_result.scene_id = i
             mock_result.script_id = 1
             mock_result.heading = f"Scene {i}"

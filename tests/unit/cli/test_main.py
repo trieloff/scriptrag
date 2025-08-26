@@ -176,8 +176,7 @@ class TestCLIMain:
     def test_main_callback_with_debug(self, runner):
         """Test main callback with debug flag."""
         with patch("logging.basicConfig") as mock_logging:
-            # Create a context that includes the callback
-            ctx = typer.Context(command=app)
+            # Call the callback directly without Context
             main_callback(config=None, debug=True)
 
             mock_logging.assert_called_once()
@@ -193,7 +192,7 @@ class TestCLIMain:
             mock_validator.validate.return_value = Path("/fake/config.yaml")
             mock_validator_class.return_value = mock_validator
 
-            ctx = typer.Context(command=app)
+            # Call the callback directly without Context
             main_callback(config=Path("/fake/config.yaml"), debug=False)
 
             mock_validator.validate.assert_called_once_with(Path("/fake/config.yaml"))
@@ -208,7 +207,7 @@ class TestCLIMain:
             mock_validator_class.return_value = mock_validator
 
             with patch("scriptrag.cli.main.logger") as mock_logger:
-                ctx = typer.Context(command=app)
+                # Call the callback directly without Context
                 # Should not raise, just log error
                 main_callback(config=Path("/fake/bad-config.yaml"), debug=False)
 

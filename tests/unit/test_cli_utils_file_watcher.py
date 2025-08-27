@@ -179,7 +179,8 @@ class TestFountainFileHandler:
         path = Path("/test/script.fountain")
 
         with patch("scriptrag.cli.utils.file_watcher.asyncio") as mock_asyncio:
-            mock_loop = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_loop = MagicMock()
+            mock_loop.run_until_complete = MagicMock(return_value=None)
             mock_asyncio.new_event_loop.return_value = mock_loop
 
             # Mock successful completion
@@ -216,8 +217,8 @@ class TestFountainFileHandler:
             patch("scriptrag.cli.utils.file_watcher.IndexCommand") as mock_index,
         ):
             # Setup mocks
-            db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
-            db_ops.check_database_exists.return_value = True
+            db_ops = MagicMock()
+            db_ops.check_database_exists = MagicMock(return_value=True)
             mock_db_ops.return_value = db_ops
 
             analyze_cmd = MagicMock(spec=["content", "model", "provider", "usage"])
@@ -264,11 +265,12 @@ class TestFountainFileHandler:
             patch("scriptrag.cli.utils.file_watcher.IndexCommand") as mock_index,
         ):
             # Setup mocks
-            db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
-            db_ops.check_database_exists.return_value = False
+            db_ops = MagicMock()
+            db_ops.check_database_exists = MagicMock(return_value=False)
             mock_db_ops.return_value = db_ops
 
-            initializer = MagicMock(spec=["content", "model", "provider", "usage"])
+            initializer = MagicMock()
+            initializer.initialize_database = MagicMock()
             mock_init.return_value = initializer
 
             analyze_cmd = MagicMock(spec=["content", "model", "provider", "usage"])

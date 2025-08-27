@@ -243,8 +243,8 @@ class TestConfigShowCoverage:
 
         with patch("scriptrag.cli.commands.config.show.Path") as mock_path_class:
             # Create mock path instances
-            mock_path_instance = Mock(spec=object)
-            mock_path_instance.exists.return_value = True  # Simulate file exists
+            mock_path_instance = Mock()
+            mock_path_instance.exists = Mock(return_value=True)  # Simulate file exists
             mock_path_class.return_value = mock_path_instance
 
             # Also mock the specific path methods used

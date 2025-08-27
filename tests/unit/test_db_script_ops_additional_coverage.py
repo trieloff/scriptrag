@@ -76,7 +76,7 @@ class TestScriptOperationsGetExistingScript:
     ) -> None:
         """Test getting existing script when found."""
         # Mock cursor and row data
-        mock_cursor = Mock(spec=object)
+        mock_cursor = Mock()
         mock_row = {
             "id": 1,
             "title": "Test Script",
@@ -84,7 +84,7 @@ class TestScriptOperationsGetExistingScript:
             "file_path": "/path/to/script.fountain",
             "metadata": '{"test": "data"}',
         }
-        mock_cursor.fetchone.return_value = mock_row
+        mock_cursor.fetchone = Mock(return_value=mock_row)
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -101,8 +101,8 @@ class TestScriptOperationsGetExistingScript:
         self, script_ops: ScriptOperations, mock_connection: sqlite3.Connection
     ) -> None:
         """Test getting existing script when not found."""
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.return_value = None
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(return_value=None)
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -114,7 +114,7 @@ class TestScriptOperationsGetExistingScript:
         self, script_ops: ScriptOperations, mock_connection: sqlite3.Connection
     ) -> None:
         """Test getting existing script with null metadata."""
-        mock_cursor = Mock(spec=object)
+        mock_cursor = Mock()
         mock_row = {
             "id": 1,
             "title": "Test Script",
@@ -122,7 +122,7 @@ class TestScriptOperationsGetExistingScript:
             "file_path": "/path/to/script.fountain",
             "metadata": None,
         }
-        mock_cursor.fetchone.return_value = mock_row
+        mock_cursor.fetchone = Mock(return_value=mock_row)
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -143,8 +143,8 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test upserting a new script."""
         # Mock no existing script
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.return_value = None  # No existing script
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(return_value=None)  # No existing script
         mock_cursor.lastrowid = 123
         mock_connection.execute.return_value = mock_cursor
 
@@ -164,13 +164,15 @@ class TestScriptOperationsUpsertScript:
         """Test upserting an existing script."""
         # Mock existing script
         existing_id = 456
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            (existing_id,),  # First call for SELECT id
-            (
-                '{"existing": "meta", "bible": {"old": "data"}}',
-            ),  # Second call for SELECT metadata
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                (existing_id,),  # First call for SELECT id
+                (
+                    '{"existing": "meta", "bible": {"old": "data"}}',
+                ),  # Second call for SELECT metadata
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -194,13 +196,15 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script with existing bible metadata
         existing_id = 456
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            (existing_id,),  # First call for SELECT id
-            (
-                '{"bible": {"old": "data"}, "preserved": "value"}',
-            ),  # Second call for SELECT metadata
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                (existing_id,),  # First call for SELECT id
+                (
+                    '{"bible": {"old": "data"}, "preserved": "value"}',
+                ),  # Second call for SELECT metadata
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -232,8 +236,8 @@ class TestScriptOperationsUpsertScript:
         script.metadata = None
 
         # Mock no existing script
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.return_value = None
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(return_value=None)
         mock_cursor.lastrowid = 123
         mock_connection.execute.return_value = mock_cursor
 
@@ -258,8 +262,8 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test upsert raises error when lastrowid is None."""
         # Mock no existing script
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.return_value = None
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(return_value=None)
         mock_cursor.lastrowid = None  # Simulate failed insert
         mock_connection.execute.return_value = mock_cursor
 
@@ -281,11 +285,13 @@ class TestScriptOperationsUpsertScript:
         """Test upsert handles existing metadata parse errors gracefully."""
         # Mock existing script with invalid JSON metadata
         existing_id = 456
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            (existing_id,),  # First call for SELECT id
-            ("invalid json",),  # Second call for SELECT metadata - invalid JSON
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                (existing_id,),  # First call for SELECT id
+                ("invalid json",),  # Second call for SELECT metadata - invalid JSON
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -308,11 +314,13 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is not a dict
         existing_id = 456
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            (existing_id,),
-            ('{"bible": "string_value"}',),  # Bible as string, not dict
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                (existing_id,),
+                ('{"bible": "string_value"}',),  # Bible as string, not dict
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -340,11 +348,13 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is also not a dict
         existing_id = 456
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            (existing_id,),
-            ('{"bible": "old_string_value"}',),  # Bible as string, not dict
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                (existing_id,),
+                ('{"bible": "old_string_value"}',),  # Bible as string, not dict
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -372,11 +382,13 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is a dict
         existing_id = 456
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            (existing_id,),
-            ('{"bible": {"existing": "dict_value"}}',),  # Bible as dict
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                (existing_id,),
+                ('{"bible": {"existing": "dict_value"}}',),  # Bible as dict
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -404,11 +416,13 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is not a dict
         existing_id = 456
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            (existing_id,),
-            ('{"bible": "existing_string_value"}',),  # Bible as string
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                (existing_id,),
+                ('{"bible": "existing_string_value"}',),  # Bible as string
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -436,11 +450,13 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is None/missing
         existing_id = 456
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            (existing_id,),
-            ("{}",),  # No bible metadata at all
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                (existing_id,),
+                ("{}",),  # No bible metadata at all
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -468,11 +484,13 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is also None/empty
         existing_id = 456
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            (existing_id,),
-            ('{"bible": null}',),  # Bible as null in JSON
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                (existing_id,),
+                ('{"bible": null}',),  # Bible as null in JSON
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         file_path = Path("/path/to/script.fountain")
@@ -522,13 +540,15 @@ class TestScriptOperationsGetScriptStats:
         script_id = 123
 
         # Mock cursor responses for each count query
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            {"count": 10},  # scenes count
-            {"count": 5},  # characters count
-            {"count": 25},  # dialogues count
-            {"count": 15},  # actions count
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                {"count": 10},  # scenes count
+                {"count": 5},  # characters count
+                {"count": 25},  # dialogues count
+                {"count": 15},  # actions count
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         stats = script_ops.get_script_stats(mock_connection, script_id)
@@ -553,13 +573,15 @@ class TestScriptOperationsGetScriptStats:
         script_id = 456
 
         # Mock cursor responses for empty script
-        mock_cursor = Mock(spec=object)
-        mock_cursor.fetchone.side_effect = [
-            {"count": 0},  # scenes count
-            {"count": 0},  # characters count
-            {"count": 0},  # dialogues count
-            {"count": 0},  # actions count
-        ]
+        mock_cursor = Mock()
+        mock_cursor.fetchone = Mock(
+            side_effect=[
+                {"count": 0},  # scenes count
+                {"count": 0},  # characters count
+                {"count": 0},  # dialogues count
+                {"count": 0},  # actions count
+            ]
+        )
         mock_connection.execute.return_value = mock_cursor
 
         stats = script_ops.get_script_stats(mock_connection, script_id)

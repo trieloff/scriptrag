@@ -19,7 +19,7 @@ def runner():
 def mock_analyze_command():
     """Mock AnalyzeCommand."""
     with patch("scriptrag.api.analyze.AnalyzeCommand") as mock:
-        cmd = MagicMock(spec=["content", "model", "provider", "usage"])
+        cmd = MagicMock(spec=["analyze", "load_analyzer", "from_config"])
 
         # Make analyze return a coroutine
         async def mock_analyze(*args, **kwargs):

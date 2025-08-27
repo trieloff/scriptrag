@@ -62,7 +62,13 @@ class ConnectionPool:
         self._closed = False
 
         # Health check thread
-        self._health_check_interval = 60  # seconds
+        # Use shorter interval in CI to prevent pytest timeout issues
+        import os
+
+        if os.getenv("CI") or os.getenv("GITHUB_ACTIONS"):
+            self._health_check_interval = 10  # seconds (shorter for CI)
+        else:
+            self._health_check_interval = 60  # seconds (normal for local)
         self._health_check_thread: threading.Thread | None = None
         self._stop_health_check = threading.Event()
 
@@ -317,6 +323,14 @@ class ConnectionPool:
 
             self._closed = True
             self._stop_health_check.set()
+
+            # Wait for health check thread to stop to prevent hanging in pytest cleanup
+            # This is critical for CI environments using --timeout-method=thread
+            if self._health_check_thread and self._health_check_thread.is_alive():
+                # Give the thread a brief moment to see the stop signal and exit cleanly
+                self._health_check_thread.join(timeout=0.5)
+                if self._health_check_thread.is_alive():
+                    logger.warning("Health check thread did not stop within timeout")
 
             # Close all idle connections
             while not self._pool.empty():

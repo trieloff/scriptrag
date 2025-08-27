@@ -79,19 +79,60 @@ class LLMResponseParser:
             pass
 
         # Try to find JSON array in response
-        # Enhanced pattern to match complete JSON arrays while avoiding embedded arrays
-        # Look for arrays that contain objects, not just simple values
-        json_match = re.search(
-            r"(\[\s*\{.*?\}\s*(?:,\s*\{.*?\}\s*)*\])",
-            response,
-            re.DOTALL,
-        )
-        if json_match:
+        # Use a more robust approach: find all potential JSON arrays and try to
+        # parse them. This handles nested structures better than the previous regex
+        # approach
+
+        # Find all bracket pairs that could be JSON arrays
+        potential_arrays = []
+
+        # Look for array start positions
+        start_positions = [m.start() for m in re.finditer(r"\[", response)]
+
+        for start in start_positions:
+            # Find the matching closing bracket by counting nesting levels
+            bracket_count = 0
+            in_string = False
+            escape_next = False
+
+            for i, char in enumerate(response[start:], start):
+                if escape_next:
+                    escape_next = False
+                    continue
+
+                if char == "\\":
+                    escape_next = True
+                    continue
+
+                if char == '"' and not escape_next:
+                    in_string = not in_string
+                    continue
+
+                if not in_string:
+                    if char == "[":
+                        bracket_count += 1
+                    elif char == "]":
+                        bracket_count -= 1
+                        if bracket_count == 0:
+                            # Found matching closing bracket
+                            potential_json = response[start : i + 1]
+                            # Only consider arrays that contain objects
+                            if "{" in potential_json:
+                                potential_arrays.append(potential_json)
+                            break
+
+        # Try to parse each potential array, return the first valid one
+        for potential_json in potential_arrays:
             try:
-                result = json.loads(json_match.group(1))
-                return result if isinstance(result, list) else []
+                result = json.loads(potential_json)
+                if (
+                    isinstance(result, list)
+                    and len(result) > 0
+                    and isinstance(result[0], dict)
+                ):
+                    return result
             except json.JSONDecodeError:
-                pass
+                continue
 
         logger.warning("Could not parse LLM response as JSON")
         return []

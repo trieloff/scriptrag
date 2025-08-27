@@ -408,7 +408,7 @@ def test_main_function():
     from scriptrag.mcp.server import main
 
     with patch("scriptrag.mcp.server.create_server") as mock_create:
-        mock_server = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_server = MagicMock(spec=["content", "model", "provider", "usage", "run"])
         mock_create.return_value = mock_server
 
         # Call main function

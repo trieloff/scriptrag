@@ -2,7 +2,7 @@
 
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -427,6 +427,66 @@ class TestClaudeCodeProvider:
 
                 # Verify cache TTL is None when disabled
                 assert provider.model_discovery.cache is None
+
+
+class TestClaudeCodeProviderDependencyInjection:
+    """Test dependency injection pattern for Claude Code provider."""
+
+    @pytest.mark.asyncio
+    async def test_provider_with_injected_sdk(self):
+        """Test provider initialization with injected SDK module."""
+        # Create a mock SDK that implements the protocol
+        mock_sdk = MagicMock()
+
+        # Set up ClaudeCodeOptions class
+        mock_options_class = MagicMock()
+        mock_sdk.ClaudeCodeOptions = mock_options_class
+
+        # Set up query method that returns an async generator
+        async def mock_query(prompt: str, options: object):
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+            mock_text_block.text = "Test response from injected SDK"
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        mock_sdk.query = mock_query
+
+        # Create provider with injected SDK
+        with patch.object(ClaudeCodeProvider, "_check_sdk"):
+            provider = ClaudeCodeProvider(sdk=mock_sdk)
+            provider.sdk_available = True
+
+            # Test completion with injected SDK
+            request = CompletionRequest(
+                model="claude-3-sonnet-20240229",
+                messages=[{"role": "user", "content": "Hello"}],
+            )
+
+            response = await provider.complete(request)
+            assert response.content == "Test response from injected SDK"
+
+            # Verify the injected SDK was used, not imported
+            assert provider._sdk is mock_sdk
+
+    def test_provider_sdk_protocol_type_safety(self):
+        """Test that SDK protocol provides type safety."""
+        # Create a mock that implements the protocol
+        mock_sdk = MagicMock()
+        mock_sdk.ClaudeCodeOptions = MagicMock()
+        mock_sdk.query = AsyncMock()
+
+        # This should work with proper type hints
+        with patch.object(ClaudeCodeProvider, "_check_sdk"):
+            provider = ClaudeCodeProvider(sdk=mock_sdk)
+            assert provider._sdk is mock_sdk
+
+    def test_provider_without_sdk_injection(self):
+        """Test provider without SDK injection (default behavior)."""
+        with patch.object(ClaudeCodeProvider, "_check_sdk"):
+            provider = ClaudeCodeProvider()
+            assert provider._sdk is None  # No SDK injected
 
 
 class TestClaudeCodeProviderIntegration:

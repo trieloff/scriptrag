@@ -1,12 +1,14 @@
 """Tests for Claude Code SDK provider."""
 
 import asyncio
+import contextlib
 import json
 import os
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm.models import CompletionRequest, EmbeddingRequest, LLMProvider
 from scriptrag.llm.providers.claude_code import ClaudeCodeProvider
 
@@ -19,6 +21,30 @@ class TestClaudeCodeProvider:
         """Create provider instance."""
         with patch.object(ClaudeCodeProvider, "_check_sdk"):
             provider = ClaudeCodeProvider()
+            provider.sdk_available = True
+            return provider
+
+    @pytest.fixture
+    def provider_with_mock_sdk(self) -> ClaudeCodeProvider:
+        """Create provider instance with a mocked SDK using dependency injection."""
+        mock_sdk = MagicMock()
+
+        # Set up the SDK protocol interface
+        mock_sdk.ClaudeCodeOptions = MagicMock()
+
+        async def mock_query(prompt: str, options: object):
+            """Mock query that returns test messages."""
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+            mock_text_block.text = "Mocked response"
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        mock_sdk.query = mock_query
+
+        with patch.object(ClaudeCodeProvider, "_check_sdk"):
+            provider = ClaudeCodeProvider(sdk=mock_sdk)
             provider.sdk_available = True
             return provider
 
@@ -689,3 +715,731 @@ class TestClaudeCodeProvider:
             content = json.loads(response.choices[0]["message"]["content"])
             # First call returns {"optional": "value"} - this is what we get
             assert "optional" in content
+
+    @pytest.mark.asyncio
+    async def test_dependency_injection_pattern(
+        self, provider_with_mock_sdk: ClaudeCodeProvider
+    ) -> None:
+        """Test that dependency injection works correctly with mocked SDK."""
+        request = CompletionRequest(
+            model="claude-3-opus",
+            messages=[{"role": "user", "content": "Test DI"}],
+        )
+
+        # The provider should use the injected mock SDK
+        response = await provider_with_mock_sdk.complete(request)
+        assert response.choices[0]["message"]["content"] == "Mocked response"
+        assert response.provider == LLMProvider.CLAUDE_CODE
+
+    def test_claude_code_options_init(self) -> None:
+        """Test ClaudeCodeOptions initialization (lines 54-55)."""
+        from scriptrag.llm.providers.claude_code import ClaudeCodeSDKProtocol
+
+        options = ClaudeCodeSDKProtocol.ClaudeCodeOptions(
+            max_turns=5, system_prompt="Test prompt"
+        )
+        assert options.max_turns == 5
+        assert options.system_prompt == "Test prompt"
+
+        # Test default values
+        default_options = ClaudeCodeSDKProtocol.ClaudeCodeOptions()
+        assert default_options.max_turns == 1
+        assert default_options.system_prompt is None
+
+    def test_init_with_settings_import_error(self) -> None:
+        """Test initialization when settings import fails (lines 107-111)."""
+        with (
+            patch.object(ClaudeCodeProvider, "_check_sdk"),
+            patch(
+                "scriptrag.config.get_settings",
+                side_effect=ImportError("Settings not found"),
+            ),
+        ):
+            provider = ClaudeCodeProvider()
+            # Should use default values when settings import fails
+            # Cache should be created indicating defaults were used
+            assert provider.model_discovery.cache is not None
+            assert provider.model_discovery.force_static is False
+
+    def test_init_with_settings_attribute_error(self) -> None:
+        """Test initialization when settings have AttributeError (lines 107-111)."""
+        with (
+            patch.object(ClaudeCodeProvider, "_check_sdk"),
+            patch(
+                "scriptrag.config.get_settings",
+                side_effect=AttributeError("No attribute"),
+            ),
+        ):
+            provider = ClaudeCodeProvider()
+            # Should use default values when settings access fails
+            # Cache should be created indicating defaults were used
+            assert provider.model_discovery.cache is not None
+            assert provider.model_discovery.force_static is False
+
+    def test_check_sdk_available_but_no_executable(self) -> None:
+        """Test SDK available but claude executable not found (lines 142-149)."""
+        # This test needs to simulate the exact import behavior in _check_sdk
+        mock_sdk = MagicMock()
+
+        # Patch the local import in _check_sdk method
+        import_patcher = patch.dict("sys.modules", {"claude_code_sdk": mock_sdk})
+        which_patcher = patch("shutil.which", return_value=None)
+
+        with import_patcher, which_patcher:
+            provider = ClaudeCodeProvider()
+            # Should be False because executable not found even though SDK imports
+            assert provider.sdk_available is False
+
+    @pytest.mark.asyncio
+    async def test_is_available_module_not_found_specific(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test specific ModuleNotFoundError handling (line 173)."""
+        with patch(
+            "builtins.__import__",
+            side_effect=ModuleNotFoundError("No module named 'claude_code_sdk'"),
+        ):
+            # Should log debug message and continue with environment checks
+            # Since provider fixture has sdk_available=True, it will check markers
+            with patch.dict(os.environ, {"CLAUDECODE": "1"}):
+                assert await provider.is_available() is True
+
+    @pytest.mark.asyncio
+    async def test_complete_json_validation_multiple_retries(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test JSON validation retry logic with multiple attempts (lines 233-259)."""
+        call_count = 0
+
+        async def mock_query_with_retries(prompt: str, options: object):
+            nonlocal call_count
+            call_count += 1
+
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+
+            if call_count <= 2:
+                # First two attempts: invalid JSON
+                mock_text_block.text = "Not valid JSON at all"
+            else:
+                # Third attempt: valid JSON
+                mock_text_block.text = '{"final": "success"}'
+
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", mock_query_with_retries),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+        ):
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Generate JSON"}],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {"final": {"type": "string"}},
+                        }
+                    },
+                },
+            )
+
+            response = await provider.complete(request)
+            assert call_count == 3  # Should retry twice then succeed
+            content = response.choices[0]["message"]["content"]
+            assert json.loads(content) == {"final": "success"}
+
+    @pytest.mark.asyncio
+    async def test_complete_importerror_during_execution(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test ImportError during complete() execution (lines 282-283)."""
+        with patch.object(
+            provider, "_get_sdk", side_effect=ImportError("SDK import failed")
+        ):
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Hello"}],
+            )
+
+            with pytest.raises(RuntimeError) as exc_info:
+                await provider.complete(request)
+
+            assert "Claude Code environment detected but SDK not available" in str(
+                exc_info.value
+            )
+
+    @pytest.mark.asyncio
+    async def test_complete_timeout_error(self, provider: ClaudeCodeProvider) -> None:
+        """Test TimeoutError handling (lines 290-292)."""
+        with (
+            patch("claude_code_sdk.query", side_effect=TimeoutError("Query timed out")),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+        ):
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Hello"}],
+            )
+
+            with pytest.raises(TimeoutError):
+                await provider.complete(request)
+
+    @pytest.mark.asyncio
+    async def test_complete_json_decode_error(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test JSONDecodeError handling (lines 290-292)."""
+        with (
+            patch(
+                "claude_code_sdk.query",
+                side_effect=json.JSONDecodeError("Invalid JSON", "doc", 0),
+            ),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+        ):
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Hello"}],
+            )
+
+            with pytest.raises(json.JSONDecodeError):
+                await provider.complete(request)
+
+    @pytest.mark.asyncio
+    async def test_complete_value_error(self, provider: ClaudeCodeProvider) -> None:
+        """Test ValueError handling (lines 290-292)."""
+        with (
+            patch("claude_code_sdk.query", side_effect=ValueError("Invalid value")),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+        ):
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Hello"}],
+            )
+
+            with pytest.raises(ValueError):
+                await provider.complete(request)
+
+    @pytest.mark.asyncio
+    async def test_complete_attribute_error(self, provider: ClaudeCodeProvider) -> None:
+        """Test AttributeError handling for invalid SDK response (lines 294-295)."""
+        mock_message = MagicMock()
+        mock_message.__class__.__name__ = "InvalidMessage"
+        # This will cause AttributeError when trying to access .content or .result
+        del mock_message.content
+        del mock_message.result
+
+        async def mock_query(prompt: str, options: object):
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", mock_query),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+            patch.object(
+                provider,
+                "_execute_query",
+                side_effect=AttributeError("Invalid response structure"),
+            ),
+        ):
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Hello"}],
+            )
+
+            with pytest.raises(RuntimeError) as exc_info:
+                await provider.complete(request)
+
+            assert "Invalid SDK response structure" in str(exc_info.value)
+
+    def test_get_sdk_protocol_warning(self) -> None:
+        """Test warning when SDK doesn't conform to protocol (line 319)."""
+        # Create a provider WITHOUT injected SDK to force the import path
+        with patch.object(ClaudeCodeProvider, "_check_sdk"):
+            provider = ClaudeCodeProvider()
+            provider.sdk_available = True
+
+        # Ensure no injected SDK
+        assert provider._sdk is None
+
+        # Create a mock SDK that will fail protocol check
+        # Use spec=[] to prevent auto-creation of attributes
+        mock_sdk = MagicMock(spec=[])
+
+        # Import the module and patch its logger directly
+        import scriptrag.llm.providers.claude_code as claude_module
+
+        with (
+            patch("importlib.import_module", return_value=mock_sdk),
+            patch.object(claude_module, "logger") as mock_logger,
+        ):
+            result = provider._get_sdk()
+            assert result == mock_sdk
+            mock_logger.warning.assert_called_once_with(
+                "Imported claude_code_sdk may not fully implement expected protocol"
+            )
+
+    @pytest.mark.asyncio
+    async def test_execute_query_progress_logging(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test progress update logging (lines 366-367)."""
+        mock_message = MagicMock()
+        mock_message.__class__.__name__ = "AssistantMessage"
+        mock_text_block = MagicMock()
+        mock_text_block.text = "Test response"
+        mock_message.content = [mock_text_block]
+
+        async def slow_mock_query(prompt: str, options: object):
+            # Simulate longer query to trigger progress logging
+            await asyncio.sleep(0.02)  # 20ms to ensure progress task runs
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", slow_mock_query),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+            patch("scriptrag.llm.providers.claude_code.logger") as mock_logger,
+        ):
+            sdk = provider._get_sdk()
+            options = sdk.ClaudeCodeOptions()
+
+            result = await provider._execute_query("Test prompt", options, 0, 1)
+            assert result == "Test response"
+
+            # Should have logged progress updates
+            info_calls = [str(call) for call in mock_logger.info.call_args_list]
+            assert any("Claude Code query started" in call for call in info_calls)
+            assert any("Claude Code query completed" in call for call in info_calls)
+
+    @pytest.mark.asyncio
+    async def test_execute_query_timeout_with_retry(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test timeout handling with retry logic (lines 399-412)."""
+        call_count = 0
+
+        async def timeout_then_succeed(prompt: str, options: object):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise TimeoutError("First attempt times out")
+            # Second attempt succeeds
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+            mock_text_block.text = "Success after retry"
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", timeout_then_succeed),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+            patch("scriptrag.llm.providers.claude_code.logger") as mock_logger,
+        ):
+            # Mock retry handler to allow retry
+            provider.retry_handler.should_retry = Mock(return_value=True)
+            provider.retry_handler.log_retry = Mock()
+
+            sdk = provider._get_sdk()
+            options = sdk.ClaudeCodeOptions()
+
+            # First call should timeout and trigger retry path
+            with contextlib.suppress(TimeoutError):
+                await provider._execute_query("Test prompt", options, 0, 3)
+
+            # Verify timeout was logged
+            error_calls = [str(call) for call in mock_logger.error.call_args_list]
+            assert any("Claude Code query timed out" in call for call in error_calls)
+
+    @pytest.mark.asyncio
+    async def test_validate_json_response_code_block_without_json_tag(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test JSON extraction from code blocks without 'json' tag (lines 470-474)."""
+        response_text = """Here's the data:
+```
+{"extracted": "from_generic_block"}
+```
+That's it."""
+
+        result = await provider._validate_json_response(
+            response_text, {"type": "json_object"}, 0
+        )
+
+        assert result["valid"] is True
+        assert json.loads(result["json_text"]) == {"extracted": "from_generic_block"}
+
+    @pytest.mark.asyncio
+    async def test_validate_json_response_required_field_validation(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test required field validation in JSON schema (lines 484-487)."""
+        # Test with missing required field
+        response_text = '{"optional": "value"}'
+        response_format = {
+            "type": "json_schema",
+            "json_schema": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "required_field": {"type": "string"},
+                        "optional": {"type": "string"},
+                    },
+                    "required": ["required_field"],
+                },
+            },
+        }
+
+        result = await provider._validate_json_response(
+            response_text, response_format, 0
+        )
+
+        assert result["valid"] is False
+        assert "Missing required field: required_field" in result["error"]
+
+        # Test with required field present
+        response_text_valid = '{"required_field": "present", "optional": "value"}'
+
+        result_valid = await provider._validate_json_response(
+            response_text_valid, response_format, 0
+        )
+
+        assert result_valid["valid"] is True
+        assert json.loads(result_valid["json_text"]) == {
+            "required_field": "present",
+            "optional": "value",
+        }
+
+    @pytest.mark.asyncio
+    async def test_complete_json_retry_all_three_attempts(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test JSON validation retry logic through all 3 attempts (lines 233-273)."""
+        call_count = 0
+
+        async def mock_query_gradual_success(prompt: str, options: object):
+            nonlocal call_count
+            call_count += 1
+
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+
+            if call_count == 1:
+                # First attempt: invalid JSON
+                mock_text_block.text = "This is not JSON at all"
+            elif call_count == 2:
+                # Second attempt: still invalid
+                mock_text_block.text = "Still not valid JSON { broken"
+            else:
+                # Third attempt: finally valid JSON
+                mock_text_block.text = '{"success": "finally"}'
+
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", mock_query_gradual_success),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+            patch("scriptrag.llm.providers.claude_code.logger") as mock_logger,
+        ):
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Generate JSON"}],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {"success": {"type": "string"}},
+                        }
+                    },
+                },
+            )
+
+            response = await provider.complete(request)
+            assert call_count == 3  # Should retry twice then succeed
+            content = response.choices[0]["message"]["content"]
+            assert json.loads(content) == {"success": "finally"}
+
+            # Check that the JSON validation retry process worked
+            # We can't easily mock the rate_limiter logger, but we can verify
+            # the retry handler was called by checking the call count
+            assert call_count == 3  # Confirms retries occurred
+
+    @pytest.mark.asyncio
+    async def test_complete_json_retry_exhaustion_with_error_logging(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test JSON retry exhaustion with error logging (lines 252-259)."""
+
+        async def mock_query_always_invalid(prompt: str, options: object):
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+            mock_text_block.text = "Never valid JSON"
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", mock_query_always_invalid),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+            patch("scriptrag.llm.providers.claude_code.logger") as mock_logger,
+        ):
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Generate JSON"}],
+                response_format={"type": "json_object"},
+            )
+
+            response = await provider.complete(request)
+            # Should still return the invalid response after all retries
+            assert response.choices[0]["message"]["content"] == "Never valid JSON"
+
+            # Check that error was logged after all retries exhausted
+            error_calls = [
+                call
+                for call in mock_logger.error.call_args_list
+                if "Failed to generate valid JSON after 3 attempts" in str(call)
+            ]
+            assert len(error_calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_is_available_environment_markers(self) -> None:
+        """Test is_available with environment markers (lines 177-185)."""
+        # Create a provider where SDK was initially available (so sdk_available=True)
+        # but the import fails when is_available() tries to import it again
+        with patch.object(ClaudeCodeProvider, "_check_sdk"):
+            provider = ClaudeCodeProvider()
+            provider.sdk_available = True  # SDK was detected during init
+
+        # Test with different environment markers
+        test_markers = ["CLAUDECODE", "CLAUDE_CODE_SESSION", "CLAUDE_SESSION_ID"]
+
+        # Scenario: SDK was available during init but import fails in is_available()
+        # This triggers the environment marker fallback check
+        for marker in test_markers:
+            with (
+                patch.dict(os.environ, {marker: "1"}, clear=True),
+                patch.dict(
+                    "sys.modules", {"claude_code_sdk": None}
+                ),  # Force import to fail
+            ):
+                result = await provider.is_available()
+                assert result is True  # Should be True due to environment marker
+
+    @pytest.mark.asyncio
+    async def test_complete_response_structure_edge_cases(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test response structure handling edge cases (lines 460-496)."""
+
+        # Test with empty content list
+        async def mock_query_empty_content(prompt: str, options: object):
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_message.content = []  # Empty content
+            # Set result to None so str(result) returns empty
+            mock_message.result = None
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", mock_query_empty_content),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+        ):
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Test"}],
+            )
+
+            response = await provider.complete(request)
+            # Should handle empty content gracefully
+            assert response.choices[0]["message"]["content"] == ""
+
+    @pytest.mark.asyncio
+    async def test_complete_message_conversion_edge_cases(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test message conversion edge cases (lines 504-514)."""
+
+        async def mock_query_simple(prompt: str, options: object):
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+            mock_text_block.text = "Test response"
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", mock_query_simple),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+        ):
+            # Test with different message structures
+            request_variations = [
+                # System message
+                CompletionRequest(
+                    model="claude-3-opus",
+                    messages=[{"role": "system", "content": "You are helpful"}],
+                ),
+                # Multiple messages
+                CompletionRequest(
+                    model="claude-3-opus",
+                    messages=[
+                        {"role": "user", "content": "Hello"},
+                        {"role": "assistant", "content": "Hi there"},
+                        {"role": "user", "content": "How are you?"},
+                    ],
+                ),
+            ]
+
+            for request in request_variations:
+                response = await provider.complete(request)
+                assert response.choices[0]["message"]["content"] == "Test response"
+
+    @pytest.mark.asyncio
+    async def test_complete_unexpected_exception_handling(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test handling of unexpected exceptions during completion."""
+
+        async def mock_query_unexpected_error(prompt: str, options: object):
+            raise RuntimeError("Unexpected internal error")
+            yield  # Never reached
+
+        with (
+            patch("claude_code_sdk.query", mock_query_unexpected_error),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+        ):
+            request = CompletionRequest(
+                model="claude-3-opus",
+                messages=[{"role": "user", "content": "Test"}],
+            )
+
+            # The RuntimeError should bubble up and be wrapped as LLMProviderError
+            with pytest.raises(LLMProviderError) as exc_info:
+                await provider.complete(request)
+
+            # Verify the original error is preserved in the chain
+            assert "Unexpected internal error" in str(exc_info.value)
+            assert exc_info.value.__cause__.__class__.__name__ == "RuntimeError"
+
+    @pytest.mark.asyncio
+    async def test_complete_with_different_json_formats(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test completion with different JSON response formats."""
+
+        async def mock_query_json(prompt: str, options: object):
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+            mock_text_block.text = '{"result": "success", "data": [1, 2, 3]}'
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", mock_query_json),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+        ):
+            # Test different JSON response format types
+            json_formats = [
+                {"type": "json_object"},
+                {"type": "json_schema", "json_schema": {"schema": {"type": "object"}}},
+            ]
+
+            for json_format in json_formats:
+                request = CompletionRequest(
+                    model="claude-3-opus",
+                    messages=[{"role": "user", "content": "Generate JSON"}],
+                    response_format=json_format,
+                )
+
+                response = await provider.complete(request)
+                content = response.choices[0]["message"]["content"]
+                # Verify valid JSON
+                import json
+
+                data = json.loads(content)
+                assert data["result"] == "success"
+                assert data["data"] == [1, 2, 3]
+
+    @pytest.mark.asyncio
+    async def test_execute_query_timeout_after_retries_exhausted(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test TimeoutError raised after retries exhausted (line 412)."""
+
+        async def always_timeout(prompt: str, options: object):
+            """Async generator that raises TimeoutError."""
+            raise TimeoutError("Query timed out")
+            yield  # Never reached but makes it an async generator
+
+        with (
+            patch("claude_code_sdk.query", always_timeout),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+        ):
+            # Mock retry handler to NOT retry (exhausted)
+            provider.retry_handler.should_retry = Mock(return_value=False)
+
+            sdk = provider._get_sdk()
+            options = sdk.ClaudeCodeOptions()
+
+            with pytest.raises(TimeoutError) as exc_info:
+                await provider._execute_query("Test prompt", options, 2, 3)
+
+            # Should raise TimeoutError with specific message
+            assert "Claude Code query timed out after 120s" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_execute_query_progress_logging_during_slow_query(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test progress logging during slow queries (lines 366-367)."""
+        progress_logged = False
+
+        async def slow_query_with_progress_check(prompt: str, options: object):
+            # Wait long enough for progress task to run
+            await asyncio.sleep(0.015)  # 15ms should trigger progress logging
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+            mock_text_block.text = "Slow response"
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", slow_query_with_progress_check),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+            patch("scriptrag.llm.providers.claude_code.logger") as mock_logger,
+        ):
+            sdk = provider._get_sdk()
+            options = sdk.ClaudeCodeOptions()
+
+            result = await provider._execute_query("Test prompt", options, 0, 1)
+            assert result == "Slow response"
+
+            # Check that progress logging was set up (task creation)
+            info_calls = [str(call) for call in mock_logger.info.call_args_list]
+            start_calls = [
+                call for call in info_calls if "Claude Code query started" in call
+            ]
+            assert len(start_calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_complete_settings_import_fallback(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test settings import fallback (lines 107-111)."""
+        # This test covers the case where get_settings fails during __init__
+        with (
+            patch.object(ClaudeCodeProvider, "_check_sdk"),
+            patch(
+                "scriptrag.config.get_settings",
+                side_effect=ImportError("Settings module not found"),
+            ),
+        ):
+            # Should not raise exception, should use defaults
+            provider = ClaudeCodeProvider()
+            assert provider.model_discovery.cache is not None
+            assert provider.model_discovery.force_static is False

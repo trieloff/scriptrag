@@ -5,9 +5,11 @@ import contextlib
 import json
 import os
 import time
-from typing import Any
+from collections.abc import AsyncIterator
+from typing import Any, Protocol, runtime_checkable
 
 from scriptrag.config import get_logger
+from scriptrag.exceptions import LLMProviderError
 from scriptrag.llm.base import BaseLLMProvider
 from scriptrag.llm.model_discovery import ClaudeCodeModelDiscovery
 from scriptrag.llm.model_registry import ModelRegistry
@@ -31,6 +33,40 @@ DEFAULT_MODEL_CACHE_TTL = 3600  # 1 hour
 DEFAULT_QUERY_TIMEOUT = 120  # 2 minutes
 
 
+@runtime_checkable
+class ClaudeCodeSDKProtocol(Protocol):
+    """Protocol defining the expected interface for Claude Code SDK.
+
+    This protocol ensures type safety when using dependency injection
+    for testing or when substituting alternative SDK implementations.
+    """
+
+    class ClaudeCodeOptions:
+        """Options class for Claude Code queries."""
+
+        def __init__(self, max_turns: int = 1, system_prompt: str | None = None):
+            """Initialize Claude Code options.
+
+            Args:
+                max_turns: Maximum number of conversation turns
+                system_prompt: Optional system prompt for the conversation
+            """
+            self.max_turns = max_turns
+            self.system_prompt = system_prompt
+
+    def query(self, prompt: str, options: Any) -> AsyncIterator[Any]:
+        """Execute a query against Claude Code.
+
+        Args:
+            prompt: The prompt to send
+            options: Claude Code options instance
+
+        Returns:
+            An async iterator that yields response messages from Claude
+        """
+        ...
+
+
 class ClaudeCodeProvider(BaseLLMProvider):
     """Claude Code SDK provider for local development."""
 
@@ -39,17 +75,16 @@ class ClaudeCodeProvider(BaseLLMProvider):
     # Static models for testing compatibility
     STATIC_MODELS = ModelRegistry.CLAUDE_CODE_MODELS
 
-    def __init__(self, sdk: Any | None = None) -> None:
+    def __init__(self, sdk: ClaudeCodeSDKProtocol | None = None) -> None:
         """Initialize Claude Code provider.
 
         Args:
             sdk: Optional Claude Code SDK-like module for dependency injection.
-                 Must expose attributes compatible with the real SDK (e.g.,
-                 query, ClaudeCodeOptions, and message classes). When None,
+                 Must implement the ClaudeCodeSDKProtocol interface. When None,
                  the provider imports the real SDK on demand.
         """
         # Optional SDK module for DI in tests
-        self._sdk = sdk
+        self._sdk: ClaudeCodeSDKProtocol | None = sdk
         self.sdk_available: bool = False
         self._check_sdk()
 
@@ -159,14 +194,9 @@ class ClaudeCodeProvider(BaseLLMProvider):
         """Generate completion using Claude Code SDK."""
         try:
             # Resolve SDK (DI-friendly): prefer injected module, else import lazily
-            if self._sdk is None:
-                import importlib
-
-                _sdk = importlib.import_module("claude_code_sdk")
-            else:
-                _sdk = self._sdk
+            sdk = self._get_sdk()
             # Use SDK options class via DI/lazy import
-            claude_code_options_cls = _sdk.ClaudeCodeOptions
+            claude_code_options_cls = sdk.ClaudeCodeOptions
 
             # Convert messages to prompt
             prompt = self._messages_to_prompt(request.messages)
@@ -254,6 +284,13 @@ class ClaudeCodeProvider(BaseLLMProvider):
                 "Claude Code environment detected but SDK not available. "
                 "Please use GitHub Models or OpenAI-compatible provider instead."
             ) from e
+        except RuntimeError as e:
+            # Don't wrap RuntimeErrors that we raised for ImportError
+            if "SDK not available" in str(e):
+                raise
+            # Wrap other RuntimeError exceptions in LLMProviderError
+            logger.error(f"Claude Code runtime error: {e}")
+            raise LLMProviderError(f"Failed to complete prompt: {e}") from e
         except (TimeoutError, json.JSONDecodeError, ValueError) as e:
             logger.error(f"Claude Code completion failed: {e}")
             raise
@@ -263,9 +300,35 @@ class ClaudeCodeProvider(BaseLLMProvider):
         except Exception as e:
             # Catch any other unexpected exceptions and wrap in LLMProviderError
             logger.error(f"Claude Code unexpected error: {e}")
-            from scriptrag.exceptions import LLMProviderError
-
             raise LLMProviderError(f"Failed to complete prompt: {e}") from e
+
+    def _get_sdk(self) -> ClaudeCodeSDKProtocol:
+        """Get the Claude Code SDK instance.
+
+        Returns:
+            The SDK module implementing ClaudeCodeSDKProtocol
+
+        Raises:
+            RuntimeError: If SDK cannot be imported
+        """
+        if self._sdk is not None:
+            return self._sdk
+
+        try:
+            import importlib
+
+            sdk = importlib.import_module("claude_code_sdk")
+            # Validate that the imported module conforms to our protocol
+            if not isinstance(sdk, ClaudeCodeSDKProtocol):
+                logger.warning(
+                    "Imported claude_code_sdk may not fully implement expected protocol"
+                )
+            return sdk
+        except ImportError as e:
+            raise RuntimeError(
+                "Claude Code environment detected but SDK not available. "
+                "Please use GitHub Models or OpenAI-compatible provider instead."
+            ) from e
 
     async def _execute_query(
         self,
@@ -288,18 +351,8 @@ class ClaudeCodeProvider(BaseLLMProvider):
         Raises:
             TimeoutError: If query times out
         """
-        # Resolve SDK (DI-friendly): prefer injected module, else import lazily
-        if self._sdk is None:
-            try:
-                import importlib
-
-                _sdk = importlib.import_module("claude_code_sdk")
-            except Exception as _e:  # pragma: no cover - validated in higher layer
-                raise RuntimeError(f"Claude Code SDK import failed: {_e}") from _e
-        else:
-            _sdk = self._sdk
-
-        query = _sdk.query
+        sdk = self._get_sdk()
+        query = sdk.query
 
         messages: list[Any] = []
         query_start_time = time.time()

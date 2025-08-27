@@ -122,7 +122,15 @@ class TestBibleIndexerCoverage:
 
         # Mock embedding analyzer with mixed success/failure
         mock_analyzer = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            spec_set=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "analyze",
+                "initialize",
+            ]
         )
         indexer.embedding_analyzer = mock_analyzer
 
@@ -165,7 +173,15 @@ class TestBibleIndexerCoverage:
         indexer = BibleIndexer(settings=mock_settings)
 
         mock_analyzer = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            spec_set=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "analyze",
+                "initialize",
+            ]
         )
         mock_analyzer.analyze.side_effect = [Exception("Error")] * 3
         indexer.embedding_analyzer = mock_analyzer
@@ -396,7 +412,15 @@ class TestBibleIndexerCoverage:
             "scriptrag.api.bible_index.SceneEmbeddingAnalyzer"
         ) as mock_analyzer_class:
             mock_analyzer = AsyncMock(
-                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+                spec_set=[
+                    "complete",
+                    "cleanup",
+                    "embed",
+                    "list_models",
+                    "is_available",
+                    "analyze",
+                    "initialize",
+                ]
             )
             mock_analyzer_class.return_value = mock_analyzer
 
@@ -429,7 +453,15 @@ class TestBibleIndexerCoverage:
         indexer = BibleIndexer(settings=mock_settings)
 
         mock_analyzer = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            spec_set=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "analyze",
+                "initialize",
+            ]
         )
         indexer.embedding_analyzer = mock_analyzer
 

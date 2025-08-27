@@ -310,6 +310,16 @@ class TestSearchEngine:
         # Mock database exists but ensure path validation passes
         engine.db_path = engine.settings.database_path
 
+        # Mock semantic adapter to prevent actual async operations
+        from unittest.mock import AsyncMock
+
+        engine.semantic_adapter.enhance_results_with_semantic_search = AsyncMock(
+            return_value=(
+                [],
+                [],
+            )  # Return empty results for both scene and bible results
+        )
+
         # Query that needs vector search (force fuzzy mode)
         query = SearchQuery(raw_query="test", text_query="test", mode=SearchMode.FUZZY)
 

@@ -144,3 +144,168 @@ class TestLLMResponseParser:
         assert len(result) == 2
         assert result[0]["canonical"] == "DETECTIVE JONES"
         assert result[1]["aliases"] == ["SARAH", "MS. MILLER"]
+
+    def test_extract_json_array_deeply_nested_objects(self) -> None:
+        """Test extracting JSON arrays with deeply nested objects and arrays."""
+        response = """
+        Character data with complex relationships:
+        [
+            {
+                "canonical": "JOHN DOE",
+                "aliases": ["JOHN", "MR. DOE"],
+                "relationships": {
+                    "family": {
+                        "spouse": "JANE DOE",
+                        "children": ["JIMMY", "JENNY"],
+                        "parents": {
+                            "father": "JACK DOE",
+                            "mother": "JILL DOE"
+                        }
+                    },
+                    "work": {
+                        "department": "Engineering",
+                        "colleagues": [
+                            {"name": "BOB", "role": "Manager", "years": 5},
+                            {"name": "ALICE", "role": "Assistant", "years": 2}
+                        ]
+                    }
+                },
+                "metadata": {
+                    "appearances": [1, 2, 3, 4, 5],
+                    "characteristics": {
+                        "physical": ["tall", "dark hair"],
+                        "personality": ["kind", "determined"]
+                    }
+                }
+            },
+            {
+                "canonical": "JANE DOE",
+                "aliases": ["JANE", "MRS. DOE"],
+                "relationships": {
+                    "family": {
+                        "spouse": "JOHN DOE",
+                        "children": ["JIMMY", "JENNY"]
+                    }
+                },
+                "metadata": {
+                    "appearances": [1, 3, 5],
+                    "traits": ["intelligent", "caring", "strong"]
+                }
+            }
+        ]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+
+        # Verify we got both characters
+        assert len(result) == 2
+
+        # Verify first character's deeply nested data
+        john = result[0]
+        assert john["canonical"] == "JOHN DOE"
+        assert john["aliases"] == ["JOHN", "MR. DOE"]
+        assert john["relationships"]["family"]["spouse"] == "JANE DOE"
+        assert john["relationships"]["family"]["children"] == ["JIMMY", "JENNY"]
+        assert john["relationships"]["family"]["parents"]["father"] == "JACK DOE"
+        assert john["relationships"]["work"]["colleagues"][0]["name"] == "BOB"
+        assert john["relationships"]["work"]["colleagues"][0]["years"] == 5
+        assert john["metadata"]["characteristics"]["physical"] == ["tall", "dark hair"]
+
+        # Verify second character's data
+        jane = result[1]
+        assert jane["canonical"] == "JANE DOE"
+        assert jane["metadata"]["traits"] == ["intelligent", "caring", "strong"]
+
+    def test_extract_json_array_with_multiple_bracket_types(self) -> None:
+        """Test JSON extraction when text contains various bracket patterns."""
+        response = """
+        Scene coordinates are [12.34, 56.78] (not important).
+
+        The character list includes:
+        [
+            {"name": "HERO", "skills": ["fighting", "flying", "thinking"]},
+            {"name": "VILLAIN", "weaknesses": ["pride", "anger"]}
+        ]
+
+        Also, time codes are [00:01:23, 00:05:45, 00:10:12].
+        """
+        result = LLMResponseParser.extract_json_array(response)
+
+        # Should extract the character data, not coordinate or time arrays
+        assert len(result) == 2
+        assert result[0]["name"] == "HERO"
+        assert result[0]["skills"] == ["fighting", "flying", "thinking"]
+        assert result[1]["name"] == "VILLAIN"
+        assert result[1]["weaknesses"] == ["pride", "anger"]
+
+    def test_extract_json_array_with_escaped_quotes(self) -> None:
+        """Test JSON extraction with escaped quotes in strings."""
+        response = r"""
+        Character data:
+        [
+            {
+                "canonical": "JOHN \"THE BOSS\" SMITH",
+                "dialogue": "He said, \"Let's do this!\""
+            },
+            {
+                "canonical": "JANE O'CONNOR",
+                "dialogue": "She replied, \"I'm ready.\""
+            }
+        ]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+
+        assert len(result) == 2
+        assert result[0]["canonical"] == 'JOHN "THE BOSS" SMITH'
+        assert result[0]["dialogue"] == 'He said, "Let\'s do this!"'
+        assert result[1]["canonical"] == "JANE O'CONNOR"
+
+    def test_extract_json_array_empty_nested_objects(self) -> None:
+        """Test JSON extraction with empty nested objects and arrays."""
+        response = """
+        Data:
+        [
+            {"name": "CHAR1", "relationships": {}, "aliases": []},
+            {"name": "CHAR2", "metadata": {"notes": "", "tags": []}}
+        ]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+
+        assert len(result) == 2
+        assert result[0]["name"] == "CHAR1"
+        assert result[0]["relationships"] == {}
+        assert result[0]["aliases"] == []
+        assert result[1]["metadata"]["notes"] == ""
+        assert result[1]["metadata"]["tags"] == []
+
+    def test_extract_json_array_mixed_content_types(self) -> None:
+        """Test JSON extraction with mixed content types in nested structures."""
+        response = """
+        Character analysis:
+        [
+            {
+                "name": "PROTAGONIST",
+                "stats": {
+                    "appearances": 42,
+                    "importance": 0.95,
+                    "active": true,
+                    "debut": null,
+                    "traits": ["brave", "clever"],
+                    "relationships": {
+                        "allies": 3,
+                        "enemies": 1,
+                        "neutral": 5
+                    }
+                }
+            }
+        ]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+
+        assert len(result) == 1
+        assert result[0]["name"] == "PROTAGONIST"
+        assert result[0]["stats"]["appearances"] == 42
+        assert result[0]["stats"]["importance"] == 0.95
+        assert result[0]["stats"]["active"] is True
+        assert result[0]["stats"]["debut"] is None
+        assert result[0]["stats"]["traits"] == ["brave", "clever"]
+        assert result[0]["stats"]["relationships"]["allies"] == 3

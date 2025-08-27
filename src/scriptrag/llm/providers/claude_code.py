@@ -284,9 +284,10 @@ class ClaudeCodeProvider(BaseLLMProvider):
                 "Claude Code environment detected but SDK not available. "
                 "Please use GitHub Models or OpenAI-compatible provider instead."
             ) from e
-        except RuntimeError:
-            # Re-raise RuntimeError exceptions (including ImportError-derived ones)
-            raise
+        except RuntimeError as e:
+            # Wrap RuntimeError in LLMProviderError for consistent error handling
+            logger.error(f"Claude Code runtime error: {e}")
+            raise LLMProviderError(f"Failed to complete prompt: {e}") from e
         except (TimeoutError, json.JSONDecodeError, ValueError) as e:
             logger.error(f"Claude Code completion failed: {e}")
             raise

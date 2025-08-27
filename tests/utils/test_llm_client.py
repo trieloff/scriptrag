@@ -147,7 +147,7 @@ class TestGitHubModelsProvider:
         # Initialize the HTTP client before patching
         provider._init_http_client()
 
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock()
         mock_response.status_code = 200
 
         with patch.object(
@@ -164,7 +164,7 @@ class TestGitHubModelsProvider:
         # Initialize the HTTP client before patching
         provider._init_http_client()
 
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock()
         mock_response.status_code = 401
 
         with patch.object(provider.client, "get", return_value=mock_response):
@@ -247,7 +247,7 @@ class TestGitHubModelsProvider:
         # Initialize the HTTP client before patching
         provider._init_http_client()
 
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "chat-123",
@@ -298,7 +298,7 @@ class TestGitHubModelsProvider:
         # Initialize the HTTP client before patching
         provider._init_http_client()
 
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "model": "text-embedding-ada",
@@ -339,7 +339,7 @@ class TestOpenAICompatibleProvider:
         provider = OpenAICompatibleProvider()
         # OpenAICompatibleProvider initializes client in __init__, not lazily
 
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock()
         mock_response.status_code = 200
 
         with patch.object(provider.client, "get", return_value=mock_response):
@@ -352,7 +352,7 @@ class TestOpenAICompatibleProvider:
         provider = OpenAICompatibleProvider()
         # OpenAICompatibleProvider initializes client in __init__, not lazily
 
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [
@@ -375,7 +375,7 @@ class TestOpenAICompatibleProvider:
         provider = OpenAICompatibleProvider()
         # OpenAICompatibleProvider initializes client in __init__, not lazily
 
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "id": "chat-456",
@@ -408,7 +408,7 @@ class TestOpenAICompatibleProvider:
         provider = OpenAICompatibleProvider()
         # OpenAICompatibleProvider initializes client in __init__, not lazily
 
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "model": "text-embedding-3-small",
@@ -436,9 +436,7 @@ class TestLLMClient:
         """Test client initialization."""
         # Mock network calls during provider initialization to prevent CI timeouts
         with patch("httpx.AsyncClient") as mock_client:
-            mock_client.return_value.__aenter__.return_value = MagicMock(
-                spec=["content", "model", "provider", "usage"]
-            )
+            mock_client.return_value.__aenter__.return_value = MagicMock()
             mock_client.return_value.__aexit__.return_value = None
 
             client = LLMClient()
@@ -671,7 +669,7 @@ class TestLLMClient:
             client = LLMClient()
 
             # Mock provider with models
-            mock_provider = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_provider = MagicMock()
             mock_provider.provider_type = LLMProvider.GITHUB_MODELS
             mock_provider.list_models = AsyncMock(
                 return_value=[
@@ -718,7 +716,7 @@ class TestLLMClient:
         client = LLMClient()
 
         # Mock provider
-        mock_provider = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_provider = MagicMock()
         mock_provider.provider_type = LLMProvider.OPENAI_COMPATIBLE
         mock_response = EmbeddingResponse(
             model="text-embedding",

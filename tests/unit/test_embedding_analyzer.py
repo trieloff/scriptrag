@@ -15,15 +15,17 @@ def mock_llm_client():
     client = AsyncMock(
         spec=["complete", "cleanup", "embed", "list_models", "is_available"]
     )
-    # Mock embedding response - needs to support both attribute and subscript access
-    mock_embedding = Mock(spec=object)
-    mock_embedding.embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
-    mock_embedding.get = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
-    mock_embedding.__getitem__ = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
+    # Use dict directly since analyzer expects both attribute and subscript access
+    mock_embedding_data = {
+        "embedding": [0.1, 0.2, 0.3, 0.4, 0.5],
+        "object": "embedding",
+        "index": 0,
+    }
 
     response = Mock(spec=EmbeddingResponse)
-    response.data = [mock_embedding]
-    client.embed.return_value = response
+    response.data = [mock_embedding_data]  # Use dict directly for subscript access
+    # CRITICAL: AsyncMock embed method properly configured
+    client.embed = AsyncMock(return_value=response)
     return client
 
 

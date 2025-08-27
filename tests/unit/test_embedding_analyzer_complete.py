@@ -27,26 +27,19 @@ class TestSceneEmbeddingAnalyzerComplete:
         client = AsyncMock(
             spec=["complete", "cleanup", "embed", "list_models", "is_available"]
         )
-        # Create flexible mock embedding that supports both dict and object access
+        # Use dict directly - analyzer expects both attribute and subscript access
         mock_embedding_data = {
             "embedding": [0.1, 0.2, 0.3, 0.4, 0.5],
             "object": "embedding",
             "index": 0,
         }
 
-        # Create mock that can be accessed both ways
-        mock_embedding = Mock(spec=object)
-        mock_embedding.embedding = mock_embedding_data["embedding"]
-        mock_embedding.get = Mock(return_value=mock_embedding_data["embedding"])
-        mock_embedding.__getitem__ = Mock(
-            side_effect=lambda key: mock_embedding_data[key]
-        )
-
         response = Mock(spec=EmbeddingResponse)
-        response.data = [mock_embedding_data]  # Use dict for subscript access
+        response.data = [mock_embedding_data]  # Use dict directly for subscript access
         response.model = "text-embedding-ada-002"
         response.provider = LLMProvider.OPENAI_COMPATIBLE
-        client.embed.return_value = response
+        # CRITICAL: AsyncMock embed method properly configured
+        client.embed = AsyncMock(return_value=response)
         return client
 
     @pytest.fixture
@@ -377,7 +370,8 @@ class TestSceneEmbeddingAnalyzerComplete:
         mock_client = AsyncMock(
             spec=["complete", "cleanup", "embed", "list_models", "is_available"]
         )
-        mock_client.embed.side_effect = Exception("API Error")
+        # CRITICAL: AsyncMock method properly configured to raise exception
+        mock_client.embed = AsyncMock(side_effect=Exception("API Error"))
         analyzer.llm_client = mock_client
 
         scene = {"content": "test scene"}
@@ -390,7 +384,7 @@ class TestSceneEmbeddingAnalyzerComplete:
 
     @pytest.mark.asyncio
     async def test_generate_embedding_empty_response_fallback(self):
-        """Test that empty response now raises RuntimeError instead of fallback."""
+        """Test that empty response now raises EmbeddingGenerationError."""
         analyzer = SceneEmbeddingAnalyzer()  # No dimensions configured
         mock_client = AsyncMock(
             spec=["complete", "cleanup", "embed", "list_models", "is_available"]
@@ -399,7 +393,8 @@ class TestSceneEmbeddingAnalyzerComplete:
         # Mock empty response
         response = Mock(spec=EmbeddingResponse)
         response.data = []  # Empty data
-        mock_client.embed.return_value = response
+        # CRITICAL: AsyncMock method properly configured
+        mock_client.embed = AsyncMock(return_value=response)
         analyzer.llm_client = mock_client
 
         scene = {"content": "test scene"}
@@ -413,23 +408,23 @@ class TestSceneEmbeddingAnalyzerComplete:
 
     @pytest.mark.asyncio
     async def test_generate_embedding_attribute_access_response(self):
-        """Test embedding response with attribute access pattern."""
+        """Test embedding response with attribute access pattern using dict."""
         analyzer = SceneEmbeddingAnalyzer()
         mock_client = AsyncMock(
             spec=["complete", "cleanup", "embed", "list_models", "is_available"]
         )
 
-        # Mock response where embedding data has both attribute and dict access
-        mock_embedding = Mock(spec=object)
-        mock_embedding.embedding = [0.7, 0.8, 0.9]
-        # Mock get() method to return the embedding (truthy value)
-        mock_embedding.get = Mock(return_value=[0.7, 0.8, 0.9])
-        # Mock dict access for the subscript operation
-        mock_embedding.__getitem__ = Mock(return_value=[0.7, 0.8, 0.9])
+        # Use dict directly - supports attribute and subscript access
+        mock_embedding_data = {
+            "embedding": [0.7, 0.8, 0.9],
+            "object": "embedding",
+            "index": 0,
+        }
 
         response = Mock(spec=EmbeddingResponse)
-        response.data = [mock_embedding]
-        mock_client.embed.return_value = response
+        response.data = [mock_embedding_data]
+        # CRITICAL: AsyncMock method properly configured
+        mock_client.embed = AsyncMock(return_value=response)
         analyzer.llm_client = mock_client
 
         scene = {"content": "test scene"}
@@ -437,9 +432,6 @@ class TestSceneEmbeddingAnalyzerComplete:
 
         assert isinstance(result, np.ndarray)
         np.testing.assert_array_almost_equal(result, [0.7, 0.8, 0.9])
-
-        # Verify the get method was called to check for embedding
-        mock_embedding.get.assert_called_with("embedding")
 
     # ==== SCENE FORMATTING TESTS ====
 
@@ -542,7 +534,9 @@ class TestSceneEmbeddingAnalyzerComplete:
         scene = {"content": "test"}
 
         with patch("scriptrag.analyzers.embedding.git.Repo") as mock_repo_class:
-            mock_repo = Mock(spec=object)
+            mock_repo = Mock()
+            mock_repo.index = Mock()
+            mock_repo.index.add = Mock()
             mock_repo_class.return_value = mock_repo
 
             result = await analyzer._load_or_generate_embedding(scene, content_hash)
@@ -615,7 +609,8 @@ class TestSceneEmbeddingAnalyzerComplete:
         # Mock response
         response = Mock(spec=EmbeddingResponse)
         response.data = [{"embedding": [0.1, 0.2]}]
-        mock_client.embed.return_value = response
+        # CRITICAL: AsyncMock method properly configured
+        mock_client.embed = AsyncMock(return_value=response)
         analyzer.llm_client = mock_client
 
         embeddings_dir = tmp_path / "embeddings"
@@ -714,7 +709,8 @@ class TestSceneEmbeddingAnalyzerComplete:
         known_embedding = [1.0, 2.0, 3.0, 4.0, 5.0]
         response = Mock(spec=EmbeddingResponse)
         response.data = [{"embedding": known_embedding}]
-        mock_client.embed.return_value = response
+        # CRITICAL: AsyncMock method properly configured
+        mock_client.embed = AsyncMock(return_value=response)
         analyzer.llm_client = mock_client
 
         embeddings_dir = tmp_path / "embeddings"

@@ -30,7 +30,7 @@ def mock_settings():
 @pytest.fixture
 def mock_vss_service():
     """Create mock VSS service."""
-    vss = MagicMock(spec=["content", "model", "provider", "usage"])
+    vss = MagicMock(spec=["content", "model", "provider", "usage", "get_connection"])
     vss.get_connection.return_value.__enter__ = MagicMock(
         spec=["content", "model", "provider", "usage"]
     )

@@ -15,7 +15,9 @@ class TestSemanticResultErrorHandling:
     def test_build_scene_results_skips_corrupted_embeddings(self) -> None:
         """Test that scenes with corrupted embeddings are skipped."""
         # Mock embedding service
-        mock_embedding_service = Mock(spec=object)
+        mock_embedding_service = Mock(
+            spec=["decode_embedding_from_db", "cosine_similarity"]
+        )
 
         # First call raises ValueError (corrupted), second succeeds
         mock_embedding_service.decode_embedding_from_db.side_effect = [
@@ -68,7 +70,9 @@ class TestSemanticResultErrorHandling:
 
     def test_build_scene_results_handles_missing_embedding_key(self) -> None:
         """Test that scenes missing embedding key are skipped."""
-        mock_embedding_service = Mock(spec=object)
+        mock_embedding_service = Mock(
+            spec=["decode_embedding_from_db", "cosine_similarity"]
+        )
         mock_embedding_service.decode_embedding_from_db.side_effect = KeyError(
             "_embedding"
         )
@@ -100,7 +104,9 @@ class TestSemanticResultErrorHandling:
 
     def test_build_bible_results_skips_corrupted_embeddings(self) -> None:
         """Test that bible chunks with corrupted embeddings are skipped."""
-        mock_embedding_service = Mock(spec=object)
+        mock_embedding_service = Mock(
+            spec=["decode_embedding_from_db", "cosine_similarity"]
+        )
 
         # First call raises ValueError, second and third succeed
         mock_embedding_service.decode_embedding_from_db.side_effect = [
@@ -165,7 +171,9 @@ class TestSemanticResultErrorHandling:
 
     def test_build_scene_results_with_skip_id(self) -> None:
         """Test that skip_id parameter works correctly even with errors."""
-        mock_embedding_service = Mock(spec=object)
+        mock_embedding_service = Mock(
+            spec=["decode_embedding_from_db", "cosine_similarity"]
+        )
 
         # Only called once (scene 2 is skipped)
         mock_embedding_service.decode_embedding_from_db.return_value = [0.1, 0.2, 0.3]
@@ -206,7 +214,9 @@ class TestSemanticResultErrorHandling:
 
     def test_build_results_all_corrupted(self) -> None:
         """Test that empty list is returned when all embeddings are corrupted."""
-        mock_embedding_service = Mock(spec=object)
+        mock_embedding_service = Mock(
+            spec=["decode_embedding_from_db", "cosine_similarity"]
+        )
         mock_embedding_service.decode_embedding_from_db.side_effect = ValueError(
             "All corrupted"
         )

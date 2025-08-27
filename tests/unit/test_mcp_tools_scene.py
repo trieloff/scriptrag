@@ -20,7 +20,19 @@ from scriptrag.parser import Scene
 def mock_scene_api():
     """Create a mock SceneManagementAPI."""
     with patch("scriptrag.mcp.tools.scene.SceneManagementAPI") as mock_class:
-        mock_api = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_api = MagicMock(
+            spec=[
+                "content",
+                "model",
+                "provider",
+                "usage",
+                "read_scene",
+                "add_scene",
+                "update_scene",
+                "delete_scene",
+                "read_bible",
+            ]
+        )
         mock_class.return_value = mock_api
         yield mock_api
 

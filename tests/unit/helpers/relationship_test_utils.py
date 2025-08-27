@@ -183,8 +183,8 @@ class RelationshipTestHelpers:
         Returns:
             Mock connection object configured for testing
         """
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec=["execute", "__enter__", "__exit__"])
+        mock_cursor = Mock(spec=["fetchone"])
 
         if bible_characters:
             mock_cursor.fetchone.return_value = (json.dumps(bible_characters),)

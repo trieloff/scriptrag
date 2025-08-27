@@ -267,8 +267,8 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
 
         # Mock database operations
         with patch("sqlite3.connect") as mock_connect:
-            mock_conn = Mock(spec=object)
-            mock_cursor = Mock(spec=object)
+            mock_conn = Mock(spec=["execute", "__enter__", "__exit__"])
+            mock_cursor = Mock(spec=["fetchone"])
             # Mock metadata with bible characters
             metadata = {
                 "bible.characters": {
@@ -295,8 +295,8 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
 
         # Mock database operations
         with patch("sqlite3.connect") as mock_connect:
-            mock_conn = Mock(spec=object)
-            mock_cursor = Mock(spec=object)
+            mock_conn = Mock(spec=["execute", "__enter__", "__exit__"])
+            mock_cursor = Mock(spec=["fetchone"])
             # Mock metadata with nested bible structure
             metadata = {
                 "bible": {
@@ -325,8 +325,8 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
 
         # Mock database operations
         with patch("sqlite3.connect") as mock_connect:
-            mock_conn = Mock(spec=object)
-            mock_cursor = Mock(spec=object)
+            mock_conn = Mock(spec=["execute", "__enter__", "__exit__"])
+            mock_cursor = Mock(spec=["fetchone"])
             mock_cursor.fetchone.return_value = None  # No row found
             mock_conn.execute.return_value = mock_cursor
             mock_conn.__enter__ = Mock(return_value=mock_conn)
@@ -347,8 +347,8 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
 
         # Mock database operations to return empty
         with patch("sqlite3.connect") as mock_connect:
-            mock_conn = Mock(spec=object)
-            mock_cursor = Mock(spec=object)
+            mock_conn = Mock(spec=["execute", "__enter__", "__exit__"])
+            mock_cursor = Mock(spec=["fetchone"])
             mock_cursor.fetchone.return_value = None
             mock_conn.execute.return_value = mock_cursor
             mock_conn.__enter__ = Mock(return_value=mock_conn)

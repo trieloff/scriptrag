@@ -423,10 +423,12 @@ class TestGitHubModelsDiscoveryExtended:
                 max_output_tokens=512,
             ),
         ]
+        mock_client = MagicMock(spec=["content", "model", "provider", "usage", "get"])
+        mock_client.get = MagicMock()
         return GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
-            client=MagicMock(spec=["content", "model", "provider", "usage"]),
+            client=mock_client,
             token="test-token",  # noqa: S106
             base_url="https://api.github.com",
             cache_ttl=3600,
@@ -437,26 +439,28 @@ class TestGitHubModelsDiscoveryExtended:
     @pytest.mark.asyncio
     async def test_discover_models_with_api_response(self, discovery):
         """Test model discovery with API response."""
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "data": [
-                {
-                    "id": "gpt-4o",
-                    "friendly_name": "GPT-4 Optimized",
-                    "model_type": "chat",
-                    "context_length": 128000,
-                    "capabilities": {"completion": True, "chat": True},
-                },
-                {
-                    "id": "text-embedding-3",
-                    "friendly_name": "Text Embedding v3",
-                    "model_type": "embedding",
-                    "context_length": 8192,
-                    "capabilities": {"embeddings": True},
-                },
-            ]
-        }
+        mock_response.json = Mock(
+            return_value={
+                "data": [
+                    {
+                        "id": "gpt-4o",
+                        "friendly_name": "GPT-4 Optimized",
+                        "model_type": "chat",
+                        "context_length": 128000,
+                        "capabilities": {"completion": True, "chat": True},
+                    },
+                    {
+                        "id": "text-embedding-3",
+                        "friendly_name": "Text Embedding v3",
+                        "model_type": "embedding",
+                        "context_length": 8192,
+                        "capabilities": {"embeddings": True},
+                    },
+                ]
+            }
+        )
 
         with patch.object(discovery, "_fetch_models") as mock_api:
             mock_api.return_value = [
@@ -582,10 +586,12 @@ class TestGitHubModelsDiscoveryExtended:
                 max_output_tokens=4096,
             ),
         ]
+        mock_client = MagicMock(spec=["content", "model", "provider", "usage", "get"])
+        mock_client.get = MagicMock()
         discovery = GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
-            client=MagicMock(spec=["content", "model", "provider", "usage"]),
+            client=mock_client,
             token=None,
             base_url="https://api.github.com",
             cache_ttl=3600,
@@ -706,10 +712,12 @@ class TestModelDiscoveryIntegration:
                 max_output_tokens=4096,
             ),
         ]
+        mock_client = MagicMock(spec=["content", "model", "provider", "usage", "get"])
+        mock_client.get = MagicMock()
         github_discovery = GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=github_static_models,
-            client=MagicMock(spec=["content", "model", "provider", "usage"]),
+            client=mock_client,
             token="test-token",  # noqa: S106
             base_url="https://api.github.com",
             cache_ttl=3600,

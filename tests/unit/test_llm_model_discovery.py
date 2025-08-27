@@ -532,8 +532,9 @@ class TestGitHubModelsDiscovery:
     def discovery(self, static_models):
         """Create GitHub model discovery instance."""
         mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            spec=["complete", "cleanup", "embed", "list_models", "is_available", "get"]
         )
+        mock_client.get = AsyncMock()
         return GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,

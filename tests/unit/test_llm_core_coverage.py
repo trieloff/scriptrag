@@ -527,8 +527,16 @@ class TestEnhancedBaseLLMProviderCoverage:
 
         # Test cleanup when client exists
         mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            spec=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "aclose",
+            ]
         )
+        mock_client.aclose = AsyncMock()
         provider.client = mock_client
 
         await provider.__aexit__(None, None, None)
@@ -627,7 +635,7 @@ class TestEnhancedBaseLLMProviderCoverage:
         mock_client = AsyncMock(
             spec=["complete", "cleanup", "embed", "list_models", "is_available", "post"]
         )
-        mock_client.post.return_value = mock_response
+        mock_client.post = AsyncMock(return_value=mock_response)
 
         provider.client = mock_client
 

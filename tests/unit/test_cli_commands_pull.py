@@ -31,7 +31,7 @@ def mock_db_ops():
     """Mock database operations."""
     with patch("scriptrag.cli.commands.pull.DatabaseOperations") as mock:
         db_ops = MagicMock(
-            spec=["check_database_exists", "content", "model", "provider", "usage"]
+            spec=["check_database_exists", "transaction", "get_connection"]
         )
         mock.return_value = db_ops
         yield db_ops
@@ -79,7 +79,7 @@ def mock_index_cmd():
 def mock_initializer():
     """Mock database initializer."""
     with patch("scriptrag.api.DatabaseInitializer") as mock:
-        init = MagicMock(spec=["content", "model", "provider", "usage"])
+        init = MagicMock(spec=["initialize_database"])
         mock.return_value = init
         yield init
 

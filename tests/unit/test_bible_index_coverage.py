@@ -127,8 +127,8 @@ class TestBibleIndexerCoverage:
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor with chunks
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Heading 1", "Content 1"),
             (2, "hash2", None, "Content 2"),  # Test None heading
@@ -170,8 +170,8 @@ class TestBibleIndexerCoverage:
         mock_analyzer.analyze.side_effect = [Exception("Error")] * 3
         indexer.embedding_analyzer = mock_analyzer
 
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.fetchall.return_value = [(1, "hash1", "Heading", "Content")]
         mock_conn.cursor.return_value = mock_cursor
 
@@ -197,8 +197,8 @@ class TestBibleIndexerCoverage:
 
         # Mock database operations
         mock_db_ops = Mock(spec=object)
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
 
         # Mock existing entry with same hash
         mock_cursor.fetchone.return_value = (1, mock_parsed_bible.file_hash)
@@ -270,7 +270,7 @@ class TestBibleIndexerCoverage:
 
         # Mock database connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock(spec=object)
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
 
         execute_calls = []
         lastrowid_sequence = [100, 101]
@@ -306,7 +306,7 @@ class TestBibleIndexerCoverage:
 
         # Mock database connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock(spec=object)
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.lastrowid = None  # Test None case
         mock_conn.cursor.return_value = mock_cursor
 
@@ -327,8 +327,8 @@ class TestBibleIndexerCoverage:
 
         # Mock database operations
         mock_db_ops = Mock(spec=object)
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
 
         # Mock no existing entry
         mock_cursor.fetchone.return_value = None
@@ -434,8 +434,8 @@ class TestBibleIndexerCoverage:
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor
-        mock_conn = Mock(spec=object)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Heading 1", "Content 1"),
             (2, "hash2", "Heading 2", "Content 2"),

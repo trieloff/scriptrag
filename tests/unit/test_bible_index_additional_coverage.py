@@ -404,7 +404,7 @@ class TestBibleIndexerEdgeCases:
     def test_attach_alias_map_to_script(self, mock_settings: ScriptRAGSettings) -> None:
         """Test _attach_alias_map_to_script updates script metadata."""
         # Mock connection and cursor
-        mock_conn = Mock(spec=sqlite3.Connection)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
         mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.fetchone.return_value = ('{"existing": "data"}',)
         mock_conn.execute.return_value = mock_cursor
@@ -427,7 +427,7 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _attach_alias_map_to_script with no existing metadata."""
         # Mock connection and cursor
-        mock_conn = Mock(spec=sqlite3.Connection)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
         mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.fetchone.return_value = None
         mock_conn.execute.return_value = mock_cursor
@@ -447,7 +447,7 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _attach_aliases_to_characters when aliases column doesn't exist."""
         # Mock connection that returns no aliases column
-        mock_conn = Mock(spec=sqlite3.Connection)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
         mock_conn.execute.return_value = [("id", "INTEGER"), ("name", "TEXT")]
 
         indexer = BibleIndexer(settings=mock_settings)
@@ -463,7 +463,7 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _attach_aliases_to_characters when aliases column exists."""
         # Mock connection that has aliases column
-        mock_conn = Mock(spec=sqlite3.Connection)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
         pragma_result = [("id", "INTEGER"), ("name", "TEXT"), ("aliases", "TEXT")]
         character_result = [(1, "JANE"), (2, "JOHN")]
 
@@ -742,7 +742,6 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test attach_aliases_to_characters with successful database operations."""
         # Use real sqlite3 connection to test the actual logic
-        import sqlite3
 
         # Use tmp_path instead of NamedTemporaryFile to avoid Windows locks
         db_path = tmp_path / "test.db"
@@ -805,7 +804,7 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _attach_aliases_to_characters when no canonical_to_aliases built."""
         # Mock connection that has aliases column
-        mock_conn = Mock(spec=sqlite3.Connection)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
         pragma_result = [
             ("id", "INTEGER", 0, None, 1),
             ("name", "TEXT", 0, None, 0),
@@ -832,8 +831,8 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock database connection and cursor
-        mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.lastrowid = 456
         mock_conn.cursor.return_value = mock_cursor
 
@@ -857,8 +856,8 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock database connection and cursor
-        mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_conn.cursor.return_value = mock_cursor
 
         await indexer._update_bible(
@@ -925,8 +924,8 @@ class TestBibleIndexerEdgeCases:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock database connection and cursor
-        mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
 
         # Track execute calls and simulate lastrowid
         execute_calls = []
@@ -1028,8 +1027,8 @@ class TestBibleIndexerEdgeCases:
     ) -> None:
         """Test _attach_alias_map_to_script handles JSON parsing errors."""
         # Mock connection and cursor with invalid JSON
-        mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock(spec=object)
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.fetchone.return_value = ("invalid json {",)  # Malformed JSON
         mock_conn.execute.return_value = mock_cursor
 

@@ -87,7 +87,7 @@ class TestBibleSemanticSearch:
             },
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
         mock_conn.execute.return_value.fetchall.return_value = mock_chunks
 
@@ -159,7 +159,7 @@ class TestBibleSemanticSearch:
             },
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
         mock_conn.execute.return_value.fetchall.return_value = mock_chunks
 
@@ -195,8 +195,10 @@ class TestBibleSemanticSearch:
             {"id": 2, "heading": "Chapter 2", "content": "Chapter 2 content"},
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
+        mock_cursor = MagicMock(
+            spec=["content", "model", "provider", "usage", "fetchall"]
+        )
         mock_cursor.fetchall.return_value = mock_chunks
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
@@ -235,8 +237,10 @@ class TestBibleSemanticSearch:
             {"id": 2, "heading": None, "content": "Chapter 2 content"},
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
+        mock_cursor = MagicMock(
+            spec=["content", "model", "provider", "usage", "fetchall"]
+        )
         mock_cursor.fetchall.return_value = mock_chunks
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn

@@ -187,7 +187,7 @@ class TestGitHubModelsProvider:
     async def test_is_available_with_token(self, provider):
         """Test availability check with token."""
         with patch.object(provider, "client") as mock_client:
-            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_response = MagicMock(spec=["status_code"])
             mock_response.status_code = 200
             mock_client.get = AsyncMock(return_value=mock_response)
 
@@ -230,7 +230,7 @@ class TestGitHubModelsProvider:
     async def test_complete_success(self, provider):
         """Test successful completion."""
         with patch.object(provider, "client") as mock_client:
-            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_response = MagicMock(spec=["status_code", "json"])
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "id": "test-id",
@@ -257,7 +257,7 @@ class TestGitHubModelsProvider:
     async def test_complete_with_system_message(self, provider):
         """Test completion with system message."""
         with patch.object(provider, "client") as mock_client:
-            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_response = MagicMock(spec=["status_code", "json"])
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "id": "test-id",
@@ -290,7 +290,7 @@ class TestGitHubModelsProvider:
     async def test_embed_success(self, provider):
         """Test successful embedding."""
         with patch.object(provider, "client") as mock_client:
-            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_response = MagicMock(spec=["status_code", "json"])
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "data": [{"embedding": [0.1, 0.2, 0.3]}],
@@ -344,14 +344,14 @@ class TestOpenAICompatibleProvider:
             api_key="test_key",  # pragma: allowlist secret
         )
         # Mock the _client attribute
-        provider._client = MagicMock(spec=["content", "model", "provider", "usage"])
+        provider._client = MagicMock(spec=["get", "post"])
         return provider
 
     @pytest.mark.asyncio
     async def test_list_models(self, provider):
         """Test listing models."""
         with patch.object(provider, "client") as mock_client:
-            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_response = MagicMock(spec=["status_code", "json"])
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "data": [
@@ -373,9 +373,9 @@ class TestOpenAICompatibleProvider:
     async def test_is_available_with_credentials(self, provider):
         """Test availability with credentials."""
         # Mock the HTTP request
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code"])
         mock_response.status_code = 200
-        provider.client = MagicMock(spec=["content", "model", "provider", "usage"])
+        provider.client = MagicMock(spec=["get", "post"])
         provider.client.get = AsyncMock(return_value=mock_response)
 
         assert await provider.is_available() is True
@@ -393,7 +393,7 @@ class TestOpenAICompatibleProvider:
     async def test_complete_success(self, provider):
         """Test successful completion."""
         with patch.object(provider, "client") as mock_client:
-            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_response = MagicMock(spec=["status_code", "json"])
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "id": "test-id",
@@ -419,7 +419,7 @@ class TestOpenAICompatibleProvider:
     async def test_embed_success(self, provider):
         """Test successful embedding."""
         with patch.object(provider, "client") as mock_client:
-            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+            mock_response = MagicMock(spec=["status_code", "json"])
             mock_response.status_code = 200
             mock_response.json.return_value = {
                 "data": [{"embedding": [0.5, 0.6]}],

@@ -174,7 +174,8 @@ class TestSceneBibleExtractor:
             }
         ]
         """
-        mock_client.complete.return_value = mock_response
+        # Fix: AsyncMock.complete should return awaitable, not direct assignment
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = SceneBibleExtractor(llm_client=mock_client)
         chunks = ["Scene 1: Police station interior", "Scene 2: Coffee shop exterior"]
@@ -206,7 +207,8 @@ class TestSceneBibleExtractor:
         )
         mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_response.content = "This is not valid JSON"
-        mock_client.complete.return_value = mock_response
+        # Fix: AsyncMock.complete should return awaitable, not direct assignment
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = SceneBibleExtractor(llm_client=mock_client)
         result = await extractor.extract_scenes_via_llm(["Some chunk"])
@@ -227,7 +229,8 @@ class TestSceneBibleExtractor:
             {"location": "STREET", "type": "EXT"}
         ]
         """
-        mock_client.complete.return_value = mock_response
+        # Fix: AsyncMock.complete should return awaitable, not direct assignment
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = SceneBibleExtractor(llm_client=mock_client)
         result = await extractor.extract_scenes_via_llm(["Chunks"])
@@ -242,7 +245,8 @@ class TestSceneBibleExtractor:
         mock_client = AsyncMock(
             spec=["complete", "cleanup", "embed", "list_models", "is_available"]
         )
-        mock_client.complete.side_effect = Exception("LLM API error")
+        # Fix: AsyncMock.complete should be properly configured for async
+        mock_client.complete = AsyncMock(side_effect=Exception("LLM API error"))
 
         extractor = SceneBibleExtractor(llm_client=mock_client)
         result = await extractor.extract_scenes_via_llm(["Some chunk"])
@@ -255,7 +259,8 @@ class TestSceneBibleExtractor:
             spec=["complete", "cleanup", "embed", "list_models", "is_available"]
         )
         mock_response = '[{"location": "HOUSE", "type": "INT"}]'
-        mock_client.complete.return_value = mock_response
+        # Fix: AsyncMock.complete should return awaitable, not direct string assignment
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = SceneBibleExtractor(llm_client=mock_client)
         result = await extractor.extract_scenes_via_llm(["Chunk"])
@@ -271,7 +276,8 @@ class TestSceneBibleExtractor:
         )
         mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_response.content = '[{"location": "police station", "type": "INT"}]'
-        mock_client.complete.return_value = mock_response
+        # Fix: AsyncMock.complete should return awaitable, not direct assignment
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = SceneBibleExtractor(llm_client=mock_client)
         result = await extractor.extract_scenes_via_llm(["Chunk"])
@@ -294,7 +300,8 @@ class TestSceneBibleExtractor:
             {"location": "STREET", "type": "EXT"}
         ]
         """
-        mock_client.complete.return_value = mock_response
+        # Fix: AsyncMock.complete should return awaitable, not direct assignment
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = SceneBibleExtractor(llm_client=mock_client)
         result = await extractor.extract_scenes_via_llm(["Chunk"])

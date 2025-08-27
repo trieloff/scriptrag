@@ -12,7 +12,7 @@ class TestInitCommand:
     def test_file_exists_error_handled(self, tmp_path, cli_invoke):
         """Test FileExistsError is caught and handled."""
         # Create a mock initializer that raises FileExistsError
-        mock_initializer = Mock(spec=object)
+        mock_initializer = Mock(spec=["initialize_database"])
         mock_initializer.initialize_database.side_effect = FileExistsError(
             "Database exists"
         )
@@ -39,7 +39,7 @@ class TestInitCommand:
     def test_runtime_error_handled(self, tmp_path, cli_invoke):
         """Test generic runtime errors are handled."""
         # Create a mock initializer that raises RuntimeError
-        mock_initializer = Mock(spec=object)
+        mock_initializer = Mock(spec=["initialize_database"])
         mock_initializer.initialize_database.side_effect = RuntimeError(
             "Something failed"
         )
@@ -60,7 +60,7 @@ class TestInitCommand:
         db_path = tmp_path / "test.db"
 
         # Mock the initializer
-        mock_initializer = Mock(spec=object)
+        mock_initializer = Mock(spec=["initialize_database"])
         mock_initializer.initialize_database.return_value = db_path
 
         with patch("scriptrag.cli.commands.init.DatabaseInitializer") as mock_class:
@@ -83,7 +83,7 @@ log_level = "DEBUG"
 """)
 
         # Mock the initializer
-        mock_initializer = Mock(spec=object)
+        mock_initializer = Mock(spec=["initialize_database"])
         mock_initializer.initialize_database.return_value = tmp_path / "test.db"
 
         # Mock get_settings to capture the settings object

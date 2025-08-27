@@ -30,7 +30,9 @@ def mock_settings():
 def mock_db_ops():
     """Mock database operations."""
     with patch("scriptrag.cli.commands.pull.DatabaseOperations") as mock:
-        db_ops = MagicMock(spec=["content", "model", "provider", "usage"])
+        db_ops = MagicMock(
+            spec=["check_database_exists", "content", "model", "provider", "usage"]
+        )
         mock.return_value = db_ops
         yield db_ops
 

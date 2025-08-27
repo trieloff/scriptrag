@@ -183,7 +183,7 @@ class TestGitHubModelsProvider:
         if provider.model_discovery.cache:
             provider.model_discovery.cache.clear()
 
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
             "data": [

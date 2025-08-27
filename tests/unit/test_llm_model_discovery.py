@@ -5,7 +5,7 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -564,7 +564,7 @@ class TestGitHubModelsDiscovery:
         }
 
         # Configure the mock client that's already in the discovery fixture
-        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_response = MagicMock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = mock_api_response
         discovery.client.get = AsyncMock(return_value=mock_response)
@@ -582,12 +582,10 @@ class TestGitHubModelsDiscovery:
     async def test_fetch_models_api_error(self, discovery):
         """Test GitHub API error handling."""
         # Configure the mock client to return an error response
-        mock_response = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_response = Mock(spec=["status_code", "text"])
         mock_response.status_code = 401
         mock_response.text = "Unauthorized"
-        discovery.client.get.return_value = mock_response
+        discovery.client.get = AsyncMock(return_value=mock_response)
 
         # GitHub Models discovery doesn't raise on API errors, it returns None
         result = await discovery._fetch_models()
@@ -619,12 +617,10 @@ class TestGitHubModelsDiscovery:
         mock_api_response = {"models": []}
 
         # Configure the mock client to return invalid response format
-        mock_response = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
-        )
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = mock_api_response
-        discovery.client.get.return_value = mock_response
+        discovery.client.get = AsyncMock(return_value=mock_response)
 
         # The discovery should handle invalid format and return None
         result = await discovery._fetch_models()

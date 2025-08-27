@@ -399,7 +399,7 @@ class TestEdgeCases:
         # Initialize client to avoid None error
         provider._init_http_client()
 
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec=["status_code", "json", "text"])
         mock_response.status_code = 200
         mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
         mock_response.text = "This is not JSON"
@@ -515,7 +515,7 @@ class TestEdgeCases:
         # OpenAICompatibleProvider initializes client directly, no need to init
 
         # Test empty completion response
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {"choices": []}
 
@@ -546,7 +546,7 @@ class TestEdgeCases:
         ]
 
         for incomplete in incomplete_responses:
-            mock_response = Mock(spec=object)
+            mock_response = Mock(spec=["status_code", "json"])
             mock_response.status_code = 200
             mock_response.json.return_value = incomplete
 
@@ -650,7 +650,8 @@ class TestEdgeCases:
         }
 
         def get_provider(provider_type):
-            mock = Mock(spec=object)
+            mock = Mock()
+            mock.__class__ = Mock()
             mock.__class__.__name__ = f"{provider_type.value}Provider"
 
             async def is_available():

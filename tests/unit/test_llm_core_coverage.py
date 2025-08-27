@@ -334,7 +334,7 @@ class TestProviderRegistry:
 
         # Create mock providers with clients
         mock_provider1 = Mock(spec=["client", "provider_type"])
-        mock_provider1.client = AsyncMock()
+        mock_provider1.client = AsyncMock(spec=["aclose"])
         mock_provider1.client.aclose = AsyncMock()
         mock_provider1.provider_type = LLMProvider.CLAUDE_CODE
 
@@ -625,7 +625,7 @@ class TestEnhancedBaseLLMProviderCoverage:
 
         mock_response = Mock(spec=object)
         mock_client = AsyncMock(
-            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            spec=["complete", "cleanup", "embed", "list_models", "is_available", "post"]
         )
         mock_client.post.return_value = mock_response
 

@@ -99,7 +99,7 @@ class TestSemanticSearchService:
             },
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
         mock_db_ops.search_similar_scenes.return_value = mock_scenes
 
@@ -166,7 +166,7 @@ class TestSemanticSearchService:
             },
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
         mock_db_ops.search_similar_scenes.return_value = mock_scenes
 
@@ -199,7 +199,7 @@ class TestSemanticSearchService:
         source_embedding = [0.1, 0.2, 0.3]
 
         # Mock database operations
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
         mock_db_ops.get_embedding.return_value = source_embedding_bytes
         mock_embedding_service.decode_embedding_from_db.side_effect = [
@@ -261,7 +261,7 @@ class TestSemanticSearchService:
         self, semantic_search, mock_db_ops, mock_embedding_service
     ):
         """Test finding related scenes when source has no embedding."""
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
         mock_db_ops.get_embedding.return_value = None  # No embedding
 
@@ -280,8 +280,10 @@ class TestSemanticSearchService:
             {"id": 2, "heading": "EXT. PARK - DAY", "content": "Scene 2"},
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
+        mock_cursor = MagicMock(
+            spec=["content", "model", "provider", "usage", "fetchall"]
+        )
         mock_cursor.fetchall.return_value = mock_scenes
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
@@ -315,8 +317,10 @@ class TestSemanticSearchService:
             {"id": 2, "heading": "EXT. PARK - DAY", "content": "Scene 2"},
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
+        mock_cursor = MagicMock(
+            spec=["content", "model", "provider", "usage", "fetchall"]
+        )
         mock_cursor.fetchall.return_value = mock_scenes
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
@@ -399,8 +403,10 @@ class TestSemanticSearchService:
         # Mock scenes
         mock_scenes = [{"id": 1, "heading": "INT. ROOM - DAY", "content": "Scene 1"}]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
+        mock_cursor = MagicMock(
+            spec=["content", "model", "provider", "usage", "fetchall"]
+        )
         mock_cursor.fetchall.return_value = mock_scenes
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
@@ -454,8 +460,10 @@ class TestSemanticSearchService:
             },
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
+        mock_cursor = MagicMock(
+            spec=["content", "model", "provider", "usage", "fetchall"]
+        )
         mock_cursor.fetchall.return_value = mock_chunks
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
@@ -524,8 +532,10 @@ class TestSemanticSearchService:
             },
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
+        mock_cursor = MagicMock(
+            spec=["content", "model", "provider", "usage", "fetchall"]
+        )
         mock_cursor.fetchall.return_value = mock_chunks
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
@@ -602,8 +612,10 @@ class TestSemanticSearchService:
             {"id": 2, "heading": "World", "content": "World building notes"},
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
+        mock_cursor = MagicMock(
+            spec=["content", "model", "provider", "usage", "fetchall"]
+        )
         mock_cursor.fetchall.return_value = mock_chunks
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
@@ -644,8 +656,10 @@ class TestSemanticSearchService:
             {"id": 2, "heading": "Title", "content": "Chunk 2"},
         ]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
+        mock_cursor = MagicMock(
+            spec=["content", "model", "provider", "usage", "fetchall"]
+        )
         mock_cursor.fetchall.return_value = mock_chunks
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn
@@ -673,8 +687,10 @@ class TestSemanticSearchService:
         # Mock chunks
         mock_chunks = [{"id": 1, "heading": "Test", "content": "Content"}]
 
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage", "execute"])
+        mock_cursor = MagicMock(
+            spec=["content", "model", "provider", "usage", "fetchall"]
+        )
         mock_cursor.fetchall.return_value = mock_chunks
         mock_conn.execute.return_value = mock_cursor
         mock_db_ops.transaction.return_value.__enter__.return_value = mock_conn

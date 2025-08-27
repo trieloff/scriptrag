@@ -168,7 +168,7 @@ class TestSceneEmbeddingAnalyzerCoverage:
         response.data = [mock_embedding]
         response.model = "test-embedding-model"
         response.provider = LLMProvider.OPENAI_COMPATIBLE
-        analyzer.llm_client.embed.return_value = response
+        analyzer.llm_client.embed = AsyncMock(return_value=response)
 
         # Create corrupted embedding file
         embeddings_dir = tmp_path / "embeddings"
@@ -180,7 +180,10 @@ class TestSceneEmbeddingAnalyzerCoverage:
 
         scene = {"content": "test scene"}
 
-        with patch("scriptrag.analyzers.embedding.git.Repo"):
+        with patch("scriptrag.analyzers.embedding.git.Repo") as mock_repo_class:
+            mock_repo = Mock(spec=["index"])
+            mock_repo.index = Mock(spec=["add"])
+            mock_repo_class.return_value = mock_repo
             # Should fall back to generating new embedding
             embedding = await analyzer._load_or_generate_embedding(scene, content_hash)
 
@@ -202,15 +205,18 @@ class TestSceneEmbeddingAnalyzerCoverage:
         response.data = [mock_embedding]
         response.model = "test-embedding-model"
         response.provider = LLMProvider.OPENAI_COMPATIBLE
-        analyzer.llm_client.embed.return_value = response
+        analyzer.llm_client.embed = AsyncMock(return_value=response)
 
         content_hash = "test_hash"
         scene = {"content": "test scene"}
 
         with (
-            patch("scriptrag.analyzers.embedding.git.Repo"),
+            patch("scriptrag.analyzers.embedding.git.Repo") as mock_repo_class,
             patch("numpy.save") as mock_save,
         ):
+            mock_repo = Mock(spec=["index"])
+            mock_repo.index = Mock(spec=["add"])
+            mock_repo_class.return_value = mock_repo
             mock_save.side_effect = OSError("Permission denied")
 
             # Should still return the embedding despite save error
@@ -234,7 +240,7 @@ class TestSceneEmbeddingAnalyzerCoverage:
         response.data = [mock_embedding]
         response.model = "test-embedding-model"
         response.provider = LLMProvider.OPENAI_COMPATIBLE
-        analyzer.llm_client.embed.return_value = response
+        analyzer.llm_client.embed = AsyncMock(return_value=response)
 
         # Create embeddings directory
         embeddings_dir = tmp_path / "embeddings"
@@ -244,7 +250,8 @@ class TestSceneEmbeddingAnalyzerCoverage:
         scene = {"content": "test scene"}
 
         with patch("scriptrag.analyzers.embedding.git.Repo") as mock_repo_class:
-            mock_repo = Mock(spec=object)
+            mock_repo = Mock(spec=["index"])
+            mock_repo.index = Mock(spec=["add"])
             # Git add error should be caught and logged as warning, not propagated
             # Use git.GitCommandError which is actually caught by the code
             mock_repo.index.add.side_effect = git.GitCommandError("add", "Git error")
@@ -278,7 +285,7 @@ class TestSceneEmbeddingAnalyzerCoverage:
         response.data = [{"embedding": [0.5, 0.6, 0.7]}]
         response.model = "test-embedding-model"
         response.provider = LLMProvider.OPENAI_COMPATIBLE
-        analyzer.llm_client.embed.return_value = response
+        analyzer.llm_client.embed = AsyncMock(return_value=response)
 
         scene = {"content": "test scene"}
 
@@ -301,7 +308,7 @@ class TestSceneEmbeddingAnalyzerCoverage:
         response.data = []
         response.model = "test-embedding-model"
         response.provider = LLMProvider.OPENAI_COMPATIBLE
-        analyzer.llm_client.embed.return_value = response
+        analyzer.llm_client.embed = AsyncMock(return_value=response)
 
         scene = {"content": "test scene"}
 

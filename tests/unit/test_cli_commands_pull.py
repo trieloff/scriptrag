@@ -39,7 +39,7 @@ def mock_db_ops():
 def mock_analyze_cmd():
     """Mock analyze command."""
     with patch("scriptrag.cli.commands.pull.AnalyzeCommand") as mock:
-        cmd = MagicMock(spec=["content", "model", "provider", "usage"])
+        cmd = MagicMock(spec=["analyze", "content", "model", "provider", "usage"])
 
         # Make analyze return a coroutine
         async def mock_analyze(*args, **kwargs):
@@ -58,7 +58,7 @@ def mock_analyze_cmd():
 def mock_index_cmd():
     """Mock index command."""
     with patch("scriptrag.cli.commands.pull.IndexCommand") as mock:
-        cmd = MagicMock(spec=["content", "model", "provider", "usage"])
+        cmd = MagicMock(spec=["index", "content", "model", "provider", "usage"])
 
         # Make index return a coroutine
         async def mock_index(*args, **kwargs):

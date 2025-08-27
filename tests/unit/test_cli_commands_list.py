@@ -28,7 +28,7 @@ class TestListCommand:
     def test_list_no_scripts_found(self, mock_console, mock_lister):
         """Test list command when no scripts are found."""
         # Setup mock
-        mock_lister_instance = Mock(spec=object)
+        mock_lister_instance = Mock(spec=["list_scripts"])
         mock_lister_instance.list_scripts.return_value = []
         mock_lister.return_value = mock_lister_instance
 
@@ -68,7 +68,7 @@ class TestListCommand:
             ),
         ]
 
-        mock_lister_instance = Mock(spec=object)
+        mock_lister_instance = Mock(spec=["list_scripts"])
         mock_lister_instance.list_scripts.return_value = scripts
         mock_lister.return_value = mock_lister_instance
 
@@ -82,7 +82,7 @@ class TestListCommand:
 
     def test_list_no_recursive_option(self, mock_console, mock_lister):
         """Test list command with no_recursive option."""
-        mock_lister_instance = Mock(spec=object)
+        mock_lister_instance = Mock(spec=["list_scripts"])
         mock_lister_instance.list_scripts.return_value = []
         mock_lister.return_value = mock_lister_instance
 
@@ -96,7 +96,7 @@ class TestListCommand:
 
     def test_list_default_path(self, mock_console, mock_lister):
         """Test list command with default path (None)."""
-        mock_lister_instance = Mock(spec=object)
+        mock_lister_instance = Mock(spec=["list_scripts"])
         mock_lister_instance.list_scripts.return_value = []
         mock_lister.return_value = mock_lister_instance
 
@@ -110,7 +110,7 @@ class TestListCommand:
 
     def test_list_handles_exceptions(self, mock_console, mock_lister):
         """Test list command handles exceptions gracefully."""
-        mock_lister_instance = Mock(spec=object)
+        mock_lister_instance = Mock(spec=["list_scripts"])
         mock_lister_instance.list_scripts.side_effect = Exception("Test error")
         mock_lister.return_value = mock_lister_instance
 
@@ -160,7 +160,7 @@ class TestListCommand:
             ),
         ]
 
-        mock_lister_instance = Mock(spec=object)
+        mock_lister_instance = Mock(spec=["list_scripts"])
         mock_lister_instance.list_scripts.return_value = scripts
         mock_lister.return_value = mock_lister_instance
 
@@ -181,7 +181,7 @@ class TestListCommand:
             )
         ]
 
-        mock_lister_instance = Mock(spec=object)
+        mock_lister_instance = Mock(spec=["list_scripts"])
         mock_lister_instance.list_scripts.return_value = scripts
         mock_lister.return_value = mock_lister_instance
 
@@ -204,7 +204,7 @@ class TestListCommand:
                 )
             ]
 
-            mock_lister_instance = Mock(spec=object)
+            mock_lister_instance = Mock(spec=["list_scripts"])
             mock_lister_instance.list_scripts.return_value = scripts
             mock_lister.return_value = mock_lister_instance
 
@@ -222,7 +222,7 @@ class TestListCommand:
             )
         ]
 
-        mock_lister_instance = Mock(spec=object)
+        mock_lister_instance = Mock(spec=["list_scripts"])
         mock_lister_instance.list_scripts.return_value = scripts
         mock_lister.return_value = mock_lister_instance
 

@@ -38,10 +38,14 @@ def mock_vss_service():
             "usage",
             "get_connection",
             "search_similar_scenes",
+            "search_similar_bible_chunks",
+            "store_scene_embedding",
+            "store_bible_embedding",
+            "get_embedding_stats",
         ]
     )
     # Mock connection context manager
-    mock_conn = MagicMock(spec=["execute", "fetchone", "fetchall"])
+    mock_conn = MagicMock(spec=["execute", "fetchone", "fetchall", "close"])
     vss.get_connection.return_value.__enter__ = MagicMock(return_value=mock_conn)
     vss.get_connection.return_value.__exit__ = MagicMock(return_value=None)
     return vss
@@ -157,8 +161,8 @@ class TestSemanticSearchVSS:
     ):
         """Test finding related scenes."""
         # Mock database connection and scene lookup
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["execute", "fetchone", "fetchall", "close"])
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall"])
         mock_cursor.fetchone.return_value = {
             "heading": "Original Scene",
             "content": "Original content",
@@ -204,8 +208,8 @@ class TestSemanticSearchVSS:
     ):
         """Test finding related scenes when source scene not found."""
         # Mock scene not found
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["execute", "fetchone", "fetchall", "close"])
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall"])
         mock_cursor.fetchone.return_value = None
         mock_conn.execute.return_value = mock_cursor
         mock_vss_service.get_connection.return_value.__enter__.return_value = mock_conn
@@ -223,8 +227,8 @@ class TestSemanticSearchVSS:
     ):
         """Test generating missing embeddings."""
         # Mock database connection and missing scenes query
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["execute", "fetchone", "fetchall", "close"])
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall"])
         mock_cursor.fetchall.return_value = [
             {"id": 1, "heading": "Scene 1", "content": "Content 1"},
             {"id": 2, "heading": "Scene 2", "content": "Content 2"},
@@ -253,8 +257,8 @@ class TestSemanticSearchVSS:
     ):
         """Test generating embeddings with some failures."""
         # Mock database connection
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["execute", "fetchone", "fetchall", "close"])
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall"])
         mock_cursor.fetchall.return_value = [
             {"id": 1, "heading": "Scene 1", "content": "Content 1"},
             {"id": 2, "heading": "Scene 2", "content": "Content 2"},
@@ -326,8 +330,8 @@ class TestSemanticSearchVSS:
     ):
         """Test generating bible embeddings."""
         # Mock database connection
-        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
-        mock_cursor = MagicMock(spec=["content", "model", "provider", "usage"])
+        mock_conn = MagicMock(spec=["execute", "fetchone", "fetchall", "close"])
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall"])
         mock_cursor.fetchall.return_value = [
             {"id": 1, "heading": "Chapter 1", "content": "Content 1"},
             {"id": 2, "heading": None, "content": "Content 2"},

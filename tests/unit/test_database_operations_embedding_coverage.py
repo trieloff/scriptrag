@@ -1,6 +1,5 @@
 """Extended tests for database operations embedding methods to improve coverage."""
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,7 +12,7 @@ from scriptrag.exceptions import DatabaseError
 def mock_settings():
     """Create mock settings."""
     settings = MagicMock()  # Remove spec to prevent mock file artifacts
-    settings.database_path = Path(":memory:")
+    settings.database_path = ":memory:"
     settings.llm_provider = "test"
     settings.llm_model = "test-model"
     settings.database_timeout = 30.0

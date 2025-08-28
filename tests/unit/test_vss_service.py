@@ -1,7 +1,6 @@
 """Unit tests for VSS service."""
 
 import sqlite3
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -22,7 +21,7 @@ def mock_serialize_float32(x):
 def mock_settings():
     """Create mock settings for testing."""
     settings = MagicMock()  # Remove spec to allow proper attribute assignment
-    settings.database_path = Path(":memory:")
+    settings.database_path = ":memory:"
     settings.database_journal_mode = "WAL"
     settings.database_synchronous = "NORMAL"
     settings.database_cache_size = -2000

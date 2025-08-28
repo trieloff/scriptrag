@@ -377,6 +377,8 @@ class TestSceneManagementAPIExtended:
                 "fetchone",
                 "fetchall",
                 "execute",
+                "lastrowid",
+                "close",
             ]
         )
         mock_cursor.fetchall.return_value = [(10, 6), (11, 7)]  # (id, scene_number)
@@ -423,6 +425,8 @@ class TestSceneManagementAPIExtended:
                 "fetchone",
                 "fetchall",
                 "execute",
+                "lastrowid",
+                "close",
             ]
         )
         mock_cursor.fetchall.return_value = [(10, 6)]  # (id, scene_number)
@@ -453,6 +457,8 @@ class TestSceneManagementAPIExtended:
                 "fetchone",
                 "fetchall",
                 "execute",
+                "lastrowid",
+                "close",
             ]
         )
         mock_cursor.fetchall.return_value = [(10, 5), (11, 6)]  # (id, scene_number)

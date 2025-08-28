@@ -3,6 +3,7 @@
 import json
 from typing import Any
 
+from rich.console import Console
 from rich.panel import Panel
 from rich.syntax import Syntax
 from rich.table import Table
@@ -18,6 +19,24 @@ from scriptrag.parser import Scene as SceneData
 
 class SceneFormatter(OutputFormatter[Any]):
     """Formatter for scene-related output."""
+
+    def __init__(self, console: Console | None = None) -> None:
+        """Initialize the scene formatter with cached console.
+
+        Args:
+            console: Rich console for output. If None, creates new instance.
+        """
+        super().__init__(console)
+        self._string_console: Console | None = None  # Lazy init for caching
+
+    def _get_string_console(self) -> Console:
+        """Get or create a cached string console for efficient rendering."""
+        if self._string_console is None:
+            self._string_console = Console(
+                force_terminal=False,  # Don't force terminal formatting
+                legacy_windows=False,  # Use consistent formatting across platforms
+            )
+        return self._string_console
 
     def format(self, data: Any, format_type: OutputFormat = OutputFormat.TEXT) -> str:
         """Format scene data for output.
@@ -122,19 +141,11 @@ class SceneFormatter(OutputFormatter[Any]):
                 Syntax(result.content, "markdown", theme="monokai"),
                 title="Bible Content",
             )
-            # Convert panel to string for return
-            from io import StringIO
-
-            from rich.console import Console
-
-            string_io = StringIO()
-            temp_console = Console(
-                file=string_io,
-                force_terminal=False,  # Don't force terminal formatting
-                legacy_windows=False,  # Use consistent formatting across platforms
-            )
-            temp_console.print(panel)
-            return string_io.getvalue()
+            # Use cached console for efficient string conversion
+            console = self._get_string_console()
+            with console.capture() as capture:
+                console.print(panel)
+            return str(capture.get())
         # List of bible files
         lines = ["[green]Available bible files:[/green]", ""]
         for file_info in result.bible_files:
@@ -164,20 +175,10 @@ class SceneFormatter(OutputFormatter[Any]):
             title=f"Scene {scene.number}",
             subtitle=scene.heading,
         )
-        # Use console's capture method for efficient string conversion
-
-        # Reuse existing console if available, otherwise create a cached one
-        if not hasattr(self, "_string_console"):
-            from rich.console import Console
-
-            self._string_console = Console(
-                force_terminal=False,  # Don't force terminal formatting
-                legacy_windows=False,  # Use consistent formatting across platforms
-            )
-
-        # Capture the output efficiently
-        with self._string_console.capture() as capture:
-            self._string_console.print(panel)
+        # Use cached console for efficient string conversion
+        console = self._get_string_console()
+        with console.capture() as capture:
+            console.print(panel)
         return str(capture.get())
 
     def format_scene_list(
@@ -213,19 +214,11 @@ class SceneFormatter(OutputFormatter[Any]):
                 )
                 table.add_row(str(scene.number), scene.heading, preview)
 
-            # Convert table to string
-            from io import StringIO
-
-            from rich.console import Console
-
-            string_io = StringIO()
-            temp_console = Console(
-                file=string_io,
-                force_terminal=False,  # Don't force terminal formatting
-                legacy_windows=False,  # Use consistent formatting across platforms
-            )
-            temp_console.print(table)
-            return string_io.getvalue()
+            # Use cached console for efficient string conversion
+            console = self._get_string_console()
+            with console.capture() as capture:
+                console.print(table)
+            return str(capture.get())
 
         # Default text format
         lines = []

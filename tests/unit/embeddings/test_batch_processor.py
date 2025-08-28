@@ -596,9 +596,12 @@ class TestChunkedBatchProcessor:
 
         long_text = "a" * 250  # Will be chunked
         items = [BatchItem(id="1", text=long_text)]
-        results = await chunked_processor.process_with_chunking(
-            items, "test-model", aggregate=True
-        )
+
+        # Mock asyncio.sleep to speed up retries
+        with patch("asyncio.sleep", return_value=None):
+            results = await chunked_processor.process_with_chunking(
+                items, "test-model", aggregate=True
+            )
 
         assert len(results) == 1
         assert results[0].id == "1"
@@ -637,11 +640,13 @@ class TestChunkedBatchProcessor:
         long_text = "a" * 250  # Will be chunked into multiple pieces
         items = [BatchItem(id="1", text=long_text)]
 
-        with patch("numpy.mean") as mock_mean:
-            mock_mean.return_value.tolist.return_value = [0.25, 0.35, 0.45]
-            results = await chunked_processor.process_with_chunking(
-                items, "test-model", aggregate=True
-            )
+        # Mock asyncio.sleep to speed up retries
+        with patch("asyncio.sleep", return_value=None):
+            with patch("numpy.mean") as mock_mean:
+                mock_mean.return_value.tolist.return_value = [0.25, 0.35, 0.45]
+                results = await chunked_processor.process_with_chunking(
+                    items, "test-model", aggregate=True
+                )
 
         assert len(results) == 1
         assert results[0].id == "1"

@@ -74,9 +74,12 @@ class TestMockPathHandling:
         assert not isinstance(settings.database_path, MagicMock)
         assert isinstance(settings.database_path, Path)
 
-        # String representation should be a valid path
+        # String representation should be a valid path (cross-platform compatible)
         path_str = str(settings.database_path)
-        assert path_str == "/test/db.sqlite"
+        expected_path = str(
+            Path("/test/db.sqlite")
+        )  # Let Path handle platform differences
+        assert path_str == expected_path
         assert not path_str.startswith("<MagicMock")
 
     def test_mock_embedding_response_indexable(self):
@@ -104,4 +107,5 @@ class TestMockPathHandling:
         # Good: Using proper path
         mock.database_path = Path("/test/db.sqlite")
         good_path = str(mock.database_path)
-        assert good_path == "/test/db.sqlite"  # Valid file path
+        expected_path = str(Path("/test/db.sqlite"))  # Cross-platform compatible
+        assert good_path == expected_path  # Valid file path

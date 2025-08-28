@@ -5,8 +5,6 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
-from scriptrag.config import ScriptRAGSettings
-
 
 @pytest.fixture(autouse=True)
 def mock_llm_client():
@@ -60,7 +58,7 @@ class TestCreateLLMClient:
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_defaults(self, mock_get_settings, mock_llm_client):
         """Test creating client with default settings."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -81,7 +79,7 @@ class TestCreateLLMClient:
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_preferred_provider(self, mock_get_settings, mock_llm_client):
         """Test creating client with preferred provider."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -104,7 +102,7 @@ class TestCreateLLMClient:
         self, mock_get_settings, mock_llm_client
     ):
         """Test creating client with invalid preferred provider."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -126,7 +124,7 @@ class TestCreateLLMClient:
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_fallback_order(self, mock_get_settings, mock_llm_client):
         """Test creating client with fallback order."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -153,7 +151,7 @@ class TestCreateLLMClient:
         self, mock_get_settings, mock_llm_client
     ):
         """Test creating client with partially invalid fallback order."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -186,7 +184,7 @@ class TestCreateLLMClient:
         self, mock_logger, mock_get_settings, mock_llm_client
     ):
         """Test creating client with all invalid fallback order."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -215,7 +213,7 @@ class TestCreateLLMClient:
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_github_token(self, mock_get_settings, mock_llm_client):
         """Test creating client with GitHub token."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -239,7 +237,7 @@ class TestCreateLLMClient:
         self, mock_get_settings, mock_llm_client
     ):
         """Test creating client with GitHub token from environment."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -259,7 +257,7 @@ class TestCreateLLMClient:
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_openai_endpoint(self, mock_get_settings, mock_llm_client):
         """Test creating client with OpenAI endpoint."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -282,7 +280,7 @@ class TestCreateLLMClient:
         self, mock_get_settings, mock_llm_client
     ):
         """Test creating client with OpenAI endpoint from settings."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = "https://settings.example.com/v1"
         mock_settings.llm_api_key = None
@@ -305,7 +303,7 @@ class TestCreateLLMClient:
         self, mock_get_settings, mock_llm_client
     ):
         """Test creating client with OpenAI endpoint from environment."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -325,7 +323,7 @@ class TestCreateLLMClient:
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_openai_api_key(self, mock_get_settings, mock_llm_client):
         """Test creating client with OpenAI API key."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -348,7 +346,7 @@ class TestCreateLLMClient:
         self, mock_get_settings, mock_llm_client
     ):
         """Test creating client with OpenAI API key from settings."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = "sk-settings-key"  # pragma: allowlist secret
@@ -374,7 +372,7 @@ class TestCreateLLMClient:
         self, mock_get_settings, mock_llm_client
     ):
         """Test creating client with OpenAI API key from environment."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -394,7 +392,7 @@ class TestCreateLLMClient:
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_timeout(self, mock_get_settings, mock_llm_client):
         """Test creating client with custom timeout."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -417,7 +415,7 @@ class TestCreateLLMClient:
         self, mock_get_settings, mock_llm_client
     ):
         """Test creating client with provider from settings."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = "openai_compatible"
         mock_settings.llm_endpoint = None
         mock_settings.llm_api_key = None
@@ -437,7 +435,7 @@ class TestCreateLLMClient:
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_create_with_all_parameters(self, mock_get_settings, mock_llm_client):
         """Test creating client with all parameters specified."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = "github_models"  # Should be overridden
         mock_settings.llm_endpoint = (
             "https://settings.example.com"  # Should be overridden
@@ -470,7 +468,7 @@ class TestCreateLLMClient:
     @patch("scriptrag.utils.llm_factory.get_settings")
     def test_precedence_order(self, mock_get_settings, mock_llm_client):
         """Test precedence order: params > settings > env vars."""
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.llm_provider = None
         mock_settings.llm_endpoint = "https://settings.example.com"
         mock_settings.llm_api_key = "sk-settings"  # pragma: allowlist secret

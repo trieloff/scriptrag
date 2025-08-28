@@ -15,7 +15,6 @@ from scriptrag.api.scene_models import (
     UpdateSceneResult,
 )
 from scriptrag.cli.main import app
-from scriptrag.config import ScriptRAGSettings
 from scriptrag.parser import Scene
 from tests.cli_fixtures import CleanCliRunner
 
@@ -42,7 +41,7 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
@@ -101,7 +100,7 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
@@ -150,7 +149,7 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
@@ -212,7 +211,7 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
@@ -259,7 +258,7 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
@@ -310,7 +309,7 @@ class TestConfigOptionAnalyzeCommand:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
@@ -361,7 +360,7 @@ class TestConfigOptionListCommand:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
@@ -408,7 +407,7 @@ class TestConfigOptionIndexCommand:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
@@ -615,7 +614,7 @@ class TestConfigOptionSearchCommand:
                 db_path = Path(db_file.name)
 
             # Setup mocks
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_settings.database_path = db_path
             mock_settings_class.from_multiple_sources.return_value = mock_settings

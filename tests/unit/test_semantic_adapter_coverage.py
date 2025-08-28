@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 import pytest
 
-from scriptrag.config import ScriptRAGSettings
 from scriptrag.search.models import SearchQuery, SearchResult
 from scriptrag.search.semantic_adapter import SemanticSearchAdapter
 
@@ -14,7 +13,7 @@ from scriptrag.search.semantic_adapter import SemanticSearchAdapter
 @pytest.fixture
 def mock_settings():
     """Create mock settings."""
-    settings = MagicMock(spec=ScriptRAGSettings)
+    settings = MagicMock()  # Remove spec to prevent mock file artifacts
     settings.database_path = "test.db"
     settings.search_vector_similarity_threshold = 0.7
     settings.database_journal_mode = "WAL"
@@ -54,7 +53,7 @@ def semantic_adapter_no_settings():
         patch("scriptrag.config.get_settings") as mock_get_settings,
         patch("scriptrag.search.semantic_adapter.SemanticSearchService"),
     ):
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.search_vector_similarity_threshold = 0.7
         mock_settings.database_journal_mode = "WAL"
         mock_settings.database_synchronous = "NORMAL"

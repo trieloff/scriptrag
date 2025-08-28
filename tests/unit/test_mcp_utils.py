@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scriptrag.config import ScriptRAGSettings
 from scriptrag.mcp.utils import format_error, format_success, get_api_settings
 
 
@@ -15,7 +14,7 @@ class TestGetApiSettings:
     def test_get_api_settings_returns_settings(self, mock_get_settings):
         """Test that get_api_settings returns configuration settings."""
         # Arrange
-        mock_settings = MagicMock(spec=ScriptRAGSettings)
+        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
         mock_settings.database_journal_mode = "WAL"
         mock_settings.database_synchronous = "NORMAL"
         mock_settings.database_foreign_keys = True

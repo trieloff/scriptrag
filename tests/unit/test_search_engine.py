@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scriptrag.config import ScriptRAGSettings
 from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import SearchMode, SearchQuery, SearchResponse
 
@@ -16,7 +15,7 @@ class TestSearchEngine:
     @pytest.fixture
     def mock_settings(self, tmp_path):
         """Create mock settings."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock()  # Remove spec to prevent mock file artifacts
         settings.database_path = tmp_path / "test.db"
         settings.database_timeout = 30.0
         settings.database_cache_size = 2000
@@ -134,7 +133,7 @@ class TestSearchEngine:
     def test_init_without_settings(self):
         """Test engine initialization without settings."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Add semantic search settings
             mock_settings.search_vector_result_limit_factor = 0.5
@@ -850,7 +849,7 @@ class TestSearchEngine:
         """Test initialization with settings retrieved from get_settings()."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             # Create a mock settings object with all required attributes
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Add semantic search settings
             mock_settings.search_vector_result_limit_factor = 0.5

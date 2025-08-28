@@ -6,14 +6,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from scriptrag.api.database_operations import DatabaseOperations
-from scriptrag.config import ScriptRAGSettings
 from scriptrag.exceptions import DatabaseError
 
 
 @pytest.fixture
 def mock_settings():
     """Create mock settings."""
-    settings = MagicMock(spec=ScriptRAGSettings)
+    settings = MagicMock()  # Remove spec to prevent mock file artifacts
     settings.database_path = Path(":memory:")
     settings.llm_provider = "test"
     settings.llm_model = "test-model"

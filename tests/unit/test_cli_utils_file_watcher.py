@@ -9,13 +9,12 @@ import pytest
 from watchdog.events import FileSystemEvent
 
 from scriptrag.cli.utils.file_watcher import FountainFileHandler, StatusCallback
-from scriptrag.config import ScriptRAGSettings
 
 
 @pytest.fixture
 def mock_settings():
     """Create mock settings."""
-    settings = MagicMock(spec=ScriptRAGSettings)
+    settings = MagicMock()  # Remove spec to prevent mock file artifacts
     settings.database_path = Path("/tmp/test.db")
     settings.database_journal_mode = "WAL"
     settings.database_synchronous = "NORMAL"

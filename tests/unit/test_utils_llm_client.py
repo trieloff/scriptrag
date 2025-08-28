@@ -440,6 +440,7 @@ class TestLLMClient:
     def client(self):
         """Create test client."""
         # Mock all provider availability checks to prevent network calls
+        # Also mock httpx.AsyncClient to prevent any network initialization
         with (
             patch(
                 "scriptrag.llm.providers.github_models.GitHubModelsProvider.is_available",
@@ -453,8 +454,9 @@ class TestLLMClient:
                 "scriptrag.llm.providers.openai_compatible.OpenAICompatibleProvider.is_available",
                 return_value=False,
             ),
+            patch("httpx.AsyncClient", MagicMock),
         ):
-            return LLMClient(
+            yield LLMClient(
                 preferred_provider=LLMProvider.GITHUB_MODELS,
                 fallback_order=[LLMProvider.OPENAI_COMPATIBLE, LLMProvider.CLAUDE_CODE],
                 github_token="test_token",  # noqa: S106

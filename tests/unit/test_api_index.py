@@ -109,7 +109,7 @@ class TestIndexCommand:
     def test_from_config(self):
         """Test creating IndexCommand from config."""
         with patch("scriptrag.api.index.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_get_settings.return_value = mock_settings
 

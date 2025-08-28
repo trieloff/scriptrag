@@ -133,7 +133,7 @@ class TestSearchAPIInit:
     def test_init_without_settings(self):
         """Test SearchAPI initialization without settings (uses default)."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             # Add required settings
             mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
@@ -157,7 +157,7 @@ class TestSearchAPIInit:
     def test_init_with_none_settings(self):
         """Test SearchAPI initialization with explicit None settings."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             # Add required settings
             mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
@@ -201,7 +201,7 @@ class TestSearchAPIFromConfig:
     def test_from_config_without_path(self):
         """Test creating SearchAPI from config without config path."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             # Add required settings
             mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
@@ -226,7 +226,7 @@ class TestSearchAPIFromConfig:
         with patch(
             "scriptrag.api.search.ScriptRAGSettings.from_file"
         ) as mock_from_file:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_from_file.return_value = mock_settings
 
@@ -239,7 +239,7 @@ class TestSearchAPIFromConfig:
     def test_from_config_with_none_path(self):
         """Test creating SearchAPI from config with None path."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             # Add required settings
             mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5

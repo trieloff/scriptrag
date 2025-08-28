@@ -19,7 +19,7 @@ def mock_serialize_float32(x):
 @pytest.fixture
 def mock_settings(tmp_path):
     """Create mock settings for testing."""
-    settings = MagicMock()  # Remove spec to allow proper attribute assignment
+    settings = MagicMock()
     settings.database_path = tmp_path / "test.db"
     settings.database_journal_mode = "WAL"
     settings.database_synchronous = "NORMAL"
@@ -27,6 +27,8 @@ def mock_settings(tmp_path):
     settings.database_temp_store = "MEMORY"
     settings.database_foreign_keys = True
     settings.database_timeout = 30.0
+    # Ensure proper string representation to prevent mock file artifacts
+    settings.__str__ = lambda: str(settings.database_path)
     return settings
 
 

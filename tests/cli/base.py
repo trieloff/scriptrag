@@ -34,6 +34,7 @@ class CLITestBase:
         """Mock settings for testing."""
         settings = MagicMock()
         settings.database.path = self.db_path
+        settings.database_path = self.db_path  # Support both access patterns
         settings.llm.provider = "mock"
         settings.llm.api_key = "test-key"  # pragma: allowlist secret
 

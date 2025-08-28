@@ -43,6 +43,10 @@ class TestConfigOptionSceneCommands:
             # Setup mocks
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -102,6 +106,10 @@ class TestConfigOptionSceneCommands:
             # Setup mocks
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -151,6 +159,10 @@ class TestConfigOptionSceneCommands:
             # Setup mocks
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -213,6 +225,10 @@ class TestConfigOptionSceneCommands:
             # Setup mocks
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -260,6 +276,10 @@ class TestConfigOptionSceneCommands:
             # Setup mocks
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -311,6 +331,10 @@ class TestConfigOptionAnalyzeCommand:
             # Setup mocks
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_command = MagicMock(
@@ -362,6 +386,10 @@ class TestConfigOptionListCommand:
             # Setup mocks
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_command = MagicMock(
@@ -409,6 +437,10 @@ class TestConfigOptionIndexCommand:
             # Setup mocks
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_command = MagicMock(
@@ -616,6 +648,10 @@ class TestConfigOptionSearchCommand:
             # Setup mocks
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": str(db_path), "__str__": lambda: str(db_path)}
+            )
             mock_settings.database_path = db_path
             mock_settings_class.from_multiple_sources.return_value = mock_settings
             mock_get_settings.return_value = mock_settings

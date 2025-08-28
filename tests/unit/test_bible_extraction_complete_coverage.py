@@ -175,7 +175,7 @@ class TestBibleCharacterExtractor:
                 }
             ]
         )
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = BibleExtractor(llm_client=mock_client)
 
@@ -277,7 +277,7 @@ class TestBibleCharacterExtractor:
                 }
             ]
         )
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
         characters = await extractor._extract_via_llm(chunks)
@@ -318,7 +318,7 @@ class TestBibleCharacterExtractor:
                 {"canonical": "", "aliases": ["EMPTY"]},  # Empty canonical
             ]
         )
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
         characters = await extractor._extract_via_llm(chunks)
@@ -333,7 +333,7 @@ class TestBibleCharacterExtractor:
         # Mock LLM client with response as string
         mock_client = AsyncMock()
         mock_response = json.dumps([{"canonical": "JANE", "aliases": ["J"]}])
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = BibleCharacterExtractor(llm_client=mock_client)
         characters = await extractor._extract_via_llm(chunks)
@@ -676,7 +676,7 @@ class TestBibleExtractor:
                 }
             ]
         )
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         extractor = BibleExtractor(llm_client=mock_client)
 
@@ -713,7 +713,7 @@ class TestBibleExtractor:
                 }
             ]
         )
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
 
         # Mock scene extraction with correct BibleScene structure
         mock_scene = BibleScene(

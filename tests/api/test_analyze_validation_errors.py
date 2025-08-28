@@ -62,7 +62,8 @@ Come in, John.
         mock_response.model = "test-model"
         mock_response.provider = None
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        # Configure complete as AsyncMock to make it properly awaitable
+        mock_client.complete = AsyncMock(return_value=mock_response)
         analyzer.llm_client = mock_client
 
         return analyzer

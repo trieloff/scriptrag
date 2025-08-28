@@ -74,10 +74,10 @@ class TestQueryAppManager:
         """Test that get_app creates app on first call."""
         manager = QueryAppManager()
 
-        with patch("scriptrag.cli.commands.query.get_settings") as mock_settings:
-            mock_settings.return_value = (
-                MagicMock()
-            )  # Remove spec to prevent mock file artifacts
+        with patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()  # Prevent mock file artifacts
+            mock_settings.database_path = "/test/db.sqlite"
+            mock_get_settings.return_value = mock_settings
             app = manager.get_app()
 
             assert app is not None
@@ -87,10 +87,10 @@ class TestQueryAppManager:
         """Test that get_app reuses existing app."""
         manager = QueryAppManager()
 
-        with patch("scriptrag.cli.commands.query.get_settings") as mock_settings:
-            mock_settings.return_value = (
-                MagicMock()
-            )  # Remove spec to prevent mock file artifacts
+        with patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings:
+            mock_settings = MagicMock()  # Prevent mock file artifacts
+            mock_settings.database_path = "/test/db.sqlite"
+            mock_get_settings.return_value = mock_settings
             app1 = manager.get_app()
             app2 = manager.get_app()
 

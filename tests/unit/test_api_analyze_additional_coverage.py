@@ -57,7 +57,12 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings") as mock_settings:
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
+
                 mock_db_ops = mock_db_ops_class.return_value
                 mock_db_ops.check_database_exists.return_value = True
 
@@ -95,7 +100,12 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings"):
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
+
                 mock_db_ops = Mock(
                     spec=[
                         "check_database_exists",
@@ -128,7 +138,12 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings"):
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
+
                 mock_db_ops = Mock(
                     spec=[
                         "check_database_exists",
@@ -175,7 +190,12 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings"):
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
+
                 mock_db_ops = Mock(
                     spec=[
                         "check_database_exists",
@@ -225,7 +245,12 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings"):
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
+
                 mock_db_ops = Mock(
                     spec=[
                         "check_database_exists",
@@ -540,7 +565,12 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings"):
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
+
                 mock_db_ops = Mock(
                     spec=[
                         "check_database_exists",

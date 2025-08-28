@@ -116,7 +116,16 @@ class LLMResponseParser:
                         if bracket_count == 0:
                             # Found matching closing bracket
                             potential_json = response[start : i + 1]
-                            # Only consider arrays that contain objects
+                            # Filter: Only consider arrays that contain objects
+                            # This intentionally excludes arrays of primitives
+                            # like [1, 2, 3] or ["a", "b"] when extracting from
+                            # mixed text. This filtering prevents false positives
+                            # from non-relevant JSON arrays embedded in text.
+                            # Designed for extracting character/scene objects like
+                            # [{"name": "..."}, {...}] from LLM responses.
+                            # Note: This filter only applies when extracting JSON
+                            # from mixed text. If the entire response is already
+                            # valid JSON, it is returned as-is (line 76-77).
                             if "{" in potential_json:
                                 potential_arrays.append(potential_json)
                             break

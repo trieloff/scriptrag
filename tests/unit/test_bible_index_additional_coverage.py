@@ -311,17 +311,20 @@ class TestBibleIndexerEdgeCases:
                 "analyze",
             ]
         )
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec_set=["text"])
         mock_response.text = (
             '{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
             '"characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}]}'
         )
-        mock_client.complete.return_value = mock_response
+        # Make sure complete method is async and returns the mock response
+        mock_client.complete = AsyncMock(return_value=mock_response)
+
+        async def mock_get_client():
+            return mock_client
 
         with patch(
             "scriptrag.utils.get_default_llm_client",
-            new_callable=AsyncMock,
-            return_value=mock_client,
+            side_effect=mock_get_client,
         ):
             indexer = BibleIndexer(settings=mock_settings)
             result = await indexer.alias_extractor.extract_aliases(mock_parsed_bible)
@@ -347,17 +350,20 @@ class TestBibleIndexerEdgeCases:
                 "analyze",
             ]
         )
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec_set=["text"])
         mock_response.text = (
             '```json\n{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
             '"characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}]}\n```'
         )
-        mock_client.complete.return_value = mock_response
+        # Make sure complete method is async and returns the mock response
+        mock_client.complete = AsyncMock(return_value=mock_response)
+
+        async def mock_get_client():
+            return mock_client
 
         with patch(
             "scriptrag.utils.get_default_llm_client",
-            new_callable=AsyncMock,
-            return_value=mock_client,
+            side_effect=mock_get_client,
         ):
             indexer = BibleIndexer(settings=mock_settings)
             result = await indexer.alias_extractor.extract_aliases(mock_parsed_bible)
@@ -381,18 +387,21 @@ class TestBibleIndexerEdgeCases:
                 "analyze",
             ]
         )
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec_set=["text"])
         mock_response.text = (
             '{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
             '"characters": [{"canonical": "JANE", '
             '"aliases": ["JANE", "JANE DOE", "JANE"]}]}'
         )
-        mock_client.complete.return_value = mock_response
+        # Make sure complete method is async and returns the mock response
+        mock_client.complete = AsyncMock(return_value=mock_response)
+
+        async def mock_get_client():
+            return mock_client
 
         with patch(
             "scriptrag.utils.get_default_llm_client",
-            new_callable=AsyncMock,
-            return_value=mock_client,
+            side_effect=mock_get_client,
         ):
             indexer = BibleIndexer(settings=mock_settings)
             result = await indexer.alias_extractor.extract_aliases(mock_parsed_bible)
@@ -718,17 +727,20 @@ class TestBibleIndexerEdgeCases:
                 "analyze",
             ]
         )
-        mock_response = Mock(spec=object)
+        mock_response = Mock(spec_set=["text"])
         mock_response.text = (
             '{"version": 1, "extracted_at": "2023-01-01T00:00:00Z", '
             '"characters": [{"canonical": "JANE", "aliases": ["JANE DOE"]}]}'
         )
-        mock_client.complete.return_value = mock_response
+        # Make sure complete method is async and returns the mock response
+        mock_client.complete = AsyncMock(return_value=mock_response)
+
+        async def mock_get_client():
+            return mock_client
 
         with patch(
             "scriptrag.utils.get_default_llm_client",
-            new_callable=AsyncMock,
-            return_value=mock_client,
+            side_effect=mock_get_client,
         ):
             indexer = BibleIndexer(settings=mock_settings)
             result = await indexer.alias_extractor.extract_aliases(parsed_bible)

@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from scriptrag.config.settings import ScriptRAGSettings
+
 
 class CLITestBase:
     """Base class for CLI integration tests with common setup."""
@@ -32,7 +34,7 @@ class CLITestBase:
     @pytest.fixture
     def mock_settings(self):
         """Mock settings for testing."""
-        settings = MagicMock()
+        settings = MagicMock(spec=ScriptRAGSettings)
         # Configure nested mock objects to prevent mock file artifacts
         database_mock = MagicMock()
         database_mock.path = self.db_path

@@ -9,6 +9,7 @@ import pytest
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.api.analyze import AnalyzeCommand
 from scriptrag.api.analyze_helpers import load_bible_metadata, scene_needs_update
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.parser import Scene, Script
 
 
@@ -59,7 +60,7 @@ class TestAnalyzeCommandAdditionalCoverage:
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings") as mock_get_settings:
                 # Configure mock settings to prevent mock file artifacts
-                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
                 mock_settings.database_path = "/test/db.sqlite"
                 mock_get_settings.return_value = mock_settings
 
@@ -102,7 +103,7 @@ class TestAnalyzeCommandAdditionalCoverage:
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings") as mock_get_settings:
                 # Configure mock settings to prevent mock file artifacts
-                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
                 mock_settings.database_path = "/test/db.sqlite"
                 mock_get_settings.return_value = mock_settings
 
@@ -140,7 +141,7 @@ class TestAnalyzeCommandAdditionalCoverage:
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings") as mock_get_settings:
                 # Configure mock settings to prevent mock file artifacts
-                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
                 mock_settings.database_path = "/test/db.sqlite"
                 mock_get_settings.return_value = mock_settings
 
@@ -192,7 +193,7 @@ class TestAnalyzeCommandAdditionalCoverage:
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings") as mock_get_settings:
                 # Configure mock settings to prevent mock file artifacts
-                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
                 mock_settings.database_path = "/test/db.sqlite"
                 mock_get_settings.return_value = mock_settings
 
@@ -247,7 +248,7 @@ class TestAnalyzeCommandAdditionalCoverage:
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings") as mock_get_settings:
                 # Configure mock settings to prevent mock file artifacts
-                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
                 mock_settings.database_path = "/test/db.sqlite"
                 mock_get_settings.return_value = mock_settings
 
@@ -567,7 +568,7 @@ class TestAnalyzeCommandAdditionalCoverage:
         ) as mock_db_ops_class:
             with patch("scriptrag.config.get_settings") as mock_get_settings:
                 # Configure mock settings to prevent mock file artifacts
-                mock_settings = MagicMock()  # Prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
                 mock_settings.database_path = "/test/db.sqlite"
                 mock_get_settings.return_value = mock_settings
 

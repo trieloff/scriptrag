@@ -76,7 +76,7 @@ class TestQueryAppManager:
         manager = QueryAppManager()
 
         with patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()  # Prevent mock file artifacts
+            mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
             mock_settings.database_path = "/test/db.sqlite"
             mock_get_settings.return_value = mock_settings
             app = manager.get_app()
@@ -89,7 +89,7 @@ class TestQueryAppManager:
         manager = QueryAppManager()
 
         with patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()  # Prevent mock file artifacts
+            mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
             mock_settings.database_path = "/test/db.sqlite"
             mock_get_settings.return_value = mock_settings
             app1 = manager.get_app()

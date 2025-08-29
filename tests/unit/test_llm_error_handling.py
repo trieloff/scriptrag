@@ -1,6 +1,7 @@
 """Tests for enhanced LLM client error handling and fallback transparency."""
 
 import time
+from unittest.mock import patch
 
 import pytest
 
@@ -293,12 +294,14 @@ class TestLLMClientErrorHandling:
             messages=[{"role": "user", "content": "test"}],
         )
 
-        with pytest.raises(LLMFallbackError) as exc_info:
-            await client.fallback_handler.complete_with_fallback(
-                request,
-                client._try_complete_with_provider,
-                client.metrics.record_fallback_chain,
-            )
+        # Mock asyncio.sleep to speed up retry delays
+        with patch("asyncio.sleep", return_value=None):
+            with pytest.raises(LLMFallbackError) as exc_info:
+                await client.fallback_handler.complete_with_fallback(
+                    request,
+                    client._try_complete_with_provider,
+                    client.metrics.record_fallback_chain,
+                )
 
         error = exc_info.value
         assert len(error.provider_errors) == 3

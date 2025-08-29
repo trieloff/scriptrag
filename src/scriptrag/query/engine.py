@@ -14,15 +14,9 @@ logger = get_logger(__name__)
 class QueryEngine:
     """Execute SQL queries with parameter binding."""
 
-    def __init__(self, settings: ScriptRAGSettings | None = None) -> None:
-        """Initialize query engine.
-
-        Args:
-            settings: Configuration settings (deprecated, use get_settings())
-        """
-        # Store settings but prefer get_settings() for runtime configuration
-        # This ensures tests with environment variable changes work correctly
-        self._initial_settings = settings
+    def __init__(self) -> None:
+        """Initialize query engine."""
+        pass
 
     @property
     def settings(self) -> ScriptRAGSettings:
@@ -31,11 +25,6 @@ class QueryEngine:
         This ensures tests that modify environment variables and call reset_settings()
         will see the updated configuration.
         """
-        if self._initial_settings is not None:
-            # Use initial settings if provided (for backward compatibility)
-            return self._initial_settings
-
-        # Use module-level import to avoid circular import issues
         return get_settings()
 
     @property

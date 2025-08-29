@@ -173,7 +173,7 @@ class ContextQueryExecutor:
             settings = get_settings()
 
         self.settings = settings
-        self.engine = QueryEngine(settings)
+        self.engine = QueryEngine()
 
     async def execute(
         self,

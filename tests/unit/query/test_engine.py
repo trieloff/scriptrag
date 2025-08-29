@@ -51,7 +51,7 @@ class TestQueryEngine:
         return db_path
 
     @pytest.fixture
-    def engine(self, temp_db):
+    def engine(self, temp_db, monkeypatch):
         """Create engine with test database."""
         settings = MagicMock(
             spec=ScriptRAGSettings
@@ -67,7 +67,10 @@ class TestQueryEngine:
         # Ensure the database file exists before creating engine
         assert temp_db.exists(), f"Test database should exist at {temp_db}"
 
-        return QueryEngine(settings)
+        # Monkeypatch get_settings for the duration of the test
+        monkeypatch.setattr("scriptrag.query.engine.get_settings", lambda: settings)
+
+        return QueryEngine()
 
     def test_execute_simple_query(self, engine):
         """Test executing a simple query."""
@@ -202,7 +205,7 @@ class TestQueryEngine:
         rows, _ = engine.execute(spec)
         assert len(rows) == 2
 
-    def test_database_not_found(self):
+    def test_database_not_found(self, monkeypatch):
         """Test error when database doesn't exist."""
         settings = MagicMock(
             spec=ScriptRAGSettings
@@ -214,8 +217,9 @@ class TestQueryEngine:
         settings.database_temp_store = "MEMORY"
         settings.database_foreign_keys = True
         settings.database_timeout = 30.0
+        monkeypatch.setattr("scriptrag.query.engine.get_settings", lambda: settings)
 
-        engine = QueryEngine(settings)
+        engine = QueryEngine()
         spec = QuerySpec(name="test", description="Test query", sql="SELECT 1")
 
         with pytest.raises(FileNotFoundError, match="Database not found"):
@@ -404,7 +408,7 @@ class TestQueryEngine:
         with pytest.raises((ValueError, sqlite3.OperationalError)):
             engine.execute(spec)
 
-    def test_database_programming_error(self, temp_db):
+    def test_database_programming_error(self, temp_db, monkeypatch):
         """Test handling of programming error."""
         settings = MagicMock(
             spec=ScriptRAGSettings
@@ -416,8 +420,9 @@ class TestQueryEngine:
         settings.database_temp_store = "MEMORY"
         settings.database_foreign_keys = True
         settings.database_timeout = 30.0
+        monkeypatch.setattr("scriptrag.query.engine.get_settings", lambda: settings)
 
-        engine = QueryEngine(settings)
+        engine = QueryEngine()
 
         spec = QuerySpec(
             name="test",
@@ -428,7 +433,7 @@ class TestQueryEngine:
         with pytest.raises(ValueError, match="Database error in query"):
             engine.execute(spec)
 
-    def test_generic_exception_in_execute(self, tmp_path):
+    def test_generic_exception_in_execute(self, tmp_path, monkeypatch):
         """Test handling of generic exception during query execution."""
         # Create engine without temp_db fixture to avoid real database
         settings = MagicMock(
@@ -441,11 +446,12 @@ class TestQueryEngine:
         settings.database_temp_store = "MEMORY"
         settings.database_foreign_keys = True
         settings.database_timeout = 30.0
+        monkeypatch.setattr("scriptrag.query.engine.get_settings", lambda: settings)
 
         # Create the database file so it exists
         settings.database_path.touch()
 
-        engine = QueryEngine(settings)
+        engine = QueryEngine()
 
         spec = QuerySpec(
             name="test",
@@ -473,7 +479,9 @@ class TestQueryEngine:
             with pytest.raises(ValueError, match="Query execution failed"):
                 engine.execute(spec)
 
-    def test_check_read_only_not_readonly_detected_original(self, tmp_path):
+    def test_check_read_only_not_readonly_detected_original(
+        self, tmp_path, monkeypatch
+    ):
         """Test read-only check when connection is NOT read-only."""
         # Create engine without temp_db fixture
         settings = MagicMock(
@@ -486,11 +494,12 @@ class TestQueryEngine:
         settings.database_temp_store = "MEMORY"
         settings.database_foreign_keys = True
         settings.database_timeout = 30.0
+        monkeypatch.setattr("scriptrag.query.engine.get_settings", lambda: settings)
 
         # Create the database file so it exists
         settings.database_path.touch()
 
-        engine = QueryEngine(settings)
+        engine = QueryEngine()
 
         with patch("scriptrag.query.engine.get_read_only_connection") as mock_conn:
             mock_db_conn = MagicMock(
@@ -620,7 +629,7 @@ class TestQueryEngine:
         assert rows[0]["name"] == "Bob"
         assert rows[1]["name"] == "Charlie"
 
-    def test_database_integrity_error_handling(self, tmp_path):
+    def test_database_integrity_error_handling(self, tmp_path, monkeypatch):
         """Test handling of integrity error - lines 140-142 coverage."""
         # Create engine with a connection that can potentially raise IntegrityError
         settings = MagicMock(
@@ -633,11 +642,12 @@ class TestQueryEngine:
         settings.database_temp_store = "MEMORY"
         settings.database_foreign_keys = True
         settings.database_timeout = 30.0
+        monkeypatch.setattr("scriptrag.query.engine.get_settings", lambda: settings)
 
         # Create the database file so it exists
         settings.database_path.touch()
 
-        engine = QueryEngine(settings)
+        engine = QueryEngine()
 
         spec = QuerySpec(
             name="test",
@@ -668,7 +678,7 @@ class TestQueryEngine:
             with pytest.raises(ValueError, match="Integrity error in query"):
                 engine.execute(spec)
 
-    def test_database_programming_error_handling(self, tmp_path):
+    def test_database_programming_error_handling(self, tmp_path, monkeypatch):
         """Test handling of programming error - lines 143-145 coverage."""
         # Create engine
         settings = MagicMock(
@@ -681,11 +691,12 @@ class TestQueryEngine:
         settings.database_temp_store = "MEMORY"
         settings.database_foreign_keys = True
         settings.database_timeout = 30.0
+        monkeypatch.setattr("scriptrag.query.engine.get_settings", lambda: settings)
 
         # Create the database file so it exists
         settings.database_path.touch()
 
-        engine = QueryEngine(settings)
+        engine = QueryEngine()
 
         spec = QuerySpec(
             name="test",
@@ -716,7 +727,7 @@ class TestQueryEngine:
             with pytest.raises(ValueError, match="SQL error in query"):
                 engine.execute(spec)
 
-    def test_generic_exception_handling(self, tmp_path):
+    def test_generic_exception_handling(self, tmp_path, monkeypatch):
         """Test handling of generic exception - lines 146-148 coverage."""
         # Create engine
         settings = MagicMock(
@@ -729,11 +740,12 @@ class TestQueryEngine:
         settings.database_temp_store = "MEMORY"
         settings.database_foreign_keys = True
         settings.database_timeout = 30.0
+        monkeypatch.setattr("scriptrag.query.engine.get_settings", lambda: settings)
 
         # Create the database file so it exists
         settings.database_path.touch()
 
-        engine = QueryEngine(settings)
+        engine = QueryEngine()
 
         spec = QuerySpec(
             name="test",

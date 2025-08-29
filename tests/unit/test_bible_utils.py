@@ -1,5 +1,7 @@
 """Tests for bible extraction utilities."""
 
+from unittest.mock import patch
+
 from scriptrag.api.bible.utils import (
     CHARACTER_KEYWORDS,
     SCENE_KEYWORDS,
@@ -309,3 +311,88 @@ class TestLLMResponseParser:
         assert result[0]["stats"]["debut"] is None
         assert result[0]["stats"]["traits"] == ["brave", "clever"]
         assert result[0]["stats"]["relationships"]["allies"] == 3
+
+    @patch("scriptrag.api.bible.utils.logger")
+    def test_extract_json_array_max_parse_attempts_exceeded(self, mock_logger) -> None:
+        """Test warning when max parse attempts (20) is exceeded."""
+        # Create pathological input with many unmatched opening brackets
+        # This forces the parser to attempt parsing 21+ array candidates
+        unmatched_brackets = "["  # Start with one opening bracket
+        for i in range(25):  # Add 25 more opening brackets with minimal content
+            unmatched_brackets += f"invalid{i}["
+
+        # Add some valid-looking but unparseable content at the end
+        response = f"{unmatched_brackets} not valid json"
+
+        result = LLMResponseParser.extract_json_array(response)
+
+        # Should return empty list and log warning
+        assert result == []
+        mock_logger.warning.assert_called()
+
+        # Verify the specific warning message for max parse attempts
+        warning_calls = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "max parse attempts" in str(call)
+        ]
+        assert len(warning_calls) > 0
+        assert "20" in str(warning_calls[0])
+
+    @patch("scriptrag.api.bible.utils.logger")
+    def test_extract_json_array_max_nesting_depth_exceeded(self, mock_logger) -> None:
+        """Test warning when max nesting depth (100) is exceeded."""
+        # Create deeply nested ARRAY structure that exceeds 100 levels
+        # The bracket_count tracks [ and ] brackets, not { and }
+        deeply_nested = ""
+        for _ in range(110):  # Create 110 levels of nested arrays
+            deeply_nested += "["
+        # Add some minimal content that contains objects (to pass the filter)
+        deeply_nested += '{"test": "data"}'
+        # Don't close all brackets - this will trigger the depth check
+
+        response = f"Deep nesting test: {deeply_nested}"
+
+        result = LLMResponseParser.extract_json_array(response)
+
+        # Should return empty list and log warning about nesting depth
+        assert result == []
+        mock_logger.warning.assert_called()
+
+        # Verify the specific warning message for max nesting depth
+        warning_calls = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "Max nesting depth" in str(call)
+        ]
+        assert len(warning_calls) > 0
+        assert "100" in str(warning_calls[0])
+
+    @patch("scriptrag.api.bible.utils.logger")
+    def test_extract_json_array_max_search_distance_exceeded(self, mock_logger) -> None:
+        """Test warning when max search distance (50000) is exceeded."""
+        # Create very long JSON-like content that exceeds 50,000 chars
+        # Start with opening bracket
+        long_content = "["
+        # Add over 50,000 characters of content before any closing bracket
+        padding = "x" * 51000  # 51,000 characters of padding
+        long_content += padding
+        # Add closing bracket at the end (but it won't be reached due to search limit)
+        long_content += "]"
+
+        response = f"Very long response: {long_content}"
+
+        result = LLMResponseParser.extract_json_array(response)
+
+        # Should return empty list and log warning about search distance
+        assert result == []
+        mock_logger.warning.assert_called()
+
+        # Verify the specific warning message for max search distance
+        warning_calls = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "Max search distance" in str(call)
+        ]
+        assert len(warning_calls) > 0
+        assert "50000" in str(warning_calls[0])

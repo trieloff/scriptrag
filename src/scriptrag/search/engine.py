@@ -139,7 +139,7 @@ class SearchEngine:
                 )
                 raise RuntimeError("Search operation timed out")
 
-            if exception:
+            if exception is not None:
                 logger.error(
                     "Search failed",
                     query=query.raw_query[:100] if query.raw_query else None,

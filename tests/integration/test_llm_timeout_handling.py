@@ -211,13 +211,13 @@ class TestLLMTimeoutHandling:
                 spec=["complete", "cleanup", "embed", "list_models", "is_available"]
             )
 
-            # Mock embedding response - use a simple dictionary-like object
+            # Mock embedding response - use a dict that naturally supports indexing
             mock_embedding = {"embedding": [0.1, 0.2, 0.3, 0.4, 0.5]}
 
             from scriptrag.llm.models import EmbeddingResponse
 
             response = Mock(spec=EmbeddingResponse)
-            # Make response.data subscriptable - use a list with dict objects
+            # Make response.data subscriptable - just use a regular list with dict
             response.data = [mock_embedding]
             # Use AsyncMock for the embed method to make it awaitable
             mock_client.embed = AsyncMock(return_value=response)

@@ -1,6 +1,7 @@
 """Tests for search engine."""
 
 import sqlite3
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -134,7 +135,7 @@ class TestSearchEngine:
         """Test engine initialization without settings."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
-            mock_settings.database_path = "/tmp/test.db"
+            mock_settings.database_path = Path("/test/db.sqlite")
             # Add semantic search settings
             mock_settings.search_vector_result_limit_factor = 0.5
             mock_settings.search_vector_min_results = 5
@@ -850,7 +851,7 @@ class TestSearchEngine:
         with patch("scriptrag.config.get_settings") as mock_get_settings:
             # Create a mock settings object with all required attributes
             mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
-            mock_settings.database_path = "/tmp/test.db"
+            mock_settings.database_path = Path("/test/db.sqlite")
             # Add semantic search settings
             mock_settings.search_vector_result_limit_factor = 0.5
             mock_settings.search_vector_min_results = 5

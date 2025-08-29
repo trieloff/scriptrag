@@ -33,10 +33,16 @@ class CLITestBase:
     def mock_settings(self):
         """Mock settings for testing."""
         settings = MagicMock()
-        settings.database.path = self.db_path
+        # Configure nested mock objects to prevent mock file artifacts
+        database_mock = MagicMock()
+        database_mock.path = self.db_path
+        settings.database = database_mock
         settings.database_path = self.db_path  # Support both access patterns
-        settings.llm.provider = "mock"
-        settings.llm.api_key = "test-key"  # pragma: allowlist secret
+
+        llm_mock = MagicMock()
+        llm_mock.provider = "mock"
+        llm_mock.api_key = "test-key"  # pragma: allowlist secret
+        settings.llm = llm_mock
 
         with patch("scriptrag.config.get_settings", return_value=settings):
             yield settings

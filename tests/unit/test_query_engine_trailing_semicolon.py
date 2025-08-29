@@ -9,7 +9,7 @@ from scriptrag.query.spec import ParamSpec, QuerySpec
 
 
 @pytest.mark.unit
-def test_query_engine_strips_trailing_semicolon_and_wraps(tmp_path: Path):
+def test_query_engine_strips_trailing_semicolon_and_wraps(tmp_path: Path, monkeypatch):
     """Ensure trailing semicolons are stripped before wrapping for LIMIT/OFFSET.
 
     This covers the logic that normalizes SQL (removes trailing ';') so that
@@ -25,7 +25,8 @@ def test_query_engine_strips_trailing_semicolon_and_wraps(tmp_path: Path):
 
     # Engine configured to open the file in read-only mode
     settings = ScriptRAGSettings(database_path=db_path)
-    engine = QueryEngine(settings)
+    monkeypatch.setattr("scriptrag.query.engine.get_settings", lambda: settings)
+    engine = QueryEngine()
 
     # Note the trailing semicolon in SQL; engine should strip it and wrap
     spec = QuerySpec(

@@ -134,7 +134,7 @@ class CompositeValidator(Validator[T]):
         Raises:
             ValidationError: If any validator fails
         """
-        result = value
+        result: Any = value
         for validator in self.validators:
             result = validator.validate(result)
         return result  # type: ignore[no-any-return]

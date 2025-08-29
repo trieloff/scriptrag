@@ -112,6 +112,13 @@ class TestSceneFormatter:
         assert len(data) == 2
         assert data[0]["number"] == 1
 
+    def test_string_console_caching(self):
+        """Test that string console is cached and reused."""
+        formatter = SceneFormatter()
+        console1 = formatter._get_string_console()
+        console2 = formatter._get_string_console()
+        assert console1 is console2  # Same instance should be returned
+
 
 class TestTableFormatter:
     """Test table output formatting."""

@@ -83,19 +83,49 @@ class LLMResponseParser:
         # parse them. This handles nested structures better than the previous regex
         # approach
 
+        # Performance safeguards for pathological inputs
+        max_nesting_depth = 100
+        max_search_distance = 50000
+        max_parse_attempts = 20
+
         # Find all bracket pairs that could be JSON arrays
         potential_arrays = []
+        parse_attempts = 0
 
         # Look for array start positions
         start_positions = [m.start() for m in re.finditer(r"\[", response)]
 
         for start in start_positions:
+            # Early termination if too many failed parse attempts
+            if parse_attempts >= max_parse_attempts:
+                logger.warning(
+                    f"Reached max parse attempts ({max_parse_attempts}) "
+                    "during JSON extraction"
+                )
+                break
+            parse_attempts += 1
+
             # Find the matching closing bracket by counting nesting levels
             bracket_count = 0
             in_string = False
             escape_next = False
 
             for i, char in enumerate(response[start:], start):
+                # Check performance limits
+                if bracket_count > max_nesting_depth:
+                    logger.warning(
+                        f"Max nesting depth ({max_nesting_depth}) exceeded "
+                        f"at position {i}"
+                    )
+                    break
+
+                if i - start > max_search_distance:
+                    logger.warning(
+                        f"Max search distance ({max_search_distance}) exceeded "
+                        f"from start position {start}"
+                    )
+                    break
+
                 if escape_next:
                     escape_next = False
                     continue

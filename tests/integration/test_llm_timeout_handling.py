@@ -207,17 +207,13 @@ class TestLLMTimeoutHandling:
 
             mock_client = AsyncMock()
 
-            # Mock embedding response - properly configure mock to support indexing
-            mock_embedding = Mock()
-            mock_embedding.embedding = [0.1, 0.2, 0.3, 0.4, 0.5]
-            # Configure mock to support dictionary-style access
-            mock_embedding.__getitem__ = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
-            mock_embedding.get = Mock(return_value=[0.1, 0.2, 0.3, 0.4, 0.5])
+            # Mock embedding response - use a dict that naturally supports indexing
+            mock_embedding = {"embedding": [0.1, 0.2, 0.3, 0.4, 0.5]}
 
             from scriptrag.llm.models import EmbeddingResponse
 
             response = Mock(spec=EmbeddingResponse)
-            # Make response.data subscriptable - just use a regular list
+            # Make response.data subscriptable - just use a regular list with dict
             response.data = [mock_embedding]
             mock_client.embed.return_value = response
 

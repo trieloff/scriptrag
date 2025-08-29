@@ -397,6 +397,22 @@ clean-mock-files: ## Clean up mock files created by tests
 	@bash -c 'find . \( -name "*Mock*name=*" -o -name "<Mock*" -o -name "*<Mock*" -o -name "*id='\''*'\''*" \) -not -path "*/.git/*" -not -path "*/__pycache__/*" 2>/dev/null -print0 | xargs -0 -r rm -f'
 	@echo "✅ Mock files cleaned"
 
+.PHONY: detect-mock-files
+detect-mock-files: ## Detect which tests create mock file artifacts
+	@echo "🔍 Running enhanced mock file detection..."
+	@python tests/detect_mock_files.py
+	@echo ""
+	@echo "To trace which specific tests create mock files, run:"
+	@echo "  make test-trace-mocks"
+
+.PHONY: test-trace-mocks
+test-trace-mocks: ## Run tests with mock file tracking to identify problematic tests
+	@echo "🔍 Running tests with mock file detection enabled..."
+	@echo ""
+	@echo "This will identify which specific tests create mock file artifacts."
+	@echo ""
+	@bash tests/run_with_mock_detection.sh
+
 .PHONY: clean-all
 clean-all: clean clean-python clean-mock-files ## Clean all artifacts including caches and venv
 	rm -rf .mypy_cache/

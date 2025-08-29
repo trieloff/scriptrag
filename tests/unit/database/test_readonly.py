@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.database.readonly import get_read_only_connection
 
 
@@ -15,7 +16,9 @@ class TestGetReadOnlyConnection:
     def settings(self, tmp_path):
         """Create test settings."""
         db_path = tmp_path / "test.db"
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = db_path
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
@@ -68,7 +71,9 @@ class TestGetReadOnlyConnection:
         base_dir.mkdir()
 
         # Create settings with path that would traverse outside parent
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # This creates a path that goes outside the expected parent directory
         traversal_path = base_dir / "../../../etc/passwd"
         settings.database_path = traversal_path
@@ -201,8 +206,12 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
+        from scriptrag.config.settings import ScriptRAGSettings
+
         # Create settings with macOS temporary directory path
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # Simulate a typical macOS temporary directory path
         macos_temp_path = Path(
             "/private/var/folders/y6/nj790rtn62lfktb1sh__79hc0000gn/T/pytest-of-runner/pytest-0/test_db_path/test.db"
@@ -249,8 +258,12 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock
 
+        from scriptrag.config.settings import ScriptRAGSettings
+
         # Create settings with regular /var directory path
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         var_path = Path("/var/lib/database/test.db")
         settings.database_path = var_path
         settings.database_timeout = 30.0
@@ -270,7 +283,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # Valid /root/repo path
         repo_path = Path("/root/repo/scriptrag.db")
         settings.database_path = repo_path
@@ -315,7 +332,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # Valid /root/repo subdirectory path
         repo_path = Path("/root/repo/data/databases/scriptrag.db")
         settings.database_path = repo_path
@@ -361,7 +382,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock
 
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # Malicious path that contains 'repo' but not under /root/repo/
         malicious_path = Path("/root/malicious-repo/database.db")
         settings.database_path = malicious_path
@@ -383,7 +408,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock
 
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # Path in /root/ but not in /root/repo/
         other_path = Path("/root/projects/database.db")
         settings.database_path = other_path
@@ -404,7 +433,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         home_path = Path("/home/user/projects/scriptrag.db")
         settings.database_path = home_path
         settings.database_timeout = 30.0
@@ -449,7 +482,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         users_path = Path("/Users/developer/projects/scriptrag.db")
         settings.database_path = users_path
         settings.database_timeout = 30.0
@@ -493,7 +530,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         docs_path = Path("C:\\Users\\developer\\Documents\\projects\\scriptrag.db")
         settings.database_path = docs_path
         settings.database_timeout = 30.0
@@ -537,6 +578,8 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock
 
+        from scriptrag.config.settings import ScriptRAGSettings
+
         blocked_paths = [
             "/etc/passwd",
             "/usr/bin/database.db",
@@ -547,7 +590,9 @@ class TestGetReadOnlyConnection:
         ]
 
         for blocked_path in blocked_paths:
-            settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             settings.database_path = Path(blocked_path)
             settings.database_timeout = 30.0
             settings.database_cache_size = -2000
@@ -569,6 +614,8 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock
 
+        from scriptrag.config.settings import ScriptRAGSettings
+
         # Test various path traversal attack vectors
         attack_paths = [
             "/root/repo/../../../etc/passwd",  # Escape to /etc/passwd
@@ -581,7 +628,9 @@ class TestGetReadOnlyConnection:
         ]
 
         for attack_path in attack_paths:
-            settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             settings.database_path = Path(attack_path)
             settings.database_timeout = 30.0
             settings.database_cache_size = -2000
@@ -600,6 +649,8 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
+        from scriptrag.config.settings import ScriptRAGSettings
+
         # Test legitimate paths within /root/repo
         legitimate_paths = [
             "/root/repo/scriptrag.db",
@@ -608,7 +659,9 @@ class TestGetReadOnlyConnection:
         ]
 
         for legit_path in legitimate_paths:
-            settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             settings.database_path = Path(legit_path)
             settings.database_timeout = 30.0
             settings.database_cache_size = -2000

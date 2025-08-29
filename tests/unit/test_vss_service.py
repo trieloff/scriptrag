@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.exceptions import DatabaseError
 from scriptrag.storage.vss_service import VSSService
 
@@ -20,7 +21,7 @@ def mock_serialize_float32(x):
 @pytest.fixture
 def mock_settings():
     """Create mock settings for testing."""
-    settings = MagicMock()
+    settings = MagicMock(spec=ScriptRAGSettings)
     settings.database_path = ":memory:"
     settings.database_journal_mode = "WAL"
     settings.database_synchronous = "NORMAL"

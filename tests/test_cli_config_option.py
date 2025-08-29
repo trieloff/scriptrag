@@ -15,6 +15,7 @@ from scriptrag.api.scene_models import (
     UpdateSceneResult,
 )
 from scriptrag.cli.main import app
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.parser import Scene
 from tests.cli_fixtures import CleanCliRunner
 
@@ -41,7 +42,9 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Prevent any undefined attribute access from creating mock files
             mock_settings.configure_mock(
@@ -104,7 +107,9 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Prevent any undefined attribute access from creating mock files
             mock_settings.configure_mock(
@@ -157,7 +162,9 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Prevent any undefined attribute access from creating mock files
             mock_settings.configure_mock(
@@ -223,7 +230,9 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Prevent any undefined attribute access from creating mock files
             mock_settings.configure_mock(
@@ -274,7 +283,9 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Prevent any undefined attribute access from creating mock files
             mock_settings.configure_mock(
@@ -329,7 +340,9 @@ class TestConfigOptionAnalyzeCommand:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Prevent any undefined attribute access from creating mock files
             mock_settings.configure_mock(
@@ -384,7 +397,9 @@ class TestConfigOptionListCommand:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Prevent any undefined attribute access from creating mock files
             mock_settings.configure_mock(
@@ -435,7 +450,9 @@ class TestConfigOptionIndexCommand:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Prevent any undefined attribute access from creating mock files
             mock_settings.configure_mock(
@@ -646,7 +663,9 @@ class TestConfigOptionSearchCommand:
                 db_path = Path(db_file.name)
 
             # Setup mocks
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             # Prevent any undefined attribute access from creating mock files
             mock_settings.configure_mock(

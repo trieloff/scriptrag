@@ -8,7 +8,7 @@ import pytest
 from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.index import IndexCommand, IndexOperationResult, IndexResult
 from scriptrag.api.list import FountainMetadata
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.exceptions import DatabaseError, ParseError
 from scriptrag.parser import Dialogue, Scene, Script
 
@@ -109,7 +109,9 @@ class TestIndexCommand:
     def test_from_config(self):
         """Test creating IndexCommand from config."""
         with patch("scriptrag.api.index.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/tmp/test.db"
             mock_get_settings.return_value = mock_settings
 

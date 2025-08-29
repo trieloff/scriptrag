@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.exceptions import DatabaseError
 from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import BibleSearchResult, SearchMode, SearchQuery
@@ -58,7 +59,9 @@ class TestSearchEngine:
     @pytest.fixture
     def settings(self, temp_db):
         """Create test settings."""
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = temp_db
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
@@ -91,7 +94,9 @@ class TestSearchEngine:
     def test_init_without_settings(self):
         """Test initialization without settings - uses get_settings()."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = Path("/test/db.sqlite")
             mock_settings.database_timeout = 30.0
             mock_settings.database_cache_size = -2000

@@ -13,6 +13,7 @@ from scriptrag.cli.commands.query import (
     get_query_app,
     reset_query_app,
 )
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.query.spec import QuerySpec
 
 
@@ -104,7 +105,9 @@ class TestQueryAppFunctions:
     @patch("scriptrag.cli.commands.query.QueryAPI")
     def test_create_query_app(self, mock_api_class, mock_get_settings):
         """Test create_query_app function."""
-        mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        mock_settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         mock_get_settings.return_value = mock_settings
         mock_api = MagicMock(spec=QueryAPI)
         mock_api.reload_queries = MagicMock()

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.exceptions import ValidationError
 from scriptrag.query.engine import QueryEngine
 from scriptrag.query.spec import ParamSpec, QuerySpec
@@ -52,7 +53,9 @@ class TestQueryEngine:
     @pytest.fixture
     def engine(self, temp_db):
         """Create engine with test database."""
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = temp_db
         settings.database_journal_mode = "WAL"
         settings.database_synchronous = "NORMAL"
@@ -201,7 +204,9 @@ class TestQueryEngine:
 
     def test_database_not_found(self):
         """Test error when database doesn't exist."""
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = Path("/nonexistent/db.sqlite")
         settings.database_journal_mode = "WAL"
         settings.database_synchronous = "NORMAL"
@@ -290,7 +295,9 @@ class TestQueryEngine:
     def test_init_without_settings(self):
         """Test initialization without settings - uses get_settings()."""
         with patch("scriptrag.query.engine.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = Path("/test/db.sqlite")
             mock_settings.database_journal_mode = "WAL"
             mock_settings.database_synchronous = "NORMAL"
@@ -399,7 +406,9 @@ class TestQueryEngine:
 
     def test_database_programming_error(self, temp_db):
         """Test handling of programming error."""
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = temp_db
         settings.database_journal_mode = "WAL"
         settings.database_synchronous = "NORMAL"
@@ -422,7 +431,9 @@ class TestQueryEngine:
     def test_generic_exception_in_execute(self, tmp_path):
         """Test handling of generic exception during query execution."""
         # Create engine without temp_db fixture to avoid real database
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = tmp_path / "test.db"
         settings.database_journal_mode = "WAL"
         settings.database_synchronous = "NORMAL"
@@ -465,7 +476,9 @@ class TestQueryEngine:
     def test_check_read_only_not_readonly_detected_original(self, tmp_path):
         """Test read-only check when connection is NOT read-only."""
         # Create engine without temp_db fixture
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = tmp_path / "test.db"
         settings.database_journal_mode = "WAL"
         settings.database_synchronous = "NORMAL"
@@ -610,7 +623,9 @@ class TestQueryEngine:
     def test_database_integrity_error_handling(self, tmp_path):
         """Test handling of integrity error - lines 140-142 coverage."""
         # Create engine with a connection that can potentially raise IntegrityError
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = tmp_path / "test.db"
         settings.database_journal_mode = "WAL"
         settings.database_synchronous = "NORMAL"
@@ -656,7 +671,9 @@ class TestQueryEngine:
     def test_database_programming_error_handling(self, tmp_path):
         """Test handling of programming error - lines 143-145 coverage."""
         # Create engine
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = tmp_path / "test.db"
         settings.database_journal_mode = "WAL"
         settings.database_synchronous = "NORMAL"
@@ -702,7 +719,9 @@ class TestQueryEngine:
     def test_generic_exception_handling(self, tmp_path):
         """Test handling of generic exception - lines 146-148 coverage."""
         # Create engine
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = tmp_path / "test.db"
         settings.database_journal_mode = "WAL"
         settings.database_synchronous = "NORMAL"

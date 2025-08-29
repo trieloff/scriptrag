@@ -7,6 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
+from scriptrag.config.settings import ScriptRAGSettings
 
 
 @pytest.fixture
@@ -19,7 +20,9 @@ def runner():
 def mock_settings():
     """Create mock settings."""
     with patch("scriptrag.cli.commands.pull.get_settings") as mock:
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = Path("/tmp/test.db")
         mock.return_value = settings
         yield settings
@@ -441,7 +444,9 @@ class TestPullCommand:
         with patch(
             "scriptrag.cli.commands.pull.ScriptRAGSettings"
         ) as mock_settings_cls:
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = Path("/tmp/custom.db")
             mock_settings_cls.from_multiple_sources.return_value = mock_settings
 
@@ -815,7 +820,9 @@ class TestPullCommand:
         with patch(
             "scriptrag.cli.commands.pull.ScriptRAGSettings"
         ) as mock_settings_cls:
-            mock_settings = MagicMock()  # Remove spec to prevent mock file artifacts
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = Path("/custom/test.db")
             mock_settings_cls.from_multiple_sources.return_value = mock_settings
 

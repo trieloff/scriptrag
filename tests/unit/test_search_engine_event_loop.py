@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.exceptions import DatabaseError
 from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import SearchMode, SearchQuery
@@ -17,7 +18,9 @@ class TestSearchEngineEventLoop:
     @pytest.fixture
     def mock_settings(self, tmp_path):
         """Create mock settings."""
-        settings = MagicMock()  # Remove spec to prevent mock file artifacts
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = tmp_path / "test.db"
         settings.database_timeout = 30.0
         settings.database_cache_size = 2000

@@ -10,12 +10,15 @@ from scriptrag.api.semantic_search_vss import (
     SceneSearchResult,
     SemanticSearchVSS,
 )
+from scriptrag.config.settings import ScriptRAGSettings
 
 
 @pytest.fixture
 def mock_settings():
     """Create mock settings for testing."""
-    settings = MagicMock()  # Remove spec to prevent mock file artifacts
+    settings = MagicMock(
+        spec=ScriptRAGSettings
+    )  # Use spec to prevent mock file artifacts
     settings.database_path = ":memory:"
     settings.database_journal_mode = "WAL"
     settings.database_synchronous = "NORMAL"

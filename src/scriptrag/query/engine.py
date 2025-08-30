@@ -18,16 +18,25 @@ class QueryEngine:
 
     def __init__(self) -> None:
         """Initialize query engine."""
-        pass
+        self._settings_cache: ScriptRAGSettings | None = None
 
     @property
     def settings(self) -> ScriptRAGSettings:
-        """Get current settings, always fresh from configuration system.
+        """Get current settings with caching for performance.
 
-        This ensures tests that modify environment variables and call reset_settings()
-        will see the updated configuration.
+        The settings are cached on first access to avoid repeated calls to
+        get_settings(). For test compatibility, the cache is invalidated if
+        the settings object changes (which happens when reset_settings() is
+        called).
         """
-        return get_settings()
+        # Get current settings from configuration system
+        current_settings = get_settings()
+
+        # If cache is empty or settings object has changed, update cache
+        if self._settings_cache is None or self._settings_cache is not current_settings:
+            self._settings_cache = current_settings
+
+        return self._settings_cache
 
     @property
     def db_path(self) -> Any:

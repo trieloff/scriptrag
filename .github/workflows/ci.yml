@@ -398,6 +398,9 @@ jobs:
             echo ""
             echo "Step 2: Identifying specific test file in $PROBLEMATIC_DIR..."
 
+            # Clean any existing mock files from Step 1 before testing individual files
+            python tests/detect_mock_files.py --clean 2>/dev/null || true
+
             # Test each file individually
             for test_file in $(find "$PROBLEMATIC_DIR" -name "test_*.py" -type f | sort); do
               echo "  Testing $test_file..."

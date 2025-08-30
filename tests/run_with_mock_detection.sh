@@ -56,6 +56,9 @@ if [ -n "$PROBLEMATIC_DIRS" ]; then
     echo "Step 2: Identifying specific test files..."
     PROBLEMATIC_FILES=""
 
+    # Clean any existing mock files from Step 1
+    uv run python tests/detect_mock_files.py --clean 2>/dev/null || true
+
     for dir in $PROBLEMATIC_DIRS; do
         echo "  Checking files in $dir..."
         for test_file in $(find "$dir" -maxdepth 1 -name "test_*.py" -type f | sort); do

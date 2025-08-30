@@ -165,6 +165,88 @@ jobs:
           echo "This rate limiting prevents excessive API usage and duplicate reviews."
           exit 0
 
+      - name: Detect AI-Generated Contributions
+        id: detect-ai
+        if: steps.check-recent-review.outputs.should_review != 'false'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GH_TOKEN_FOR_CLAUDE || github.token }}
+          script: |
+            // Determine PR number based on event type
+            let prNumber;
+            if (context.eventName === 'pull_request') {
+              prNumber = context.issue.number;
+            } else {
+              const prInfoNumber = '${{ steps.pr-info.outputs.pr_number }}';
+              const inputsNumber = '${{ inputs.pr_number }}';
+              prNumber = parseInt(prInfoNumber || inputsNumber || '0');
+            }
+
+            if (!prNumber) {
+              console.log('Could not determine PR number for AI detection');
+              core.setOutput('is_ai_generated', 'false');
+              return;
+            }
+
+            try {
+              // Get PR commits
+              const { data: commits } = await github.rest.pulls.listCommits({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber
+              });
+
+              // AI tool patterns to detect
+              const aiPatterns = [
+                /Co-Authored-By:\s*(Claude|Cursor|Windsurf|OpenAI|GitHub Copilot|Zed|OpenCode)/i,
+                /Generated with \[Claude Code\]/i,
+                /🤖 Generated with/i,
+                /claude\.ai\/code/i,
+                /cursor\.com/i,
+                /windsurf\./i,
+                /\[bot\].*authored/i,
+                /AI-assisted/i,
+                /AI-generated/i,
+                /Copilot/i
+              ];
+
+              // Check commits for AI patterns
+              let aiCommitCount = 0;
+              let totalCommitCount = commits.length;
+
+              for (const commit of commits) {
+                const message = commit.commit.message;
+                const author = commit.commit.author.name;
+                const committer = commit.commit.committer.name;
+
+                // Check commit message and authors for AI patterns
+                const hasAIPattern = aiPatterns.some(pattern =>
+                  pattern.test(message) ||
+                  pattern.test(author) ||
+                  pattern.test(committer)
+                );
+
+                if (hasAIPattern) {
+                  aiCommitCount++;
+                  console.log(`Found AI-generated commit: ${commit.sha.substring(0, 7)}`);
+                }
+              }
+
+              const aiPercentage = (aiCommitCount / totalCommitCount) * 100;
+              console.log(`AI-generated commits: ${aiCommitCount}/${totalCommitCount} (${aiPercentage.toFixed(1)}%)`);
+
+              // Consider it AI-generated if >50% of commits are from AI tools
+              const isAIGenerated = aiPercentage > 50;
+              core.setOutput('is_ai_generated', isAIGenerated.toString());
+              core.setOutput('ai_percentage', aiPercentage.toFixed(1));
+              core.setOutput('ai_commit_count', aiCommitCount.toString());
+              core.setOutput('total_commit_count', totalCommitCount.toString());
+
+            } catch (error) {
+              console.error('Error detecting AI contributions:', error);
+              core.setOutput('is_ai_generated', 'false');
+            }
+
       - name: Checkout repository
         if: (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true') && steps.check-recent-review.outputs.should_review != 'false'
         uses: actions/checkout@v4
@@ -188,19 +270,42 @@ jobs:
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
           # model: "claude-opus-4-20250514"
-          # Direct prompt for automated review (no @claude mention needed)
+
+          # Dynamic prompt based on AI detection
           direct_prompt: |
-            Please review this pull request and provide feedback on:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Performance considerations
-            - Security concerns
-            - Test coverage
+            ${{ steps.detect-ai.outputs.is_ai_generated == 'true' && format('⚠️ AI-GENERATED CODE DETECTED: This PR contains {0}% AI-generated commits ({1}/{2}).', steps.detect-ai.outputs.ai_percentage, steps.detect-ai.outputs.ai_commit_count, steps.detect-ai.outputs.total_commit_count) || '' }}
 
-            Be constructive and helpful in your feedback.
+            ${{ steps.detect-ai.outputs.is_ai_generated == 'true' && 'For AI-generated code, please adopt the review tone and standards from Linus Torvalds email about AI contributions: https://lore.kernel.org/lkml/CAHk-=wjLCqUUWd8DzG+xsOn-yVL0Q=O35U9D6j6=2DUWX52ghQ@mail.gmail.com/' || '' }}
 
-            IMPORTANT: If you identify any issues that need to be addressed or improvements that should be made,
-            please tag @terragon-labs in your review comment to ensure they are notified.
+            ${{ steps.detect-ai.outputs.is_ai_generated == 'true' && 'Key points from Linus: AI-generated code is "pure garbage" until proven otherwise. Be extremely skeptical and critical. Look for subtle bugs, hallucinations, and incorrect assumptions. Check for code that looks plausible but is actually wrong. Verify all logic, especially edge cases. Be harsh but constructive - the goal is quality, not politeness.' || '' }}
+
+            Review this PR following ScriptRAG's guidelines:
+
+            CRITICAL: First check TO-NEVER-DO.md to ensure changes align with project philosophy.
+
+            Focus on:
+            - Python code quality (line length: 88 chars, double quotes for strings)
+            - Type annotations completeness (all functions must have types)
+            - File size limits (max 1500 lines for regular files, 2000 for tests)
+            - Screenplay domain correctness (respect Fountain format, writer autonomy)
+            - Test coverage (maintain >80% for new code)
+            - Security (no exposed secrets/keys)
+
+            Verify:
+            - Changes pass: make lint, make type-check, make test-fast
+            - No modifications to creative content without explicit permission
+            - Proper error handling for LLM APIs (rate limiting, timeouts)
+            - Compliance with SQL_STYLE_GUIDE.md for any SQL changes
+
+            ${{ steps.detect-ai.outputs.is_ai_generated == 'true' && 'Given the AI-generated code, be EXTRA thorough in checking for: Hallucinated imports or functions, Plausible-looking but incorrect logic, Missing edge case handling, Inconsistent error handling patterns, Code that violates project conventions.' || '' }}
+
+            If issues found, tag @terragon-labs for notification.
+
+            Reference specialized areas:
+            - Fountain parsing issues → suggest screenplay-sorkin agent
+            - Type errors → suggest type-veronica agent
+            - Test failures → suggest test-holmes agent
+            - Linting issues → suggest ruff-house agent
 
       - name: Report Claude Code Review Status
         if: always() && (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true') && steps.check-recent-review.outputs.should_review != 'false'

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.exceptions import QueryError, ValidationError
 from scriptrag.query.loader import QueryLoader
 
@@ -48,14 +48,23 @@ SELECT * FROM products""")
         """Test initialization with environment variable."""
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         assert loader._query_dir == sample_queries
 
     def test_init_with_default_dir(self):
         """Test initialization with default directory."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
 
         with patch("scriptrag.query.loader.Path.exists") as mock_exists:
             mock_exists.return_value = True
@@ -67,7 +76,13 @@ SELECT * FROM products""")
         """Test discovering queries from directory."""
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         queries = loader.discover_queries()
@@ -86,7 +101,13 @@ SELECT * FROM products""")
         """Test that queries are cached."""
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         # First call
@@ -118,7 +139,13 @@ SELECT 1""")
         query2.write_text("""-- name: duplicate
 SELECT 2""")
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         queries = loader.discover_queries()
@@ -135,7 +162,13 @@ SELECT 2""")
 -- param: id int required
 SELECT * FROM test WHERE id = :id""")
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         spec = loader.load_query(query_file)
@@ -147,7 +180,13 @@ SELECT * FROM test WHERE id = :id""")
 
     def test_load_query_file_not_found(self):
         """Test loading non-existent file."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         with pytest.raises(FileNotFoundError):
@@ -158,7 +197,13 @@ SELECT * FROM test WHERE id = :id""")
         not_sql = temp_query_dir / "test.txt"
         not_sql.write_text("Not SQL")
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         with pytest.raises(ValidationError, match="Not an SQL file"):
@@ -168,7 +213,13 @@ SELECT * FROM test WHERE id = :id""")
         """Test getting query by name."""
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         query = loader.get_query("list_users")
@@ -182,7 +233,13 @@ SELECT * FROM test WHERE id = :id""")
         """Test listing all queries."""
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         queries = loader.list_queries()
@@ -196,7 +253,13 @@ SELECT * FROM test WHERE id = :id""")
     def test_init_without_settings(self):
         """Test initialization without settings - uses get_settings()."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/test/db.sqlite"
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
             mock_get_settings.return_value = mock_settings
 
             loader = QueryLoader()
@@ -213,7 +276,14 @@ SELECT * FROM test WHERE id = :id""")
             patch.dict("os.environ", {"SCRIPTRAG_QUERY_DIR": str(query_dir)}),
             patch("scriptrag.query.loader.logger") as mock_logger,
         ):
-            loader = QueryLoader(MagicMock(spec=ScriptRAGSettings))
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/test/db.sqlite"
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
+            loader = QueryLoader(mock_settings)
             assert loader._query_dir == query_dir
             mock_logger.info.assert_called_with(
                 f"Using query directory from env: {query_dir}"
@@ -227,7 +297,14 @@ SELECT * FROM test WHERE id = :id""")
             patch.dict("os.environ", {"SCRIPTRAG_QUERY_DIR": str(nonexistent)}),
             patch("scriptrag.query.loader.logger") as mock_logger,
         ):
-            loader = QueryLoader(MagicMock(spec=ScriptRAGSettings))
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/test/db.sqlite"
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
+            loader = QueryLoader(mock_settings)
 
             # Should warn about non-existent path
             mock_logger.warning.assert_called_with(
@@ -239,7 +316,13 @@ SELECT * FROM test WHERE id = :id""")
 
     def test_get_query_directory_default_not_exist(self, tmp_path):
         """Test default query directory creation when it doesn't exist."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
 
         # Create a non-existent default path
         nonexistent_default = tmp_path / "nonexistent_default_queries"
@@ -265,7 +348,13 @@ SELECT * FROM test WHERE id = :id""")
         """Test force reloading queries."""
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         # First load
@@ -273,7 +362,9 @@ SELECT * FROM test WHERE id = :id""")
         assert len(queries1) == 3
 
         # Modify cache manually
-        loader._cache = {"fake": MagicMock()}
+        loader._cache = {
+            "fake": MagicMock(spec=["content", "model", "provider", "usage"])
+        }
 
         # Force reload should ignore cache
         queries2 = loader.discover_queries(force_reload=True)
@@ -282,7 +373,13 @@ SELECT * FROM test WHERE id = :id""")
 
     def test_discover_queries_directory_not_exist(self):
         """Test discovering queries when directory doesn't exist."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         # Point to non-existent directory
@@ -307,7 +404,13 @@ SELECT * FROM test WHERE id = :id""")
         invalid_file = query_dir / "invalid.sql"
         invalid_file.write_bytes(b"\xff\xfe")  # Invalid UTF-8
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
         loader._query_dir = query_dir
 
@@ -330,7 +433,13 @@ SELECT * FROM test WHERE id = :id""")
         SELECT * FROM test;
         """)
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         with patch("scriptrag.query.loader.logger") as mock_logger:
@@ -349,7 +458,13 @@ SELECT * FROM test WHERE id = :id""")
         query_file = tmp_path / "parse_error.sql"
         query_file.write_bytes(b"\xff\xfe")  # Invalid UTF-8
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         with pytest.raises(QueryError, match="Failed to parse query file"):
@@ -357,7 +472,13 @@ SELECT * FROM test WHERE id = :id""")
 
     def test_validate_sql_syntax_empty(self):
         """Test SQL syntax validation with empty SQL."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         with pytest.raises(ValidationError, match="Empty SQL statement"):
@@ -368,7 +489,13 @@ SELECT * FROM test WHERE id = :id""")
 
     def test_validate_sql_syntax_incomplete(self):
         """Test SQL syntax validation with incomplete SQL."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         with pytest.raises(ValueError, match="Incomplete SQL statement"):
@@ -376,7 +503,13 @@ SELECT * FROM test WHERE id = :id""")
 
     def test_validate_sql_syntax_non_readonly(self):
         """Test SQL syntax validation with non-read-only queries."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         with pytest.raises(ValueError, match="Only read-only queries.*are allowed"):
@@ -390,7 +523,13 @@ SELECT * FROM test WHERE id = :id""")
 
     def test_validate_sql_syntax_valid_queries(self):
         """Test SQL syntax validation with valid queries."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         # These should not raise exceptions
@@ -404,7 +543,13 @@ SELECT * FROM test WHERE id = :id""")
         """Test query caching behavior."""
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         # First call loads from disk
@@ -419,7 +564,13 @@ SELECT * FROM test WHERE id = :id""")
         """Test getting non-existent query."""
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         query = loader.get_query("nonexistent")
@@ -429,7 +580,13 @@ SELECT * FROM test WHERE id = :id""")
         """Test list queries caching behavior."""
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(sample_queries))
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         # First call loads from disk
@@ -445,7 +602,13 @@ SELECT * FROM test WHERE id = :id""")
         # This test is too complex to mock properly with Path manipulation
         # The real implementation handles OSError exceptions during mkdir gracefully
         # But the mocking complexity outweighs the benefit for this edge case
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
 
         # Just ensure initialization works normally (mkdir success path is covered)
         loader = QueryLoader(settings)
@@ -453,7 +616,13 @@ SELECT * FROM test WHERE id = :id""")
 
     def test_reload_queries_method(self):
         """Test reload queries method calls discover with force - line 156 coverage."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
+        settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
         with patch.object(loader, "discover_queries") as mock_discover:

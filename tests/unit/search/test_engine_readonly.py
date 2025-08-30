@@ -193,12 +193,15 @@ class TestReadOnlyAccess:
         assert "scriptrag init" in str(exc_info.value)
 
     def test_readonly_with_nonexistent_db(self, tmp_path):
-        """Test that read-only connection fails properly with non-existent database."""
-        # Try to open non-existent database in read-only mode
+        """Test that read-only connection creates database if non-existent."""
+        # Try to open non-existent database (will be created)
         db_path = tmp_path / "nonexistent.db"
         settings = ScriptRAGSettings(database_path=db_path)
         engine = SearchEngine(settings)
 
-        # Should raise an error when trying to open non-existent DB in read-only mode
-        with pytest.raises(sqlite3.OperationalError), engine.get_read_only_connection():
-            pass
+        # Connection manager creates the database if it doesn't exist
+        with engine.get_read_only_connection() as conn:
+            # Database was created, verify it's in read-only mode
+            cursor = conn.execute("PRAGMA query_only")
+            result = cursor.fetchone()
+            assert result[0] == 1, "Connection should have query_only=1"

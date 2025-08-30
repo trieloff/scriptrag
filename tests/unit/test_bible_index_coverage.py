@@ -94,7 +94,7 @@ class TestBibleIndexerCoverage:
     def test_initialization_defaults(self):
         """Test BibleIndexer initialization with defaults."""
         with patch("scriptrag.api.bible_index.get_settings") as mock_get_settings:
-            mock_settings = Mock()
+            mock_settings = Mock(spec_set=["bible_max_file_size"])
             mock_settings.bible_max_file_size = 1024 * 1024
             mock_get_settings.return_value = mock_settings
 
@@ -107,7 +107,7 @@ class TestBibleIndexerCoverage:
 
     def test_initialization_with_params(self, mock_settings):
         """Test BibleIndexer initialization with provided parameters."""
-        mock_db_ops = Mock()
+        mock_db_ops = Mock(spec_set=["transaction", "get_connection"])
         indexer = BibleIndexer(settings=mock_settings, db_ops=mock_db_ops)
 
         assert indexer.settings == mock_settings
@@ -121,12 +121,25 @@ class TestBibleIndexerCoverage:
         indexer = BibleIndexer(settings=mock_settings)
 
         # Mock embedding analyzer with mixed success/failure
-        mock_analyzer = AsyncMock()
+        mock_analyzer = AsyncMock(
+            spec_set=[
+                "cleanup",
+                "analyze",
+                "initialize",
+                "name",
+                "version",
+                "requires_llm",
+            ]
+        )
+        # Fix the conspiracy: AsyncMock with spec_set creates regular mocks for methods
+        mock_analyzer.analyze = AsyncMock()
+        mock_analyzer.initialize = AsyncMock()
+        mock_analyzer.cleanup = AsyncMock()
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor with chunks
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Heading 1", "Content 1"),
             (2, "hash2", None, "Content 2"),  # Test None heading
@@ -162,12 +175,25 @@ class TestBibleIndexerCoverage:
         """Test exponential backoff in _generate_embeddings."""
         indexer = BibleIndexer(settings=mock_settings)
 
-        mock_analyzer = AsyncMock()
+        mock_analyzer = AsyncMock(
+            spec_set=[
+                "cleanup",
+                "analyze",
+                "initialize",
+                "name",
+                "version",
+                "requires_llm",
+            ]
+        )
+        # Fix the conspiracy: AsyncMock with spec_set creates regular mocks for methods
+        mock_analyzer.analyze = AsyncMock()
+        mock_analyzer.initialize = AsyncMock()
+        mock_analyzer.cleanup = AsyncMock()
         mock_analyzer.analyze.side_effect = [Exception("Error")] * 3
         indexer.embedding_analyzer = mock_analyzer
 
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.fetchall.return_value = [(1, "hash1", "Heading", "Content")]
         mock_conn.cursor.return_value = mock_cursor
 
@@ -192,16 +218,20 @@ class TestBibleIndexerCoverage:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock()
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_db_ops = Mock(spec_set=["transaction", "get_connection"])
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
 
         # Mock existing entry with same hash
         mock_cursor.fetchone.return_value = (1, mock_parsed_bible.file_hash)
         mock_cursor.lastrowid = 123
         mock_conn.cursor.return_value = mock_cursor
-        mock_db_ops.transaction.return_value.__enter__ = Mock(return_value=mock_conn)
-        mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
+
+        # Properly mock the transaction context manager
+        mock_context = Mock()
+        mock_context.__enter__ = Mock(return_value=mock_conn)
+        mock_context.__exit__ = Mock(return_value=None)
+        mock_db_ops.transaction.return_value = mock_context
 
         indexer = BibleIndexer(settings=mock_settings, db_ops=mock_db_ops)
 
@@ -266,7 +296,7 @@ class TestBibleIndexerCoverage:
 
         # Mock database connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
 
         execute_calls = []
         lastrowid_sequence = [100, 101]
@@ -277,7 +307,7 @@ class TestBibleIndexerCoverage:
                 mock_cursor.lastrowid = lastrowid_sequence.pop(0)
             else:
                 mock_cursor.lastrowid = None
-            return Mock()
+            return Mock(spec_set=[])
 
         mock_cursor.execute.side_effect = mock_execute
         mock_conn.cursor.return_value = mock_cursor
@@ -302,7 +332,7 @@ class TestBibleIndexerCoverage:
 
         # Mock database connection and cursor
         mock_conn = Mock(spec=sqlite3.Connection)
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.lastrowid = None  # Test None case
         mock_conn.cursor.return_value = mock_cursor
 
@@ -322,16 +352,20 @@ class TestBibleIndexerCoverage:
         bible_path.write_text("# Test")
 
         # Mock database operations
-        mock_db_ops = Mock()
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_db_ops = Mock(spec_set=["transaction", "get_connection"])
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
 
         # Mock no existing entry
         mock_cursor.fetchone.return_value = None
         mock_cursor.lastrowid = 123
         mock_conn.cursor.return_value = mock_cursor
-        mock_db_ops.transaction.return_value.__enter__ = Mock(return_value=mock_conn)
-        mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
+
+        # Properly mock the transaction context manager
+        mock_context = Mock()
+        mock_context.__enter__ = Mock(return_value=mock_conn)
+        mock_context.__exit__ = Mock(return_value=None)
+        mock_db_ops.transaction.return_value = mock_context
 
         indexer = BibleIndexer(settings=mock_settings, db_ops=mock_db_ops)
 
@@ -366,7 +400,7 @@ class TestBibleIndexerCoverage:
         bible_path.write_text("# Test")
 
         # Mock database operations to raise exception during transaction
-        mock_db_ops = Mock()
+        mock_db_ops = Mock(spec_set=["transaction", "get_connection"])
         mock_db_ops.transaction.side_effect = sqlite3.Error("Database error")
 
         indexer = BibleIndexer(settings=mock_settings, db_ops=mock_db_ops)
@@ -391,7 +425,20 @@ class TestBibleIndexerCoverage:
         with patch(
             "scriptrag.api.bible_index.SceneEmbeddingAnalyzer"
         ) as mock_analyzer_class:
-            mock_analyzer = AsyncMock()
+            mock_analyzer = AsyncMock(
+                spec_set=[
+                    "cleanup",
+                    "analyze",
+                    "initialize",
+                    "name",
+                    "version",
+                    "requires_llm",
+                ]
+            )
+            # Fix: AsyncMock with spec_set creates regular mocks for methods
+            mock_analyzer.analyze = AsyncMock()
+            mock_analyzer.initialize = AsyncMock()
+            mock_analyzer.cleanup = AsyncMock()
             mock_analyzer_class.return_value = mock_analyzer
 
             indexer = BibleIndexer(settings=mock_settings)
@@ -422,12 +469,25 @@ class TestBibleIndexerCoverage:
         """Test _generate_embeddings with partial success across chunks."""
         indexer = BibleIndexer(settings=mock_settings)
 
-        mock_analyzer = AsyncMock()
+        mock_analyzer = AsyncMock(
+            spec_set=[
+                "cleanup",
+                "analyze",
+                "initialize",
+                "name",
+                "version",
+                "requires_llm",
+            ]
+        )
+        # Fix the conspiracy: AsyncMock with spec_set creates regular mocks for methods
+        mock_analyzer.analyze = AsyncMock()
+        mock_analyzer.initialize = AsyncMock()
+        mock_analyzer.cleanup = AsyncMock()
         indexer.embedding_analyzer = mock_analyzer
 
         # Mock database cursor
-        mock_conn = Mock()
-        mock_cursor = Mock()
+        mock_conn = Mock(spec_set=["cursor", "execute", "commit", "rollback"])
+        mock_cursor = Mock(spec_set=["fetchone", "fetchall", "execute", "lastrowid"])
         mock_cursor.fetchall.return_value = [
             (1, "hash1", "Heading 1", "Content 1"),
             (2, "hash2", "Heading 2", "Content 2"),

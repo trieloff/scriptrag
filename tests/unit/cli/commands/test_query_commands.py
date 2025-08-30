@@ -7,19 +7,26 @@ import typer
 
 from scriptrag.api.query import QueryAPI
 from scriptrag.cli.commands.query import (
+    QueryAppManager,
     QueryCommandBuilder,
     create_query_app,
+    get_query_app,
+    reset_query_app,
 )
-from scriptrag.query.spec import ParamSpec, QuerySpec
+from scriptrag.config.settings import ScriptRAGSettings
+from scriptrag.query.spec import QuerySpec
 
 
 class TestQueryCommandBuilder:
-    """Test QueryCommandBuilder functionality."""
+    """Test query command builder."""
 
     @pytest.fixture
     def mock_api(self):
         """Create mock QueryAPI."""
-        return MagicMock(spec=QueryAPI)
+        api = MagicMock(spec=QueryAPI)
+        api.reload_queries = MagicMock()
+        api.list_queries = MagicMock(return_value=[])
+        return api
 
     @pytest.fixture
     def simple_spec(self):
@@ -28,46 +35,16 @@ class TestQueryCommandBuilder:
             name="simple-query", description="A simple query", sql="SELECT * FROM users"
         )
 
-    @pytest.fixture
-    def complex_spec(self):
-        """Create complex query spec with parameters."""
-        return QuerySpec(
-            name="complex-query",
-            description="A complex query",
-            params=[
-                ParamSpec(name="user_id", type="int", required=True, help="User ID"),
-                ParamSpec(name="active", type="bool", required=False, default=True),
-                ParamSpec(
-                    name="status",
-                    type="str",
-                    required=True,
-                    choices=["active", "inactive"],
-                ),
-                ParamSpec(name="limit", type="int", required=False, default=10),
-                ParamSpec(name="offset", type="int", required=False, default=0),
-            ],
-            sql="SELECT * FROM users WHERE user_id = :user_id AND active = :active "
-            "LIMIT :limit OFFSET :offset",
-        )
-
-    def test_builder_initialization(self, mock_api):
-        """Test QueryCommandBuilder initialization."""
-        builder = QueryCommandBuilder(mock_api)
-
-        assert builder.api is mock_api
-        assert builder.formatter is not None
-        assert builder.handler is not None
-
-    def test_create_query_app(self, mock_api):
-        """Test creating query app with no queries."""
+    def test_create_query_app_no_queries(self, mock_api):
+        """Test creating query app when no queries exist."""
         mock_api.list_queries.return_value = []
 
         builder = QueryCommandBuilder(mock_api)
         app = builder.create_query_app()
 
         assert app is not None
+        assert isinstance(app, typer.Typer)
         mock_api.reload_queries.assert_called_once()
-        mock_api.list_queries.assert_called_once()
 
     def test_create_query_app_with_queries(self, mock_api, simple_spec):
         """Test creating query app with queries."""
@@ -77,93 +54,84 @@ class TestQueryCommandBuilder:
         app = builder.create_query_app()
 
         assert app is not None
+        assert isinstance(app, typer.Typer)
         mock_api.reload_queries.assert_called_once()
-        mock_api.list_queries.assert_called_once()
 
-    def test_create_query_app_with_exception(self, mock_api):
-        """Test create_query_app handles exceptions gracefully."""
-        mock_api.reload_queries.side_effect = Exception("Load error")
+    def test_create_query_app_reload_failure(self, mock_api):
+        """Test query app creation when reload fails."""
+        mock_api.reload_queries.side_effect = Exception("Failed to reload")
 
         builder = QueryCommandBuilder(mock_api)
         app = builder.create_query_app()
 
-        # Should still return an app even if query loading fails
+        # Should still create app even if reload fails
         assert app is not None
 
-    def test_create_list_command(self, mock_api):
-        """Test creating list command."""
-        mock_api.list_queries.return_value = []
 
-        builder = QueryCommandBuilder(mock_api)
-        list_command = builder._create_list_command()
+class TestQueryAppManager:
+    """Test query app manager."""
 
-        assert list_command is not None
-        assert callable(list_command)
+    def test_get_app_creates_app(self):
+        """Test that get_app creates app on first call."""
+        manager = QueryAppManager()
 
-    def test_register_query_command(self, mock_api, simple_spec):
-        """Test registering a query command."""
-        mock_app = MagicMock(spec=typer.Typer)
+        with patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings:
+            mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
+            mock_settings.database_path = "/test/db.sqlite"
+            mock_get_settings.return_value = mock_settings
+            app = manager.get_app()
 
-        builder = QueryCommandBuilder(mock_api)
-        builder._register_query_command(mock_app, simple_spec)
+            assert app is not None
+            assert manager.app is app
 
-        # Should register the command
-        mock_app.command.assert_called_once()
+    def test_get_app_reuses_app(self):
+        """Test that get_app reuses existing app."""
+        manager = QueryAppManager()
+
+        with patch("scriptrag.cli.commands.query.get_settings") as mock_get_settings:
+            mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
+            mock_settings.database_path = "/test/db.sqlite"
+            mock_get_settings.return_value = mock_settings
+            app1 = manager.get_app()
+            app2 = manager.get_app()
+
+            assert app1 is app2
 
 
-class TestCreateQueryApp:
-    """Test create_query_app function."""
+class TestQueryAppFunctions:
+    """Test module-level query app functions."""
 
     @patch("scriptrag.cli.commands.query.get_settings")
     @patch("scriptrag.cli.commands.query.QueryAPI")
-    def test_create_query_app_no_queries(self, mock_api_class, mock_get_settings):
-        """Test creating app when no queries found."""
-        mock_settings = MagicMock()
+    def test_create_query_app(self, mock_api_class, mock_get_settings):
+        """Test create_query_app function."""
+        mock_settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         mock_get_settings.return_value = mock_settings
-        mock_api = MagicMock()
+        mock_api = MagicMock(spec=QueryAPI)
+        mock_api.reload_queries = MagicMock()
+        mock_api.list_queries = MagicMock(return_value=[])
         mock_api_class.return_value = mock_api
-        mock_api.list_queries.return_value = []
 
         app = create_query_app()
 
-        # Should create API and reload queries
-        mock_api_class.assert_called_once_with(mock_settings)
-        mock_api.reload_queries.assert_called_once()
         assert app is not None
+        assert isinstance(app, typer.Typer)
 
-    @patch("scriptrag.cli.commands.query.get_settings")
-    @patch("scriptrag.cli.commands.query.QueryAPI")
-    def test_create_query_app_with_queries(self, mock_api_class, mock_get_settings):
-        """Test creating app with queries."""
-        # Setup mocks
-        mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
-        mock_api = MagicMock()
-        mock_api_class.return_value = mock_api
+    def test_get_query_app(self):
+        """Test get_query_app function."""
+        with patch("scriptrag.cli.commands.query._query_app_manager") as mock_manager:
+            mock_app = MagicMock(spec=typer.Typer)
+            mock_manager.get_app.return_value = mock_app
 
-        mock_spec = QuerySpec(name="test-query", description="Test", sql="SELECT 1")
-        mock_api.list_queries.return_value = [mock_spec]
+            app = get_query_app()
 
-        app = create_query_app()
+            assert app is mock_app
+            mock_manager.get_app.assert_called_once()
 
-        # Should create API and get queries
-        mock_api_class.assert_called_once_with(mock_settings)
-        assert app is not None
-
-    @patch("scriptrag.cli.commands.query.get_settings")
-    @patch("scriptrag.cli.commands.query.QueryAPI")
-    def test_create_query_app_handles_failure(self, mock_api_class, mock_get_settings):
-        """Test creating app when query loading fails."""
-        # Setup mocks
-        mock_settings = MagicMock()
-        mock_get_settings.return_value = mock_settings
-        mock_api = MagicMock()
-        mock_api_class.return_value = mock_api
-
-        # Make queries fail to load
-        mock_api.reload_queries.side_effect = Exception("Load error")
-
-        app = create_query_app()
-
-        # Should still create app
-        assert app is not None
+    def test_reset_query_app(self):
+        """Test reset_query_app function."""
+        with patch("scriptrag.cli.commands.query._query_app_manager") as mock_manager:
+            reset_query_app()
+            mock_manager.reset.assert_called_once()

@@ -42,7 +42,7 @@ class TestSceneDatabaseOperations:
             "script_title": "test_project",
         }
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = mock_row
         mock_conn.execute.return_value = mock_cursor
 
@@ -60,7 +60,7 @@ class TestSceneDatabaseOperations:
         """Test scene retrieval with season and episode."""
         scene_id = SceneIdentifier("test_show", 5, season=2, episode=3)
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = None
         mock_conn.execute.return_value = mock_cursor
 
@@ -79,7 +79,7 @@ class TestSceneDatabaseOperations:
         """Test scene retrieval when not found."""
         scene_id = SceneIdentifier("test_project", 999)
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = None
         mock_conn.execute.return_value = mock_cursor
 
@@ -100,7 +100,7 @@ class TestSceneDatabaseOperations:
             "script_title": "test_project",
         }
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = mock_row
         mock_conn.execute.return_value = mock_cursor
 
@@ -184,7 +184,7 @@ class TestSceneDatabaseOperations:
         )
 
         # Mock script ID query
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = (1,)  # script_id
         mock_conn.execute.return_value = mock_cursor
 
@@ -201,7 +201,7 @@ class TestSceneDatabaseOperations:
         scene_id = SceneIdentifier("nonexistent_project", 1)
         content = "INT. SCENE - DAY"
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = None
         mock_conn.execute.return_value = mock_cursor
 
@@ -213,7 +213,7 @@ class TestSceneDatabaseOperations:
         scene_id = SceneIdentifier("test_project", 10)
         content = "EXT. LOCATION - NIGHT\n\nAction"
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = (1,)  # script_id
         mock_conn.execute.return_value = mock_cursor
 
@@ -232,7 +232,7 @@ class TestSceneDatabaseOperations:
         scene_id = SceneIdentifier("test_project", 10)
         content = ""
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = (1,)  # script_id
         mock_conn.execute.return_value = mock_cursor
 
@@ -274,7 +274,7 @@ class TestSceneDatabaseOperations:
         scene_id = SceneIdentifier("test_project", 5)
 
         # Mock the cursor for SELECT query
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchall.return_value = [(10, 6), (11, 7)]  # (id, scene_number)
         mock_conn.execute.return_value = mock_cursor
 
@@ -318,7 +318,7 @@ class TestSceneDatabaseOperations:
         scene_id = SceneIdentifier("test_project", 5)
 
         # Mock the cursor for SELECT query (positive shift uses SELECT-first approach)
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchall.return_value = [(10, 5), (11, 6)]  # (id, scene_number)
         mock_conn.execute.return_value = mock_cursor
 
@@ -348,7 +348,7 @@ class TestSceneDatabaseOperations:
         scene_id = SceneIdentifier("test_project", 5)
 
         # Mock scenes that need renumbering
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchall.return_value = [(6,), (7,), (8,)]
         mock_conn.execute.return_value = mock_cursor
 
@@ -362,7 +362,7 @@ class TestSceneDatabaseOperations:
         """Test compacting when no scenes need renumbering."""
         scene_id = SceneIdentifier("test_project", 100)
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchall.return_value = []
         mock_conn.execute.return_value = mock_cursor
 
@@ -376,7 +376,7 @@ class TestSceneDatabaseOperations:
         """Test getting list of renumbered scenes."""
         scene_id = SceneIdentifier("test_project", 5)
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchall.return_value = [(6,), (7,), (8,)]
         mock_conn.execute.return_value = mock_cursor
 
@@ -418,7 +418,7 @@ class TestSceneDatabaseOperations:
         scene_id = SceneIdentifier("test_project", 5)
 
         mock_row = {"updated_at": "2024-01-01T12:00:00"}
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = mock_row
         mock_conn.execute.return_value = mock_cursor
 
@@ -435,7 +435,7 @@ class TestSceneDatabaseOperations:
 
         # SQLite sometimes returns timestamps with space instead of T
         mock_row = {"updated_at": "2024-01-01 12:00:00"}
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = mock_row
         mock_conn.execute.return_value = mock_cursor
 
@@ -448,7 +448,7 @@ class TestSceneDatabaseOperations:
         """Test getting last modified when scene not found."""
         scene_id = SceneIdentifier("test_project", 999)
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = None
         mock_conn.execute.return_value = mock_cursor
 
@@ -460,7 +460,7 @@ class TestSceneDatabaseOperations:
         scene_id = SceneIdentifier("test_project", 5)
 
         mock_row = {"updated_at": None}
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = mock_row
         mock_conn.execute.return_value = mock_cursor
 
@@ -471,7 +471,7 @@ class TestSceneDatabaseOperations:
         """Test getting last modified with season/episode."""
         scene_id = SceneIdentifier("test_show", 5, season=3, episode=4)
 
-        mock_cursor = MagicMock()
+        mock_cursor = MagicMock(spec=["fetchone", "fetchall", "execute", "close"])
         mock_cursor.fetchone.return_value = None
         mock_conn.execute.return_value = mock_cursor
 

@@ -2,9 +2,10 @@
 
 import sqlite3
 from collections.abc import Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager
 
 from scriptrag.config import ScriptRAGSettings, get_logger
+from scriptrag.database.connection_manager import get_connection_manager
 
 logger = get_logger(__name__)
 
@@ -197,30 +198,9 @@ def get_read_only_connection(
         ):
             raise ValueError("Invalid database path detected")
 
-        # Open connection in read-only mode
-        uri = f"file:{db_path_resolved}?mode=ro"
-        conn = sqlite3.connect(
-            uri,
-            uri=True,
-            timeout=settings.database_timeout,
-            check_same_thread=False,
-        )
-
-        # Configure for read-only access via consolidated pragma settings
-        pragma_settings = {
-            "query_only": "ON",
-            "cache_size": settings.database_cache_size,
-            "temp_store": settings.database_temp_store,
-        }
-
-        for pragma, value in pragma_settings.items():
-            conn.execute(f"PRAGMA {pragma} = {value}")
-
-        # Enable JSON support
-        conn.row_factory = sqlite3.Row
-
-        yield conn
+        # Get connection from centralized manager in read-only mode
+        manager = get_connection_manager(settings)
+        with manager.readonly() as conn:
+            yield conn
     finally:
-        if conn:
-            with suppress(Exception):
-                conn.close()
+        pass  # Connection is automatically released by context manager

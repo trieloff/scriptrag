@@ -159,7 +159,9 @@ class TestLLMTimeoutHandling:
             # Create a mock client that returns quickly
             from unittest.mock import AsyncMock
 
-            mock_client = AsyncMock()
+            mock_client = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
             mock_client.complete = AsyncMock(
                 return_value=type(
                     "Response",
@@ -205,7 +207,9 @@ class TestLLMTimeoutHandling:
         ) as mock_get_client:
             from unittest.mock import AsyncMock, Mock
 
-            mock_client = AsyncMock()
+            mock_client = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
 
             # Mock embedding response - use a dict that naturally supports indexing
             mock_embedding = {"embedding": [0.1, 0.2, 0.3, 0.4, 0.5]}
@@ -215,7 +219,8 @@ class TestLLMTimeoutHandling:
             response = Mock(spec=EmbeddingResponse)
             # Make response.data subscriptable - just use a regular list with dict
             response.data = [mock_embedding]
-            mock_client.embed.return_value = response
+            # Use AsyncMock for the embed method to make it awaitable
+            mock_client.embed = AsyncMock(return_value=response)
 
             mock_get_client.return_value = mock_client
 
@@ -264,7 +269,9 @@ class TestTimeoutConfiguration:
         with patch("scriptrag.utils.get_default_llm_client") as mock_get_client:
             from unittest.mock import AsyncMock
 
-            mock_client = AsyncMock()
+            mock_client = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
             mock_client.complete = AsyncMock(
                 return_value=type(
                     "Response",

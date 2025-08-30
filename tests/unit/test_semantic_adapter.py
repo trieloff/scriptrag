@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 import pytest
 
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.search.models import SearchMode, SearchQuery
 from scriptrag.search.semantic_adapter import SemanticSearchAdapter
 
@@ -17,13 +17,18 @@ class TestSemanticSearchAdapter:
     @pytest.fixture
     def mock_settings(self):
         """Create mock settings."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.llm_embedding_model = "text-embedding-3-small"
         settings.llm_embedding_dimensions = 1536
         settings.search_vector_similarity_threshold = 0.5
         settings.search_vector_result_limit_factor = 0.5
         settings.search_vector_min_results = 5
-        settings.database_path = MagicMock()
+        settings.database_path = "/tmp/test.db"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         return settings
 
     @pytest.fixture
@@ -32,7 +37,7 @@ class TestSemanticSearchAdapter:
         with patch(
             "scriptrag.search.semantic_adapter.SemanticSearchService"
         ) as mock_service_class:
-            mock_service = MagicMock()
+            mock_service = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_service_class.return_value = mock_service
             adapter = SemanticSearchAdapter(mock_settings)
             # Ensure the service is properly set up
@@ -75,17 +80,23 @@ class TestSemanticSearchAdapter:
     @pytest.mark.asyncio
     async def test_enhance_results_with_scenes(self, adapter):
         """Test enhance_results with scene results."""
-        # Create mock search results
-        mock_scene_result = MagicMock()
+        # Create mock search results with only the attributes the adapter actually uses
+        mock_scene_result = MagicMock(
+            spec_set=[
+                "scene_id",
+                "script_id",
+                "heading",
+                "location",
+                "content",
+                "similarity_score",
+                "metadata",
+            ]
+        )
         mock_scene_result.scene_id = 123
         mock_scene_result.script_id = 1
-        mock_scene_result.script_title = "Test Script"
-        mock_scene_result.script_author = "Test Author"
-        mock_scene_result.scene_number = 1
-        mock_scene_result.scene_heading = "INT. OFFICE - DAY"
-        mock_scene_result.scene_location = "OFFICE"
-        mock_scene_result.scene_time = "DAY"
-        mock_scene_result.scene_content = "Test content"
+        mock_scene_result.heading = "INT. OFFICE - DAY"
+        mock_scene_result.location = "OFFICE"
+        mock_scene_result.content = "Test content"
         mock_scene_result.similarity_score = 0.8
 
         # Mock both semantic service methods with proper async behavior
@@ -119,16 +130,27 @@ class TestSemanticSearchAdapter:
     @pytest.mark.asyncio
     async def test_enhance_results_with_bible(self, adapter):
         """Test enhance_results with bible results."""
-        # Create mock bible result
-        mock_bible_result = MagicMock()
+        # Create mock bible result with only the attributes the adapter actually uses
+        mock_bible_result = MagicMock(
+            spec_set=[
+                "chunk_id",
+                "bible_id",
+                "script_id",
+                "bible_title",
+                "heading",
+                "content",
+                "similarity_score",
+                "level",
+                "metadata",
+            ]
+        )
         mock_bible_result.script_id = 1
-        mock_bible_result.script_title = "Test Script"
         mock_bible_result.bible_id = 1
         mock_bible_result.bible_title = "Test Bible"
         mock_bible_result.chunk_id = 10
-        mock_bible_result.chunk_heading = "Characters"
-        mock_bible_result.chunk_level = 1
-        mock_bible_result.chunk_content = "Character descriptions"
+        mock_bible_result.heading = "Characters"
+        mock_bible_result.level = 1
+        mock_bible_result.content = "Character descriptions"
         mock_bible_result.similarity_score = 0.7
 
         # Mock the semantic service methods with proper async behavior
@@ -177,17 +199,23 @@ class TestSemanticSearchAdapter:
             scene_content="Test content",
         )
 
-        # Create mock scene that duplicates existing
-        mock_scene_result = MagicMock()
+        # Create mock scene that duplicates existing with only adapter attributes
+        mock_scene_result = MagicMock(
+            spec_set=[
+                "scene_id",
+                "script_id",
+                "heading",
+                "location",
+                "content",
+                "similarity_score",
+                "metadata",
+            ]
+        )
         mock_scene_result.scene_id = 123  # Same as existing
         mock_scene_result.script_id = 1
-        mock_scene_result.script_title = "Test Script"
-        mock_scene_result.script_author = "Test Author"
-        mock_scene_result.scene_number = 1
-        mock_scene_result.scene_heading = "INT. OFFICE - DAY"
-        mock_scene_result.scene_location = "OFFICE"
-        mock_scene_result.scene_time = "DAY"
-        mock_scene_result.scene_content = "Test content"
+        mock_scene_result.heading = "INT. OFFICE - DAY"
+        mock_scene_result.location = "OFFICE"
+        mock_scene_result.content = "Test content"
         mock_scene_result.similarity_score = 0.8
 
         # Mock both semantic service methods with proper async behavior

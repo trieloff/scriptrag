@@ -628,7 +628,9 @@ class TestLLMClient:
         client = LLMClient()
 
         # Mock provider - use AsyncMock for the provider itself
-        mock_provider = AsyncMock()
+        mock_provider = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         mock_provider.provider_type = LLMProvider.GITHUB_MODELS
         mock_response = CompletionResponse(
             id="test",

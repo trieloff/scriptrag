@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.database.readonly import get_read_only_connection
 
 
@@ -16,7 +16,9 @@ class TestGetReadOnlyConnection:
     def settings(self, tmp_path):
         """Create test settings."""
         db_path = tmp_path / "test.db"
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = db_path
         settings.database_timeout = 30.0
         settings.database_cache_size = -2000
@@ -30,29 +32,37 @@ class TestGetReadOnlyConnection:
         db_path = settings.database_path
         db_path.touch()
 
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "readonly",
+                    "__enter__",
+                    "__exit__",
+                ]
+            )
+            mock_conn = MagicMock(
+                spec=["content", "model", "provider", "usage", "close"]
+            )
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
-            # Verify connection was opened in read-only mode
-            expected_uri = f"file:{db_path.resolve()}?mode=ro"
-            mock_connect.assert_called_once_with(
-                expected_uri, uri=True, timeout=30.0, check_same_thread=False
-            )
-
-            # Verify pragma settings were applied
-            mock_conn.execute.assert_any_call("PRAGMA query_only = ON")
-            mock_conn.execute.assert_any_call("PRAGMA cache_size = -2000")
-            mock_conn.execute.assert_any_call("PRAGMA temp_store = MEMORY")
-
-            # Verify row factory was set
-            assert mock_conn.row_factory is not None
-
-            # Verify connection was closed
-            mock_conn.close.assert_called_once()
+            # Verify connection manager was called with settings
+            mock_get_manager.assert_called_once_with(settings)
+            # Verify readonly context was used
+            mock_manager.readonly.assert_called_once()
 
     def test_get_read_only_connection_path_traversal_protection(self, tmp_path):
         """Test path traversal protection."""
@@ -61,7 +71,9 @@ class TestGetReadOnlyConnection:
         base_dir.mkdir()
 
         # Create settings with path that would traverse outside parent
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # This creates a path that goes outside the expected parent directory
         traversal_path = base_dir / "../../../etc/passwd"
         settings.database_path = traversal_path
@@ -82,85 +94,124 @@ class TestGetReadOnlyConnection:
         db_path = settings.database_path
         db_path.touch()
 
-        with patch("sqlite3.connect") as mock_connect:
-            # Mock connection that raises exception during setup
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
-            mock_conn.execute.side_effect = RuntimeError("Connection error")
+        # Mock the connection manager to raise an exception
+        from scriptrag.exceptions import DatabaseError
 
-            with (
-                pytest.raises(RuntimeError, match="Connection error"),
-                get_read_only_connection(settings),
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_get_manager.side_effect = DatabaseError(
+                message="Failed to create database connection: Connection error",
+                hint="Check database path and permissions",
+                details={"db_path": str(db_path)},
+            )
+
+            with pytest.raises(
+                DatabaseError,
+                match="Failed to create database connection: Connection error",
             ):
-                pass
+                with get_read_only_connection(settings):
+                    pass
 
-            # Connection should still be closed on exception
-            mock_conn.close.assert_called_once()
+            # Verify connection manager was called with settings
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_get_read_only_connection_no_exception_on_close_error(self, settings):
         """Test that exceptions during close are handled gracefully."""
         db_path = settings.database_path
         db_path.touch()
 
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
-            # Connection closes with error, but should not propagate
-            mock_conn.close.side_effect = RuntimeError("Close error")
+        # Mock the connection manager - close errors handled internally
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "readonly",
+                    "__enter__",
+                    "__exit__",
+                ]
+            )
+            mock_conn = MagicMock(
+                spec=["content", "model", "provider", "usage", "close"]
+            )
+            mock_get_manager.return_value = mock_manager
+            mock_context = MagicMock(
+                spec=["content", "model", "provider", "usage", "__enter__", "__exit__"]
+            )
+            mock_context.__enter__ = MagicMock(return_value=mock_conn)
+            mock_context.__exit__ = MagicMock(
+                return_value=None
+            )  # Close error handled internally
+            mock_manager.readonly.return_value = mock_context
 
-            # Should not raise exception during context manager usage
-            # The close error should be suppressed in the finally block
+            # Should not raise exception - connection manager handles close errors
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
-            # Verify close was called (even though it raised an error)
-            mock_conn.close.assert_called_once()
+            # Verify the context manager was properly used
+            mock_context.__exit__.assert_called_once()
 
     def test_get_read_only_connection_none_connection(self, settings):
         """Test handling when connection is None."""
         db_path = settings.database_path
         db_path.touch()
 
-        with patch("sqlite3.connect") as mock_connect:
-            # Mock connect returning None
-            mock_connect.return_value = None
+        # Mock the connection manager to raise error when None connection is attempted
+        from scriptrag.exceptions import DatabaseError
 
-            # This will fail because the code tries to call execute on None
-            # The actual implementation doesn't handle None connections gracefully
-            with (
-                pytest.raises(AttributeError),
-                get_read_only_connection(settings) as conn,
-            ):
-                assert conn is None
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_get_manager.side_effect = DatabaseError(
+                message="Failed to create database connection: NoneType error",
+                hint="Check database path and permissions",
+                details={"db_path": str(db_path)},
+            )
+
+            with pytest.raises(DatabaseError, match="NoneType error"):
+                with get_read_only_connection(settings):
+                    pass
 
     def test_get_read_only_connection_exception_cleanup(self, settings):
         """Test exception handling in cleanup - line 34 coverage."""
         db_path = settings.database_path
         db_path.touch()
 
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            # First call returns a connection, but then fails on pragma setup
-            mock_connect.return_value = mock_conn
-            mock_conn.execute.side_effect = RuntimeError("Pragma setup failed")
+        # Mock the connection manager to raise exception during initialization
+        from scriptrag.exceptions import DatabaseError
 
-            # This should handle the exception and still try to clean up
-            with (
-                pytest.raises(RuntimeError, match="Pragma setup failed"),
-                get_read_only_connection(settings),
-            ):
-                pass
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_get_manager.side_effect = DatabaseError(
+                message="Failed to create database connection: Pragma setup failed",
+                hint="Check database path and permissions",
+                details={"db_path": str(db_path)},
+            )
 
-            # Connection should have been closed in finally block
-            mock_conn.close.assert_called_once()
+            with pytest.raises(DatabaseError, match="Pragma setup failed"):
+                with get_read_only_connection(settings):
+                    pass
+
+            # Connection manager should have been called
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_get_read_only_connection_macos_temp_dirs_allowed(self):
         """Test that macOS temp directories in /private/var/folders/ are allowed."""
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
+        from scriptrag.config.settings import ScriptRAGSettings
+
         # Create settings with macOS temporary directory path
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # Simulate a typical macOS temporary directory path
         macos_temp_path = Path(
             "/private/var/folders/y6/nj790rtn62lfktb1sh__79hc0000gn/T/pytest-of-runner/pytest-0/test_db_path/test.db"
@@ -171,27 +222,48 @@ class TestGetReadOnlyConnection:
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
 
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "readonly",
+                    "__enter__",
+                    "__exit__",
+                ]
+            )
+            mock_conn = MagicMock(
+                spec=["content", "model", "provider", "usage", "close"]
+            )
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # This should NOT raise a ValueError for macOS temp dirs
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
-            # Verify connection was opened successfully
-            expected_uri = f"file:{macos_temp_path.resolve()}?mode=ro"
-            mock_connect.assert_called_once_with(
-                expected_uri, uri=True, timeout=30.0, check_same_thread=False
-            )
+            # Verify connection manager was called with settings
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_get_read_only_connection_regular_var_dirs_blocked(self):
         """Test that regular /var/ directories (non-temp) are still blocked."""
         from pathlib import Path
         from unittest.mock import MagicMock
 
+        from scriptrag.config.settings import ScriptRAGSettings
+
         # Create settings with regular /var directory path
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         var_path = Path("/var/lib/database/test.db")
         settings.database_path = var_path
         settings.database_timeout = 30.0
@@ -211,7 +283,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # Valid /root/repo path
         repo_path = Path("/root/repo/scriptrag.db")
         settings.database_path = repo_path
@@ -220,24 +296,47 @@ class TestGetReadOnlyConnection:
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
 
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "readonly",
+                    "__enter__",
+                    "__exit__",
+                ]
+            )
+            mock_conn = MagicMock(
+                spec=["content", "model", "provider", "usage", "close"]
+            )
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # This should NOT raise a ValueError for /root/repo/
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
-            # Verify connection was opened successfully
-            expected_uri = f"file:{repo_path.resolve()}?mode=ro"
-            mock_connect.assert_called_once()
+            # Verify connection manager was called with settings
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_root_repo_subdir_allowed(self):
         """Test that subdirectories under /root/repo/ are allowed."""
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # Valid /root/repo subdirectory path
         repo_path = Path("/root/repo/data/databases/scriptrag.db")
         settings.database_path = repo_path
@@ -246,13 +345,36 @@ class TestGetReadOnlyConnection:
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
 
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "readonly",
+                    "__enter__",
+                    "__exit__",
+                ]
+            )
+            mock_conn = MagicMock(
+                spec=["content", "model", "provider", "usage", "close"]
+            )
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # This should NOT raise a ValueError for /root/repo/ subdirs
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
+
+            # Verify connection manager was called
+            mock_get_manager.assert_called_once_with(settings)
 
     @pytest.mark.skipif(sys.platform == "win32", reason="Unix-specific path test")
     def test_root_malicious_repo_blocked(self):
@@ -260,7 +382,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # Malicious path that contains 'repo' but not under /root/repo/
         malicious_path = Path("/root/malicious-repo/database.db")
         settings.database_path = malicious_path
@@ -282,7 +408,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         # Path in /root/ but not in /root/repo/
         other_path = Path("/root/projects/database.db")
         settings.database_path = other_path
@@ -303,7 +433,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         home_path = Path("/home/user/projects/scriptrag.db")
         settings.database_path = home_path
         settings.database_timeout = 30.0
@@ -311,13 +445,36 @@ class TestGetReadOnlyConnection:
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
 
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "readonly",
+                    "__enter__",
+                    "__exit__",
+                ]
+            )
+            mock_conn = MagicMock(
+                spec=["content", "model", "provider", "usage", "close"]
+            )
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # Home directories should be allowed
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
+
+            # Verify connection manager was called
+            mock_get_manager.assert_called_once_with(settings)
 
     @pytest.mark.skipif(sys.platform == "win32", reason="macOS-specific path test")
     def test_macos_users_directory_allowed(self):
@@ -325,7 +482,11 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         users_path = Path("/Users/developer/projects/scriptrag.db")
         settings.database_path = users_path
         settings.database_timeout = 30.0
@@ -333,20 +494,47 @@ class TestGetReadOnlyConnection:
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
 
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "readonly",
+                    "__enter__",
+                    "__exit__",
+                ]
+            )
+            mock_conn = MagicMock(
+                spec=["content", "model", "provider", "usage", "close"]
+            )
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # macOS /Users/ directories should be allowed
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
+
+            # Verify connection manager was called
+            mock_get_manager.assert_called_once_with(settings)
 
     def test_windows_user_documents_allowed(self):
         """Test that Windows user Documents directories are allowed."""
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
-        settings = MagicMock(spec=ScriptRAGSettings)
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         docs_path = Path("C:\\Users\\developer\\Documents\\projects\\scriptrag.db")
         settings.database_path = docs_path
         settings.database_timeout = 30.0
@@ -354,18 +542,43 @@ class TestGetReadOnlyConnection:
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
 
-        with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
-            mock_connect.return_value = mock_conn
+        # Mock the connection manager to prevent actual database initialization
+        with patch(
+            "scriptrag.database.readonly.get_connection_manager"
+        ) as mock_get_manager:
+            mock_manager = MagicMock(
+                spec=[
+                    "content",
+                    "model",
+                    "provider",
+                    "usage",
+                    "readonly",
+                    "__enter__",
+                    "__exit__",
+                ]
+            )
+            mock_conn = MagicMock(
+                spec=["content", "model", "provider", "usage", "close"]
+            )
+            mock_get_manager.return_value = mock_manager
+            mock_manager.readonly.return_value.__enter__ = MagicMock(
+                return_value=mock_conn
+            )
+            mock_manager.readonly.return_value.__exit__ = MagicMock(return_value=None)
 
             # Windows Documents folders should be allowed
             with get_read_only_connection(settings) as conn:
                 assert conn == mock_conn
 
+            # Verify connection manager was called
+            mock_get_manager.assert_called_once_with(settings)
+
     def test_system_directories_blocked(self):
         """Test that various system directories are blocked."""
         from pathlib import Path
         from unittest.mock import MagicMock
+
+        from scriptrag.config.settings import ScriptRAGSettings
 
         blocked_paths = [
             "/etc/passwd",
@@ -377,7 +590,9 @@ class TestGetReadOnlyConnection:
         ]
 
         for blocked_path in blocked_paths:
-            settings = MagicMock(spec=ScriptRAGSettings)
+            settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             settings.database_path = Path(blocked_path)
             settings.database_timeout = 30.0
             settings.database_cache_size = -2000
@@ -399,6 +614,8 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock
 
+        from scriptrag.config.settings import ScriptRAGSettings
+
         # Test various path traversal attack vectors
         attack_paths = [
             "/root/repo/../../../etc/passwd",  # Escape to /etc/passwd
@@ -411,7 +628,9 @@ class TestGetReadOnlyConnection:
         ]
 
         for attack_path in attack_paths:
-            settings = MagicMock(spec=ScriptRAGSettings)
+            settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             settings.database_path = Path(attack_path)
             settings.database_timeout = 30.0
             settings.database_cache_size = -2000
@@ -430,6 +649,8 @@ class TestGetReadOnlyConnection:
         from pathlib import Path
         from unittest.mock import MagicMock, patch
 
+        from scriptrag.config.settings import ScriptRAGSettings
+
         # Test legitimate paths within /root/repo
         legitimate_paths = [
             "/root/repo/scriptrag.db",
@@ -438,17 +659,45 @@ class TestGetReadOnlyConnection:
         ]
 
         for legit_path in legitimate_paths:
-            settings = MagicMock(spec=ScriptRAGSettings)
+            settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             settings.database_path = Path(legit_path)
             settings.database_timeout = 30.0
             settings.database_cache_size = -2000
             settings.database_temp_store = "MEMORY"
             settings.database_journal_mode = "WAL"
 
-            with patch("sqlite3.connect") as mock_connect:
-                mock_conn = MagicMock()
-                mock_connect.return_value = mock_conn
+            # Mock the connection manager to prevent actual database initialization
+            with patch(
+                "scriptrag.database.readonly.get_connection_manager"
+            ) as mock_get_manager:
+                mock_manager = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "readonly",
+                        "__enter__",
+                        "__exit__",
+                    ]
+                )
+                mock_conn = MagicMock(
+                    spec=["content", "model", "provider", "usage", "close"]
+                )
+                mock_get_manager.return_value = mock_manager
+                mock_manager.readonly.return_value.__enter__ = MagicMock(
+                    return_value=mock_conn
+                )
+                mock_manager.readonly.return_value.__exit__ = MagicMock(
+                    return_value=None
+                )
 
                 # These should be allowed
                 with get_read_only_connection(settings) as conn:
                     assert conn == mock_conn
+
+                # Verify connection manager was called
+                mock_get_manager.assert_called_once_with(settings)
+                mock_get_manager.reset_mock()

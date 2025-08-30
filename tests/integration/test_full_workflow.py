@@ -45,7 +45,7 @@ def clean_settings():
 def sample_screenplay(tmp_path):
     """Create a sample screenplay with multiple scenes."""
     script_path = tmp_path / "test_script.fountain"
-    content = """Title: Integration Test Script
+    content = """Title: Integration_Test_Script
 Author: Test Suite
 Draft date: 2024-01-01
 
@@ -159,7 +159,9 @@ class TestFullWorkflow:
         with patch("scriptrag.utils.get_default_llm_client") as mock_get_client:
             from unittest.mock import AsyncMock
 
-            mock_client = AsyncMock()
+            mock_client = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
 
             # Create mock scene analysis response
             mock_response = create_llm_completion_response("scene", "coffee_shop")
@@ -213,7 +215,7 @@ class TestFullWorkflow:
         )
         script = cursor.fetchone()
         assert script is not None
-        assert script["title"] == "Integration Test Script"
+        assert script["title"] == "Integration_Test_Script"
         assert script["author"] == "Test Suite"
 
         script_id = script["id"]
@@ -1633,7 +1635,7 @@ Warm, cozy interiors contrasted with busy city exteriors.""")
         # Test 1: List available bible files
         result = runner.invoke(
             app,
-            ["scene", "read", "--project", "Integration Test Script", "--bible"],
+            ["scene", "read", "--project", "Integration_Test_Script", "--bible"],
         )
         assert result.exit_code == 0
         output = strip_ansi_codes(result.stdout)
@@ -1646,7 +1648,7 @@ Warm, cozy interiors contrasted with busy city exteriors.""")
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--bible-name",
                 "world_bible.md",
             ],
@@ -1663,7 +1665,7 @@ Warm, cozy interiors contrasted with busy city exteriors.""")
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--bible-name",
                 "characters.md",
             ],
@@ -1681,7 +1683,7 @@ Warm, cozy interiors contrasted with busy city exteriors.""")
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--bible",
                 "--json",
             ],
@@ -1700,7 +1702,7 @@ Warm, cozy interiors contrasted with busy city exteriors.""")
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--bible-name",
                 "world_bible.md",
                 "--json",

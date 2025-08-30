@@ -29,13 +29,17 @@ def _make_script(tmp_path: Path) -> Path:
 
 @pytest.mark.asyncio
 async def test_index_attaches_aliases_to_characters(tmp_path: Path) -> None:
-    # Initialize DB
+    # Initialize DB with proper settings
     db_path = tmp_path / "test.db"
-    DatabaseInitializer().initialize_database(db_path, force=True)
-
-    # Prepare settings for commands
     settings = ScriptRAGSettings(database_path=db_path)
     set_settings(settings)
+
+    # Force close any existing connection manager to ensure clean state
+    from scriptrag.database.connection_manager import close_connection_manager
+
+    close_connection_manager()
+
+    DatabaseInitializer().initialize_database(db_path, settings=settings, force=True)
 
     # Create and index script
     script_path = _make_script(tmp_path)

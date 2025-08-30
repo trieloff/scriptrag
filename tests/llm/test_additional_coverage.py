@@ -94,7 +94,7 @@ class TestRemainingCoverage:
         if github_provider:
             github_provider.is_available = AsyncMock(return_value=True)
             github_provider.list_models = AsyncMock(return_value=[])
-            mock_response = Mock()
+            mock_response = Mock(spec=object)
             mock_response.content = "test response"
             mock_response.model = "test"
             mock_response.provider = LLMProvider.GITHUB_MODELS
@@ -132,8 +132,9 @@ class TestRemainingCoverage:
             github_provider.is_available = AsyncMock(return_value=True)
             github_provider.list_models = AsyncMock(return_value=[])
             # Create a proper mock embedding response
-            mock_embedding_response = Mock()
+            mock_embedding_response = Mock(spec=["data", "model", "provider"])
             mock_embedding_response.data = []
+            mock_embedding_response.model = "text-embedding-ada-002"
             mock_embedding_response.provider = LLMProvider.GITHUB_MODELS
             github_provider.embed = AsyncMock(return_value=mock_embedding_response)
 
@@ -153,7 +154,7 @@ class TestRemainingCoverage:
 
         mock_provider = Mock(spec=BaseLLMProvider)
         mock_provider.list_models = AsyncMock(return_value=[])
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
         mock_response.content = "test response"
         mock_response.model = "gpt-4"
         mock_response.provider = LLMProvider.GITHUB_MODELS
@@ -175,7 +176,7 @@ class TestRemainingCoverage:
         mock_provider = Mock(spec=BaseLLMProvider)
         mock_provider.list_models = AsyncMock(return_value=[])
         # Create a proper mock embedding response with a data attribute that has len()
-        mock_embedding_response = Mock()
+        mock_embedding_response = Mock(spec=["data", "model", "provider"])
         mock_embedding_response.data = []
         mock_embedding_response.model = "text-embedding-ada-002"
         mock_embedding_response.provider = LLMProvider.GITHUB_MODELS

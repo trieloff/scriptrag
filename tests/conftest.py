@@ -22,6 +22,34 @@ from tests.llm_test_utils import (  # noqa: F401
     patch_llm_client,
 )
 
+# Import mock file detection plugin if available
+try:
+    from tests.conftest_mock_detection import (
+        _mock_file_detector,  # noqa: F401
+    )
+    from tests.conftest_mock_detection import (
+        pytest_addoption as mock_detection_addoption,
+    )
+    from tests.conftest_mock_detection import (
+        pytest_configure as mock_detection_configure,
+    )
+    from tests.conftest_mock_detection import (
+        pytest_sessionstart as mock_detection_sessionstart,
+    )
+    from tests.conftest_mock_detection import (
+        pytest_terminal_summary as mock_detection_terminal_summary,
+    )
+
+    MOCK_DETECTION_AVAILABLE = True
+except ImportError:
+    MOCK_DETECTION_AVAILABLE = False
+
+
+def pytest_addoption(parser):
+    """Add command-line options for pytest."""
+    if MOCK_DETECTION_AVAILABLE:
+        mock_detection_addoption(parser)
+
 
 def pytest_configure(config):
     """Configure pytest markers."""
@@ -46,6 +74,22 @@ def pytest_configure(config):
         "timeout(seconds): override timeout for specific test",
     )
 
+    # Configure mock detection if available
+    if MOCK_DETECTION_AVAILABLE:
+        mock_detection_configure(config)
+
+
+def pytest_sessionstart(session):
+    """Called at the start of the test session."""
+    if MOCK_DETECTION_AVAILABLE:
+        mock_detection_sessionstart(session)
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Print summary at the end of test session."""
+    if MOCK_DETECTION_AVAILABLE:
+        mock_detection_terminal_summary(terminalreporter, exitstatus, config)
+
 
 def pytest_collection_modifyitems(config, items):
     """Modify collected test items to add skip markers for LLM tests in CI."""
@@ -68,6 +112,30 @@ def pytest_collection_modifyitems(config, items):
 # Note: protect_fixture_files fixture was removed as it was interfering with
 # temporary test files. The verify_fixtures_clean fixture provides sufficient
 # protection by detecting any contamination of the actual fixture files.
+
+
+@pytest.fixture(autouse=True)
+def cleanup_singletons():
+    """Ensure singletons are cleaned up between tests to prevent contamination."""
+    yield
+
+    # Clean up connection manager after each test to prevent cross-test contamination
+    try:
+        from scriptrag.database.connection_manager import close_connection_manager
+
+        close_connection_manager()
+    except Exception:
+        # Ignore cleanup errors - they shouldn't fail tests
+        pass
+
+    # Clean up settings cache after each test
+    try:
+        import scriptrag.config.settings as settings_module
+
+        settings_module._settings = None
+    except Exception:
+        # Ignore cleanup errors - they shouldn't fail tests
+        pass
 
 
 @pytest.fixture(autouse=True)

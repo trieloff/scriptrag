@@ -85,23 +85,33 @@ class TestDatabaseInitializer:
         db_path = tmp_path / "test.db"
         initializer = DatabaseInitializer(sql_dir=sql_dir)
 
-        # Mock sqlite3.connect
-        mock_conn = MockConnection()
-        with patch("sqlite3.connect") as mock_connect:
-            mock_connect.return_value = mock_conn
-            result_path = initializer.initialize_database(db_path)
+        # Let it create the real database since mocking connection manager
+        # is complex and the test is mainly checking the flow
+        result_path = initializer.initialize_database(db_path)
 
         # Verify
         assert result_path == db_path
-        assert mock_connect.called
-        assert mock_conn.executed_scripts == ["CREATE TABLE test (id INTEGER);"]
-        assert mock_conn.committed
-        assert mock_conn.closed
+        assert db_path.exists()
+
+        # Verify the table was created
+        import sqlite3
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        conn.close()
+        assert any("test" in table[0] for table in tables)
 
     def test_initialize_database_exists_no_force(self, tmp_path):
         """Test that existing database without force raises error."""
         db_path = tmp_path / "existing.db"
-        db_path.touch()
+        # Create a database with a schema
+        import sqlite3
+
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE scripts (id INTEGER PRIMARY KEY)")
+        conn.commit()
+        conn.close()
 
         initializer = DatabaseInitializer()
         with pytest.raises(FileExistsError) as exc_info:
@@ -122,16 +132,21 @@ class TestDatabaseInitializer:
 
         initializer = DatabaseInitializer(sql_dir=sql_dir)
 
-        # Mock sqlite3.connect
-        mock_conn = MockConnection()
-        with patch("sqlite3.connect") as mock_connect:
-            mock_connect.return_value = mock_conn
-            result_path = initializer.initialize_database(db_path, force=True)
+        # Initialize with force
+        result_path = initializer.initialize_database(db_path, force=True)
 
         # Verify database was recreated
         assert result_path == db_path
-        assert mock_conn.executed_scripts == ["CREATE TABLE test (id INTEGER);"]
-        assert mock_conn.committed
+        assert db_path.exists()
+
+        # Verify the new table was created
+        import sqlite3
+
+        conn = sqlite3.connect(db_path)
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        conn.close()
+        assert any("test" in table[0] for table in tables)
 
     def test_initialize_database_creates_parent_dirs(self, tmp_path):
         """Test that parent directories are created if needed."""
@@ -144,15 +159,13 @@ class TestDatabaseInitializer:
         db_path = tmp_path / "nested" / "dir" / "test.db"
         initializer = DatabaseInitializer(sql_dir=sql_dir)
 
-        # Mock sqlite3.connect
-        mock_conn = MockConnection()
-        with patch("sqlite3.connect") as mock_connect:
-            mock_connect.return_value = mock_conn
-            result_path = initializer.initialize_database(db_path)
+        # Initialize database
+        result_path = initializer.initialize_database(db_path)
 
         # Verify parent directories were created
         assert result_path == db_path
         assert db_path.parent.exists()
+        assert db_path.exists()
 
     def test_initialize_database_with_connection(self, tmp_path):
         """Test initialization with provided connection."""
@@ -187,7 +200,7 @@ class TestDatabaseInitializer:
         initializer = DatabaseInitializer(sql_dir=sql_dir)
 
         # Mock sqlite3.connect to raise error
-        mock_conn = Mock()
+        mock_conn = Mock(spec=["executescript", "commit", "close", "execute"])
         mock_conn.executescript.side_effect = Exception("SQL error")
 
         with patch("sqlite3.connect") as mock_connect:

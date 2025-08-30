@@ -51,12 +51,11 @@ class TestSearchEngineAsyncContextExecution:
         query = SearchQuery(raw_query="test", text_query="test")
 
         # Mock that we're in async context
-        mock_get_running_loop.return_value = Mock()
+        mock_get_running_loop.return_value = Mock(spec=["close"])
 
         # Create mocks for the new event loop
-        mock_loop = Mock()
+        mock_loop = Mock(spec=["run_until_complete", "close"])
         mock_new_event_loop.return_value = mock_loop
-        mock_loop.run_until_complete = Mock()
 
         # Mock successful search_async result
         expected_response = SearchResponse(
@@ -72,7 +71,7 @@ class TestSearchEngineAsyncContextExecution:
         mock_loop.run_until_complete.return_value = expected_response
 
         # Mock thread behavior
-        mock_thread = Mock()
+        mock_thread = Mock(spec=["is_alive", "start", "join"])
         mock_thread_class.return_value = mock_thread
         mock_thread.is_alive.return_value = False  # Thread completes successfully
 
@@ -86,14 +85,16 @@ class TestSearchEngineAsyncContextExecution:
 
         mock_thread_class.side_effect = capture_target
 
-        # Mock the database connection to prevent actual DB operations
-        with patch.object(engine, "get_read_only_connection") as mock_conn_mgr:
-            mock_conn = Mock()
-            mock_conn_mgr.return_value.__enter__ = Mock(return_value=mock_conn)
-            mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
+        # Mock the readonly connection to prevent connection manager initialization
+        with patch("scriptrag.search.engine.get_read_only_connection") as mock_get_conn:
+            mock_conn = Mock(spec=["execute", "close"])
+            mock_context = Mock(spec=["__enter__", "__exit__"])
+            mock_context.__enter__ = Mock(return_value=mock_conn)
+            mock_context.__exit__ = Mock(return_value=None)
+            mock_get_conn.return_value = mock_context
 
             # Configure mock connection for basic query results
-            mock_cursor = Mock()
+            mock_cursor = Mock(spec=["fetchall", "fetchone", "execute"])
             mock_cursor.fetchall.return_value = []
             mock_cursor.fetchone.return_value = {"total": 0}
             mock_conn.execute.return_value = mock_cursor
@@ -101,10 +102,19 @@ class TestSearchEngineAsyncContextExecution:
             # Execute the search
             result = engine.search(query)
 
-            # Verify thread was created and started
-            mock_thread_class.assert_called_once()
-            mock_thread.start.assert_called_once()
-            mock_thread.join.assert_called_once_with(timeout=300)
+            # Verify search engine thread was created and started
+            # Note: Connection manager may also create health check threads
+            search_thread_calls = [
+                call
+                for call in mock_thread_class.call_args_list
+                if "run_in_new_loop" in str(call[1].get("target", ""))
+                or (call[0] and "run_in_new_loop" in str(call[0][0]))
+            ]
+            assert len(search_thread_calls) >= 1, (
+                "Search engine thread should be created"
+            )
+            mock_thread.start.assert_called()
+            mock_thread.join.assert_called_with(timeout=300)
 
             # Execute the captured target function to cover lines 101-117
             if captured_target:
@@ -130,10 +140,10 @@ class TestSearchEngineAsyncContextExecution:
         query = SearchQuery(raw_query="test", text_query="test")
 
         # Mock that we're in async context
-        mock_get_running_loop.return_value = Mock()
+        mock_get_running_loop.return_value = Mock(spec=["close"])
 
         # Mock thread that completes but with exception
-        mock_thread = Mock()
+        mock_thread = Mock(spec=["is_alive", "start", "join"])
         mock_thread_class.return_value = mock_thread
         mock_thread.is_alive.return_value = False
 
@@ -173,10 +183,10 @@ class TestSearchEngineAsyncContextExecution:
         query = SearchQuery(raw_query="test", text_query="test")
 
         # Mock that we're in async context
-        mock_get_running_loop.return_value = Mock()
+        mock_get_running_loop.return_value = Mock(spec=["close"])
 
         # Mock thread behavior
-        mock_thread = Mock()
+        mock_thread = Mock(spec=["is_alive", "start", "join"])
         mock_thread_class.return_value = mock_thread
         mock_thread.is_alive.return_value = False
 
@@ -205,12 +215,12 @@ class TestSearchEngineAsyncContextExecution:
 
         # Mock database connection for successful execution
         with patch.object(engine, "get_read_only_connection") as mock_conn_mgr:
-            mock_conn = Mock()
+            mock_conn = Mock(spec=["execute", "close", "cursor"])
             mock_conn_mgr.return_value.__enter__ = Mock(return_value=mock_conn)
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
             # Configure mock connection for basic query results
-            mock_cursor = Mock()
+            mock_cursor = Mock(spec=["fetchall", "fetchone", "execute"])
             mock_cursor.fetchall.return_value = []
             mock_cursor.fetchone.return_value = {"total": 0}
             mock_conn.execute.return_value = mock_cursor
@@ -239,8 +249,11 @@ class TestSearchEngineAsyncDatabaseError:
         scriptrag_db.write_text("")
 
         try:
-            # Setup engine with non-existent database
-            non_existent_db = tmp_path / "nonexistent.db"
+            # Setup engine with a path in a non-existent directory
+            # This ensures the database file can't be auto-created
+            non_existent_dir = tmp_path / "non_existent_dir"
+            non_existent_db = non_existent_dir / "nonexistent.db"
+
             settings = ScriptRAGSettings(database_path=non_existent_db)
             engine = SearchEngine(settings)
             query = SearchQuery(raw_query="test", text_query="test")
@@ -293,12 +306,12 @@ class TestSemanticSearchIntegration:
 
         # Mock database connection to return empty results
         with patch.object(engine, "get_read_only_connection") as mock_conn_mgr:
-            mock_conn = Mock()
+            mock_conn = Mock(spec=["execute", "close", "cursor"])
             mock_conn_mgr.return_value.__enter__ = Mock(return_value=mock_conn)
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
             # Configure basic query results
-            mock_cursor = Mock()
+            mock_cursor = Mock(spec=["fetchall", "fetchone", "execute"])
             mock_cursor.fetchall.return_value = []
             mock_cursor.fetchone.return_value = {"total": 0}
             mock_conn.execute.return_value = mock_cursor
@@ -400,12 +413,12 @@ class TestSemanticSearchIntegration:
         )
 
         with patch.object(engine, "get_read_only_connection") as mock_conn_mgr:
-            mock_conn = Mock()
+            mock_conn = Mock(spec=["execute", "close", "cursor"])
             mock_conn_mgr.return_value.__enter__ = Mock(return_value=mock_conn)
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
             # Mock SQL search to return existing bible result
-            mock_cursor = Mock()
+            mock_cursor = Mock(spec=["fetchall", "fetchone", "execute"])
             mock_cursor.fetchall.side_effect = [
                 [],  # Regular search results
                 [
@@ -487,12 +500,12 @@ class TestSemanticSearchIntegration:
         )
 
         with patch.object(engine, "get_read_only_connection") as mock_conn_mgr:
-            mock_conn = Mock()
+            mock_conn = Mock(spec=["execute", "close", "cursor"])
             mock_conn_mgr.return_value.__enter__ = Mock(return_value=mock_conn)
             mock_conn_mgr.return_value.__exit__ = Mock(return_value=None)
 
             # Configure basic query results
-            mock_cursor = Mock()
+            mock_cursor = Mock(spec=["fetchall", "fetchone", "execute"])
             mock_cursor.fetchall.return_value = []
             mock_cursor.fetchone.return_value = {"total": 0}
             mock_conn.execute.return_value = mock_cursor

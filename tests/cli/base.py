@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
+from scriptrag.config.settings import ScriptRAGSettings
+
 
 class CLITestBase:
     """Base class for CLI integration tests with common setup."""
@@ -32,10 +34,17 @@ class CLITestBase:
     @pytest.fixture
     def mock_settings(self):
         """Mock settings for testing."""
-        settings = MagicMock()
-        settings.database.path = self.db_path
-        settings.llm.provider = "mock"
-        settings.llm.api_key = "test-key"  # pragma: allowlist secret
+        settings = MagicMock(spec=ScriptRAGSettings)
+        # Configure nested mock objects to prevent mock file artifacts
+        database_mock = MagicMock(spec=object)  # Add spec to prevent mock artifacts
+        database_mock.path = self.db_path
+        settings.database = database_mock
+        settings.database_path = self.db_path  # Support both access patterns
+
+        llm_mock = MagicMock(spec=object)  # Add spec to prevent mock artifacts
+        llm_mock.provider = "mock"
+        llm_mock.api_key = "test-key"  # pragma: allowlist secret
+        settings.llm = llm_mock
 
         with patch("scriptrag.config.get_settings", return_value=settings):
             yield settings

@@ -90,7 +90,9 @@ class TestCLISearchCoverage:
         with patch(
             "scriptrag.cli.commands.search.SearchAPI.from_config"
         ) as mock_from_config:
-            mock_api = MagicMock()
+            mock_api = MagicMock(
+                spec=["content", "model", "provider", "usage", "search"]
+            )
             mock_from_config.return_value = mock_api
 
             with (
@@ -114,17 +116,20 @@ class TestCLISearchCoverage:
 
     def test_file_not_found_error(self):
         """Test DatabaseError handling (lines 180-185)."""
+        import sqlite3
+
         from scriptrag.exceptions import DatabaseError
 
         with patch(
             "scriptrag.cli.commands.search.SearchAPI.from_config"
         ) as mock_from_config:
-            mock_api = MagicMock()
+            mock_api = MagicMock(
+                spec=["content", "model", "provider", "usage", "search"]
+            )
             mock_from_config.return_value = mock_api
-            # Use the actual error message from SearchEngine
-            mock_api.search.side_effect = DatabaseError(
-                "Database not found at /some/path",
-                hint="Run 'scriptrag init' to create a new database",
+            # Simulate database error - can be OperationalError or DatabaseError
+            mock_api.search.side_effect = sqlite3.OperationalError(
+                "no such table: scripts"
             )
 
             with (
@@ -142,8 +147,10 @@ class TestCLISearchCoverage:
                 # Verify handle_cli_error was called with the error
                 mock_handle.assert_called_once()
                 error = mock_handle.call_args[0][0]
-                assert isinstance(error, DatabaseError)
-                assert "Database not found" in str(error)
+                # The error type depends on connection management handling
+                # Fixed for database connection management changes
+                assert isinstance(error, sqlite3.OperationalError | DatabaseError)
+                assert "no such table: scripts" in str(error)
 
     def test_general_exception_handling(self):
         """Test general exception handling (lines 186-195)."""

@@ -56,7 +56,7 @@ class TestOpenAICompatibleExceptions:
             api_key="test",  # pragma: allowlist secret
         )
 
-        mock_response = Mock()
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
 
@@ -102,7 +102,7 @@ class TestOpenAICompatibleExceptions:
             temperature=0.7,
         )
 
-        mock_response = Mock()
+        mock_response = Mock(spec=["status_code", "json", "text"])
         mock_response.status_code = 200
         mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
         mock_response.text = "Invalid JSON"
@@ -123,7 +123,7 @@ class TestOpenAICompatibleExceptions:
 
         request = EmbeddingRequest(model="test-model", input="test text")
 
-        mock_response = Mock()
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = {}  # Missing expected fields
 
@@ -143,13 +143,13 @@ class TestGitHubModelsExceptions:
         # Initialize client to avoid None error
         provider._init_http_client()
 
-        mock_response = Mock()
+        mock_response = Mock(spec=["status_code"])
         mock_response.status_code = 403
         with patch.object(
             provider.client,
             "get",
             side_effect=httpx.HTTPStatusError(
-                "Forbidden", request=Mock(), response=mock_response
+                "Forbidden", request=Mock(spec=object), response=mock_response
             ),
         ):
             result = await provider.is_available()
@@ -168,7 +168,7 @@ class TestGitHubModelsExceptions:
             temperature=0.7,
         )
 
-        mock_response = Mock()
+        mock_response = Mock(spec=["status_code", "json", "text"])
         mock_response.status_code = 200
         # Import json locally for JSONDecodeError
         import json
@@ -195,7 +195,7 @@ class TestGitHubModelsExceptions:
             temperature=0.7,
         )
 
-        mock_response = Mock()
+        mock_response = Mock(spec=["status_code", "json", "text"])
         mock_response.status_code = 200
         # Return a dict but with wrong structure for choices
         mock_response.json.return_value = {"choices": "not a list"}  # Invalid structure
@@ -269,7 +269,16 @@ class TestClaudeCodeExceptions:
         )
 
         # Mock the SDK
-        mock_query = AsyncMock()
+        mock_query = AsyncMock(
+            spec=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "__aiter__",
+            ]
+        )
         mock_query.__aiter__.side_effect = TimeoutError("Query timeout")
 
         # Skip these tests since they require the actual SDK to be installed
@@ -294,13 +303,25 @@ class TestClaudeCodeExceptions:
         request.response_format = {"type": "json_object"}
 
         # Mock SDK to return invalid JSON
-        mock_message = Mock()
-        mock_message.__class__.__name__ = "AssistantMessage"
-        mock_block = Mock()
+        mock_message = Mock(spec_set=["content", "__class__"])
+        # Create a mock class with __name__ attribute
+        mock_class = Mock(spec_set=["__name__"])
+        mock_class.__name__ = "AssistantMessage"
+        mock_message.__class__ = mock_class
+        mock_block = Mock(spec_set=["text"])
         mock_block.text = "not valid json"
         mock_message.content = [mock_block]
 
-        mock_query = AsyncMock()
+        mock_query = AsyncMock(
+            spec=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "__aiter__",
+            ]
+        )
         mock_query.__aiter__.return_value = [mock_message].__iter__()
 
         # Skip these tests since they require the actual SDK to be installed
@@ -325,11 +346,23 @@ class TestClaudeCodeExceptions:
         )
 
         # Mock SDK to return object missing expected attributes
-        mock_message = Mock()
-        mock_message.__class__.__name__ = "UnknownMessage"
-        del mock_message.content  # Remove expected attribute
+        mock_message = Mock(spec_set=["__class__"])
+        # Create a mock class with __name__ attribute
+        mock_class = Mock(spec_set=["__name__"])
+        mock_class.__name__ = "UnknownMessage"
+        mock_message.__class__ = mock_class
+        # Don't add content attribute to simulate missing attribute
 
-        mock_query = AsyncMock()
+        mock_query = AsyncMock(
+            spec=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "__aiter__",
+            ]
+        )
         mock_query.__aiter__.return_value = [mock_message].__iter__()
 
         # Skip these tests since they require the actual SDK to be installed

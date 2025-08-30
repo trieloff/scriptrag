@@ -5,7 +5,7 @@ import json
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -432,7 +432,7 @@ class TestClaudeCodeModelDiscovery:
     async def test_fetch_models_sdk_available(self, discovery):
         """Test model fetching when Claude SDK is available."""
         # Mock SDK client with list_models method
-        mock_client = MagicMock()
+        mock_client = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_models_data = [
             {
                 "id": "claude-3-5-sonnet-20241022",
@@ -531,7 +531,10 @@ class TestGitHubModelsDiscovery:
     @pytest.fixture
     def discovery(self, static_models):
         """Create GitHub model discovery instance."""
-        mock_client = AsyncMock()
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available", "get"]
+        )
+        mock_client.get = AsyncMock()
         return GitHubModelsDiscovery(
             provider_name="github_models",
             static_models=static_models,
@@ -562,7 +565,7 @@ class TestGitHubModelsDiscovery:
         }
 
         # Configure the mock client that's already in the discovery fixture
-        mock_response = MagicMock()
+        mock_response = MagicMock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = mock_api_response
         discovery.client.get = AsyncMock(return_value=mock_response)
@@ -580,10 +583,10 @@ class TestGitHubModelsDiscovery:
     async def test_fetch_models_api_error(self, discovery):
         """Test GitHub API error handling."""
         # Configure the mock client to return an error response
-        mock_response = AsyncMock()
+        mock_response = Mock(spec=["status_code", "text"])
         mock_response.status_code = 401
         mock_response.text = "Unauthorized"
-        discovery.client.get.return_value = mock_response
+        discovery.client.get = AsyncMock(return_value=mock_response)
 
         # GitHub Models discovery doesn't raise on API errors, it returns None
         result = await discovery._fetch_models()
@@ -615,10 +618,10 @@ class TestGitHubModelsDiscovery:
         mock_api_response = {"models": []}
 
         # Configure the mock client to return invalid response format
-        mock_response = AsyncMock()
+        mock_response = Mock(spec=["status_code", "json"])
         mock_response.status_code = 200
         mock_response.json.return_value = mock_api_response
-        discovery.client.get.return_value = mock_response
+        discovery.client.get = AsyncMock(return_value=mock_response)
 
         # The discovery should handle invalid format and return None
         result = await discovery._fetch_models()

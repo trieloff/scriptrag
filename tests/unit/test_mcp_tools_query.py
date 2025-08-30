@@ -17,13 +17,24 @@ class TestRegisterQueryTools:
         """Test register_query_tools when no queries are available."""
         # Arrange
         mock_mcp = MagicMock(spec=FastMCP)
-        mock_tool_decorator = MagicMock()
+        mock_tool_decorator = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_mcp.tool.return_value = mock_tool_decorator
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = []
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
 
@@ -47,8 +58,19 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = []
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
 
@@ -78,7 +100,7 @@ class TestRegisterQueryTools:
         """Test register_query_tools with available queries."""
         # Arrange
         mock_mcp = MagicMock(spec=FastMCP)
-        mock_tool_decorator = MagicMock()
+        mock_tool_decorator = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_mcp.tool.return_value = mock_tool_decorator
 
         test_spec = QuerySpec(
@@ -97,8 +119,19 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = [test_spec]
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
 
@@ -137,8 +170,19 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = [test_spec]
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
 
@@ -198,8 +242,19 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = [test_spec]
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
 
@@ -244,8 +299,19 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = [test_spec]
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
 
@@ -316,8 +382,19 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = test_specs
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
 
@@ -373,7 +450,7 @@ class TestRegisterQueryTools:
         """Test that query tool names are properly sanitized."""
         # Arrange
         mock_mcp = MagicMock(spec=FastMCP)
-        mock_tool_decorator = MagicMock()
+        mock_tool_decorator = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_mcp.tool.return_value = mock_tool_decorator
 
         test_spec = QuerySpec(
@@ -385,8 +462,19 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = [test_spec]
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
 
@@ -420,7 +508,7 @@ class TestRegisterQueryTools:
         """Test that query tools generate proper docstrings."""
         # Arrange
         mock_mcp = MagicMock(spec=FastMCP)
-        mock_tool_decorator = MagicMock()
+        mock_tool_decorator = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_mcp.tool.return_value = mock_tool_decorator
 
         test_spec = QuerySpec(
@@ -441,8 +529,19 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = [test_spec]
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
 
@@ -493,8 +592,19 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = [test_spec]
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
                 mock_api.execute_query.return_value = json.dumps([{"count": 5}])
@@ -561,8 +671,19 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
                 mock_api.list_queries.return_value = [test_spec]
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_query_api_class.return_value = mock_api
 
@@ -610,7 +731,17 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.side_effect = RuntimeError(
                     "Reload error"
                 )
@@ -627,7 +758,18 @@ class TestRegisterQueryTools:
 
         with patch("scriptrag.mcp.tools.query.get_settings") as mock_get_settings:
             with patch("scriptrag.mcp.tools.query.QueryAPI") as mock_query_api_class:
-                mock_api = MagicMock()
+                mock_api = MagicMock(
+                    spec=[
+                        "content",
+                        "model",
+                        "provider",
+                        "usage",
+                        "list_queries",
+                        "loader",
+                        "execute_query",
+                    ]
+                )
+                mock_api.loader = MagicMock(spec=["reload_queries"])
                 mock_api.loader.reload_queries.return_value = None
                 mock_api.list_queries.side_effect = RuntimeError("List error")
                 mock_query_api_class.return_value = mock_api

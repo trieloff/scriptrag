@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import SearchMode, SearchQuery, SearchResponse
 
@@ -16,11 +16,17 @@ class TestSearchEngineAsync:
     @pytest.fixture
     def mock_settings(self, tmp_path):
         """Create mock settings."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = tmp_path / "test.db"
         settings.database_timeout = 30.0
         settings.database_cache_size = 2000
         settings.database_temp_store = "MEMORY"
+        # Add missing database settings attributes that tests expect
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         settings.search_vector_threshold = 10
         settings.llm_embedding_model = "text-embedding-ada-002"
         settings.llm_embedding_dimensions = 1536
@@ -177,9 +183,11 @@ class TestSearchEngineAsync:
         engine = SearchEngine(mock_settings)
 
         # Mock the LLM client for embeddings
-        mock_llm_client = AsyncMock()
-        embedding_response = MagicMock()
-        embedding_data = MagicMock()
+        mock_llm_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
+        embedding_response = MagicMock(spec=["content", "model", "provider", "usage"])
+        embedding_data = MagicMock(spec=["content", "model", "provider", "usage"])
         embedding_data.embedding = [0.1] * 1536  # Mock embedding
         embedding_response.data = [embedding_data]
         mock_llm_client.embed = AsyncMock(return_value=embedding_response)

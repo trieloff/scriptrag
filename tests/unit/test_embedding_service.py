@@ -21,8 +21,10 @@ def settings():
 @pytest.fixture
 def mock_llm_client():
     """Create a mock LLM client."""
-    client = MagicMock()
-    client.embed = AsyncMock()
+    client = MagicMock(spec=["content", "model", "provider", "usage"])
+    client.embed = AsyncMock(
+        spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+    )
     return client
 
 

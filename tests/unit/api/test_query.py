@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from scriptrag.api.query import QueryAPI
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.query.spec import QuerySpec
 
 
@@ -15,8 +15,13 @@ class TestQueryAPI:
     @pytest.fixture
     def settings(self):
         """Create test settings."""
-        settings = MagicMock(spec=ScriptRAGSettings)
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = "/test/db.sqlite"
+        settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         return settings
 
     @pytest.fixture
@@ -43,7 +48,9 @@ class TestQueryAPI:
     def test_init_without_settings(self):
         """Test initialization without settings - uses get_settings()."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = "/test/db.sqlite"
             mock_get_settings.return_value = mock_settings
 
@@ -149,7 +156,9 @@ class TestQueryAPI:
 
     def test_reload_queries(self, api):
         """Test reloading queries from disk."""
-        api.loader.discover_queries = MagicMock()
+        api.loader.discover_queries = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
 
         api.reload_queries()
 

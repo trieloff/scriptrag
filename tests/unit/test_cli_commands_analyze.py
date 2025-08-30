@@ -19,14 +19,16 @@ def runner():
 def mock_analyze_command():
     """Mock AnalyzeCommand."""
     with patch("scriptrag.api.analyze.AnalyzeCommand") as mock:
-        cmd = MagicMock()
+        cmd = MagicMock(spec=["analyze", "load_analyzer", "from_config"])
 
         # Make analyze return a coroutine
         async def mock_analyze(*args, **kwargs):
             return cmd.analyze_return_value
 
         cmd.analyze.side_effect = mock_analyze
-        cmd.analyze_return_value = MagicMock()
+        cmd.analyze_return_value = MagicMock(
+            spec=["content", "model", "provider", "usage"]
+        )
         mock.from_config.return_value = cmd
         yield cmd
 
@@ -34,7 +36,7 @@ def mock_analyze_command():
 @pytest.fixture
 def mock_analyze_result():
     """Create a mock analyze result."""
-    result = MagicMock()
+    result = MagicMock(spec=["content", "model", "provider", "usage"])
     result.total_files_updated = 0
     result.total_scenes_updated = 0
     result.files = []
@@ -68,12 +70,12 @@ class TestAnalyzeCommand:
         mock_analyze_result.total_files_updated = 3
         mock_analyze_result.total_scenes_updated = 15
 
-        file_result_1 = MagicMock()
+        file_result_1 = MagicMock(spec=["content", "model", "provider", "usage"])
         file_result_1.updated = True
         file_result_1.path = Path("/test/script1.fountain")
         file_result_1.scenes_updated = 5
 
-        file_result_2 = MagicMock()
+        file_result_2 = MagicMock(spec=["content", "model", "provider", "usage"])
         file_result_2.updated = True
         file_result_2.path = Path("/test/script2.fountain")
         file_result_2.scenes_updated = 10
@@ -145,7 +147,7 @@ class TestAnalyzeCommand:
         mock_analyze_result.total_files_updated = 2
         mock_analyze_result.total_scenes_updated = 8
 
-        file_result = MagicMock()
+        file_result = MagicMock(spec=["content", "model", "provider", "usage"])
         file_result.updated = True
         file_result.path = Path("/test/script.fountain")
         file_result.scenes_updated = 8
@@ -356,7 +358,7 @@ class TestAnalyzeCommand:
             "Failed to process file3.fountain",
         ]
 
-        file_result = MagicMock()
+        file_result = MagicMock(spec=["content", "model", "provider", "usage"])
         file_result.updated = True
         file_result.path = Path("/test/good_script.fountain")
         file_result.scenes_updated = 5
@@ -417,13 +419,13 @@ class TestAnalyzeCommand:
         mock_analyze_result.total_scenes_updated = 10
 
         # File that can be made relative
-        file_result_1 = MagicMock()
+        file_result_1 = MagicMock(spec=["content", "model", "provider", "usage"])
         file_result_1.updated = True
         file_result_1.path = Path.cwd() / "scripts" / "test1.fountain"
         file_result_1.scenes_updated = 4
 
         # File that cannot be made relative (absolute path outside cwd)
-        file_result_2 = MagicMock()
+        file_result_2 = MagicMock(spec=["content", "model", "provider", "usage"])
         file_result_2.updated = True
         file_result_2.path = Path("/absolute/path/test2.fountain")
         file_result_2.scenes_updated = 6

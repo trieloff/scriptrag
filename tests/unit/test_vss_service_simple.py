@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 import numpy as np
 import pytest
 
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.storage.vss_service import VSSService
 
 
@@ -22,6 +22,14 @@ def mock_settings(tmp_path):
     """Create mock settings for testing."""
     settings = MagicMock(spec=ScriptRAGSettings)
     settings.database_path = tmp_path / "test.db"
+    settings.database_journal_mode = "WAL"
+    settings.database_synchronous = "NORMAL"
+    settings.database_cache_size = -2000
+    settings.database_temp_store = "MEMORY"
+    settings.database_foreign_keys = True
+    settings.database_timeout = 30.0
+    # Ensure proper string representation to prevent mock file artifacts
+    settings.__str__ = lambda: str(settings.database_path)
     return settings
 
 
@@ -29,7 +37,7 @@ def mock_settings(tmp_path):
 def vss_service(mock_settings):
     """Create VSS service with mocked sqlite_vec."""
     with patch("scriptrag.storage.vss_service.sqlite_vec") as mock_vec:
-        mock_vec.load = Mock()
+        mock_vec.load = Mock(spec=object)
         mock_vec.serialize_float32 = mock_serialize_float32
 
         # Create database with necessary tables

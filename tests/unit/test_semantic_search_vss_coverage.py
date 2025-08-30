@@ -17,7 +17,7 @@ def settings():
 @pytest.fixture
 def mock_vss_service():
     """Create mock VSS service."""
-    service = MagicMock()
+    service = MagicMock(spec=["content", "model", "provider", "usage"])
     service.get_embedding_stats = Mock(return_value={})
     service.migrate_from_blob_storage = Mock(return_value=(0, 0))
     return service
@@ -26,7 +26,7 @@ def mock_vss_service():
 @pytest.fixture
 def mock_embedding_service():
     """Create mock embedding service."""
-    service = MagicMock()
+    service = MagicMock(spec=["content", "model", "provider", "usage"])
     service.default_model = "test-model"
     return service
 

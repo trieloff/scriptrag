@@ -325,7 +325,7 @@ class TestMarkdownAgentAnalyzer:
         with patch(
             "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client"
         ) as mock_get_client:
-            mock_client = AsyncMock()
+            mock_client = AsyncMock(spec=["complete"])
             mock_get_client.return_value = mock_client
 
             await analyzer.initialize()
@@ -358,7 +358,7 @@ class TestMarkdownAgentAnalyzer:
     async def test_cleanup(self, sample_spec: AgentSpec) -> None:
         """Test cleanup releases resources."""
         analyzer = MarkdownAgentAnalyzer(sample_spec)
-        analyzer.llm_client = MagicMock()
+        analyzer.llm_client = MagicMock(spec=["content", "model", "provider", "usage"])
 
         await analyzer.cleanup()
 
@@ -370,13 +370,13 @@ class TestMarkdownAgentAnalyzer:
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
         # Mock LLM client
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=["complete"])
+        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_response.content = '{"result": "analyzed"}'
         mock_response.model = "test-model"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {"total_tokens": 50}
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
         analyzer.llm_client = mock_client
 
         # Mock context query executor to avoid database dependency
@@ -428,13 +428,13 @@ class TestMarkdownAgentAnalyzer:
         with patch(
             "scriptrag.agents.markdown_agent_analyzer.get_default_llm_client"
         ) as mock_get_client:
-            mock_client = AsyncMock()
-            mock_response = MagicMock()
+            mock_client = AsyncMock(spec=["complete"])
+            mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_response.content = '{"result": "test"}'
             mock_response.model = "test-model"
             mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
             mock_response.usage = {"total_tokens": 50}
-            mock_client.complete.return_value = mock_response
+            mock_client.complete = AsyncMock(return_value=mock_response)
             mock_get_client.return_value = mock_client
 
             # Mock context query executor to avoid database dependency
@@ -458,13 +458,13 @@ class TestMarkdownAgentAnalyzer:
 
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=["complete"])
+        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_response.content = "not valid json"
         mock_response.model = "test-model"
         mock_response.provider = None
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
         analyzer.llm_client = mock_client
 
         # Mock context query executor to avoid database dependency
@@ -496,14 +496,14 @@ class TestMarkdownAgentAnalyzer:
         """Test schema validation of LLM response."""
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=["complete"])
+        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         # Missing required "result" field
         mock_response.content = '{"wrong_field": "value"}'
         mock_response.model = "test-model"
         mock_response.provider = None
         mock_response.usage = {}
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
         analyzer.llm_client = mock_client
 
         # Mock context query executor to avoid database dependency
@@ -533,13 +533,13 @@ class TestMarkdownAgentAnalyzer:
         """Test that analysis prompt is properly formatted."""
         analyzer = MarkdownAgentAnalyzer(sample_spec)
 
-        mock_client = AsyncMock()
-        mock_response = MagicMock()
+        mock_client = AsyncMock(spec=["complete"])
+        mock_response = MagicMock(spec=["content", "model", "provider", "usage"])
         mock_response.content = '{"result": "ok"}'
         mock_response.model = "test-model"
         mock_response.provider = LLMProvider.OPENAI_COMPATIBLE
         mock_response.usage = {"total_tokens": 50}
-        mock_client.complete.return_value = mock_response
+        mock_client.complete = AsyncMock(return_value=mock_response)
         analyzer.llm_client = mock_client
 
         # Mock context query executor to avoid database dependency

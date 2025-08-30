@@ -15,6 +15,7 @@ from scriptrag.api.scene_models import (
     UpdateSceneResult,
 )
 from scriptrag.cli.main import app
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.parser import Scene
 from tests.cli_fixtures import CleanCliRunner
 
@@ -41,7 +42,14 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -99,7 +107,14 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -147,7 +162,14 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -208,7 +230,14 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -254,7 +283,14 @@ class TestConfigOptionSceneCommands:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             mock_api = mock_api_class.return_value
@@ -304,11 +340,20 @@ class TestConfigOptionAnalyzeCommand:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
-            mock_command = MagicMock()
-            mock_result = MagicMock()
+            mock_command = MagicMock(
+                spec=["analyze", "content", "model", "provider", "usage"]
+            )
+            mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.total_files_updated = 1
             mock_result.total_scenes_updated = 5
             mock_result.files = []
@@ -352,11 +397,20 @@ class TestConfigOptionListCommand:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
-            mock_command = MagicMock()
-            mock_result = MagicMock()
+            mock_command = MagicMock(
+                spec=["list_scripts", "content", "model", "provider", "usage"]
+            )
+            mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.projects = ["project1", "project2"]
             mock_result.total_scripts = 2
             mock_result.total_scenes = 100
@@ -396,11 +450,20 @@ class TestConfigOptionIndexCommand:
 
         try:
             # Setup mocks
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": "/tmp/test.db", "__str__": lambda: "/tmp/test.db"}
+            )
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
-            mock_command = MagicMock()
-            mock_result = MagicMock()
+            mock_command = MagicMock(
+                spec=["index", "content", "model", "provider", "usage"]
+            )
+            mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.scripts_indexed = 5
             mock_result.total_scripts_indexed = 5
             mock_result.total_scripts_updated = 0
@@ -600,17 +663,26 @@ class TestConfigOptionSearchCommand:
                 db_path = Path(db_file.name)
 
             # Setup mocks
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
+            # Prevent any undefined attribute access from creating mock files
+            mock_settings.configure_mock(
+                **{"database_path": str(db_path), "__str__": lambda: str(db_path)}
+            )
             mock_settings.database_path = db_path
             mock_settings_class.from_multiple_sources.return_value = mock_settings
             mock_get_settings.return_value = mock_settings
 
             # Mock the SearchAPI
-            mock_search_instance = MagicMock()
+            mock_search_instance = MagicMock(
+                spec=["content", "model", "provider", "usage"]
+            )
             mock_search_api.return_value = mock_search_instance
 
             # Mock search result
-            mock_result = MagicMock()
+            mock_result = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_result.results = []
             mock_result.total_found = 0
             mock_result.query = "test query"

@@ -1,20 +1,21 @@
 """Extended tests for database operations embedding methods to improve coverage."""
 
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
 from scriptrag.api.database_operations import DatabaseOperations
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.exceptions import DatabaseError
 
 
 @pytest.fixture
 def mock_settings():
     """Create mock settings."""
-    settings = MagicMock(spec=ScriptRAGSettings)
-    settings.database_path = Path(":memory:")
+    settings = MagicMock(
+        spec=ScriptRAGSettings
+    )  # Use spec to prevent mock file artifacts
+    settings.database_path = ":memory:"
     settings.llm_provider = "test"
     settings.llm_model = "test-model"
     settings.database_timeout = 30.0
@@ -258,8 +259,8 @@ class TestDatabaseOperationsEmbeddingCoverage:
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_cursor.lastrowid = None
-        mock_cursor.fetchone.return_value = None  # No existing embedding
-        mock_conn.execute.return_value = mock_cursor
+        mock_cursor.fetchone = MagicMock(return_value=None)  # No existing embedding
+        mock_conn.execute = MagicMock(return_value=mock_cursor)
         mock_conn.commit = MagicMock()
 
         with pytest.raises(DatabaseError) as exc_info:

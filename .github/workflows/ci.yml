@@ -195,8 +195,8 @@ jobs:
       - name: Run canary tests (minimal, fail-fast)
         timeout-minutes: 3
         run: |
-          echo "🐤 Running canary tests with minimal output, 10 error limit, and 15s per-test timeout"
-          echo "⏭️  Excluding integration tests (marked with @pytest.mark.integration)"
+          echo " Running canary tests with minimal output, 10 error limit, and 15s per-test timeout"
+          echo "  Excluding integration tests (marked with @pytest.mark.integration)"
           SCRIPTRAG_LOG_LEVEL=ERROR uv run pytest -x -q --tb=short --maxfail=10 --disable-warnings --junit-xml=junit.xml -o log_cli=false --capture=fd --timeout=15 --timeout-method=thread -m "not integration"
         env:
           PYTHONPATH: src
@@ -205,6 +205,18 @@ jobs:
           SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
           SCRIPTRAG_ENVIRONMENT: testing
           SCRIPTRAG_TEST_LLMS: ""  # Disable LLM tests in CI to prevent rate limit failures
+
+      - name: Check for mock file contamination (canary)
+        if: always()
+        run: |
+          echo " Checking for mock file contamination after canary tests..."
+          if python tests/detect_mock_files.py --quiet; then
+            echo " No mock files detected in canary tests"
+          else
+            echo "WARNING: Mock files detected in canary tests - early warning of test issues"
+            python tests/detect_mock_files.py
+          fi
+        continue-on-error: true
 
       - name: Surface canary test results
         uses: pmeier/pytest-results-action@main
@@ -286,13 +298,24 @@ jobs:
           Get-ChildItem -Force
           Write-Host "================================="
 
-      - name: Run full test suite
+      - name: Check for mock file contamination (pre-test)
         run: |
-          echo "🧪 Running full test suite on ${{ matrix.os }} with Python ${{ matrix.python-version }}"
-          echo "⏭️  Excluding integration tests (they run in a separate job)"
+          echo " Checking for pre-existing mock file contamination..."
+          python tests/detect_mock_files.py --quiet || true
+        shell: bash
+        continue-on-error: true
+
+      - name: Run full test suite
+        id: run-tests
+        run: |
+          echo " Running full test suite on ${{ matrix.os }} with Python ${{ matrix.python-version }}"
+          echo "  Excluding integration tests (they run in a separate job)"
           echo "Starting pytest at $(date)"
           make test PYTEST_ARGS="-m 'not integration'"
+          TEST_EXIT_CODE=$?
           echo "Finished pytest at $(date)"
+          echo "test_exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $TEST_EXIT_CODE
         shell: bash
         env:
           SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
@@ -300,6 +323,148 @@ jobs:
           SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
           SCRIPTRAG_ENVIRONMENT: testing
           SCRIPTRAG_TEST_LLMS: ""  # Disable LLM tests in CI to prevent rate limit failures
+        continue-on-error: true
+
+      - name: Check for mock file contamination (post-test)
+        id: mock-check
+        if: always()
+        run: |
+          echo " Checking for mock file contamination after tests..."
+          if python tests/detect_mock_files.py; then
+            echo " No mock files detected"
+            echo "mock_contamination=false" >> $GITHUB_OUTPUT
+          else
+            echo "ERROR: Tests created mock file artifacts!"
+            echo "mock_contamination=true" >> $GITHUB_OUTPUT
+
+            # Show the mock files found
+            python tests/detect_mock_files.py
+
+            echo ""
+            echo "These files indicate improper mock configuration in tests."
+            echo "Mock objects should return proper string values, not Mock object representations."
+            echo ""
+            echo "To fix: Ensure all mocked methods that return paths return actual string values."
+            echo "Example: mock_settings.database_path = '/test/db.sqlite'"
+            echo ""
+            echo "Run 'make test-trace-mocks' locally to identify problematic tests"
+
+            # If tests failed AND mock files exist, it's likely the cause
+            if [ "${{ steps.run-tests.outputs.test_exit_code }}" != "0" ]; then
+              echo ""
+              echo "WARNING: Tests failed AND mock files were detected - this is likely the cause of test failures!"
+              exit 1
+            fi
+          fi
+        shell: bash
+
+      - name: Run mock contamination audit if mock files detected
+        if: |
+          always() &&
+          steps.mock-check.outputs.mock_contamination == 'true'
+        run: |
+          echo " Running detailed mock contamination audit..."
+          echo "Mock files were detected - investigating which tests are responsible"
+          echo ""
+
+          # Clean up any existing mock files first
+          python tests/detect_mock_files.py --clean || true
+
+          # First, narrow down to directory
+          echo "Step 1: Identifying which test directory creates mock files..."
+          PROBLEMATIC_DIR=""
+          for test_dir in tests/unit tests/integration tests/cli; do
+            if [ -d "$test_dir" ]; then
+              echo "  Testing $test_dir..."
+              python tests/detect_mock_files.py --clean 2>/dev/null || true
+
+              if uv run pytest "$test_dir" -q --tb=no -x 2>/dev/null; then
+                if ! python tests/detect_mock_files.py --quiet 2>/dev/null; then
+                  echo "    WARNING: Mock files detected in $test_dir"
+                  PROBLEMATIC_DIR="$test_dir"
+                  python tests/detect_mock_files.py --clean 2>/dev/null || true
+                  break
+                fi
+              else
+                echo "    ERROR: Tests failed in $test_dir"
+              fi
+
+              python tests/detect_mock_files.py --clean 2>/dev/null || true
+            fi
+          done
+
+          # If we found a problematic directory, narrow down to specific file
+          if [ -n "$PROBLEMATIC_DIR" ]; then
+            echo ""
+            echo "Step 2: Identifying specific test file in $PROBLEMATIC_DIR..."
+
+            # Clean any existing mock files from Step 1 before testing individual files
+            python tests/detect_mock_files.py --clean 2>/dev/null || true
+
+            # Test each file individually
+            for test_file in $(find "$PROBLEMATIC_DIR" -name "test_*.py" -type f | sort); do
+              echo "  Testing $test_file..."
+              python tests/detect_mock_files.py --clean 2>/dev/null || true
+
+              # Run just this one test file
+              if uv run pytest "$test_file" -q --tb=no 2>/dev/null; then
+                if ! python tests/detect_mock_files.py --quiet 2>/dev/null; then
+                  echo "    🎯 FOUND: $test_file creates mock file artifacts!"
+                  python tests/detect_mock_files.py 2>/dev/null || true
+
+                  # Try to identify specific test function
+                  echo ""
+                  echo "Step 3: Attempting to identify specific test function..."
+                  python tests/detect_mock_files.py --clean 2>/dev/null || true
+
+                  # Get list of test functions
+                  TEST_FUNCTIONS=$(uv run pytest "$test_file" --collect-only -q 2>/dev/null | grep "<Function" | sed 's/.*<Function \(.*\)>/\1/' || true)
+
+                  if [ -n "$TEST_FUNCTIONS" ]; then
+                    for test_func in $TEST_FUNCTIONS; do
+                      echo "    Testing $test_file::$test_func"
+                      python tests/detect_mock_files.py --clean 2>/dev/null || true
+
+                      if uv run pytest "$test_file::$test_func" -q --tb=no 2>/dev/null; then
+                        if ! python tests/detect_mock_files.py --quiet 2>/dev/null; then
+                          echo "      ERROR: $test_func creates mock files!"
+                          python tests/detect_mock_files.py --clean 2>/dev/null || true
+                        fi
+                      fi
+                    done
+                  fi
+
+                  break
+                fi
+              else
+                echo "    Test failed (may be unrelated to mock files)"
+              fi
+
+              python tests/detect_mock_files.py --clean 2>/dev/null || true
+            done
+          fi
+
+          echo ""
+          echo "📝 Summary:"
+          echo "Mock file contamination detected. This typically happens when:"
+          echo "1. MagicMock() is created without spec parameter"
+          echo "2. Mock's database_path attribute is not set to a proper string/Path"
+          echo "3. Mock objects are used directly as file paths"
+          echo ""
+          echo "To fix: Add spec to MagicMock() and ensure database_path returns a proper string"
+          echo "Example: mock_settings.database_path = Path('/test/db.sqlite')"
+        shell: bash
+        continue-on-error: true
+
+      - name: Fail build if tests failed
+        if: steps.run-tests.outputs.test_exit_code != '0'
+        run: |
+          echo "ERROR: Tests failed with exit code ${{ steps.run-tests.outputs.test_exit_code }}"
+          if [ "${{ steps.mock-check.outputs.mock_contamination }}" == "true" ]; then
+            echo "Mock file contamination was detected - this is likely the cause"
+          fi
+          exit ${{ steps.run-tests.outputs.test_exit_code }}
+        shell: bash
 
       - name: Surface failing tests
         uses: pmeier/pytest-results-action@main
@@ -412,6 +577,92 @@ jobs:
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
 
+  mock-detection:
+    name: Mock File Detection Check
+    runs-on: ubuntu-latest
+    needs: [test-matrix]
+    if: always() && needs.test-matrix.result != 'skipped'
+    continue-on-error: true  # Don't fail the build yet, this is informational
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Run comprehensive mock detection
+        id: mock-check
+        run: |
+          echo " Running comprehensive mock file detection..."
+          echo "This helps identify tests that create filesystem artifacts"
+          echo ""
+
+          # Run the CI detection script with GitHub annotations
+          if python tests/ci_mock_detection.py \
+            --github-annotations \
+            --junit mock-detection-report.xml \
+            --test-args "-m 'not integration' -k 'not test_llm' --tb=no -q"; then
+            echo " No mock files detected during test run"
+            echo "mock_files_found=false" >> $GITHUB_OUTPUT
+          else
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 2 ]; then
+              echo "WARNING: Mock files detected - see report above"
+              echo "mock_files_found=true" >> $GITHUB_OUTPUT
+            else
+              echo "ERROR: Tests failed during mock detection run"
+              echo "mock_files_found=unknown" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Upload mock detection report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mock-detection-report
+          path: mock-detection-report.xml
+
+      - name: Post PR comment if mock files found
+        if: github.event_name == 'pull_request' && steps.mock-check.outputs.mock_files_found == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comment = `## WARNING: Mock File Detection Warning
+
+            Tests in this PR are creating MagicMock file artifacts in the filesystem.
+
+            ### How to investigate locally:
+
+            1. Run \`make test-trace-mocks\` to identify which specific tests create mock files
+            2. Fix the tests using the patterns in \`docs/MOCK_FILE_DETECTION.md\`
+
+            ### Common fixes:
+
+            - Always use \`spec_set=True\` when creating mocks
+            - Never use mock objects directly as file paths
+            - Use \`tmp_path\` fixture for file operations in tests
+
+            This check is informational and won't fail the build (yet).`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
@@ -437,7 +688,7 @@ jobs:
 
       - name: Run integration tests
         run: |
-          echo "🧪 Running integration tests with available providers"
+          echo " Running integration tests with available providers"
           echo "Has GITHUB_TOKEN: ${{ github.token != '' }}"
           echo "Has SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT != '' }}"
           make test PYTEST_ARGS="-m integration -v --tb=short"
@@ -604,7 +855,7 @@ jobs:
                - Check if the failures are related to recent code changes in the PR
                - Consider common issues from CLAUDE.md:
                  * ANSI escape sequences in test output
-                 * Mock file artifacts
+                 * Mock file artifacts (check mock-detection job results)
                  * LLM rate limits
                  * Cross-platform compatibility
 
@@ -620,7 +871,7 @@ jobs:
             5. **Format Your Response**:
                Post a clear, structured comment on the PR with:
                - 📊 **Summary**: Brief overview of what failed
-               - 🔍 **Detailed Analysis**: Specific failures and their causes
+               -  **Detailed Analysis**: Specific failures and their causes
                - 💡 **Recommendations**: Step-by-step fixes with commands
                - 📝 **Additional Notes**: Platform-specific issues or known gotchas
 
@@ -632,7 +883,8 @@ jobs:
 
             Focus on being helpful and actionable. Remember common issues from the project:
             - Strip ANSI codes in CLI tests using `strip_ansi_codes()`
-            - Use `spec_set` in mocks to avoid file artifacts
+            - Use `spec_set` in mocks to avoid file artifacts (check mock-detection job)
+            - Run `make test-trace-mocks` locally to identify tests creating mock files
             - Handle LLM rate limits with exponential backoff
             - Use `pathlib.Path` for cross-platform paths
 

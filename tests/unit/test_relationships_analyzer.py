@@ -75,7 +75,7 @@ def test_ensure_index_from_db_early_return():
     """Test _ensure_index_from_db early return when index exists."""
     analyzer = RelationshipTestHelpers.create_analyzer_with_config(None)
     # Set _index to simulate already loaded
-    analyzer._index = Mock()
+    analyzer._index = Mock(spec=object)
     analyzer._index.alias_to_canonical = {"TEST": "TEST"}
 
     # Should return early without DB access
@@ -88,7 +88,7 @@ def test_ensure_index_from_db_early_return():
 async def test_analyze_fallback_to_db_when_no_config():
     """Test analyze method falls back to DB when no config and no index."""
     analyzer = RelationshipTestHelpers.create_analyzer_with_config(None)
-    analyzer.script = Mock()
+    analyzer.script = Mock(spec=object)
     analyzer.script.metadata = {"source_file": "/path/to/script.fountain"}
 
     # Mock database to return empty result

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 
 from scriptrag.api.search import SearchAPI
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.search.models import (
     SearchMode,
     SearchQuery,
@@ -28,7 +28,7 @@ def settings(tmp_path):
 @pytest.fixture
 def mock_parser():
     """Create mock query parser."""
-    mock = Mock()
+    mock = Mock(spec=object)
     mock.parse.return_value = SearchQuery(
         raw_query="test query",
         text_query="test query",
@@ -42,7 +42,7 @@ def mock_parser():
 @pytest.fixture
 def mock_engine():
     """Create mock search engine."""
-    mock = Mock()
+    mock = Mock(spec=object)
     mock.search.return_value = SearchResponse(
         query=SearchQuery(raw_query="test query"),
         results=[
@@ -133,7 +133,9 @@ class TestSearchAPIInit:
     def test_init_without_settings(self):
         """Test SearchAPI initialization without settings (uses default)."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             # Add required settings
             mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
@@ -142,6 +144,9 @@ class TestSearchAPIInit:
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
             mock_settings.llm_force_static_models = False
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI(settings=None)
@@ -154,7 +159,9 @@ class TestSearchAPIInit:
     def test_init_with_none_settings(self):
         """Test SearchAPI initialization with explicit None settings."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             # Add required settings
             mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
@@ -163,6 +170,9 @@ class TestSearchAPIInit:
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
             mock_settings.llm_force_static_models = False
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI(None)
@@ -176,8 +186,8 @@ class TestSearchAPIInit:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test that SearchAPI creates parser and engine components correctly."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -195,7 +205,9 @@ class TestSearchAPIFromConfig:
     def test_from_config_without_path(self):
         """Test creating SearchAPI from config without config path."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             # Add required settings
             mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
@@ -204,6 +216,9 @@ class TestSearchAPIFromConfig:
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
             mock_settings.llm_force_static_models = False
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI.from_config()
@@ -217,7 +232,10 @@ class TestSearchAPIFromConfig:
         with patch(
             "scriptrag.api.search.ScriptRAGSettings.from_file"
         ) as mock_from_file:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
             mock_from_file.return_value = mock_settings
 
             api = SearchAPI.from_config(config_path="/path/to/config.json")
@@ -229,7 +247,9 @@ class TestSearchAPIFromConfig:
     def test_from_config_with_none_path(self):
         """Test creating SearchAPI from config with None path."""
         with patch("scriptrag.config.get_settings") as mock_get_settings:
-            mock_settings = MagicMock(spec=ScriptRAGSettings)
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             # Add required settings
             mock_settings.database_path = Path("/tmp/test.db")
             mock_settings.search_vector_result_limit_factor = 0.5
@@ -238,6 +258,9 @@ class TestSearchAPIFromConfig:
             mock_settings.search_vector_threshold = 10
             mock_settings.llm_model_cache_ttl = 3600  # Must be int for comparisons
             mock_settings.llm_force_static_models = False
+            mock_settings.database_journal_mode = "WAL"
+            mock_settings.database_synchronous = "NORMAL"
+            mock_settings.database_foreign_keys = True
             mock_get_settings.return_value = mock_settings
 
             api = SearchAPI.from_config(config_path=None)
@@ -257,8 +280,8 @@ class TestSearchAPISearch:
     ):
         """Test basic search with minimal parameters."""
         # Setup mocks
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -314,8 +337,8 @@ class TestSearchAPISearch:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test search with all possible parameters."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -359,8 +382,8 @@ class TestSearchAPISearch:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test search mode determination - strict mode."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -393,8 +416,8 @@ class TestSearchAPISearch:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test search mode determination - fuzzy mode."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -427,8 +450,8 @@ class TestSearchAPISearch:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test search mode determination - auto mode (default)."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -461,8 +484,8 @@ class TestSearchAPISearch:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test search mode priority - strict takes precedence over fuzzy."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -497,8 +520,8 @@ class TestSearchAPISearch:
         self, mock_logger, mock_engine_class, mock_parser_class, settings
     ):
         """Test search logging with custom parameters."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -531,8 +554,8 @@ class TestSearchAPISearch:
         sample_search_response,
     ):
         """Test that search returns the engine's response unchanged."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -584,8 +607,8 @@ class TestSearchAPIIntegration:
             patch("scriptrag.api.search.QueryParser") as mock_parser_class,
             patch("scriptrag.api.search.SearchEngine") as mock_engine_class,
         ):
-            mock_parser = Mock()
-            mock_engine = Mock()
+            mock_parser = Mock(spec=["parse"])
+            mock_engine = Mock(spec=["search", "init_from_db"])
             mock_parser_class.return_value = mock_parser
             mock_engine_class.return_value = mock_engine
 
@@ -603,8 +626,8 @@ class TestSearchAPIIntegration:
             patch("scriptrag.api.search.QueryParser") as mock_parser_class,
             patch("scriptrag.api.search.SearchEngine") as mock_engine_class,
         ):
-            mock_parser = Mock()
-            mock_engine = Mock()
+            mock_parser = Mock(spec=["parse"])
+            mock_engine = Mock(spec=["search", "init_from_db"])
             mock_parser_class.return_value = mock_parser
             mock_engine_class.return_value = mock_engine
 
@@ -627,8 +650,8 @@ class TestSearchAPIEdgeCases:
     @patch("scriptrag.api.search.SearchEngine")
     def test_search_empty_query(self, mock_engine_class, mock_parser_class, settings):
         """Test search with empty query string."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -662,8 +685,8 @@ class TestSearchAPIEdgeCases:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test search with large limit and offset values."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -698,8 +721,8 @@ class TestSearchAPIEdgeCases:
     @patch("scriptrag.api.search.SearchEngine")
     def test_search_zero_limit(self, mock_engine_class, mock_parser_class, settings):
         """Test search with zero limit."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -732,8 +755,8 @@ class TestSearchAPIEdgeCases:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test search with negative offset."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -764,8 +787,8 @@ class TestSearchAPIEdgeCases:
     @patch("scriptrag.api.search.SearchEngine")
     def test_search_unicode_query(self, mock_engine_class, mock_parser_class, settings):
         """Test search with Unicode characters in query."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -799,8 +822,8 @@ class TestSearchAPIEdgeCases:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test search with special characters in various parameters."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -847,8 +870,8 @@ class TestSearchAPIAsync:
     ):
         """Test basic async search with minimal parameters."""
         # Setup mocks
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -907,8 +930,8 @@ class TestSearchAPIAsync:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test async search with all possible parameters."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -964,8 +987,8 @@ class TestSearchAPIAsync:
         self, mock_logger, mock_engine_class, mock_parser_class, settings
     ):
         """Test async search logging with custom parameters."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -1003,8 +1026,8 @@ class TestSearchAPIAsync:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test that async search errors are properly propagated."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 
@@ -1023,8 +1046,8 @@ class TestSearchAPIAsync:
         self, mock_engine_class, mock_parser_class, settings
     ):
         """Test that async search engine errors are properly propagated."""
-        mock_parser = Mock()
-        mock_engine = Mock()
+        mock_parser = Mock(spec=["parse"])
+        mock_engine = Mock(spec=["search", "init_from_db"])
         mock_parser_class.return_value = mock_parser
         mock_engine_class.return_value = mock_engine
 

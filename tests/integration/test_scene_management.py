@@ -15,7 +15,7 @@ runner = CliRunner()
 def sample_screenplay(tmp_path):
     """Create a sample screenplay with multiple scenes."""
     script_path = tmp_path / "test_script.fountain"
-    content = """Title: Integration Test Script
+    content = """Title: Integration_Test_Script
 Author: Test Suite
 Draft date: 2024-01-01
 
@@ -76,7 +76,7 @@ FADE OUT.
 def sample_tv_screenplay(tmp_path):
     """Create a TV series screenplay."""
     tv_script = tmp_path / "breaking_bad_s01e01.fountain"
-    tv_content = """Title: Breaking Bad
+    tv_content = """Title: Breaking_Bad
 Author: Vince Gilligan
 Season: 1
 Episode: 1
@@ -136,7 +136,7 @@ class TestSceneManagement:
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--scene",
                 "1",
                 "--config",
@@ -156,7 +156,7 @@ class TestSceneManagement:
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--scene",
                 "2",
                 "--json",
@@ -185,7 +185,7 @@ SARAH enters the new location."""
                 "scene",
                 "add",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--after-scene",
                 "1",
                 "--content",
@@ -205,7 +205,7 @@ SARAH enters the new location."""
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--scene",
                 "2",
                 "--config",
@@ -229,7 +229,7 @@ JAMES walks in."""
                 "scene",
                 "update",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--scene",
                 "2",
                 "--content",
@@ -249,7 +249,7 @@ JAMES walks in."""
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--scene",
                 "2",
                 "--config",
@@ -268,7 +268,7 @@ JAMES walks in."""
                 "scene",
                 "delete",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--scene",
                 "2",
                 "--force",
@@ -287,7 +287,7 @@ JAMES walks in."""
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--scene",
                 "2",
                 "--config",
@@ -332,7 +332,7 @@ JAMES walks in."""
                 "scene",
                 "read",
                 "--project",
-                "Breaking Bad",
+                "Breaking_Bad",
                 "--season",
                 "1",
                 "--episode",
@@ -354,7 +354,7 @@ JAMES walks in."""
                 "scene",
                 "read",
                 "--project",
-                "Breaking Bad",
+                "Breaking_Bad",
                 "--season",
                 "1",
                 "--episode",
@@ -403,7 +403,7 @@ JAMES walks in."""
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--scene",
                 "999",
                 "--config",
@@ -430,7 +430,7 @@ JAMES walks in."""
                 "scene",
                 "update",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--scene",
                 "999",
                 "--content",
@@ -450,7 +450,7 @@ JAMES walks in."""
                 "scene",
                 "delete",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--scene",
                 "1",
                 "--config",
@@ -492,7 +492,7 @@ JAMES walks in."""
                 "scene",
                 "add",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--after-scene",
                 "999",
                 "--content",
@@ -512,7 +512,7 @@ JAMES walks in."""
                 "scene",
                 "add",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--after-scene",
                 "1",
                 "--content",
@@ -532,7 +532,7 @@ JAMES walks in."""
                 "scene",
                 "read",
                 "--project",
-                "Integration Test Script",
+                "Integration_Test_Script",
                 "--bible-name",
                 "non_existent.md",
                 "--config",

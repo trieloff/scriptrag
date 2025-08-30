@@ -151,7 +151,7 @@ class TestGitHubRateLimitParserCompleteErrors:
 
         # This will match regex but int() will fail
         with patch("re.search") as mock_search:
-            mock_match = Mock()
+            mock_match = Mock(spec=["group"])
             mock_match.group.return_value = "not_a_number"  # Invalid int
             mock_search.return_value = mock_match
 

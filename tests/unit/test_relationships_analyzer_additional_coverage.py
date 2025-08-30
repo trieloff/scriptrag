@@ -251,7 +251,7 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
     def test_ensure_index_from_db_no_source_file(self) -> None:
         """Test _ensure_index_from_db with script but no source_file."""
         analyzer = CharacterRelationshipsAnalyzer()
-        analyzer.script = Mock()
+        analyzer.script = Mock(spec=object)
         analyzer.script.metadata = {}
 
         analyzer._ensure_index_from_db()
@@ -262,13 +262,13 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
     def test_ensure_index_from_db_with_source_file(self) -> None:
         """Test _ensure_index_from_db with valid source file."""
         analyzer = CharacterRelationshipsAnalyzer()
-        analyzer.script = Mock()
+        analyzer.script = Mock(spec=object)
         analyzer.script.metadata = {"source_file": "/path/to/script.fountain"}
 
         # Mock database operations
         with patch("sqlite3.connect") as mock_connect:
-            mock_conn = Mock()
-            mock_cursor = Mock()
+            mock_conn = Mock(spec=["execute", "__enter__", "__exit__"])
+            mock_cursor = Mock(spec=["fetchone"])
             # Mock metadata with bible characters
             metadata = {
                 "bible.characters": {
@@ -290,13 +290,13 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
     def test_ensure_index_from_db_with_nested_bible_structure(self) -> None:
         """Test _ensure_index_from_db with nested bible structure in metadata."""
         analyzer = CharacterRelationshipsAnalyzer()
-        analyzer.script = Mock()
+        analyzer.script = Mock(spec=object)
         analyzer.script.metadata = {"source_file": "/path/to/script.fountain"}
 
         # Mock database operations
         with patch("sqlite3.connect") as mock_connect:
-            mock_conn = Mock()
-            mock_cursor = Mock()
+            mock_conn = Mock(spec=["execute", "__enter__", "__exit__"])
+            mock_cursor = Mock(spec=["fetchone"])
             # Mock metadata with nested bible structure
             metadata = {
                 "bible": {
@@ -320,13 +320,13 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
     def test_ensure_index_from_db_no_metadata(self) -> None:
         """Test _ensure_index_from_db with no metadata in database."""
         analyzer = CharacterRelationshipsAnalyzer()
-        analyzer.script = Mock()
+        analyzer.script = Mock(spec=object)
         analyzer.script.metadata = {"source_file": "/path/to/script.fountain"}
 
         # Mock database operations
         with patch("sqlite3.connect") as mock_connect:
-            mock_conn = Mock()
-            mock_cursor = Mock()
+            mock_conn = Mock(spec=["execute", "__enter__", "__exit__"])
+            mock_cursor = Mock(spec=["fetchone"])
             mock_cursor.fetchone.return_value = None  # No row found
             mock_conn.execute.return_value = mock_cursor
             mock_conn.__enter__ = Mock(return_value=mock_conn)
@@ -342,13 +342,13 @@ class TestCharacterRelationshipsAnalyzerEdgeCases:
     async def test_analyze_no_index_fallback_to_db(self) -> None:
         """Test analyze method when no index, falling back to DB load."""
         analyzer = CharacterRelationshipsAnalyzer()
-        analyzer.script = Mock()
+        analyzer.script = Mock(spec=object)
         analyzer.script.metadata = {"source_file": "/path/to/script.fountain"}
 
         # Mock database operations to return empty
         with patch("sqlite3.connect") as mock_connect:
-            mock_conn = Mock()
-            mock_cursor = Mock()
+            mock_conn = Mock(spec=["execute", "__enter__", "__exit__"])
+            mock_cursor = Mock(spec=["fetchone"])
             mock_cursor.fetchone.return_value = None
             mock_conn.execute.return_value = mock_cursor
             mock_conn.__enter__ = Mock(return_value=mock_conn)

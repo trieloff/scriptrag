@@ -5,9 +5,10 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
+from scriptrag.api.database_operations import DatabaseOperations
 from scriptrag.api.index import IndexCommand, IndexOperationResult, IndexResult
 from scriptrag.api.list import FountainMetadata
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.exceptions import DatabaseError, ParseError
 from scriptrag.parser import Dialogue, Scene, Script
 
@@ -25,7 +26,7 @@ def settings(tmp_path):
 @pytest.fixture
 def mock_db_ops():
     """Create mock database operations."""
-    mock = MagicMock()
+    mock = MagicMock(spec=DatabaseOperations)
     mock.check_database_exists.return_value = True
     mock.get_existing_script.return_value = None
     mock.upsert_script.return_value = 1
@@ -39,7 +40,9 @@ def mock_db_ops():
         "dialogues": 2,
         "actions": 2,
     }
-    mock.transaction.return_value.__enter__ = Mock(return_value=MagicMock())
+    mock.transaction.return_value.__enter__ = Mock(
+        return_value=MagicMock(spec=["content", "model", "provider", "usage"])
+    )
     mock.transaction.return_value.__exit__ = Mock(return_value=None)
     return mock
 
@@ -106,7 +109,10 @@ class TestIndexCommand:
     def test_from_config(self):
         """Test creating IndexCommand from config."""
         with patch("scriptrag.api.index.get_settings") as mock_get_settings:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = "/tmp/test.db"
             mock_get_settings.return_value = mock_settings
 
             cmd = IndexCommand.from_config()
@@ -647,7 +653,22 @@ class TestIndexCommandMissingCoverage:
             database_path=Path("test.db"),
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock()
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+            ]
+        )
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Create mock scripts with errors
@@ -695,7 +716,22 @@ class TestIndexCommandMissingCoverage:
             database_path=Path("test.db"),
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock()
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+            ]
+        )
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Mock the lister instance on the indexer
@@ -711,10 +747,25 @@ class TestIndexCommandMissingCoverage:
             database_path=Path("test.db"),
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock()
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+            ]
+        )
         # Add context manager support for transaction
-        mock_conn = Mock()
-        mock_context_manager = Mock()
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_context_manager = Mock(spec=["__enter__", "__exit__"])
         mock_context_manager.__enter__ = Mock(return_value=mock_conn)
         mock_context_manager.__exit__ = Mock(return_value=None)
         mock_db_ops.transaction.return_value = mock_context_manager
@@ -729,7 +780,18 @@ class TestIndexCommandMissingCoverage:
         ]
 
         # Mock database to return existing script with last_indexed metadata
-        existing_script = Mock()
+        existing_script = Mock(
+            spec=[
+                "id",
+                "content_hash",
+                "metadata",
+                "title",
+                "author",
+                "file_path",
+                "created_at",
+                "updated_at",
+            ]
+        )
         existing_script.content_hash = "hash1"
         existing_script.metadata = {"last_indexed": "2024-01-01T00:00:00Z"}
         mock_db_ops.get_existing_script.return_value = existing_script
@@ -746,7 +808,22 @@ class TestIndexCommandMissingCoverage:
             database_path=Path("test.db"),
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock()
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+            ]
+        )
         indexer = IndexCommand(settings, mock_db_ops)
 
         # Create test scripts
@@ -772,7 +849,22 @@ class TestIndexCommandMissingCoverage:
             database_path=Path("test.db"),
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock()
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+            ]
+        )
         indexer = IndexCommand(settings, mock_db_ops)
 
         script_metadata = FountainMetadata(
@@ -781,7 +873,7 @@ class TestIndexCommandMissingCoverage:
         )
 
         # Mock parser to raise exception
-        mock_parser = Mock()
+        mock_parser = Mock(spec=["parse_file", "write_with_updated_scenes"])
         mock_parser.parse_file.side_effect = ParseError("Parse error")
         indexer.parser = mock_parser
 
@@ -796,7 +888,22 @@ class TestIndexCommandMissingCoverage:
             database_path=Path("test.db"),
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock()
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+            ]
+        )
         # Mock transaction to raise database error
         mock_db_ops.transaction.side_effect = DatabaseError("Database error")
         indexer = IndexCommand(settings, mock_db_ops)
@@ -807,8 +914,8 @@ class TestIndexCommandMissingCoverage:
         )
 
         # Mock parsing
-        mock_parser = Mock()
-        mock_script = Mock()
+        mock_parser = Mock(spec=["parse_file", "write_with_updated_scenes"])
+        mock_script = Mock(spec=["title", "author", "scenes", "metadata"])
         mock_script.title = "Test Script"
         mock_script.author = "Test Author"
         mock_script.scenes = []
@@ -826,10 +933,25 @@ class TestIndexCommandMissingCoverage:
             database_path=Path("test.db"),
             skip_boneyard_filter=True,  # Enable for unit tests
         )
-        mock_db_ops = Mock()
+        mock_db_ops = Mock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+            ]
+        )
         # Add context manager support for transaction
-        mock_conn = Mock()
-        mock_context_manager = Mock()
+        mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_context_manager = Mock(spec=["__enter__", "__exit__"])
         mock_context_manager.__enter__ = Mock(return_value=mock_conn)
         mock_context_manager.__exit__ = Mock(return_value=None)
         mock_db_ops.transaction.return_value = mock_context_manager
@@ -841,8 +963,8 @@ class TestIndexCommandMissingCoverage:
         )
 
         # Mock parsing
-        mock_parser = Mock()
-        mock_script = Mock()
+        mock_parser = Mock(spec=["parse_file", "write_with_updated_scenes"])
+        mock_script = Mock(spec=["title", "author", "scenes", "metadata"])
         mock_script.title = "Test Script"
         mock_script.author = "Test Author"
         mock_script.scenes = []
@@ -850,10 +972,22 @@ class TestIndexCommandMissingCoverage:
         indexer.parser = mock_parser
 
         # Mock database operations - existing script
-        mock_db_ops.check_database.return_value = True
-        mock_connection = Mock()
+        mock_connection = Mock(
+            spec=["cursor", "execute", "commit", "rollback", "close"]
+        )
         mock_db_ops.get_connection.return_value = mock_connection
-        existing_script = Mock()
+        existing_script = Mock(
+            spec=[
+                "id",
+                "content_hash",
+                "metadata",
+                "title",
+                "author",
+                "file_path",
+                "created_at",
+                "updated_at",
+            ]
+        )
         existing_script.id = 1
         existing_script.metadata = {}
         mock_db_ops.get_existing_script.return_value = existing_script

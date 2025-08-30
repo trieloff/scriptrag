@@ -127,7 +127,7 @@ class TestAnalyzeCommand:
         command = AnalyzeCommand()
 
         # Mock analyzer class
-        mock_class = Mock()
+        mock_class = Mock(spec=object)
         command.register_analyzer("test", mock_class)
 
         assert "test" in command._analyzer_registry
@@ -148,8 +148,8 @@ class TestAnalyzeCommand:
         command = AnalyzeCommand()
 
         # Mock analyzer class
-        mock_class = Mock()
-        mock_instance = Mock()
+        mock_class = Mock(spec=object)
+        mock_instance = Mock(spec=object)
         mock_instance.name = "test"
         mock_class.return_value = mock_instance
 
@@ -163,7 +163,7 @@ class TestAnalyzeCommand:
         """Test loading analyzer from builtin analyzers."""
         command = AnalyzeCommand()
 
-        mock_analyzer_instance = Mock()
+        mock_analyzer_instance = Mock(spec=object)
         mock_analyzer_instance.name = "builtin_test"
         mock_analyzer_class = Mock(return_value=mock_analyzer_instance)
 
@@ -181,9 +181,9 @@ class TestAnalyzeCommand:
         """Test loading analyzer from markdown agent loader."""
         command = AnalyzeCommand()
 
-        mock_agent = Mock()
+        mock_agent = Mock(spec=object)
         mock_agent.name = "agent_test"
-        mock_loader = Mock()
+        mock_loader = Mock(spec=["load_agent"])
         mock_loader.load_agent.return_value = mock_agent
 
         with (
@@ -204,7 +204,7 @@ class TestAnalyzeCommand:
             patch("scriptrag.analyzers.builtin.BUILTIN_ANALYZERS", {}),
             patch("scriptrag.agents.AgentLoader") as mock_loader_class,
         ):
-            mock_loader = Mock()
+            mock_loader = Mock(spec=["load_agent"])
             mock_loader.load_agent.side_effect = ValueError("Unknown agent")
             mock_loader_class.return_value = mock_loader
 
@@ -217,7 +217,7 @@ class TestAnalyzeCommand:
         command = AnalyzeCommand()
 
         with patch("scriptrag.api.analyze.ScriptLister") as mock_lister_class:
-            mock_lister = Mock()
+            mock_lister = Mock(spec=["list_scripts"])
             mock_lister.list_scripts.return_value = []
             mock_lister_class.return_value = mock_lister
 
@@ -248,7 +248,7 @@ class TestAnalyzeCommand:
                 command, "_process_file", new_callable=AsyncMock
             ) as mock_process,
         ):
-            mock_lister = Mock()
+            mock_lister = Mock(spec=["list_scripts"])
             mock_lister.list_scripts.return_value = [script_meta]
             mock_lister_class.return_value = mock_lister
 
@@ -278,7 +278,7 @@ class TestAnalyzeCommand:
                 command, "_process_file", new_callable=AsyncMock
             ) as mock_process,
         ):
-            mock_lister = Mock()
+            mock_lister = Mock(spec=["list_scripts"])
             mock_lister.list_scripts.return_value = [script_meta]
             mock_lister_class.return_value = mock_lister
 
@@ -302,7 +302,7 @@ class TestAnalyzeCommand:
                 command, "_process_file", new_callable=AsyncMock
             ) as mock_process,
         ):
-            mock_lister = Mock()
+            mock_lister = Mock(spec=["list_scripts"])
             mock_lister.list_scripts.return_value = [script_meta]
             mock_lister_class.return_value = mock_lister
 
@@ -351,7 +351,7 @@ class TestAnalyzeCommand:
             patch("scriptrag.api.analyze.FountainParser") as mock_parser_class,
             patch("scriptrag.api.analyze.file_needs_update", return_value=False),
         ):
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parse_file"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser_class.return_value = mock_parser
 
@@ -370,14 +370,16 @@ class TestAnalyzeCommand:
         command = AnalyzeCommand(analyzers=[mock_scene_analyzer])
 
         # Make analyzer support cleanup
-        mock_scene_analyzer.cleanup = AsyncMock()
+        mock_scene_analyzer.cleanup = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
 
         with (
             patch("scriptrag.api.analyze.FountainParser") as mock_parser_class,
             patch("scriptrag.api.analyze.file_needs_update", return_value=True),
             patch("scriptrag.api.analyze.scene_needs_update", return_value=True),
         ):
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parse_file"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser_class.return_value = mock_parser
 
@@ -404,7 +406,7 @@ class TestAnalyzeCommand:
             patch("scriptrag.api.analyze.file_needs_update", return_value=True),
             patch("scriptrag.api.analyze.scene_needs_update", return_value=False),
         ):
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parse_file"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser_class.return_value = mock_parser
 
@@ -421,10 +423,10 @@ class TestAnalyzeCommand:
     ) -> None:
         """Test processing file with relationships analyzer and bible metadata."""
         # Create relationships analyzer mock
-        relationships_analyzer = Mock()
+        relationships_analyzer = Mock(spec=object)
         relationships_analyzer.name = "relationships"
         relationships_analyzer.bible_characters = None
-        relationships_analyzer._build_alias_index = Mock()
+        relationships_analyzer._build_alias_index = Mock(spec=object)
         relationships_analyzer.analyze = AsyncMock(return_value={})
         # Remove initialize and cleanup attributes to prevent hasattr checks
         del relationships_analyzer.initialize
@@ -444,7 +446,7 @@ class TestAnalyzeCommand:
                 return_value=bible_metadata,
             ),
         ):
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parse_file"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser_class.return_value = mock_parser
 
@@ -461,9 +463,11 @@ class TestAnalyzeCommand:
         self, sample_script: Script
     ) -> None:
         """Test processing file with analyzer that has initialize method."""
-        analyzer_with_init = Mock()
+        analyzer_with_init = Mock(spec=object)
         analyzer_with_init.name = "test"
-        analyzer_with_init.initialize = AsyncMock()
+        analyzer_with_init.initialize = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         analyzer_with_init.analyze = AsyncMock(return_value={})
         # Remove cleanup attribute to prevent hasattr check from passing
         del analyzer_with_init.cleanup
@@ -475,7 +479,7 @@ class TestAnalyzeCommand:
             patch("scriptrag.api.analyze.file_needs_update", return_value=True),
             patch("scriptrag.api.analyze.scene_needs_update", return_value=False),
         ):
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parse_file"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser_class.return_value = mock_parser
 
@@ -500,7 +504,7 @@ class TestAnalyzeCommand:
             patch("scriptrag.api.analyze.file_needs_update", return_value=True),
             patch("scriptrag.api.analyze.scene_needs_update", return_value=True),
         ):
-            mock_parser = Mock()
+            mock_parser = Mock(spec=["parse_file", "write_with_updated_scenes"])
             mock_parser.parse_file.return_value = sample_script
             mock_parser.write_with_updated_scenes = Mock()
             mock_parser_class.return_value = mock_parser
@@ -614,7 +618,22 @@ class TestAnalyzeCommand:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_class:
-            mock_db = Mock()
+            mock_db = Mock(
+                spec=[
+                    "check_database_exists",
+                    "transaction",
+                    "get_connection",
+                    "get_existing_script",
+                    "upsert_script",
+                    "upsert_scene",
+                    "upsert_characters",
+                    "insert_dialogues",
+                    "insert_actions",
+                    "get_script_stats",
+                    "clear_script_data",
+                    "clear_scene_content",
+                ]
+            )
             mock_db.check_database_exists.return_value = False
             mock_db_class.return_value = mock_db
 
@@ -627,11 +646,26 @@ class TestAnalyzeCommand:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_class:
-            mock_db = Mock()
+            mock_db = Mock(
+                spec=[
+                    "check_database_exists",
+                    "transaction",
+                    "get_connection",
+                    "get_existing_script",
+                    "upsert_script",
+                    "upsert_scene",
+                    "upsert_characters",
+                    "insert_dialogues",
+                    "insert_actions",
+                    "get_script_stats",
+                    "clear_script_data",
+                    "clear_scene_content",
+                ]
+            )
             mock_db.check_database_exists.return_value = True
 
-            mock_conn = Mock()
-            mock_cursor = Mock()
+            mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+            mock_cursor = Mock(spec=["execute", "fetchone", "fetchall", "close"])
             mock_cursor.fetchone.return_value = None  # No record found
             mock_conn.cursor.return_value = mock_cursor
             mock_db.transaction.return_value.__enter__ = Mock(return_value=mock_conn)
@@ -650,11 +684,26 @@ class TestAnalyzeCommand:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_class:
-            mock_db = Mock()
+            mock_db = Mock(
+                spec=[
+                    "check_database_exists",
+                    "transaction",
+                    "get_connection",
+                    "get_existing_script",
+                    "upsert_script",
+                    "upsert_scene",
+                    "upsert_characters",
+                    "insert_dialogues",
+                    "insert_actions",
+                    "get_script_stats",
+                    "clear_script_data",
+                    "clear_scene_content",
+                ]
+            )
             mock_db.check_database_exists.return_value = True
 
-            mock_conn = Mock()
-            mock_cursor = Mock()
+            mock_conn = Mock(spec=["cursor", "execute", "commit", "rollback", "close"])
+            mock_cursor = Mock(spec=["execute", "fetchone", "fetchall", "close"])
             mock_cursor.fetchone.return_value = (json.dumps(metadata),)
             mock_conn.cursor.return_value = mock_cursor
             mock_db.transaction.return_value.__enter__ = Mock(return_value=mock_conn)

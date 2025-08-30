@@ -9,14 +9,19 @@ import pytest
 from watchdog.events import FileSystemEvent
 
 from scriptrag.cli.utils.file_watcher import FountainFileHandler, StatusCallback
-from scriptrag.config import ScriptRAGSettings
+from scriptrag.config.settings import ScriptRAGSettings
 
 
 @pytest.fixture
 def mock_settings():
     """Create mock settings."""
-    settings = MagicMock(spec=ScriptRAGSettings)
+    settings = MagicMock(
+        spec=ScriptRAGSettings
+    )  # Use spec to prevent mock file artifacts
     settings.database_path = Path("/tmp/test.db")
+    settings.database_journal_mode = "WAL"
+    settings.database_synchronous = "NORMAL"
+    settings.database_foreign_keys = True
     return settings
 
 
@@ -177,6 +182,7 @@ class TestFountainFileHandler:
 
         with patch("scriptrag.cli.utils.file_watcher.asyncio") as mock_asyncio:
             mock_loop = MagicMock()
+            mock_loop.run_until_complete = MagicMock(return_value=None)
             mock_asyncio.new_event_loop.return_value = mock_loop
 
             # Mock successful completion
@@ -214,15 +220,19 @@ class TestFountainFileHandler:
         ):
             # Setup mocks
             db_ops = MagicMock()
-            db_ops.check_database_exists.return_value = True
+            db_ops.check_database_exists = MagicMock(return_value=True)
             mock_db_ops.return_value = db_ops
 
-            analyze_cmd = MagicMock()
-            analyze_cmd.analyze = AsyncMock()
+            analyze_cmd = MagicMock(spec=["content", "model", "provider", "usage"])
+            analyze_cmd.analyze = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
             mock_analyze.from_config.return_value = analyze_cmd
 
-            index_cmd = MagicMock()
-            index_cmd.index = AsyncMock()
+            index_cmd = MagicMock(spec=["content", "model", "provider", "usage"])
+            index_cmd.index = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
             mock_index.from_config.return_value = index_cmd
 
             # Run
@@ -258,18 +268,23 @@ class TestFountainFileHandler:
         ):
             # Setup mocks
             db_ops = MagicMock()
-            db_ops.check_database_exists.return_value = False
+            db_ops.check_database_exists = MagicMock(return_value=False)
             mock_db_ops.return_value = db_ops
 
             initializer = MagicMock()
+            initializer.initialize_database = MagicMock()
             mock_init.return_value = initializer
 
-            analyze_cmd = MagicMock()
-            analyze_cmd.analyze = AsyncMock()
+            analyze_cmd = MagicMock(spec=["content", "model", "provider", "usage"])
+            analyze_cmd.analyze = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
             mock_analyze.from_config.return_value = analyze_cmd
 
-            index_cmd = MagicMock()
-            index_cmd.index = AsyncMock()
+            index_cmd = MagicMock(spec=["content", "model", "provider", "usage"])
+            index_cmd.index = AsyncMock(
+                spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+            )
             mock_index.from_config.return_value = index_cmd
 
             # Run

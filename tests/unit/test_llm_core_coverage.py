@@ -152,10 +152,10 @@ class TestProviderRegistry:
                 return True
 
             async def complete(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def embed(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def list_models(self):
                 return []
@@ -182,10 +182,10 @@ class TestProviderRegistry:
                 return True
 
             async def complete(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def embed(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def list_models(self):
                 return []
@@ -281,7 +281,7 @@ class TestProviderRegistry:
         assert registry.get_provider(LLMProvider.CLAUDE_CODE) is None
 
         # Add a provider
-        mock_provider = Mock()
+        mock_provider = Mock(spec=object)
         registry.providers[LLMProvider.CLAUDE_CODE] = mock_provider
 
         assert registry.get_provider(LLMProvider.CLAUDE_CODE) == mock_provider
@@ -290,7 +290,7 @@ class TestProviderRegistry:
         """Test setting a provider instance."""
         registry = ProviderRegistry()
 
-        mock_provider = Mock()
+        mock_provider = Mock(spec=object)
         registry.set_provider(LLMProvider.CLAUDE_CODE, mock_provider)
 
         assert registry.providers[LLMProvider.CLAUDE_CODE] == mock_provider
@@ -300,7 +300,7 @@ class TestProviderRegistry:
         registry = ProviderRegistry()
 
         # Add a provider
-        mock_provider = Mock()
+        mock_provider = Mock(spec=object)
         registry.providers[LLMProvider.CLAUDE_CODE] = mock_provider
 
         # Remove it
@@ -319,8 +319,8 @@ class TestProviderRegistry:
         assert registry.list_providers() == []
 
         # Add providers
-        registry.providers[LLMProvider.CLAUDE_CODE] = Mock()
-        registry.providers[LLMProvider.GITHUB_MODELS] = Mock()
+        registry.providers[LLMProvider.CLAUDE_CODE] = Mock(spec=object)
+        registry.providers[LLMProvider.GITHUB_MODELS] = Mock(spec=object)
 
         provider_types = registry.list_providers()
         assert len(provider_types) == 2
@@ -333,15 +333,16 @@ class TestProviderRegistry:
         registry = ProviderRegistry()
 
         # Create mock providers with clients
-        mock_provider1 = Mock()
-        mock_provider1.client = AsyncMock()
+        mock_provider1 = Mock(spec=["client", "provider_type"])
+        mock_provider1.client = AsyncMock(spec=["aclose"])
+        mock_provider1.client.aclose = AsyncMock()
         mock_provider1.provider_type = LLMProvider.CLAUDE_CODE
 
-        mock_provider2 = Mock()
+        mock_provider2 = Mock(spec=["client", "provider_type"])
         mock_provider2.client = None  # No client to clean up
         mock_provider2.provider_type = LLMProvider.GITHUB_MODELS
 
-        mock_provider3 = Mock()
+        mock_provider3 = Mock(spec=object)
         # No client attribute
         if hasattr(mock_provider3, "client"):
             delattr(mock_provider3, "client")
@@ -509,10 +510,10 @@ class TestEnhancedBaseLLMProviderCoverage:
                 return True
 
             async def complete(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def embed(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def list_models(self):
                 return []
@@ -525,7 +526,17 @@ class TestEnhancedBaseLLMProviderCoverage:
         assert provider.client is None
 
         # Test cleanup when client exists
-        mock_client = AsyncMock()
+        mock_client = AsyncMock(
+            spec=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "aclose",
+            ]
+        )
+        mock_client.aclose = AsyncMock()
         provider.client = mock_client
 
         await provider.__aexit__(None, None, None)
@@ -544,10 +555,10 @@ class TestEnhancedBaseLLMProviderCoverage:
                 return True
 
             async def complete(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def embed(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def list_models(self):
                 return []
@@ -574,10 +585,10 @@ class TestEnhancedBaseLLMProviderCoverage:
                 return True
 
             async def complete(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def embed(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def list_models(self):
                 return []
@@ -607,10 +618,10 @@ class TestEnhancedBaseLLMProviderCoverage:
                 return True
 
             async def complete(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def embed(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def list_models(self):
                 return []
@@ -620,9 +631,11 @@ class TestEnhancedBaseLLMProviderCoverage:
             base_url="https://api.example.com",
         )
 
-        mock_response = Mock()
-        mock_client = AsyncMock()
-        mock_client.post.return_value = mock_response
+        mock_response = Mock(spec=object)
+        mock_client = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available", "post"]
+        )
+        mock_client.post = AsyncMock(return_value=mock_response)
 
         provider.client = mock_client
 
@@ -653,18 +666,20 @@ class TestEnhancedBaseLLMProviderCoverage:
                 return True
 
             async def complete(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def embed(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def list_models(self):
                 return []
 
-        mock_discovery_class = Mock()
+        mock_discovery_class = Mock(spec=object)
 
         with patch("scriptrag.llm.base_provider.get_settings") as mock_get_settings:
-            mock_settings = Mock()
+            mock_settings = Mock(
+                spec=["llm_model_cache_ttl", "llm_force_static_models"]
+            )
             mock_settings.llm_model_cache_ttl = -1  # Negative value
             mock_settings.llm_force_static_models = True
             mock_get_settings.return_value = mock_settings

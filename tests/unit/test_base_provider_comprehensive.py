@@ -28,11 +28,11 @@ class ConcreteTestProvider(EnhancedBaseLLMProvider):
 
     async def complete(self, request: Any) -> Any:
         """Test implementation."""
-        return Mock()
+        return Mock(spec=object)
 
     async def embed(self, request: Any) -> Any:
         """Test implementation."""
-        return Mock()
+        return Mock(spec=object)
 
     async def list_models(self) -> list[Model]:
         """Test implementation."""
@@ -71,7 +71,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         provider = ConcreteTestProvider()
 
         # Manually set client
-        existing_client = AsyncMock()
+        existing_client = AsyncMock(spec_set=httpx.AsyncClient)
         provider.client = existing_client
 
         # Should not reinitialize
@@ -273,11 +273,11 @@ class TestEnhancedBaseLLMProviderComprehensive:
         assert provider.client is None
 
         # Mock the client that gets created
-        mock_response = Mock()
+        mock_response = Mock(spec=object)
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
+        mock_client.get.return_value = mock_response
 
         with patch("httpx.AsyncClient") as mock_client_class:
-            mock_client = AsyncMock()
-            mock_client.get.return_value = mock_response
             mock_client_class.return_value = mock_client
 
             response = await provider._make_request("GET", "/test")
@@ -305,7 +305,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         provider = ConcreteTestProvider(base_url=None)
 
         # Set up a mock client
-        provider.client = AsyncMock()
+        provider.client = AsyncMock(spec_set=httpx.AsyncClient)
 
         with pytest.raises(ValueError, match="Base URL not configured"):
             await provider._make_request("GET", "/test")  # Line 202
@@ -315,8 +315,8 @@ class TestEnhancedBaseLLMProviderComprehensive:
         """Test _make_request with GET method - covers line 207."""
         provider = ConcreteTestProvider(base_url="https://api.example.com")
 
-        mock_response = Mock()
-        mock_client = AsyncMock()
+        mock_response = Mock(spec=object)
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
         mock_client.get.return_value = mock_response
         provider.client = mock_client
 
@@ -330,8 +330,8 @@ class TestEnhancedBaseLLMProviderComprehensive:
         """Test _make_request with POST method - covers lines 209-211."""
         provider = ConcreteTestProvider(base_url="https://api.example.com")
 
-        mock_response = Mock()
-        mock_client = AsyncMock()
+        mock_response = Mock(spec=object)
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
         mock_client.post.return_value = mock_response
         provider.client = mock_client
 
@@ -348,7 +348,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         """Test _make_request with unsupported HTTP method - covers line 213."""
         provider = ConcreteTestProvider(base_url="https://api.example.com")
 
-        provider.client = AsyncMock()
+        provider.client = AsyncMock(spec_set=httpx.AsyncClient)
 
         with pytest.raises(ValueError, match="Unsupported HTTP method: PUT"):
             await provider._make_request("PUT", "/test")  # Line 213
@@ -358,7 +358,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         """Test _make_request HTTP error handling - covers lines 217-223."""
         provider = ConcreteTestProvider(base_url="https://api.example.com")
 
-        mock_client = AsyncMock()
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
         mock_client.get.side_effect = httpx.RequestError("Connection failed")
         provider.client = mock_client
 
@@ -379,8 +379,8 @@ class TestEnhancedBaseLLMProviderComprehensive:
             base_url="https://api.example.com",
         )
 
-        mock_response = Mock()
-        mock_client = AsyncMock()
+        mock_response = Mock(spec=object)
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
         mock_client.get.return_value = mock_response
         provider.client = mock_client
 
@@ -401,7 +401,7 @@ class TestEnhancedBaseLLMProviderComprehensive:
         """Test _make_request URL building with different endpoint formats."""
         provider = ConcreteTestProvider(base_url="https://api.example.com")
 
-        mock_client = AsyncMock()
+        mock_client = AsyncMock(spec_set=httpx.AsyncClient)
         provider.client = mock_client
 
         # Test with leading slash in endpoint
@@ -418,11 +418,11 @@ class TestEnhancedBaseLLMProviderComprehensive:
         """Test _init_model_discovery with cache_ttl set to 0."""
         provider = ConcreteTestProvider()
 
-        mock_discovery_class = Mock()
+        mock_discovery_class = Mock(spec=object)
         static_models = [Mock(spec=Model)]
 
         with patch("scriptrag.llm.base_provider.get_settings") as mock_get_settings:
-            mock_settings = Mock()
+            mock_settings = Mock(spec=object)
             mock_settings.llm_model_cache_ttl = 0  # Zero means disable cache
             mock_settings.llm_force_static_models = False
             mock_get_settings.return_value = mock_settings
@@ -448,11 +448,11 @@ class TestEnhancedBaseLLMProviderComprehensive:
         """Test _init_model_discovery with positive cache_ttl."""
         provider = ConcreteTestProvider()
 
-        mock_discovery_class = Mock()
+        mock_discovery_class = Mock(spec=object)
         static_models = []
 
         with patch("scriptrag.llm.base_provider.get_settings") as mock_get_settings:
-            mock_settings = Mock()
+            mock_settings = Mock(spec=object)
             mock_settings.llm_model_cache_ttl = 300  # Positive value
             mock_settings.llm_force_static_models = True
             mock_get_settings.return_value = mock_settings
@@ -509,8 +509,8 @@ class TestEnhancedBaseLLMProviderComprehensive:
 
         # These should not raise NotImplementedError
         assert await provider._validate_availability() is True
-        assert await provider.complete(Mock()) is not None
-        assert await provider.embed(Mock()) is not None
+        assert await provider.complete(Mock(spec=object)) is not None
+        assert await provider.embed(Mock(spec=object)) is not None
         assert await provider.list_models() == []
 
     @pytest.mark.asyncio

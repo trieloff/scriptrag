@@ -19,6 +19,17 @@ class TestQueryCLI:
         return CliRunner()
 
     @pytest.fixture
+    def clear_settings_cache(self):
+        """Clear global settings cache before each test."""
+        from scriptrag.config import clear_settings_cache
+
+        # Clear the cache so environment variables will be re-read
+        clear_settings_cache()
+        yield
+        # Clear again after test to avoid cache pollution
+        clear_settings_cache()
+
+    @pytest.fixture
     def temp_db(self, tmp_path):
         """Create a temporary test database with sample data."""
         db_path = tmp_path / "test.db"
@@ -143,7 +154,9 @@ ORDER BY d.id""")
         return query_dir
 
     @pytest.mark.integration
-    def test_query_help(self, runner, temp_db, temp_query_dir, monkeypatch):
+    def test_query_help(
+        self, runner, temp_db, temp_query_dir, monkeypatch, clear_settings_cache
+    ):
         """Test query command help."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(temp_query_dir))
@@ -166,7 +179,9 @@ ORDER BY d.id""")
         assert "Commands" in output or "character_lines" in output
 
     @pytest.mark.integration
-    def test_query_list(self, runner, temp_db, temp_query_dir, monkeypatch):
+    def test_query_list(
+        self, runner, temp_db, temp_query_dir, monkeypatch, clear_settings_cache
+    ):
         """Test listing available queries."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
         monkeypatch.setenv("SCRIPTRAG_QUERY_DIR", str(temp_query_dir))
@@ -193,7 +208,7 @@ ORDER BY d.id""")
 
     @pytest.mark.integration
     def test_execute_query_no_params(
-        self, runner, temp_db, temp_query_dir, monkeypatch
+        self, runner, temp_db, temp_query_dir, monkeypatch, clear_settings_cache
     ):
         """Test executing a query without parameters."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
@@ -220,7 +235,7 @@ ORDER BY d.id""")
 
     @pytest.mark.integration
     def test_execute_query_with_params(
-        self, runner, temp_db, temp_query_dir, monkeypatch
+        self, runner, temp_db, temp_query_dir, monkeypatch, clear_settings_cache
     ):
         """Test executing a query with required parameters."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
@@ -248,7 +263,7 @@ ORDER BY d.id""")
 
     @pytest.mark.integration
     def test_execute_query_json_output(
-        self, runner, temp_db, temp_query_dir, monkeypatch
+        self, runner, temp_db, temp_query_dir, monkeypatch, clear_settings_cache
     ):
         """Test executing query with JSON output."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
@@ -283,7 +298,7 @@ ORDER BY d.id""")
 
     @pytest.mark.integration
     def test_query_missing_required_param(
-        self, runner, temp_db, temp_query_dir, monkeypatch
+        self, runner, temp_db, temp_query_dir, monkeypatch, clear_settings_cache
     ):
         """Test query fails when required parameter is missing."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
@@ -308,7 +323,7 @@ ORDER BY d.id""")
 
     @pytest.mark.integration
     def test_query_with_invalid_name(
-        self, runner, temp_db, temp_query_dir, monkeypatch
+        self, runner, temp_db, temp_query_dir, monkeypatch, clear_settings_cache
     ):
         """Test executing non-existent query."""
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", str(temp_db))
@@ -332,7 +347,9 @@ ORDER BY d.id""")
         assert result.exit_code != 0
 
     @pytest.mark.integration
-    def test_query_no_database(self, runner, temp_query_dir, tmp_path, monkeypatch):
+    def test_query_no_database(
+        self, runner, temp_query_dir, tmp_path, monkeypatch, clear_settings_cache
+    ):
         """Test query fails when database doesn't exist."""
         nonexistent_db = str(tmp_path / "nonexistent.db")
         monkeypatch.setenv("SCRIPTRAG_DATABASE_PATH", nonexistent_db)
@@ -357,7 +374,9 @@ ORDER BY d.id""")
         assert "Database not found" in output or "Error" in output
 
     @pytest.mark.integration
-    def test_empty_query_directory(self, runner, temp_db, tmp_path, monkeypatch):
+    def test_empty_query_directory(
+        self, runner, temp_db, tmp_path, monkeypatch, clear_settings_cache
+    ):
         """Test behavior when custom query directory is empty.
 
         Note: The current design shows built-in queries even when a custom directory

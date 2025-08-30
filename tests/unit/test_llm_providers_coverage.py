@@ -29,10 +29,10 @@ class TestEnhancedBaseLLMProvider:
                 return True
 
             async def complete(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def embed(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def list_models(self):
                 return []
@@ -59,10 +59,10 @@ class TestEnhancedBaseLLMProvider:
                 return True
 
             async def complete(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def embed(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def list_models(self):
                 return []
@@ -93,10 +93,10 @@ class TestEnhancedBaseLLMProvider:
                 return True
 
             async def complete(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def embed(self, request):
-                return Mock()
+                return Mock(spec=object)
 
             async def list_models(self):
                 return []

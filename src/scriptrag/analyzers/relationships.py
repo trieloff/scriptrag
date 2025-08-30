@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import re
-import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -217,9 +216,10 @@ class CharacterRelationshipsAnalyzer(BaseSceneAnalyzer):
 
         try:
             settings = get_settings()
-            db_path = settings.database_path
-            with sqlite3.connect(str(db_path)) as conn:
-                conn.row_factory = sqlite3.Row
+            from scriptrag.database.connection_manager import get_connection_manager
+
+            manager = get_connection_manager(settings)
+            with manager.readonly() as conn:
                 cur = conn.execute(
                     "SELECT metadata FROM scripts WHERE file_path = ?",
                     (str(Path(source_file).resolve()),),

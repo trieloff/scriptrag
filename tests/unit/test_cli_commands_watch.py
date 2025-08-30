@@ -9,6 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from scriptrag.cli.main import app
+from scriptrag.config.settings import ScriptRAGSettings
 
 
 @pytest.fixture
@@ -21,7 +22,9 @@ def runner():
 def mock_settings():
     """Create mock settings."""
     with patch("scriptrag.cli.commands.watch.get_settings") as mock:
-        settings = MagicMock()
+        settings = MagicMock(
+            spec=ScriptRAGSettings
+        )  # Use spec to prevent mock file artifacts
         settings.database_path = Path("/tmp/test.db")
         mock.return_value = settings
         yield settings
@@ -31,7 +34,8 @@ def mock_settings():
 def mock_observer():
     """Mock watchdog observer."""
     with patch("scriptrag.cli.commands.watch.Observer") as mock:
-        observer = MagicMock()
+        observer = MagicMock(spec=["start", "stop", "schedule", "is_alive", "join"])
+        observer.is_alive.return_value = True
         mock.return_value = observer
         yield observer
 
@@ -40,7 +44,7 @@ def mock_observer():
 def mock_handler():
     """Mock file handler."""
     with patch("scriptrag.cli.commands.watch.FountainFileHandler") as mock:
-        handler = MagicMock()
+        handler = MagicMock(spec=["start_processing", "stop_processing"])
         mock.return_value = handler
         yield handler
 
@@ -164,7 +168,7 @@ class TestWatchCommand:
             with patch(
                 "scriptrag.cli.commands.watch.FountainFileHandler"
             ) as mock_handler_class:
-                mock_handler = MagicMock()
+                mock_handler = MagicMock(spec=["start_processing", "stop_processing"])
                 mock_handler_class.return_value = mock_handler
 
                 # Run command with force
@@ -189,7 +193,7 @@ class TestWatchCommand:
             with patch(
                 "scriptrag.cli.commands.watch.FountainFileHandler"
             ) as mock_handler_class:
-                mock_handler = MagicMock()
+                mock_handler = MagicMock(spec=["start_processing", "stop_processing"])
                 mock_handler_class.return_value = mock_handler
 
                 # Run command with custom batch size
@@ -299,7 +303,10 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.ScriptRAGSettings"
         ) as mock_settings_class:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = Path("/tmp/test.db")
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
@@ -355,7 +362,7 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.FountainFileHandler"
         ) as mock_handler_class:
-            mock_handler = MagicMock()
+            mock_handler = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_handler_class.return_value = mock_handler
             callback = None
 
@@ -408,7 +415,7 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.FountainFileHandler"
         ) as mock_handler_class:
-            mock_handler = MagicMock()
+            mock_handler = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_handler_class.return_value = mock_handler
             callback = None
 
@@ -480,7 +487,7 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.FountainFileHandler"
         ) as mock_handler_class:
-            mock_handler = MagicMock()
+            mock_handler = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_handler_class.return_value = mock_handler
             callback = None
 
@@ -575,13 +582,16 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.ScriptRAGSettings"
         ) as mock_settings_class:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
+            mock_settings.database_path = Path("/tmp/test.db")
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 
             with patch(
                 "scriptrag.cli.commands.watch.FountainFileHandler"
             ) as mock_handler_class:
-                mock_handler = MagicMock()
+                mock_handler = MagicMock(spec=["start_processing", "stop_processing"])
                 mock_handler_class.return_value = mock_handler
 
                 with patch("scriptrag.cli.commands.watch.time.sleep") as mock_sleep:
@@ -696,7 +706,9 @@ class TestWatchCommand:
         with patch(
             "scriptrag.cli.commands.watch.ScriptRAGSettings"
         ) as mock_settings_class:
-            mock_settings = MagicMock()
+            mock_settings = MagicMock(
+                spec=ScriptRAGSettings
+            )  # Use spec to prevent mock file artifacts
             mock_settings.database_path = Path("/custom/test.db")
             mock_settings_class.from_multiple_sources.return_value = mock_settings
 

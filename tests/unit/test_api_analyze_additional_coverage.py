@@ -9,6 +9,7 @@ import pytest
 from scriptrag.analyzers.base import BaseSceneAnalyzer
 from scriptrag.api.analyze import AnalyzeCommand
 from scriptrag.api.analyze_helpers import load_bible_metadata, scene_needs_update
+from scriptrag.config.settings import ScriptRAGSettings
 from scriptrag.parser import Scene, Script
 
 
@@ -57,13 +58,22 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings") as mock_settings:
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
+
                 mock_db_ops = mock_db_ops_class.return_value
                 mock_db_ops.check_database_exists.return_value = True
 
                 # Mock transaction context manager
-                mock_conn = MagicMock()
-                mock_cursor = MagicMock()
+                mock_conn = MagicMock(
+                    spec=["cursor", "execute", "commit", "rollback", "close"]
+                )
+                mock_cursor = MagicMock(
+                    spec=["execute", "fetchone", "fetchall", "close"]
+                )
                 mock_conn.cursor.return_value = mock_cursor
                 mock_cursor.fetchone.return_value = (
                     json.dumps({"bible.characters": bible_metadata}),
@@ -91,9 +101,30 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings"):
-                mock_db_ops = mock_db_ops_class.return_value
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
+
+                mock_db_ops = Mock(
+                    spec=[
+                        "check_database_exists",
+                        "transaction",
+                        "get_connection",
+                        "get_existing_script",
+                        "upsert_script",
+                        "upsert_scene",
+                        "upsert_characters",
+                        "insert_dialogues",
+                        "insert_actions",
+                        "get_script_stats",
+                        "clear_script_data",
+                        "clear_scene_content",
+                    ]
+                )
                 mock_db_ops.check_database_exists.return_value = False
+                mock_db_ops_class.return_value = mock_db_ops
 
                 result = await load_bible_metadata(script_path)
 
@@ -108,12 +139,37 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings"):
-                mock_db_ops = mock_db_ops_class.return_value
-                mock_db_ops.check_database_exists.return_value = True
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
 
-                mock_conn = MagicMock()
-                mock_cursor = MagicMock()
+                mock_db_ops = Mock(
+                    spec=[
+                        "check_database_exists",
+                        "transaction",
+                        "get_connection",
+                        "get_existing_script",
+                        "upsert_script",
+                        "upsert_scene",
+                        "upsert_characters",
+                        "insert_dialogues",
+                        "insert_actions",
+                        "get_script_stats",
+                        "clear_script_data",
+                        "clear_scene_content",
+                    ]
+                )
+                mock_db_ops.check_database_exists.return_value = True
+                mock_db_ops_class.return_value = mock_db_ops
+
+                mock_conn = MagicMock(
+                    spec=["cursor", "execute", "commit", "rollback", "close"]
+                )
+                mock_cursor = MagicMock(
+                    spec=["execute", "fetchone", "fetchall", "close"]
+                )
                 mock_conn.cursor.return_value = mock_cursor
                 mock_cursor.fetchone.return_value = None
 
@@ -135,12 +191,37 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings"):
-                mock_db_ops = mock_db_ops_class.return_value
-                mock_db_ops.check_database_exists.return_value = True
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
 
-                mock_conn = MagicMock()
-                mock_cursor = MagicMock()
+                mock_db_ops = Mock(
+                    spec=[
+                        "check_database_exists",
+                        "transaction",
+                        "get_connection",
+                        "get_existing_script",
+                        "upsert_script",
+                        "upsert_scene",
+                        "upsert_characters",
+                        "insert_dialogues",
+                        "insert_actions",
+                        "get_script_stats",
+                        "clear_script_data",
+                        "clear_scene_content",
+                    ]
+                )
+                mock_db_ops.check_database_exists.return_value = True
+                mock_db_ops_class.return_value = mock_db_ops
+
+                mock_conn = MagicMock(
+                    spec=["cursor", "execute", "commit", "rollback", "close"]
+                )
+                mock_cursor = MagicMock(
+                    spec=["execute", "fetchone", "fetchall", "close"]
+                )
                 mock_conn.cursor.return_value = mock_cursor
                 # Return metadata with invalid bible.characters (string instead of dict)
                 mock_cursor.fetchone.return_value = (
@@ -165,9 +246,30 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings"):
-                mock_db_ops = mock_db_ops_class.return_value
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
+
+                mock_db_ops = Mock(
+                    spec=[
+                        "check_database_exists",
+                        "transaction",
+                        "get_connection",
+                        "get_existing_script",
+                        "upsert_script",
+                        "upsert_scene",
+                        "upsert_characters",
+                        "insert_dialogues",
+                        "insert_actions",
+                        "get_script_stats",
+                        "clear_script_data",
+                        "clear_scene_content",
+                    ]
+                )
                 mock_db_ops.check_database_exists.side_effect = Exception("DB Error")
+                mock_db_ops_class.return_value = mock_db_ops
 
                 result = await load_bible_metadata(script_path)
 
@@ -257,7 +359,9 @@ class TestAnalyzeCommandAdditionalCoverage:
             mock_parser_instance.parse_file.return_value = mock_script
 
             # Mock the write method to be callable
-            mock_parser_instance.write_with_updated_scenes = MagicMock()
+            mock_parser_instance.write_with_updated_scenes = MagicMock(
+                spec=["content", "model", "provider", "usage"]
+            )
 
             result = await cmd.analyze(path=temp_fountain_file.parent, force=True)
 
@@ -462,12 +566,37 @@ class TestAnalyzeCommandAdditionalCoverage:
         with patch(
             "scriptrag.api.database_operations.DatabaseOperations"
         ) as mock_db_ops_class:
-            with patch("scriptrag.config.get_settings"):
-                mock_db_ops = mock_db_ops_class.return_value
-                mock_db_ops.check_database_exists.return_value = True
+            with patch("scriptrag.config.get_settings") as mock_get_settings:
+                # Configure mock settings to prevent mock file artifacts
+                mock_settings = MagicMock(spec=ScriptRAGSettings)  # Fix mock artifacts
+                mock_settings.database_path = "/test/db.sqlite"
+                mock_get_settings.return_value = mock_settings
 
-                mock_conn = MagicMock()
-                mock_cursor = MagicMock()
+                mock_db_ops = Mock(
+                    spec=[
+                        "check_database_exists",
+                        "transaction",
+                        "get_connection",
+                        "get_existing_script",
+                        "upsert_script",
+                        "upsert_scene",
+                        "upsert_characters",
+                        "insert_dialogues",
+                        "insert_actions",
+                        "get_script_stats",
+                        "clear_script_data",
+                        "clear_scene_content",
+                    ]
+                )
+                mock_db_ops.check_database_exists.return_value = True
+                mock_db_ops_class.return_value = mock_db_ops
+
+                mock_conn = MagicMock(
+                    spec=["cursor", "execute", "commit", "rollback", "close"]
+                )
+                mock_cursor = MagicMock(
+                    spec=["execute", "fetchone", "fetchall", "close"]
+                )
                 mock_conn.cursor.return_value = mock_cursor
                 # Return metadata as dict directly (not JSON string)
                 mock_cursor.fetchone.return_value = (

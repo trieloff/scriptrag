@@ -23,13 +23,40 @@ class TestIndexCommandAdditionalCoverage:
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
 
         # Mock database operations
-        mock_db_ops = MagicMock()
-        mock_existing_script = MagicMock()
+        mock_db_ops = MagicMock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
+        mock_existing_script = MagicMock(
+            spec=[
+                "id",
+                "content_hash",
+                "metadata",
+                "title",
+                "author",
+                "file_path",
+                "created_at",
+                "updated_at",
+            ]
+        )
         mock_existing_script.metadata = {"last_indexed": "2024-01-01T00:00:00"}
         mock_db_ops.get_existing_script.return_value = mock_existing_script
 
         # Mock connection
-        mock_conn = MagicMock()
+        mock_conn = MagicMock(spec=["cursor", "execute", "commit", "rollback", "close"])
         mock_db_ops.transaction.return_value.__enter__ = Mock(return_value=mock_conn)
         mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
@@ -51,12 +78,39 @@ class TestIndexCommandAdditionalCoverage:
         """Test filtering when existing script has no last_indexed metadata."""
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
 
-        mock_db_ops = MagicMock()
-        mock_existing_script = MagicMock()
+        mock_db_ops = MagicMock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
+        mock_existing_script = MagicMock(
+            spec=[
+                "id",
+                "content_hash",
+                "metadata",
+                "title",
+                "author",
+                "file_path",
+                "created_at",
+                "updated_at",
+            ]
+        )
         mock_existing_script.metadata = {}  # No last_indexed
         mock_db_ops.get_existing_script.return_value = mock_existing_script
 
-        mock_conn = MagicMock()
+        mock_conn = MagicMock(spec=["cursor", "execute", "commit", "rollback", "close"])
         mock_db_ops.transaction.return_value.__enter__ = Mock(return_value=mock_conn)
         mock_db_ops.transaction.return_value.__exit__ = Mock(return_value=None)
 
@@ -75,8 +129,8 @@ class TestIndexCommandAdditionalCoverage:
     async def test_apply_bible_aliases_success(self, tmp_path):
         """Test successful application of Bible aliases to characters."""
         # Mock connection and cursor
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
+        mock_conn = MagicMock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_cursor = MagicMock(spec=["execute", "fetchone", "fetchall", "close"])
         mock_conn.cursor.return_value = mock_cursor
 
         # Mock script metadata with Bible characters
@@ -108,8 +162,8 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_no_metadata(self, tmp_path):
         """Test Bible alias application when no script metadata exists."""
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
+        mock_conn = MagicMock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_cursor = MagicMock(spec=["execute", "fetchone", "fetchall", "close"])
         mock_conn.cursor.return_value = mock_cursor
         mock_cursor.fetchone.return_value = None  # No metadata row
 
@@ -125,8 +179,8 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_invalid_data(self, tmp_path):
         """Test Bible alias application with invalid character data."""
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
+        mock_conn = MagicMock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_cursor = MagicMock(spec=["execute", "fetchone", "fetchall", "close"])
         mock_conn.cursor.return_value = mock_cursor
 
         # Mock metadata with invalid bible characters
@@ -158,8 +212,8 @@ class TestIndexCommandAdditionalCoverage:
     @pytest.mark.asyncio
     async def test_apply_bible_aliases_exception(self, tmp_path):
         """Test Bible alias application with database exception."""
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
+        mock_conn = MagicMock(spec=["cursor", "execute", "commit", "rollback", "close"])
+        mock_cursor = MagicMock(spec=["execute", "fetchone", "fetchall", "close"])
         mock_conn.cursor.side_effect = Exception("DB Error")
 
         # Should handle exception gracefully
@@ -175,7 +229,23 @@ class TestIndexCommandAdditionalCoverage:
         settings = ScriptRAGSettings(database_path=tmp_path / "test.db")
 
         # Mock database operations
-        mock_db_ops = MagicMock()
+        mock_db_ops = MagicMock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
@@ -207,7 +277,7 @@ class TestIndexCommandAdditionalCoverage:
         )
 
         # Mock connection and git repo
-        mock_conn = MagicMock()
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         with patch("git.Repo") as mock_repo_class:
             mock_repo = mock_repo_class.return_value
@@ -226,7 +296,23 @@ class TestIndexCommandAdditionalCoverage:
     async def test_process_scene_embeddings_lfs_file_missing(self, tmp_path):
         """Test processing scene embeddings when LFS file doesn't exist locally."""
         # Mock database operations
-        mock_db_ops = MagicMock()
+        mock_db_ops = MagicMock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
@@ -250,7 +336,7 @@ class TestIndexCommandAdditionalCoverage:
             },
         )
 
-        mock_conn = MagicMock()
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         with patch("git.Repo") as mock_repo_class:
             mock_repo = mock_repo_class.return_value
@@ -271,7 +357,23 @@ class TestIndexCommandAdditionalCoverage:
     async def test_process_scene_embeddings_error_in_result(self, tmp_path):
         """Test processing scene embeddings when result contains error."""
         # Mock database operations
-        mock_db_ops = MagicMock()
+        mock_db_ops = MagicMock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
@@ -295,7 +397,7 @@ class TestIndexCommandAdditionalCoverage:
             },
         )
 
-        mock_conn = MagicMock()
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
@@ -306,7 +408,23 @@ class TestIndexCommandAdditionalCoverage:
     async def test_process_scene_embeddings_git_exception(self, tmp_path):
         """Test handling of git/embedding processing exceptions."""
         # Mock database operations
-        mock_db_ops = MagicMock()
+        mock_db_ops = MagicMock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         processor = IndexEmbeddingProcessor(
             db_ops=mock_db_ops, embedding_service=None, generate_embeddings=False
@@ -327,7 +445,7 @@ class TestIndexCommandAdditionalCoverage:
             },
         )
 
-        mock_conn = MagicMock()
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         with patch("git.Repo", side_effect=Exception("Git error")):
             # Should handle exception gracefully
@@ -339,17 +457,48 @@ class TestIndexCommandAdditionalCoverage:
     async def test_generate_new_embedding_success(self, tmp_path):
         """Test successful generation of new embeddings."""
         # Mock database operations
-        mock_db_ops = MagicMock()
+        mock_db_ops = MagicMock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
         # Mock embedding service
-        mock_embedding_service = AsyncMock()
-        mock_embedding_service.generate_scene_embedding.return_value = np.array(
-            [0.1, 0.2, 0.3]
+        mock_embedding_service = AsyncMock(
+            spec=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "generate_scene_embedding",
+                "save_embedding_to_lfs",
+                "encode_embedding_for_db",
+                "default_model",
+            ]
         )
-        mock_embedding_service.save_embedding_to_lfs.return_value = Path(
-            "embedding.npy"
+        # Return value directly for async function
+        mock_embedding_service.generate_scene_embedding = AsyncMock(
+            return_value=np.array([0.1, 0.2, 0.3])
         )
-        mock_embedding_service.encode_embedding_for_db.return_value = b"encoded"
+        mock_embedding_service.save_embedding_to_lfs = AsyncMock(
+            return_value=Path("embedding.npy")
+        )
+        mock_embedding_service.encode_embedding_for_db = AsyncMock(
+            return_value=b"encoded"
+        )
         mock_embedding_service.default_model = "test-model"
 
         processor = IndexEmbeddingProcessor(
@@ -366,7 +515,7 @@ class TestIndexCommandAdditionalCoverage:
             content_hash="hash123",
         )
 
-        mock_conn = MagicMock()
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)
 
@@ -380,11 +529,39 @@ class TestIndexCommandAdditionalCoverage:
     async def test_generate_new_embedding_failure(self, tmp_path):
         """Test handling of embedding generation failures."""
         # Mock database operations
-        mock_db_ops = MagicMock()
+        mock_db_ops = MagicMock(
+            spec=[
+                "check_database_exists",
+                "transaction",
+                "get_connection",
+                "get_existing_script",
+                "upsert_script",
+                "upsert_scene",
+                "upsert_characters",
+                "insert_dialogues",
+                "insert_actions",
+                "get_script_stats",
+                "clear_script_data",
+                "clear_scene_content",
+                "upsert_embedding",
+            ]
+        )
 
-        mock_embedding_service = AsyncMock()
-        mock_embedding_service.generate_scene_embedding.side_effect = Exception(
-            "Generation failed"
+        mock_embedding_service = AsyncMock(
+            spec=[
+                "complete",
+                "cleanup",
+                "embed",
+                "list_models",
+                "is_available",
+                "generate_scene_embedding",
+                "save_embedding_to_lfs",
+                "encode_embedding_for_db",
+                "default_model",
+            ]
+        )
+        mock_embedding_service.generate_scene_embedding = AsyncMock(
+            side_effect=Exception("Generation failed")
         )
 
         processor = IndexEmbeddingProcessor(
@@ -401,7 +578,7 @@ class TestIndexCommandAdditionalCoverage:
             content_hash="hash123",
         )
 
-        mock_conn = MagicMock()
+        mock_conn = MagicMock(spec=["content", "model", "provider", "usage"])
 
         # Should handle exception gracefully
         await processor.process_scene_embeddings(mock_conn, scene, scene_id=1)

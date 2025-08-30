@@ -223,8 +223,19 @@ class TestBibleAutoDetector:
 async def initialized_db(tmp_path: Path) -> Path:
     """Create and initialize a test database."""
     db_path = tmp_path / "test.db"
+
+    # Create settings with the test database path
+    from scriptrag.config import ScriptRAGSettings
+
+    settings = ScriptRAGSettings(database_path=db_path)
+
+    # Force close any existing connection manager to ensure clean state
+    from scriptrag.database.connection_manager import close_connection_manager
+
+    close_connection_manager()
+
     initializer = DatabaseInitializer()
-    initializer.initialize_database(db_path, force=True)
+    initializer.initialize_database(db_path, settings=settings, force=True)
     return db_path
 
 

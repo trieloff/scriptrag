@@ -27,7 +27,9 @@ class TestEmbeddingServiceComprehensive:
     def mock_llm_client(self):
         """Create mock LLM client."""
         client = MagicMock(spec=LLMClient)
-        client.embed = AsyncMock()
+        client.embed = AsyncMock(
+            spec=["complete", "cleanup", "embed", "list_models", "is_available"]
+        )
         return client
 
     @pytest.fixture

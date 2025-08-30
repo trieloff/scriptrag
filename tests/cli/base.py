@@ -36,12 +36,12 @@ class CLITestBase:
         """Mock settings for testing."""
         settings = MagicMock(spec=ScriptRAGSettings)
         # Configure nested mock objects to prevent mock file artifacts
-        database_mock = MagicMock()
+        database_mock = MagicMock(spec=object)  # Add spec to prevent mock artifacts
         database_mock.path = self.db_path
         settings.database = database_mock
         settings.database_path = self.db_path  # Support both access patterns
 
-        llm_mock = MagicMock()
+        llm_mock = MagicMock(spec=object)  # Add spec to prevent mock artifacts
         llm_mock.provider = "mock"
         llm_mock.api_key = "test-key"  # pragma: allowlist secret
         settings.llm = llm_mock

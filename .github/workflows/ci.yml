@@ -306,12 +306,16 @@ jobs:
         continue-on-error: true
 
       - name: Run full test suite
+        id: run-tests
         run: |
           echo "🧪 Running full test suite on ${{ matrix.os }} with Python ${{ matrix.python-version }}"
           echo "⏭️  Excluding integration tests (they run in a separate job)"
           echo "Starting pytest at $(date)"
           make test PYTEST_ARGS="-m 'not integration'"
+          TEST_EXIT_CODE=$?
           echo "Finished pytest at $(date)"
+          echo "test_exit_code=$TEST_EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $TEST_EXIT_CODE
         shell: bash
         env:
           SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT }}
@@ -319,19 +323,93 @@ jobs:
           SCRIPTRAG_LLM_DEFAULT_MODEL: ${{ secrets.SCRIPTRAG_LLM_DEFAULT_MODEL || 'default' }}
           SCRIPTRAG_ENVIRONMENT: testing
           SCRIPTRAG_TEST_LLMS: ""  # Disable LLM tests in CI to prevent rate limit failures
+        continue-on-error: true
 
       - name: Check for mock file contamination (post-test)
+        id: mock-check
         if: always()
         run: |
           echo "🔍 Checking for mock file contamination after tests..."
           if python tests/detect_mock_files.py; then
             echo "✅ No mock files detected"
+            echo "mock_contamination=false" >> $GITHUB_OUTPUT
           else
-            echo "⚠️ Mock files detected - tests may be creating filesystem artifacts"
+            echo "❌ ERROR: Tests created mock file artifacts!"
+            echo "mock_contamination=true" >> $GITHUB_OUTPUT
+
+            # Show the mock files found
+            python tests/detect_mock_files.py
+
+            echo ""
+            echo "These files indicate improper mock configuration in tests."
+            echo "Mock objects should return proper string values, not Mock object representations."
+            echo ""
+            echo "To fix: Ensure all mocked methods that return paths return actual string values."
+            echo "Example: mock_settings.database_path = '/test/db.sqlite'"
+            echo ""
             echo "Run 'make test-trace-mocks' locally to identify problematic tests"
-            # Don't fail the build yet, just warn
-            # exit 1
+
+            # If tests failed AND mock files exist, it's likely the cause
+            if [ "${{ steps.run-tests.outputs.test_exit_code }}" != "0" ]; then
+              echo ""
+              echo "⚠️ Tests failed AND mock files were detected - this is likely the cause of test failures!"
+              exit 1
+            fi
           fi
+        shell: bash
+
+      - name: Run mock contamination audit if tests failed
+        if: |
+          always() &&
+          steps.run-tests.outputs.test_exit_code != '0' &&
+          steps.mock-check.outputs.mock_contamination == 'true'
+        run: |
+          echo "🔬 Running detailed mock contamination audit..."
+          echo "Tests failed and mock files were detected - investigating which tests are responsible"
+          echo ""
+
+          # Clean up any existing mock files first
+          python tests/detect_mock_files.py --clean || true
+
+          # Run a subset of tests to isolate the problem
+          echo "Testing unit tests for mock contamination..."
+          for test_dir in tests/unit tests/integration tests/cli; do
+            if [ -d "$test_dir" ]; then
+              echo "Testing $test_dir..."
+              python tests/detect_mock_files.py --clean 2>/dev/null || true
+
+              if uv run pytest "$test_dir" -q --tb=no -x 2>/dev/null; then
+                if ! python tests/detect_mock_files.py --quiet 2>/dev/null; then
+                  echo "  ⚠️ Mock files detected after running $test_dir"
+                  python tests/detect_mock_files.py 2>/dev/null || true
+                fi
+              else
+                echo "  ❌ Tests in $test_dir failed"
+              fi
+
+              python tests/detect_mock_files.py --clean 2>/dev/null || true
+            fi
+          done
+
+          echo ""
+          echo "📝 Summary:"
+          echo "Mock file contamination detected. This typically happens when:"
+          echo "1. MagicMock() is created without spec parameter"
+          echo "2. Mock's database_path attribute is not set to a proper string/Path"
+          echo "3. Mock objects are used directly as file paths"
+          echo ""
+          echo "See docs/TESTING.md for mock best practices"
+        shell: bash
+        continue-on-error: true
+
+      - name: Fail build if tests failed
+        if: steps.run-tests.outputs.test_exit_code != '0'
+        run: |
+          echo "❌ Tests failed with exit code ${{ steps.run-tests.outputs.test_exit_code }}"
+          if [ "${{ steps.mock-check.outputs.mock_contamination }}" == "true" ]; then
+            echo "Mock file contamination was detected - this is likely the cause"
+          fi
+          exit ${{ steps.run-tests.outputs.test_exit_code }}
         shell: bash
 
       - name: Surface failing tests

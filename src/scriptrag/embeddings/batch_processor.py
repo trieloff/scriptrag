@@ -1,5 +1,7 @@
 """Batch processing utilities for efficient embedding generation."""
 
+from __future__ import annotations
+
 import asyncio
 from collections.abc import AsyncIterator
 from dataclasses import dataclass

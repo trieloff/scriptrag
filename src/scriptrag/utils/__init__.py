@@ -1,5 +1,7 @@
 """ScriptRAG utilities module."""
 
+from __future__ import annotations
+
 from scriptrag.llm import (
     CompletionRequest,
     CompletionResponse,

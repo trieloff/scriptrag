@@ -1,5 +1,7 @@
 """Type definitions for Claude Code provider."""
 
+from __future__ import annotations
+
 from typing import Literal, TypedDict
 
 
@@ -30,9 +32,9 @@ class JSONSchema(TypedDict, total=False):
     """Type for JSON Schema structure."""
 
     type: str
-    properties: dict[str, "JSONSchemaProperty"]
+    properties: dict[str, JSONSchemaProperty]
     required: list[str]
-    items: "JSONSchemaProperty"
+    items: JSONSchemaProperty
 
 
 class JSONSchemaProperty(TypedDict, total=False):
@@ -40,15 +42,15 @@ class JSONSchemaProperty(TypedDict, total=False):
 
     type: str
     description: str
-    properties: dict[str, "JSONSchemaProperty"]
-    items: "JSONSchemaProperty"
+    properties: dict[str, JSONSchemaProperty]
+    items: JSONSchemaProperty
 
 
 class ResponseFormat(TypedDict, total=False):
     """Type for response format specification."""
 
     type: Literal["json_object", "json_schema"]
-    json_schema: "JSONSchemaSpec"
+    json_schema: JSONSchemaSpec
     schema: JSONSchema
     name: str
 

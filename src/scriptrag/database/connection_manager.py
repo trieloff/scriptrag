@@ -4,6 +4,8 @@ This module provides a thread-safe connection manager with connection pooling,
 automatic health checks, and proper resource cleanup for ScriptRAG's database.
 """
 
+from __future__ import annotations
+
 import sqlite3
 import threading
 import time
@@ -572,7 +574,7 @@ class DatabaseConnectionManager:
             and self._pool._total_connections == self._pool._active_connections
         )
 
-    def __enter__(self) -> "DatabaseConnectionManager":
+    def __enter__(self) -> DatabaseConnectionManager:
         """Context manager entry."""
         return self
 

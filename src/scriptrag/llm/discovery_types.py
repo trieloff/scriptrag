@@ -1,5 +1,7 @@
 """Type definitions for model discovery."""
 
+from __future__ import annotations
+
 from typing import TypedDict
 
 

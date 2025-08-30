@@ -1,5 +1,7 @@
 """Similarity calculation utilities for embeddings."""
 
+from __future__ import annotations
+
 from enum import Enum
 from typing import Any
 

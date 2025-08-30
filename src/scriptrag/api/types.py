@@ -1,5 +1,7 @@
 """Type definitions for API modules."""
 
+from __future__ import annotations
+
 from typing import Any, TypedDict
 
 

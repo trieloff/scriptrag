@@ -1,5 +1,7 @@
 """Protocol definitions for LLM providers and related interfaces."""
 
+from __future__ import annotations
+
 from typing import Any, Protocol, runtime_checkable
 
 from scriptrag.llm.models import (

@@ -1,5 +1,7 @@
 """Vector store abstraction for managing embeddings storage."""
 
+from __future__ import annotations
+
 import struct
 from abc import ABC, abstractmethod
 from pathlib import Path

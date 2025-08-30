@@ -10,6 +10,8 @@ ensuring that script records are properly maintained as files are processed
 and re-processed over time.
 """
 
+from __future__ import annotations
+
 import json
 import sqlite3
 from dataclasses import dataclass

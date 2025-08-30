@@ -1,5 +1,7 @@
 """Caching layer for embeddings with invalidation strategies."""
 
+from __future__ import annotations
+
 import hashlib
 import json
 import time
@@ -448,7 +450,7 @@ class EmbeddingCache:
 
         return count
 
-    def __enter__(self) -> "EmbeddingCache":
+    def __enter__(self) -> EmbeddingCache:
         """Context manager entry."""
         return self
 

@@ -1,5 +1,7 @@
 """Configuration precedence explanation command."""
 
+from __future__ import annotations
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table

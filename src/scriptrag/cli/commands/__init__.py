@@ -1,5 +1,7 @@
 """ScriptRAG CLI commands."""
 
+from __future__ import annotations
+
 from scriptrag.cli.commands.analyze import analyze_command
 from scriptrag.cli.commands.index import index_command
 from scriptrag.cli.commands.init import init_command

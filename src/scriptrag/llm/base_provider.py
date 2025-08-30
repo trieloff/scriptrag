@@ -1,5 +1,7 @@
 """Enhanced base class for LLM providers with common functionality."""
 
+from __future__ import annotations
+
 from abc import abstractmethod
 from typing import Any
 
@@ -45,7 +47,7 @@ class EnhancedBaseLLMProvider(BaseLLMProvider):
         if self.client is None:
             self.client = httpx.AsyncClient(timeout=self.timeout)
 
-    async def __aenter__(self) -> "EnhancedBaseLLMProvider":
+    async def __aenter__(self) -> EnhancedBaseLLMProvider:
         """Enter async context manager."""
         self._init_http_client()
         return self

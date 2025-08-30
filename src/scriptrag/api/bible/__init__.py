@@ -1,5 +1,7 @@
 """Bible extraction submodules for ScriptRAG."""
 
+from __future__ import annotations
+
 from scriptrag.api.bible.character_bible import (
     BibleCharacter,
 )

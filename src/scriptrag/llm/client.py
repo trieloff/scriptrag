@@ -1,5 +1,7 @@
 """Multi-provider LLM client with automatic fallback."""
 
+from __future__ import annotations
+
 import traceback
 from typing import Any, cast
 
@@ -543,7 +545,7 @@ class LLMClient:
         """Clean up resources for all providers."""
         await self.registry.cleanup()
 
-    async def __aenter__(self) -> "LLMClient":
+    async def __aenter__(self) -> LLMClient:
         """Enter async context manager."""
         return self
 

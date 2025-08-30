@@ -1,5 +1,7 @@
 """Type definitions for search modules."""
 
+from __future__ import annotations
+
 from typing import Any, TypeAlias, TypedDict
 
 

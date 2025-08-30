@@ -4,6 +4,8 @@ This module provides a compatibility layer that delegates to the centralized
 connection manager while maintaining the existing API.
 """
 
+from __future__ import annotations
+
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager

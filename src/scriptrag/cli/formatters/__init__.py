@@ -1,5 +1,7 @@
 """Output formatters for ScriptRAG CLI."""
 
+from __future__ import annotations
+
 from scriptrag.cli.formatters.base import OutputFormat, OutputFormatter
 from scriptrag.cli.formatters.json_formatter import JsonFormatter
 from scriptrag.cli.formatters.query_formatter import QueryResultFormatter

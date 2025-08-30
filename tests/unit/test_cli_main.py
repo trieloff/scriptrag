@@ -334,7 +334,12 @@ class TestCLIErrorHandling:
 
         sig = inspect.signature(main)
         assert len(sig.parameters) == 0
-        assert sig.return_annotation in [None, type(None), inspect.Signature.empty]
+        assert sig.return_annotation in [
+            None,
+            type(None),
+            inspect.Signature.empty,
+            "None",
+        ]
 
 
 class TestModuleLevelConstants:

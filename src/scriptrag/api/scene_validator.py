@@ -1,5 +1,7 @@
 """Fountain format validation for scenes - compatibility wrapper."""
 
+from __future__ import annotations
+
 from scriptrag.api.scene_models import ValidationResult
 from scriptrag.config import get_logger
 from scriptrag.validators.scene_validator import SceneValidator

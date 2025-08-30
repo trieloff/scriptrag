@@ -1,5 +1,7 @@
 """Configuration loading utility for scene CLI commands."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import typer

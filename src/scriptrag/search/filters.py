@@ -1,5 +1,7 @@
 """Search filtering logic for different content types."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
 from scriptrag.search.models import (
@@ -16,7 +18,7 @@ class SearchFilterChain:
         """Initialize the filter chain."""
         self.filters: list[SearchFilter] = []
 
-    def add_filter(self, filter_instance: "SearchFilter") -> "SearchFilterChain":
+    def add_filter(self, filter_instance: SearchFilter) -> SearchFilterChain:
         """Add a filter to the chain.
 
         Args:

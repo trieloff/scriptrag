@@ -113,6 +113,7 @@ class TestCLICommandsModule:
         expected_attrs.update(
             [
                 "analyze",
+                "annotations",  # Added by 'from __future__ import annotations'
                 "config",  # Config module for configuration management
                 "index",
                 "init",

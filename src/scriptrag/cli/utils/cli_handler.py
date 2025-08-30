@@ -1,5 +1,7 @@
 """Unified CLI handler for standardized error handling and output."""
 
+from __future__ import annotations
+
 import asyncio
 import sys
 from collections.abc import Callable

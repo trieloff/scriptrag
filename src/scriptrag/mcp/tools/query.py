@@ -1,5 +1,9 @@
 """Query tools for MCP server."""
 
+# NOTE: Cannot use 'from __future__ import annotations' here because
+# the MCP library uses issubclass() on type annotations during tool registration
+# and issubclass() requires actual type objects, not strings
+
 import json
 from typing import Any
 

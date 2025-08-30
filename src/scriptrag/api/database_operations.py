@@ -5,6 +5,8 @@ to specialized modules for connection management, script operations, scene
 operations, and embedding operations.
 """
 
+from __future__ import annotations
+
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager

@@ -1,5 +1,7 @@
 """JSON schema handling for Claude Code provider."""
 
+from __future__ import annotations
+
 import json
 from typing import Any
 

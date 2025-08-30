@@ -1,5 +1,7 @@
 """Model discovery cache with TTL support."""
 
+from __future__ import annotations
+
 import contextlib
 import errno
 import json

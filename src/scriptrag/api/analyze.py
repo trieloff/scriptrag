@@ -1,5 +1,7 @@
 """Script analyze API module for ScriptRAG."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -65,7 +67,7 @@ class AnalyzeCommand:
         self._analyzer_registry: dict[str, type[SceneAnalyzer | BaseSceneAnalyzer]] = {}
 
     @classmethod
-    def from_config(cls) -> "AnalyzeCommand":
+    def from_config(cls) -> AnalyzeCommand:
         """Create AnalyzeCommand instance from configuration settings.
 
         Factory method that creates a properly initialized AnalyzeCommand

@@ -1,5 +1,7 @@
 """Dynamic model discovery with caching for LLM providers."""
 
+from __future__ import annotations
+
 import os
 import re
 from typing import Any, TypedDict

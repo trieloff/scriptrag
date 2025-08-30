@@ -1,5 +1,7 @@
 """Search API for ScriptRAG."""
 
+from __future__ import annotations
+
 from scriptrag.config import ScriptRAGSettings, get_logger
 from scriptrag.search.engine import SearchEngine
 from scriptrag.search.models import SearchMode, SearchResponse
@@ -157,7 +159,7 @@ class SearchAPI:
         return await self.engine.search_async(parsed_query)
 
     @classmethod
-    def from_config(cls, config_path: str | None = None) -> "SearchAPI":
+    def from_config(cls, config_path: str | None = None) -> SearchAPI:
         """Create SearchAPI from configuration.
 
         Args:

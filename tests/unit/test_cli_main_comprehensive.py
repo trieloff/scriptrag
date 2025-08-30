@@ -115,8 +115,12 @@ class TestCLIMainFunction:
         sig = inspect.signature(main)
         # main() should take no parameters
         assert len(sig.parameters) == 0
-        # main() should return None
-        assert sig.return_annotation is None or sig.return_annotation is type(None)
+        # main() should return None (handle future annotations string conversion)
+        assert (
+            sig.return_annotation is None
+            or sig.return_annotation is type(None)
+            or sig.return_annotation == "None"
+        )
 
     def test_main_function_calls_app(self):
         """Test that main() calls the app."""

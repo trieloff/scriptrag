@@ -1,5 +1,7 @@
 """Scene-related validators for CLI input."""
 
+from __future__ import annotations
+
 from scriptrag.api.scene_models import SceneIdentifier
 from scriptrag.cli.validators.base import ValidationError, Validator
 

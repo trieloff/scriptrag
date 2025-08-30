@@ -1,5 +1,7 @@
 """File and path validators for CLI input."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from scriptrag.cli.validators.base import ValidationError, Validator

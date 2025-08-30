@@ -1,5 +1,7 @@
 """Adapter to connect SemanticSearchService to SearchEngine."""
 
+from __future__ import annotations
+
 import struct
 
 import numpy as np

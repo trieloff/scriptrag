@@ -1,5 +1,7 @@
 """Query loader for discovering and parsing SQL files."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 from scriptrag.common import FileSourceResolver

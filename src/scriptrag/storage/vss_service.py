@@ -4,6 +4,8 @@ This module exposes the public ``VSSService`` while delegating heavy lifting to
 focused helper modules to keep file size and complexity in check.
 """
 
+from __future__ import annotations
+
 import sqlite3
 from pathlib import Path
 from typing import Any, TypeAlias

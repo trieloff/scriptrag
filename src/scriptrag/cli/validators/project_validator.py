@@ -1,5 +1,7 @@
 """Project validators for CLI input."""
 
+from __future__ import annotations
+
 import re
 
 from scriptrag.cli.validators.base import ValidationError, Validator

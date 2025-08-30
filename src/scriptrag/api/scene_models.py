@@ -1,5 +1,7 @@
 """Data models for scene management API."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -27,7 +29,7 @@ class SceneIdentifier:
         return f"{self.project}:{self.scene_number:03d}"
 
     @classmethod
-    def from_string(cls, key: str) -> "SceneIdentifier":
+    def from_string(cls, key: str) -> SceneIdentifier:
         """Parse scene identifier from string key."""
         parts = key.split(":")
         if len(parts) == 2:

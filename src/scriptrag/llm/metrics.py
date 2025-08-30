@@ -1,5 +1,7 @@
 """Metrics tracking for LLM operations."""
 
+from __future__ import annotations
+
 import time
 
 from typing_extensions import TypedDict

@@ -195,8 +195,8 @@ jobs:
       - name: Run canary tests (minimal, fail-fast)
         timeout-minutes: 3
         run: |
-          echo "🐤 Running canary tests with minimal output, 10 error limit, and 15s per-test timeout"
-          echo "⏭️  Excluding integration tests (marked with @pytest.mark.integration)"
+          echo " Running canary tests with minimal output, 10 error limit, and 15s per-test timeout"
+          echo "  Excluding integration tests (marked with @pytest.mark.integration)"
           SCRIPTRAG_LOG_LEVEL=ERROR uv run pytest -x -q --tb=short --maxfail=10 --disable-warnings --junit-xml=junit.xml -o log_cli=false --capture=fd --timeout=15 --timeout-method=thread -m "not integration"
         env:
           PYTHONPATH: src
@@ -209,11 +209,11 @@ jobs:
       - name: Check for mock file contamination (canary)
         if: always()
         run: |
-          echo "🔍 Checking for mock file contamination after canary tests..."
+          echo " Checking for mock file contamination after canary tests..."
           if python tests/detect_mock_files.py --quiet; then
-            echo "✅ No mock files detected in canary tests"
+            echo " No mock files detected in canary tests"
           else
-            echo "⚠️ Mock files detected in canary tests - early warning of test issues"
+            echo "WARNING: Mock files detected in canary tests - early warning of test issues"
             python tests/detect_mock_files.py
           fi
         continue-on-error: true
@@ -300,7 +300,7 @@ jobs:
 
       - name: Check for mock file contamination (pre-test)
         run: |
-          echo "🔍 Checking for pre-existing mock file contamination..."
+          echo " Checking for pre-existing mock file contamination..."
           python tests/detect_mock_files.py --quiet || true
         shell: bash
         continue-on-error: true
@@ -308,8 +308,8 @@ jobs:
       - name: Run full test suite
         id: run-tests
         run: |
-          echo "🧪 Running full test suite on ${{ matrix.os }} with Python ${{ matrix.python-version }}"
-          echo "⏭️  Excluding integration tests (they run in a separate job)"
+          echo " Running full test suite on ${{ matrix.os }} with Python ${{ matrix.python-version }}"
+          echo "  Excluding integration tests (they run in a separate job)"
           echo "Starting pytest at $(date)"
           make test PYTEST_ARGS="-m 'not integration'"
           TEST_EXIT_CODE=$?
@@ -329,12 +329,12 @@ jobs:
         id: mock-check
         if: always()
         run: |
-          echo "🔍 Checking for mock file contamination after tests..."
+          echo " Checking for mock file contamination after tests..."
           if python tests/detect_mock_files.py; then
-            echo "✅ No mock files detected"
+            echo " No mock files detected"
             echo "mock_contamination=false" >> $GITHUB_OUTPUT
           else
-            echo "❌ ERROR: Tests created mock file artifacts!"
+            echo "ERROR: Tests created mock file artifacts!"
             echo "mock_contamination=true" >> $GITHUB_OUTPUT
 
             # Show the mock files found
@@ -352,7 +352,7 @@ jobs:
             # If tests failed AND mock files exist, it's likely the cause
             if [ "${{ steps.run-tests.outputs.test_exit_code }}" != "0" ]; then
               echo ""
-              echo "⚠️ Tests failed AND mock files were detected - this is likely the cause of test failures!"
+              echo "WARNING: Tests failed AND mock files were detected - this is likely the cause of test failures!"
               exit 1
             fi
           fi
@@ -363,7 +363,7 @@ jobs:
           always() &&
           steps.mock-check.outputs.mock_contamination == 'true'
         run: |
-          echo "🔬 Running detailed mock contamination audit..."
+          echo " Running detailed mock contamination audit..."
           echo "Mock files were detected - investigating which tests are responsible"
           echo ""
 
@@ -380,13 +380,13 @@ jobs:
 
               if uv run pytest "$test_dir" -q --tb=no -x 2>/dev/null; then
                 if ! python tests/detect_mock_files.py --quiet 2>/dev/null; then
-                  echo "    ⚠️ Mock files detected in $test_dir"
+                  echo "    WARNING: Mock files detected in $test_dir"
                   PROBLEMATIC_DIR="$test_dir"
                   python tests/detect_mock_files.py --clean 2>/dev/null || true
                   break
                 fi
               else
-                echo "    ❌ Tests failed in $test_dir"
+                echo "    ERROR: Tests failed in $test_dir"
               fi
 
               python tests/detect_mock_files.py --clean 2>/dev/null || true
@@ -427,7 +427,7 @@ jobs:
 
                       if uv run pytest "$test_file::$test_func" -q --tb=no 2>/dev/null; then
                         if ! python tests/detect_mock_files.py --quiet 2>/dev/null; then
-                          echo "      🔴 $test_func creates mock files!"
+                          echo "      ERROR: $test_func creates mock files!"
                           python tests/detect_mock_files.py --clean 2>/dev/null || true
                         fi
                       fi
@@ -459,7 +459,7 @@ jobs:
       - name: Fail build if tests failed
         if: steps.run-tests.outputs.test_exit_code != '0'
         run: |
-          echo "❌ Tests failed with exit code ${{ steps.run-tests.outputs.test_exit_code }}"
+          echo "ERROR: Tests failed with exit code ${{ steps.run-tests.outputs.test_exit_code }}"
           if [ "${{ steps.mock-check.outputs.mock_contamination }}" == "true" ]; then
             echo "Mock file contamination was detected - this is likely the cause"
           fi
@@ -604,7 +604,7 @@ jobs:
       - name: Run comprehensive mock detection
         id: mock-check
         run: |
-          echo "🔍 Running comprehensive mock file detection..."
+          echo " Running comprehensive mock file detection..."
           echo "This helps identify tests that create filesystem artifacts"
           echo ""
 
@@ -613,15 +613,15 @@ jobs:
             --github-annotations \
             --junit mock-detection-report.xml \
             --test-args "-m 'not integration' -k 'not test_llm' --tb=no -q"; then
-            echo "✅ No mock files detected during test run"
+            echo " No mock files detected during test run"
             echo "mock_files_found=false" >> $GITHUB_OUTPUT
           else
             EXIT_CODE=$?
             if [ $EXIT_CODE -eq 2 ]; then
-              echo "⚠️ Mock files detected - see report above"
+              echo "WARNING: Mock files detected - see report above"
               echo "mock_files_found=true" >> $GITHUB_OUTPUT
             else
-              echo "❌ Tests failed during mock detection run"
+              echo "ERROR: Tests failed during mock detection run"
               echo "mock_files_found=unknown" >> $GITHUB_OUTPUT
             fi
           fi
@@ -639,7 +639,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const comment = `## ⚠️ Mock File Detection Warning
+            const comment = `## WARNING: Mock File Detection Warning
 
             Tests in this PR are creating MagicMock file artifacts in the filesystem.
 
@@ -688,7 +688,7 @@ jobs:
 
       - name: Run integration tests
         run: |
-          echo "🧪 Running integration tests with available providers"
+          echo " Running integration tests with available providers"
           echo "Has GITHUB_TOKEN: ${{ github.token != '' }}"
           echo "Has SCRIPTRAG_LLM_ENDPOINT: ${{ secrets.SCRIPTRAG_LLM_ENDPOINT != '' }}"
           make test PYTEST_ARGS="-m integration -v --tb=short"
@@ -871,7 +871,7 @@ jobs:
             5. **Format Your Response**:
                Post a clear, structured comment on the PR with:
                - 📊 **Summary**: Brief overview of what failed
-               - 🔍 **Detailed Analysis**: Specific failures and their causes
+               -  **Detailed Analysis**: Specific failures and their causes
                - 💡 **Recommendations**: Step-by-step fixes with commands
                - 📝 **Additional Notes**: Platform-specific issues or known gotchas
 

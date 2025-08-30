@@ -120,7 +120,8 @@ class TestMockFileTracker:
         self.baseline_files = self.detector.get_mock_files()
         if self.baseline_files:
             print(
-                f"⚠️  Found {len(self.baseline_files)} existing mock files before tests"
+                f"WARNING: Found {len(self.baseline_files)} "
+                "existing mock files before tests"
             )
             for file in sorted(self.baseline_files):
                 print(f"   - {file}")
@@ -147,19 +148,19 @@ class TestMockFileTracker:
     def report_results(self) -> None:
         """Print a detailed report of test results."""
         if not self.test_results:
-            print("✅ No mock files created during tests")
+            print("SUCCESS: No mock files created during tests")
             return
 
         print("\n" + "=" * 80)
-        print("❌ MOCK FILE CONTAMINATION DETECTED")
+        print("ERROR: MOCK FILE CONTAMINATION DETECTED")
         print("=" * 80)
 
         for test_name, data in self.test_results.items():
-            print(f"\n🔍 Test: {test_name}")
+            print(f"\nTest: {test_name}")
             print(f"   Created {len(data['new_files'])} mock file(s):")
 
             for analysis in data["analysis"]:
-                print(f"\n   📁 {analysis['path']}")
+                print(f"\n   File: {analysis['path']}")
                 file_type = (
                     "File"
                     if analysis["is_file"]
@@ -182,16 +183,16 @@ class TestMockFileTracker:
         if not all_mock_files:
             return
 
-        print(f"\n🧹 Cleaning up {len(all_mock_files)} mock file(s)...")
+        print(f"\nCleaning up {len(all_mock_files)} mock file(s)...")
         for file in all_mock_files:
             try:
                 if file.is_dir():
                     file.rmdir()
                 else:
                     file.unlink()
-                print(f"   ✓ Removed: {file}")
+                print(f"   [OK] Removed: {file}")
             except Exception as e:
-                print(f"   ✗ Failed to remove {file}: {e}")
+                print(f"   [ERROR] Failed to remove {file}: {e}")
 
 
 def main():
@@ -219,31 +220,31 @@ def main():
     mock_files = detector.get_mock_files()
 
     if not mock_files:
-        print("✅ No mock files detected")
+        print("No mock files detected")
         return 0
 
-    print(f"❌ Found {len(mock_files)} mock file(s):")
+    print(f"ERROR: Found {len(mock_files)} mock file(s):")
 
     if not args.quiet:
         for file in sorted(mock_files):
             analysis = detector.analyze_mock_file(file)
-            print(f"\n📁 {file}")
+            print(f"\nFile: {file}")
             if analysis.get("mock_name"):
                 print(f"   Mock Name: {analysis['mock_name']}")
             if analysis.get("mock_id"):
                 print(f"   Mock ID: {analysis['mock_id']}")
 
     if args.clean:
-        print("\n🧹 Cleaning up mock files...")
+        print("\nCleaning up mock files...")
         for file in mock_files:
             try:
                 if file.is_dir():
                     file.rmdir()
                 else:
                     file.unlink()
-                print(f"   ✓ Removed: {file}")
+                print(f"   [OK] Removed: {file}")
             except Exception as e:
-                print(f"   ✗ Failed to remove {file}: {e}")
+                print(f"   [ERROR] Failed to remove {file}: {e}")
 
     return 1 if mock_files else 0
 

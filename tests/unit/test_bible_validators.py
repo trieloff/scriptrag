@@ -41,19 +41,19 @@ class TestBibleValidatorCharacter:
     def test_validate_character_invalid_aliases_type(self) -> None:
         """Test character with non-list aliases is invalid."""
         character = BibleCharacter(canonical="JOHN", aliases=[])
-        character.aliases = "not a list"  # type: ignore
+        character.aliases = "not a list"  # type: ignore[assignment]
         assert BibleValidator.validate_character(character) is False
 
     def test_validate_character_invalid_tags_type(self) -> None:
         """Test character with non-list tags is invalid."""
         character = BibleCharacter(canonical="JOHN", aliases=[])
-        character.tags = "not a list"  # type: ignore
+        character.tags = "not a list"  # type: ignore[assignment]
         assert BibleValidator.validate_character(character) is False
 
     def test_validate_character_invalid_notes_type(self) -> None:
         """Test character with non-string notes is invalid."""
         character = BibleCharacter(canonical="JOHN", aliases=[])
-        character.notes = 123  # type: ignore
+        character.notes = 123  # type: ignore[assignment]
         assert BibleValidator.validate_character(character) is False
 
     def test_validate_character_none_tags_valid(self) -> None:

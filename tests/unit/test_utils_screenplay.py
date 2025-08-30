@@ -201,3 +201,37 @@ class TestScreenplayUtils:
         assert scene_type == "INT/EXT"
         assert location == "car"
         assert time == "DAWN"
+
+    def test_parse_scene_heading_i_e_dot_variant(self):
+        """Test parsing I/E. scene heading with dot (bug fix test)."""
+        # Test uppercase I/E. with dot
+        scene_type, location, time = ScreenplayUtils.parse_scene_heading(
+            "I/E. WAREHOUSE - CONTINUOUS"
+        )
+        assert scene_type == "INT/EXT"
+        assert location == "WAREHOUSE"
+        assert time == "CONTINUOUS"
+
+        # Test lowercase i/e. with dot
+        scene_type, location, time = ScreenplayUtils.parse_scene_heading(
+            "i/e. office - morning"
+        )
+        assert scene_type == "INT/EXT"
+        assert location == "office"
+        assert time == "MORNING"
+
+        # Test I/E with space (no dot)
+        scene_type, location, time = ScreenplayUtils.parse_scene_heading(
+            "I/E STREET - SUNSET"
+        )
+        assert scene_type == "INT/EXT"
+        assert location == "STREET"
+        assert time == "SUNSET"
+
+        # Test that I/E without space or dot still works as before
+        scene_type, location, time = ScreenplayUtils.parse_scene_heading(
+            "I/E. BUILDING"
+        )
+        assert scene_type == "INT/EXT"
+        assert location == "BUILDING"
+        assert time is None

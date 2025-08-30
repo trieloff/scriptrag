@@ -114,7 +114,11 @@ class ScreenplayUtils:
         heading_upper = heading.upper()
 
         # Determine scene type (check more specific patterns first)
-        if heading_upper.startswith("INT./EXT.") or heading_upper.startswith("I/E"):
+        if (
+            heading_upper.startswith("INT./EXT.")
+            or heading_upper.startswith("I/E.")
+            or heading_upper.startswith("I/E ")
+        ):
             scene_type = "INT/EXT"
         elif heading_upper.startswith("INT.") or heading_upper.startswith("INT "):
             scene_type = "INT"

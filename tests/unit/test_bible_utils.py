@@ -396,3 +396,211 @@ class TestLLMResponseParser:
         ]
         assert len(warning_calls) > 0
         assert "50000" in str(warning_calls[0])
+
+    def test_extract_json_array_primitive_arrays_ignored(self) -> None:
+        """Test that arrays of primitives are correctly ignored during extraction.
+
+        This verifies the filtering behavior that intentionally excludes primitive
+        arrays like [1, 2, 3] or ["a", "b"] when extracting from mixed text,
+        as documented in the extract_json_array method implementation.
+        """
+        # Test with integer array embedded in text
+        response = """
+        Here are some numbers: [1, 2, 3, 4, 5]
+        And here's the actual character data:
+        [{"name": "HERO", "type": "protagonist"}]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should only extract the character object array, not the number array
+        assert len(result) == 1
+        assert result[0]["name"] == "HERO"
+
+        # Test with string array embedded in text
+        response = """
+        Available options: ["option1", "option2", "option3"]
+        Scene data:
+        [{"location": "OFFICE", "type": "INT"}]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should only extract the scene object array, not the string array
+        assert len(result) == 1
+        assert result[0]["location"] == "OFFICE"
+
+        # Test with boolean array
+        response = """
+        Flags: [true, false, true, false]
+        Characters:
+        [{"canonical": "JANE", "active": true}]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should only extract the character object array, not the boolean array
+        assert len(result) == 1
+        assert result[0]["canonical"] == "JANE"
+
+        # Test with null array
+        response = """
+        Empty slots: [null, null, null]
+        Actual data:
+        [{"id": 1, "value": null}]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should only extract the object array, not the null array
+        assert len(result) == 1
+        assert result[0]["id"] == 1
+
+        # Test with float array
+        response = """
+        Coordinates: [12.34, 56.78, 90.12]
+        Locations:
+        [{"lat": 12.34, "lng": 56.78, "name": "PARK"}]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should only extract the location object array, not the coordinate array
+        assert len(result) == 1
+        assert result[0]["name"] == "PARK"
+
+        # Test when ONLY primitive arrays are present
+        response = """
+        Here's some data:
+        [1, 2, 3]
+        ["a", "b", "c"]
+        [true, false]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should return empty list as no object arrays are present
+        assert result == []
+
+        # Test that pure JSON with primitive array is accepted when it's the
+        # entire response
+        response = "[1, 2, 3, 4, 5]"
+        result = LLMResponseParser.extract_json_array(response)
+        # When the entire response is valid JSON, it's returned as-is (line 76-77)
+        assert result == [1, 2, 3, 4, 5]
+
+    def test_extract_json_array_mixed_arrays_edge_case(self) -> None:
+        """Test behavior with mixed-type arrays containing objects and primitives.
+
+        This edge case tests arrays that have objects as the first element but also
+        contain primitive values. The implementation requires the first element to be
+        a dict for extraction (line 170 in utils.py).
+        """
+        # Test mixed array with object first, then primitives
+        response = """
+        Mixed data found:
+        [
+            {"name": "FIRST", "type": "character"},
+            42,
+            "string value",
+            {"name": "SECOND", "type": "scene"},
+            true,
+            null,
+            {"name": "THIRD", "type": "prop"}
+        ]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should extract the entire array since first element is an object
+        assert len(result) == 7
+        assert result[0]["name"] == "FIRST"
+        assert result[1] == 42
+        assert result[2] == "string value"
+        assert result[3]["name"] == "SECOND"
+        assert result[4] is True
+        assert result[5] is None
+        assert result[6]["name"] == "THIRD"
+
+        # Test array starting with primitives but containing objects
+        # This will NOT be extracted because first element is not a dict
+        response = """
+        Data:
+        [
+            1,
+            2,
+            3,
+            {"id": 100, "value": "important"}
+        ]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should return empty list because first element is not a dict
+        assert result == []
+
+        # Test array with object first followed by primitives
+        response = """
+        Results:
+        [
+            {"header": "title"},
+            "-----",
+            {"data": "actual content"},
+            "footer",
+            "-----"
+        ]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should extract since first element is an object
+        assert len(result) == 5
+        assert result[0]["header"] == "title"
+        assert result[1] == "-----"
+        assert result[2]["data"] == "actual content"
+        assert result[3] == "footer"
+
+        # Test nested case: array of arrays where first is object array
+        response = """
+        Nested structure:
+        [
+            [{"nested": "object"}],
+            [1, 2, 3],
+            ["a", "b", "c"]
+        ]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # The parser will find the inner array [{"nested": "object"}] which has
+        # an object as its first element, so it will be extracted
+        assert len(result) == 1
+        assert result[0]["nested"] == "object"
+
+        # Test edge case: empty object as first element
+        response = """
+        Edge case with empty object first:
+        [
+            {},
+            1,
+            2,
+            "text",
+            {"real": "data"}
+        ]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should extract since first element is an object (even if empty)
+        assert len(result) == 5
+        assert result[0] == {}
+        assert result[1] == 1
+        assert result[2] == 2
+        assert result[3] == "text"
+        assert result[4]["real"] == "data"
+
+        # Test when primitives come first in mixed array (won't be extracted)
+        response = """
+        Primitives first:
+        [
+            "header",
+            "subtitle",
+            {"content": "main data"},
+            {"more": "data"}
+        ]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should return empty because first element is a string, not a dict
+        assert result == []
+
+        # Test when there are multiple arrays and only some have objects first
+        response = """
+        Multiple arrays:
+        [1, 2, {"data": "hidden"}]
+        followed by:
+        [{"name": "VALID"}, 3, 4]
+        """
+        result = LLMResponseParser.extract_json_array(response)
+        # Should extract the second array since its first element is a dict
+        assert len(result) == 3
+        assert result[0]["name"] == "VALID"
+        assert result[1] == 3
+        assert result[2] == 4

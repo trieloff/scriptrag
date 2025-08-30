@@ -1,5 +1,7 @@
 """Type definitions for LLM modules."""
 
+from __future__ import annotations
+
 from typing import Any, NotRequired, TypeAlias
 
 from typing_extensions import TypedDict

@@ -1,5 +1,7 @@
 """Refactored query command with clean separation of concerns."""
 
+from __future__ import annotations
+
 import inspect
 from collections.abc import Callable
 from typing import Any

@@ -1,5 +1,7 @@
 """Command composition utilities for complex CLI operations."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -52,7 +54,7 @@ class CommandComposer:
         on_error: str = "abort",
         retry_count: int = 0,
         **kwargs: Any,
-    ) -> "CommandComposer":
+    ) -> CommandComposer:
         """Add a step to the composition.
 
         Args:
@@ -183,7 +185,7 @@ class TransactionalComposer(CommandComposer):
         rollback_function: Callable[..., Any],
         *args: Any,
         **kwargs: Any,
-    ) -> "TransactionalComposer":
+    ) -> TransactionalComposer:
         """Add a step with rollback capability.
 
         Args:

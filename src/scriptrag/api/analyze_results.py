@@ -1,5 +1,7 @@
 """Result data structures for script analysis operations."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from pathlib import Path
 

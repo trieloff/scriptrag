@@ -1,5 +1,7 @@
 """CLI command for scriptrag watch - monitor filesystem for Fountain file changes."""
 
+from __future__ import annotations
+
 import signal
 import sys
 import time

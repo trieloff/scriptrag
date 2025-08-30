@@ -1,5 +1,7 @@
 """Configuration template generator for ScriptRAG."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 

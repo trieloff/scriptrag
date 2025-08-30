@@ -1,5 +1,7 @@
 """File watching utilities for ScriptRAG CLI."""
 
+from __future__ import annotations
+
 import asyncio
 import queue
 import threading

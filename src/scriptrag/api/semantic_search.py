@@ -4,6 +4,8 @@ This module exposes the public dataclasses and service and delegates heavier
 operations to internal helpers to keep this file lean and maintainable.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any
 

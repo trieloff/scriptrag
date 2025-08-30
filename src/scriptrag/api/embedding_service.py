@@ -1,5 +1,7 @@
 """Embedding service for generating and managing scene embeddings."""
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 

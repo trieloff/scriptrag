@@ -1,5 +1,7 @@
 """Base class for LLM providers."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 
 from scriptrag.llm.models import (

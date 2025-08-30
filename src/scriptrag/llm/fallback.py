@@ -1,5 +1,7 @@
 """Fallback logic for multi-provider LLM operations."""
 
+from __future__ import annotations
+
 import time
 import traceback
 from collections.abc import Awaitable

@@ -1,5 +1,7 @@
 """Embeddings module for ScriptRAG - handles vector generation and management."""
 
+from __future__ import annotations
+
 from .cache import EmbeddingCache
 from .pipeline import EmbeddingPipeline
 from .similarity import SimilarityCalculator

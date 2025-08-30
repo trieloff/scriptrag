@@ -1,5 +1,7 @@
 """LLM integration module for ScriptRAG."""
 
+from __future__ import annotations
+
 from scriptrag.llm.client import LLMClient
 from scriptrag.llm.models import (
     CompletionRequest,

@@ -1,5 +1,7 @@
 """Query parser for search functionality."""
 
+from __future__ import annotations
+
 import re
 
 from scriptrag.search.models import SearchMode, SearchQuery

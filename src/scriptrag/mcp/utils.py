@@ -1,5 +1,7 @@
 """Utility functions for MCP server."""
 
+from __future__ import annotations
+
 from typing import Any
 
 from scriptrag.config import ScriptRAGSettings, get_settings

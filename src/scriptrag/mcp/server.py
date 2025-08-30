@@ -1,5 +1,7 @@
 """MCP Server for ScriptRAG."""
 
+from __future__ import annotations
+
 from mcp.server import FastMCP
 
 from scriptrag.config import get_logger

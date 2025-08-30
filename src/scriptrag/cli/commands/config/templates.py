@@ -1,5 +1,7 @@
 """Configuration template generation functions."""
 
+from __future__ import annotations
+
 from scriptrag.config.template import generate_config_template
 
 

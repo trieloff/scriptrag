@@ -1,5 +1,7 @@
 """Script index API module for ScriptRAG."""
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -140,7 +142,7 @@ class IndexCommand:
         )
 
     @classmethod
-    def from_config(cls) -> "IndexCommand":
+    def from_config(cls) -> IndexCommand:
         """Create IndexCommand from configuration.
 
         Returns:

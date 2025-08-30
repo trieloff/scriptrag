@@ -1,5 +1,7 @@
 """Claude Code SDK provider for local development."""
 
+from __future__ import annotations
+
 import asyncio
 import contextlib
 import json

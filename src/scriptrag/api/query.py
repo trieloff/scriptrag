@@ -1,5 +1,7 @@
 """Query API facade."""
 
+from __future__ import annotations
+
 from typing import Any
 
 from scriptrag.config import ScriptRAGSettings, get_logger

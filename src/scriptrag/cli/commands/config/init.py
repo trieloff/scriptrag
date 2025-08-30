@@ -1,5 +1,7 @@
 """Configuration initialization command."""
 
+from __future__ import annotations
+
 import json
 import tempfile
 from pathlib import Path
@@ -17,6 +19,7 @@ console = Console()
 
 # Security warning to add to all templates
 SECURITY_WARNING = """# SECURITY WARNING: Never commit real API keys to version control!
+
 # Always use environment variables: ${VAR_NAME}
 # Never replace ${OPENAI_API_KEY} with actual keys in this file
 # Use .env files or environment variables for sensitive data

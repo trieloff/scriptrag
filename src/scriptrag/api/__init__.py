@@ -10,6 +10,8 @@ This module provides the main API components for ScriptRAG:
 - QueryAPI: Query interface for the database
 """
 
+from __future__ import annotations
+
 from scriptrag.api.analyze import AnalyzeCommand as AnalyzeCommand
 from scriptrag.api.analyze_results import AnalyzeResult as AnalyzeResult
 from scriptrag.api.analyze_results import FileResult as FileResult

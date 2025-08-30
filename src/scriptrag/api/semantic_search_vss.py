@@ -1,5 +1,7 @@
 """Semantic search service using SQLite VSS for efficient vector similarity search."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Any
 

@@ -1,5 +1,7 @@
 """Search engine for executing queries."""
 
+from __future__ import annotations
+
 import asyncio
 import sqlite3
 import threading

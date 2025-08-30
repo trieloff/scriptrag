@@ -1,5 +1,7 @@
 """Generic OpenAI-compatible API provider."""
 
+from __future__ import annotations
+
 import asyncio
 import json
 import os
@@ -131,7 +133,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             self._cache_timestamp = time.time()
             return False
 
-    async def __aenter__(self) -> "OpenAICompatibleProvider":
+    async def __aenter__(self) -> OpenAICompatibleProvider:
         """Enter async context manager."""
         return self
 

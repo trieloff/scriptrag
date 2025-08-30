@@ -1,5 +1,7 @@
 """Factory for creating LLM clients with settings integration."""
 
+from __future__ import annotations
+
 import contextlib
 import os
 

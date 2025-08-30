@@ -1,5 +1,7 @@
 """Provider registry for managing LLM provider instances."""
 
+from __future__ import annotations
+
 from typing import Any
 
 from scriptrag.config import get_logger

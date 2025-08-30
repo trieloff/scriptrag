@@ -1,5 +1,7 @@
 """Scene parsing utilities for extracting and processing Fountain scene content."""
 
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
 from typing import Any

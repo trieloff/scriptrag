@@ -1,5 +1,7 @@
 """Base class for model discovery implementations."""
 
+from __future__ import annotations
+
 from scriptrag.config import get_logger
 from scriptrag.llm.model_cache import ModelDiscoveryCache
 from scriptrag.llm.models import Model

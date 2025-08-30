@@ -1,5 +1,7 @@
 """ScriptRAG configuration settings."""
 
+from __future__ import annotations
+
 import json
 import os
 import tomllib
@@ -264,7 +266,7 @@ class ScriptRAGSettings(BaseSettings):
         raise ValueError(f"log_format must be a string, got {type(v).__name__}")
 
     @classmethod
-    def from_env(cls) -> "ScriptRAGSettings":
+    def from_env(cls) -> ScriptRAGSettings:
         """Create settings from environment variables."""
         return cls()
 
@@ -296,7 +298,7 @@ class ScriptRAGSettings(BaseSettings):
         return v
 
     @classmethod
-    def from_file(cls, config_path: Path | str) -> "ScriptRAGSettings":
+    def from_file(cls, config_path: Path | str) -> ScriptRAGSettings:
         """Load settings from a configuration file.
 
         Args:
@@ -346,7 +348,7 @@ class ScriptRAGSettings(BaseSettings):
         config_files: list[Path | str] | None = None,
         env_file: Path | str | None = None,
         cli_args: dict[str, Any] | None = None,
-    ) -> "ScriptRAGSettings":
+    ) -> ScriptRAGSettings:
         """Load settings with proper precedence from multiple sources.
 
         Precedence (highest to lowest):

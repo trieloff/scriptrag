@@ -1,5 +1,7 @@
 """Common type definitions and aliases for ScriptRAG."""
 
+from __future__ import annotations
+
 from typing import Any, Protocol, TypeAlias, TypedDict
 
 # Scene and Script related types

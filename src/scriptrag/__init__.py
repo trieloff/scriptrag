@@ -1,5 +1,7 @@
 """ScriptRAG: A Graph-Based Screenwriting Assistant."""
 
+from __future__ import annotations
+
 from scriptrag.main import ScriptRAG
 
 __version__ = "0.2.0"

@@ -1,5 +1,7 @@
 """Model registry for managing static and dynamic model lists."""
 
+from __future__ import annotations
+
 from typing import ClassVar
 
 from scriptrag.llm.models import LLMProvider, Model

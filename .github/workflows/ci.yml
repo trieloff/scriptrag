@@ -370,25 +370,76 @@ jobs:
           # Clean up any existing mock files first
           python tests/detect_mock_files.py --clean || true
 
-          # Run a subset of tests to isolate the problem
-          echo "Testing unit tests for mock contamination..."
+          # First, narrow down to directory
+          echo "Step 1: Identifying which test directory creates mock files..."
+          PROBLEMATIC_DIR=""
           for test_dir in tests/unit tests/integration tests/cli; do
             if [ -d "$test_dir" ]; then
-              echo "Testing $test_dir..."
+              echo "  Testing $test_dir..."
               python tests/detect_mock_files.py --clean 2>/dev/null || true
 
               if uv run pytest "$test_dir" -q --tb=no -x 2>/dev/null; then
                 if ! python tests/detect_mock_files.py --quiet 2>/dev/null; then
-                  echo "  ⚠️ Mock files detected after running $test_dir"
-                  python tests/detect_mock_files.py 2>/dev/null || true
+                  echo "    ⚠️ Mock files detected in $test_dir"
+                  PROBLEMATIC_DIR="$test_dir"
+                  python tests/detect_mock_files.py --clean 2>/dev/null || true
+                  break
                 fi
               else
-                echo "  ❌ Tests in $test_dir failed"
+                echo "    ❌ Tests failed in $test_dir"
               fi
 
               python tests/detect_mock_files.py --clean 2>/dev/null || true
             fi
           done
+
+          # If we found a problematic directory, narrow down to specific file
+          if [ -n "$PROBLEMATIC_DIR" ]; then
+            echo ""
+            echo "Step 2: Identifying specific test file in $PROBLEMATIC_DIR..."
+
+            # Test each file individually
+            for test_file in $(find "$PROBLEMATIC_DIR" -name "test_*.py" -type f | sort); do
+              echo "  Testing $test_file..."
+              python tests/detect_mock_files.py --clean 2>/dev/null || true
+
+              # Run just this one test file
+              if uv run pytest "$test_file" -q --tb=no 2>/dev/null; then
+                if ! python tests/detect_mock_files.py --quiet 2>/dev/null; then
+                  echo "    🎯 FOUND: $test_file creates mock file artifacts!"
+                  python tests/detect_mock_files.py 2>/dev/null || true
+
+                  # Try to identify specific test function
+                  echo ""
+                  echo "Step 3: Attempting to identify specific test function..."
+                  python tests/detect_mock_files.py --clean 2>/dev/null || true
+
+                  # Get list of test functions
+                  TEST_FUNCTIONS=$(uv run pytest "$test_file" --collect-only -q 2>/dev/null | grep "<Function" | sed 's/.*<Function \(.*\)>/\1/' || true)
+
+                  if [ -n "$TEST_FUNCTIONS" ]; then
+                    for test_func in $TEST_FUNCTIONS; do
+                      echo "    Testing $test_file::$test_func"
+                      python tests/detect_mock_files.py --clean 2>/dev/null || true
+
+                      if uv run pytest "$test_file::$test_func" -q --tb=no 2>/dev/null; then
+                        if ! python tests/detect_mock_files.py --quiet 2>/dev/null; then
+                          echo "      🔴 $test_func creates mock files!"
+                          python tests/detect_mock_files.py --clean 2>/dev/null || true
+                        fi
+                      fi
+                    done
+                  fi
+
+                  break
+                fi
+              else
+                echo "    Test failed (may be unrelated to mock files)"
+              fi
+
+              python tests/detect_mock_files.py --clean 2>/dev/null || true
+            done
+          fi
 
           echo ""
           echo "📝 Summary:"
@@ -397,7 +448,8 @@ jobs:
           echo "2. Mock's database_path attribute is not set to a proper string/Path"
           echo "3. Mock objects are used directly as file paths"
           echo ""
-          echo "See docs/TESTING.md for mock best practices"
+          echo "To fix: Add spec to MagicMock() and ensure database_path returns a proper string"
+          echo "Example: mock_settings.database_path = Path('/test/db.sqlite')"
         shell: bash
         continue-on-error: true
 

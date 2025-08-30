@@ -358,14 +358,13 @@ jobs:
           fi
         shell: bash
 
-      - name: Run mock contamination audit if tests failed
+      - name: Run mock contamination audit if mock files detected
         if: |
           always() &&
-          steps.run-tests.outputs.test_exit_code != '0' &&
           steps.mock-check.outputs.mock_contamination == 'true'
         run: |
           echo "🔬 Running detailed mock contamination audit..."
-          echo "Tests failed and mock files were detected - investigating which tests are responsible"
+          echo "Mock files were detected - investigating which tests are responsible"
           echo ""
 
           # Clean up any existing mock files first

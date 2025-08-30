@@ -383,8 +383,12 @@ class TestMCPCommandIntegration:
         assert "host" in sig.parameters
         assert "port" in sig.parameters
 
-        # Check return type annotation
-        assert sig.return_annotation is None or sig.return_annotation is type(None)
+        # Check return type annotation (handle future annotations string conversion)
+        assert (
+            sig.return_annotation is None
+            or sig.return_annotation is type(None)
+            or sig.return_annotation == "None"
+        )
 
     @patch("scriptrag.cli.commands.mcp.logger")
     def test_mcp_command_logger_creation(self, mock_logger):

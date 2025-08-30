@@ -140,10 +140,13 @@ class TestSearchEngine:
         """Test path traversal protection."""
         # Create a mock path that simulates traversal
         mock_traversal_path = MagicMock(
-            spec=["content", "model", "provider", "usage", "resolve", "parent"]
+            spec=Path  # Use Path as spec to prevent mock file artifacts
         )
         mock_traversal_path.resolve.return_value = Path("/etc/passwd")
         mock_traversal_path.parent.resolve.return_value = Path("/safe/dir")
+        # Ensure the mock returns a proper string representation
+        mock_traversal_path.__str__.return_value = "/test/db.sqlite"
+        mock_traversal_path.__fspath__.return_value = "/test/db.sqlite"
 
         settings.database_path = mock_traversal_path
         engine = SearchEngine(settings)

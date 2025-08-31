@@ -1,7 +1,7 @@
 """Tests for bug fixes to ensure robustness against edge cases."""
 
 import sqlite3
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -215,12 +215,8 @@ class TestEmbeddingPipelineBugFixes:
     async def test_embedding_pipeline_empty_results(self):
         """Test that embedding pipeline handles empty results without IndexError."""
         # Create a mock batch processor that returns empty results
-        import asyncio
-
         mock_processor = MagicMock()
-        mock_processor.process_batch = Mock(
-            return_value=asyncio.coroutine(lambda: [])()
-        )
+        mock_processor.process_batch = AsyncMock(return_value=[])
 
         # Create pipeline config
         from scriptrag.embeddings.pipeline import PipelineConfig
@@ -243,12 +239,8 @@ class TestEmbeddingPipelineBugFixes:
     @pytest.mark.asyncio
     async def test_embedding_pipeline_none_results(self):
         """Test that embedding pipeline handles None results gracefully."""
-        import asyncio
-
         mock_processor = MagicMock()
-        mock_processor.process_batch = Mock(
-            return_value=asyncio.coroutine(lambda: None)()
-        )
+        mock_processor.process_batch = AsyncMock(return_value=None)
 
         from scriptrag.embeddings.pipeline import PipelineConfig
 
@@ -274,12 +266,8 @@ class TestEmbeddingPipelineBugFixes:
             id="test", embedding=None, error="Specific error message"
         )
 
-        import asyncio
-
         mock_processor = MagicMock()
-        mock_processor.process_batch = Mock(
-            return_value=asyncio.coroutine(lambda: [error_result])()
-        )
+        mock_processor.process_batch = AsyncMock(return_value=[error_result])
 
         from scriptrag.embeddings.pipeline import PipelineConfig
 
@@ -304,12 +292,8 @@ class TestEmbeddingPipelineBugFixes:
         embedding = [0.1] * 768
         success_result = BatchResult(id="test", embedding=embedding, error=None)
 
-        import asyncio
-
         mock_processor = MagicMock()
-        mock_processor.process_batch = Mock(
-            return_value=asyncio.coroutine(lambda: [success_result])()
-        )
+        mock_processor.process_batch = AsyncMock(return_value=[success_result])
 
         # Mock dimension manager
         mock_dim_manager = MagicMock()

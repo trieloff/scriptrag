@@ -285,7 +285,7 @@ SELECT * FROM test WHERE id = :id""")
             mock_settings.database_foreign_keys = True
             loader = QueryLoader(mock_settings)
             assert loader._query_dir == query_dir
-            mock_logger.info.assert_called_with(
+            mock_logger.debug.assert_called_with(
                 f"Using query directory from env: {query_dir}"
             )
 

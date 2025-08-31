@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -98,7 +99,8 @@ def status(
         # Output status
         if json_output:
             # Output pure JSON without ANSI escape codes
-            print(formatter.format(status_info))
+            sys.stdout.write(formatter.format(status_info) + "\n")
+            sys.stdout.flush()
         else:
             console.print("[bold cyan]ScriptRAG Status[/bold cyan]\n")
             for key, value in status_info.items():
@@ -123,7 +125,8 @@ def version(
     if json_output:
         formatter = JsonFormatter()
         # Output pure JSON without ANSI escape codes
-        print(formatter.format(version_info))
+        sys.stdout.write(formatter.format(version_info) + "\n")
+        sys.stdout.flush()
     else:
         console.print(f"ScriptRAG v{version_info['version']}")
 

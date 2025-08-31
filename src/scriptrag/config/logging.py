@@ -110,6 +110,11 @@ def configure_logging(settings: ScriptRAGSettings) -> None:
         force=True,
     )
 
+    # Explicitly set root logger level to ensure it's applied
+    # This is needed because basicConfig might not always update the level
+    # when the logger has already been configured
+    logging.getLogger().setLevel(log_level)
+
     # Configure structlog
     processors: list[Any] = [
         merge_contextvars,

@@ -16,18 +16,34 @@ from scriptrag.config import (
 
 
 @pytest.fixture(autouse=True)
-def clean_logging():
+def clean_logging(monkeypatch):
     """Reset logging configuration before and after each test."""
+    # Clear environment variables that could interfere with test settings
+    monkeypatch.delenv("SCRIPTRAG_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("SCRIPTRAG_LOG_FORMAT", raising=False)
+
+    # Clear settings cache to ensure environment changes take effect
+    from scriptrag.config.settings import clear_settings_cache
+
+    clear_settings_cache()
+
     # Reset settings
     set_settings(None)
 
     # Reset structlog configuration
     structlog.reset_defaults()
 
-    # Clear all handlers from root logger
+    # Clear all handlers from root logger and reset level
     root_logger = logging.getLogger()
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
+    root_logger.setLevel(logging.WARNING)  # Reset to default level
+
+    # Reset logging initialization flag
+    import scriptrag.config
+
+    scriptrag.config._logging_initialized = False
+    scriptrag.config._logger_cache.clear()
 
     yield
 
@@ -36,6 +52,9 @@ def clean_logging():
     structlog.reset_defaults()
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
+    root_logger.setLevel(logging.WARNING)  # Reset to default level
+    scriptrag.config._logging_initialized = False
+    scriptrag.config._logger_cache.clear()
 
 
 class TestLoggingConfiguration:
@@ -130,6 +149,16 @@ class TestLoggingConfiguration:
             log_file=log_file,
         )
 
+        # Temporarily set settings so get_logger doesn't reconfigure
+        original_settings = None
+        try:
+            from scriptrag.config import get_settings
+
+            original_settings = get_settings()
+        except Exception:
+            pass
+
+        set_settings(settings)
         configure_logging(settings)
 
         # Log directory should be created
@@ -144,6 +173,10 @@ class TestLoggingConfiguration:
         file_handlers = [h for h in root_logger.handlers if hasattr(h, "baseFilename")]
         assert len(file_handlers) == 1
         assert Path(file_handlers[0].baseFilename) == log_file
+
+        # Restore original settings
+        if original_settings:
+            set_settings(original_settings)
 
     def test_configure_logging_debug_mode(self):
         """Test logging configuration in debug mode."""

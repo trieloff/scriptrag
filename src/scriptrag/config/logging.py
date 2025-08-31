@@ -110,6 +110,11 @@ def configure_logging(settings: ScriptRAGSettings) -> None:
         force=True,
     )
 
+    # Explicitly ensure root logger level is set correctly
+    # This is needed in CI environments where test isolation might not be perfect
+    root_logger = logging.getLogger()
+    root_logger.setLevel(log_level)
+
     # Configure structlog
     processors: list[Any] = [
         merge_contextvars,

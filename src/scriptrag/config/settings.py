@@ -439,7 +439,13 @@ def get_settings() -> ScriptRAGSettings:
     """
     global _settings
     if _settings is None:
-        _settings = ScriptRAGSettings.from_env()
+        _settings = ScriptRAGSettings.from_multiple_sources(
+            config_files=[
+                Path.home() / ".config" / "scriptrag" / "config.yaml",
+                Path.home() / ".config" / "scriptrag" / "config.json",
+                Path.home() / ".config" / "scriptrag" / "config.toml",
+            ]
+        )
     return _settings
 
 

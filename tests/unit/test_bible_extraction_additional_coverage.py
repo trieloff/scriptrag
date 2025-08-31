@@ -273,8 +273,8 @@ Camera angles and lighting setup.
             '[{"canonical": "JA"NE", "aliases": ["J"]}]',
             # Missing quotes
             '[{canonical: "JANE", aliases: ["J"]}]',
-            # Invalid unicode escape
-            '[{"canonical": "JANE\\uXXXX", "aliases": ["J"]}]',
+            # Invalid unicode escape (malformed hex digits)
+            r'[{"canonical": "JANE\uGGGG", "aliases": ["J"]}]',
         ]
 
         for invalid_response in test_cases:

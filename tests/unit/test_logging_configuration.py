@@ -60,8 +60,12 @@ def clean_logging(monkeypatch):
 class TestLoggingConfiguration:
     """Test logging configuration functionality."""
 
-    def test_configure_logging_console_format(self):
+    def test_configure_logging_console_format(self, monkeypatch):
         """Test logging configuration with console format."""
+        # Explicitly set the environment variable to ensure it's not overridden
+        monkeypatch.setenv("SCRIPTRAG_LOG_LEVEL", "INFO")
+        monkeypatch.setenv("SCRIPTRAG_LOG_FORMAT", "console")
+
         settings = ScriptRAGSettings(
             log_level="INFO",
             log_format="console",

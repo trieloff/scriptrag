@@ -152,6 +152,11 @@ class TestGitignoreUpdate:
 
         initializer = DatabaseInitializer()
 
+        # Ensure we can capture WARNING level logs
+        import logging
+
+        caplog.set_level(logging.WARNING)
+
         # Patch the gitignore_path.open method to raise PermissionError
         with patch.object(Path, "open", side_effect=PermissionError("No write access")):
             # Execute

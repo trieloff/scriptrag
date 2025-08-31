@@ -155,9 +155,12 @@ class QueryCommandBuilder:
 
                     # Query API returns formatted string, just print it
                     if results is not None:
-                        # Use plain print for JSON to avoid Rich formatting
+                        # Use sys.stdout for JSON to avoid Rich formatting
                         if json_output:
-                            print(results)
+                            import sys
+
+                            sys.stdout.write(results + "\n")
+                            sys.stdout.flush()
                         else:
                             console.print(results)
 

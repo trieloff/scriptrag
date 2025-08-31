@@ -24,6 +24,8 @@ Generation) pattern.
 - **[Installation Guide](docs/installation.md)** - Get ScriptRAG up and running
 - **[User Guide](docs/user-guide.md)** - Complete guide for screenwriters
 - **[Usage Examples](docs/usage.md)** - Common workflows and examples
+- **[Fountain TV Format Guide](docs/fountain-tv-format.md)** - Proper formatting for TV scripts
+- **[Troubleshooting Guide](docs/troubleshooting.md)** - Diagnose and fix common issues
 - **[Bulk Import Guide](docs/bulk_import_guide.md)** - Import multiple screenplays
 - **[MCP Usage Examples](examples/mcp_usage_examples.md)** - Using with AI assistants
 
@@ -68,6 +70,36 @@ make db-init
 # Activate the virtual environment
 source .venv/bin/activate
 ```
+
+### Try Without Installing
+
+You can use ScriptRAG directly without cloning the repository using `uvx`:
+
+```bash
+# Run ScriptRAG directly from GitHub
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag --help
+
+# Initialize database (first time only)
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag init
+
+# Index a screenplay
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag index screenplay.fountain
+
+# Complete pull workflow (analyze + index)
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag pull screenplay.fountain
+
+# Search for scenes
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag search "coffee shop"
+```
+
+This approach is ideal for:
+
+- Quick testing without commitment
+- Using ScriptRAG in CI/CD pipelines  
+- Running from other project directories
+- Temporary environments
+
+For regular use, a full installation is recommended for better performance.
 
 ### Basic Usage
 

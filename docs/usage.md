@@ -20,6 +20,8 @@ This guide provides comprehensive examples of using ScriptRAG from the command l
 
 ### Initial Setup
 
+#### Full Installation (Recommended for Regular Use)
+
 ```bash
 # Install uv if not already installed
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -33,6 +35,18 @@ make setup-dev
 
 # Activate virtual environment
 source .venv/bin/activate
+```
+
+#### Quick Start with uvx (No Installation Required)
+
+You can also run ScriptRAG directly without cloning the repository:
+
+```bash
+# Install uv if not already installed
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Run ScriptRAG directly from GitHub
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag --help
 ```
 
 ## Basic Workflow
@@ -50,12 +64,18 @@ The easiest way to get started is using the `pull` command, which combines all t
 ```bash
 # Initialize database and process all Fountain files in current directory
 uv run scriptrag pull
+# Or without installation:
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag pull
 
 # Process files in a specific directory
 uv run scriptrag pull /path/to/screenplays
+# Or without installation:
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag pull /path/to/screenplays
 
 # Process with custom configuration
 uv run scriptrag pull --config config.yaml /path/to/screenplays
+# Or without installation:
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag pull --config config.yaml /path/to/screenplays
 ```
 
 ### Step-by-Step Workflow
@@ -65,13 +85,29 @@ For more control, you can run each step separately:
 ```bash
 # Step 1: Initialize the database
 uv run scriptrag init
+# Or without installation:
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag init
 
 # Step 2: Analyze Fountain files (extracts metadata)
 uv run scriptrag analyze /path/to/screenplays
+# Or without installation:
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag analyze /path/to/screenplays
 
 # Step 3: Index analyzed files into database
 uv run scriptrag index /path/to/screenplays
+# Or without installation:
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag index /path/to/screenplays
 ```
+
+#### Trade-offs: uvx vs. Local Installation
+
+| Method | `uv run scriptrag` | `uvx --from git+...` |
+|--------|-------------------|---------------------|
+| **Setup required** | Yes (clone & install) | No |
+| **First run speed** | Fast | Slower (downloads packages) |
+| **Subsequent runs** | Fast | Moderate (uses cache) |
+| **Best for** | Regular use, development | Quick tests, CI/CD, one-off commands |
+| **Network required** | Only for setup | For first run & updates |
 
 ## Command Reference
 
@@ -391,27 +427,41 @@ uv run scriptrag mcp --host 0.0.0.0 --port 8080
 ### 1. Import and Search a Single Screenplay
 
 ```bash
-# Quick import
+# Quick import (with local installation)
 uv run scriptrag pull my_script.fountain
+
+# Quick import (without installation)
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag pull my_script.fountain
 
 # Search for specific dialogue
 uv run scriptrag search "I'll be back"
+# Or without installation:
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag search "I'll be back"
 
 # Find all scenes with a character
 uv run scriptrag search --character PROTAGONIST
+# Or without installation:
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag search --character PROTAGONIST
 ```
 
 ### 2. Bulk Import TV Series
 
 ```bash
-# Import entire series directory
+# Import entire series directory (with local installation)
 uv run scriptrag pull /path/to/series/
+
+# Import entire series directory (without installation)
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag pull /path/to/series/
 
 # Search within specific episodes
 uv run scriptrag search --range s1e1-s1e10 "cliffhanger"
+# Or without installation:
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag search --range s1e1-s1e10 "cliffhanger"
 
 # Get character statistics across episodes
 uv run scriptrag query character_stats
+# Or without installation:
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag query character_stats
 ```
 
 ### 3. Monitor Active Project
@@ -519,6 +569,37 @@ If analyzers requiring LLM access fail:
 - Use absolute paths when possible
 - Ensure Fountain files have the `.fountain` extension
 - Check file permissions
+
+### 5. CI/CD Pipeline Integration
+
+The uvx approach is particularly useful in CI/CD pipelines:
+
+```yaml
+# GitHub Actions example
+steps:
+  - name: Install uv
+    run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+  - name: Analyze screenplay
+    run: uvx --from git+https://github.com/trieloff/scriptrag scriptrag analyze script.fountain
+
+  - name: Run quality checks
+    run: uvx --from git+https://github.com/trieloff/scriptrag scriptrag search --character PROTAGONIST
+```
+
+### 6. Cross-Project Usage
+
+When working on multiple projects, uvx allows you to use ScriptRAG without switching environments:
+
+```bash
+# From any directory, analyze a screenplay in another project
+cd /my/other/project
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag pull ../screenplays/*.fountain
+
+# Use with project-specific database
+export SCRIPTRAG_DATABASE_PATH=/project/specific/scriptrag.db
+uvx --from git+https://github.com/trieloff/scriptrag scriptrag search "important scene"
+```
 
 ## Advanced Features
 

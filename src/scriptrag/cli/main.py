@@ -142,17 +142,51 @@ def main_callback(
             envvar="SCRIPTRAG_CONFIG",
         ),
     ] = None,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Enable verbose (INFO level) logging"),
+    ] = False,
     debug: Annotated[
         bool,
         typer.Option("--debug", help="Enable debug logging", envvar="SCRIPTRAG_DEBUG"),
     ] = False,
 ) -> None:
     """Configure global options."""
-    if debug:
-        import logging
+    from scriptrag.config import clear_settings_cache, get_settings, set_settings
 
-        logging.basicConfig(level=logging.DEBUG)
-        logger.debug("Debug mode enabled")
+    # Handle logging level overrides
+    if debug or verbose:
+        # Clear any cached settings first
+        clear_settings_cache()
+
+        # Get current settings
+        current_settings = get_settings()
+
+        # Override log level based on flags
+        if debug:
+            new_log_level = "DEBUG"
+        elif verbose:
+            new_log_level = "INFO"
+        else:
+            new_log_level = current_settings.log_level
+
+        # Create new settings with overridden log level
+        settings_dict = current_settings.model_dump()
+        settings_dict["log_level"] = new_log_level
+
+        from scriptrag.config.settings import ScriptRAGSettings
+
+        new_settings = ScriptRAGSettings(**settings_dict)
+
+        # Set the new settings globally
+        set_settings(new_settings)
+
+        # Re-configure logging with new level
+        from scriptrag.config import configure_logging
+
+        configure_logging(new_settings)
+
+        logger.debug("Debug mode enabled" if debug else "Verbose mode enabled")
 
     if config:
         # Load configuration from file

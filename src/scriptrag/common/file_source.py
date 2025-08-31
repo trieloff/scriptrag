@@ -183,7 +183,7 @@ class FileSourceResolver:
             except Exception as e:
                 logger.error(f"Error scanning directory {directory}: {e}")
 
-        logger.info(
+        logger.debug(
             f"Discovered {len(discovered_files)} {self.file_type} files across "
             f"{len(directories)} directories"
         )

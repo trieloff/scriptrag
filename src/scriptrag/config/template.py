@@ -44,8 +44,10 @@ def generate_config_template() -> str:
         "debug": False,
         "# Enable debug mode (default: false)": None,
         "\n# Logging Configuration": None,
-        "log_level": "INFO",
-        "# Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL (default: INFO)": None,
+        "log_level": "WARNING",
+        "# Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL (default: WARNING)": (
+            None
+        ),
         "log_format": "console",
         "# Log output format: console, json, structured (default: console)": None,
         "# log_file: /path/to/logfile.log": None,

@@ -24,6 +24,8 @@ Generation) pattern.
 - **[Installation Guide](docs/installation.md)** - Get ScriptRAG up and running
 - **[User Guide](docs/user-guide.md)** - Complete guide for screenwriters
 - **[Usage Examples](docs/usage.md)** - Common workflows and examples
+- **[Fountain TV Format Guide](docs/fountain-tv-format.md)** - Proper formatting for TV scripts
+- **[Troubleshooting Guide](docs/troubleshooting.md)** - Diagnose and fix common issues
 - **[Bulk Import Guide](docs/bulk_import_guide.md)** - Import multiple screenplays
 - **[MCP Usage Examples](examples/mcp_usage_examples.md)** - Using with AI assistants
 

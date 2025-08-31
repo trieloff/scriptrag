@@ -165,22 +165,36 @@ def configure_logging(settings: ScriptRAGSettings) -> None:
                 ]
             )
 
+    # Performance optimizations
     structlog.configure(
         processors=processors,
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
         wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
+        cache_logger_on_first_use=True,  # Cache logger instances for performance
     )
+
+    # Additional performance optimizations for production
+    if not settings.debug and settings.log_level != "DEBUG":
+        # Disable debug-level logging at the handler level for better performance
+        # Only adjust handlers that are set to DEBUG to avoid overriding explicit levels
+        for handler in logging.getLogger().handlers:
+            if handler.level == logging.DEBUG:
+                handler.setLevel(logging.INFO)
 
 
 def get_logger(name: str) -> Any:
     """Get a configured logger instance.
 
+    This function implements logger caching to improve performance by
+    reusing logger instances that have already been created. The caching
+    is handled by structlog internally when cache_logger_on_first_use=True
+    is set in the configuration.
+
     Args:
         name: Logger name (usually __name__).
 
     Returns:
-        Configured structlog logger.
+        Configured structlog logger (cached after first use).
     """
     return structlog.get_logger(name)

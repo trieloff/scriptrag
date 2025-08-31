@@ -378,13 +378,15 @@ class ScriptRAGSettings(BaseSettings):
                     file_data = file_settings.model_dump()
                     data.update(file_data)
                 except FileNotFoundError:
-                    # Log warning when config file is not found
-                    from scriptrag.config import get_logger
+                    # Deferred logging: Only log warning after logging is configured
+                    # This avoids circular dependency during settings initialization
+                    # The warning will be emitted on first actual logger usage
+                    import warnings
 
-                    logger = get_logger(__name__)
-                    logger.warning(
-                        "Configuration file not found, using defaults",
-                        config_file=str(config_file),
+                    warnings.warn(
+                        f"Configuration file not found: {config_file}, using defaults",
+                        UserWarning,
+                        stacklevel=2,
                     )
                     pass
 

@@ -45,6 +45,102 @@ class DatabaseInitializer:
             sql_dir = Path(__file__).parent.parent / "storage" / "database" / "sql"
         self.sql_dir = sql_dir
 
+    def _update_gitignore(self, db_path: Path) -> None:
+        """Update .gitignore to exclude database files.
+
+        Args:
+            db_path: Path to the database file.
+        """
+        # Get the directory containing the database
+        db_dir = db_path.parent
+
+        # Database patterns to ignore
+        db_patterns = [
+            "scriptrag.db",
+            "scriptrag.db-shm",
+            "scriptrag.db-wal",
+            "*.db",
+            "*.db-shm",
+            "*.db-wal",
+        ]
+
+        # Find the nearest .gitignore file or create one in the current directory
+        gitignore_path = db_dir / ".gitignore"
+
+        # If database is in a subdirectory, also check parent directories for .gitignore
+        current_dir = db_dir
+        while current_dir != current_dir.parent:
+            if (current_dir / ".git").exists():
+                # Found git repo root, use .gitignore here
+                gitignore_path = current_dir / ".gitignore"
+                break
+            current_dir = current_dir.parent
+
+        # Read existing .gitignore content if it exists
+        existing_patterns = set()
+        if gitignore_path.exists():
+            try:
+                content = gitignore_path.read_text(encoding="utf-8")
+                existing_patterns = {
+                    line.strip()
+                    for line in content.splitlines()
+                    if line.strip() and not line.strip().startswith("#")
+                }
+            except Exception as e:
+                logger.warning(
+                    "Failed to read existing .gitignore",
+                    path=str(gitignore_path),
+                    error=str(e),
+                )
+                return
+
+        # Determine which patterns need to be added
+        patterns_to_add = [p for p in db_patterns if p not in existing_patterns]
+
+        if not patterns_to_add:
+            logger.debug(".gitignore already contains database patterns")
+            return
+
+        # Prepare the new content to append
+        new_content = []
+
+        # Add section header if we're adding patterns
+        if patterns_to_add:
+            # Check if file exists and doesn't end with newline
+            if gitignore_path.exists():
+                try:
+                    with gitignore_path.open("rb") as f:
+                        f.seek(-1, 2)  # Go to last byte
+                        last_char = f.read(1)
+                        if last_char != b"\n":
+                            new_content.append("")  # Add blank line
+                except OSError:
+                    # File might be empty or inaccessible
+                    pass
+
+            new_content.append("")  # Blank line before section
+            new_content.append("# ScriptRAG database files")
+            new_content.extend(patterns_to_add)
+            new_content.append("")  # Blank line after section
+
+        # Write or append to .gitignore
+        try:
+            mode = "a" if gitignore_path.exists() else "w"
+            with gitignore_path.open(mode, encoding="utf-8") as f:
+                f.write("\n".join(new_content))
+
+            logger.info(
+                ".gitignore updated with database patterns",
+                path=str(gitignore_path),
+                patterns_added=len(patterns_to_add),
+            )
+        except Exception as e:
+            logger.warning(
+                "Failed to update .gitignore",
+                path=str(gitignore_path),
+                error=str(e),
+            )
+
     def _read_sql_file(self, filename: str) -> str:
         """Read SQL file content.
 
@@ -185,6 +281,9 @@ class DatabaseInitializer:
             else:
                 # Use provided connection (for testing)
                 self._initialize_with_connection(connection, settings)
+
+            # Update .gitignore to exclude database files
+            self._update_gitignore(db_path)
 
             logger.info("Database initialized successfully", path=str(db_path))
             return db_path

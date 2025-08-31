@@ -1,5 +1,6 @@
 """Tests for database initialization with settings integration."""
 
+import logging
 import sqlite3
 from unittest.mock import MagicMock, patch
 
@@ -208,15 +209,29 @@ class TestDatabaseSettingsIntegration:
         with patch.object(initializer, "_read_sql_file") as mock_read:
             mock_read.side_effect = mock_read_side_effect
 
-            # Initialize database with debug logging
-            with caplog.at_level("DEBUG"):
-                initializer.initialize_database(settings=settings)
+            # Get the logger and temporarily set it to DEBUG level
+            # This is necessary because caplog.at_level() only affects capture,
+            # not the actual logger level which may be set by SCRIPTRAG_LOG_LEVEL
+            from scriptrag.api.database import logger
 
-            # Check that configuration was logged
-            assert any(
-                "Database connection configured" in record.message
-                for record in caplog.records
-            )
-            assert any(
-                "journal_mode" in str(record.__dict__) for record in caplog.records
-            )
+            original_level = logger.level
+
+            try:
+                # Set logger to DEBUG level to ensure messages are generated
+                logger.setLevel(logging.DEBUG)
+
+                # Initialize database with debug logging
+                with caplog.at_level("DEBUG"):
+                    initializer.initialize_database(settings=settings)
+
+                # Check that configuration was logged
+                assert any(
+                    "Database connection configured" in record.message
+                    for record in caplog.records
+                )
+                assert any(
+                    "journal_mode" in str(record.__dict__) for record in caplog.records
+                )
+            finally:
+                # Always restore original logger level
+                logger.setLevel(original_level)

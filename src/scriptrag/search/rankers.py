@@ -288,7 +288,8 @@ class HybridRanker(SearchRanker):
             # Assign scores based on position
             max_score = len(ranked)
             for i, result in enumerate(ranked):
-                score = (max_score - i) / max_score
+                # Avoid division by zero if ranked is empty
+                score = (max_score - i) / max_score if max_score > 0 else 0
                 ranker_name = ranker.__class__.__name__
                 scores[result.scene_id][ranker_name] = score * weight
 

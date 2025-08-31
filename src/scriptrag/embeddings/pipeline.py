@@ -297,7 +297,7 @@ class EmbeddingPipeline:
             self.config.dimensions,
         )
 
-        if results and results[0].embedding:
+        if results and len(results) > 0 and results[0].embedding:
             embedding = results[0].embedding
 
             # Validate dimensions
@@ -312,7 +312,7 @@ class EmbeddingPipeline:
                 self.cache.put(processed_text, self.config.model, embedding, metadata)
 
             return embedding
-        error = results[0].error if results else "Unknown error"
+        error = results[0].error if results and len(results) > 0 else "Unknown error"
         raise ValueError(f"Failed to generate embedding: {error}")
 
     async def generate_batch(

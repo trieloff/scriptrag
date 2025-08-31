@@ -108,7 +108,7 @@ class ScriptRAGSettings(BaseSettings):
 
     # Logging settings
     log_level: str = Field(
-        default="INFO",
+        default="WARNING",
         description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
         pattern="^(?i)(DEBUG|INFO|WARNING|ERROR|CRITICAL)$",
     )
@@ -290,10 +290,11 @@ class ScriptRAGSettings(BaseSettings):
                 if os.getenv("SCRIPTRAG_DEBUG", "").lower() == "true":
                     import sys
 
-                    print(
-                        f"DEBUG: Normalizing LLM model sentinel value '{v}' to None",
-                        file=sys.stderr,
+                    # Use stderr directly since we're in a validator
+                    sys.stderr.write(
+                        f"DEBUG: Normalizing LLM model sentinel value '{v}' to None\n"
                     )
+                    sys.stderr.flush()
                 return None
         return v
 
@@ -378,14 +379,26 @@ class ScriptRAGSettings(BaseSettings):
                     file_data = file_settings.model_dump()
                     data.update(file_data)
                 except FileNotFoundError:
-                    # Log warning when config file is not found
-                    from scriptrag.config import get_logger
+                    # Import get_logger locally to avoid circular dependency
+                    # during module initialization, but still emit proper log messages
+                    try:
+                        # Try to get a logger and emit proper warning
+                        from scriptrag.config.logging import get_logger as _get_logger
 
-                    logger = get_logger(__name__)
-                    logger.warning(
-                        "Configuration file not found, using defaults",
-                        config_file=str(config_file),
-                    )
+                        logger = _get_logger("scriptrag.config.settings")
+                        logger.warning(
+                            "Configuration file not found, using defaults",
+                            config_file=str(config_file),
+                        )
+                    except ImportError:
+                        # Fallback to warnings if logging is not available
+                        import warnings
+
+                        warnings.warn(
+                            f"Config file not found: {config_file}, using defaults",
+                            UserWarning,
+                            stacklevel=2,
+                        )
                     pass
 
         # Create settings with env vars and .env file

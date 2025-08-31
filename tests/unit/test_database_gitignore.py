@@ -155,7 +155,10 @@ class TestGitignoreUpdate:
         # Ensure we can capture WARNING level logs
         import logging
 
+        # Set both caplog and the specific logger to WARNING level
         caplog.set_level(logging.WARNING)
+        # Also set the specific logger level
+        logging.getLogger("scriptrag.api.database").setLevel(logging.WARNING)
 
         # Patch the gitignore_path.open method to raise PermissionError
         with patch.object(Path, "open", side_effect=PermissionError("No write access")):

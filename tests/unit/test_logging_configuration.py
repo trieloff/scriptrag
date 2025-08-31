@@ -16,8 +16,17 @@ from scriptrag.config import (
 
 
 @pytest.fixture(autouse=True)
-def clean_logging():
+def clean_logging(monkeypatch):
     """Reset logging configuration before and after each test."""
+    # Clear environment variables that could interfere with test settings
+    monkeypatch.delenv("SCRIPTRAG_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("SCRIPTRAG_LOG_FORMAT", raising=False)
+
+    # Clear settings cache to ensure environment changes take effect
+    from scriptrag.config.settings import clear_settings_cache
+
+    clear_settings_cache()
+
     # Reset settings
     set_settings(None)
 

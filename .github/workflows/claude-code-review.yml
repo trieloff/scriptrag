@@ -256,6 +256,28 @@ jobs:
           # For workflow_dispatch or workflow_call, checkout the PR branch
           ref: ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'workflow_call') && steps.pr-info.outputs.pr_head_ref || '' }}
 
+      - name: Set up Python
+        if: (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true') && steps.check-recent-review.outputs.should_review != 'false'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv
+        if: (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true') && steps.check-recent-review.outputs.should_review != 'false'
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Setup project environment
+        if: (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true') && steps.check-recent-review.outputs.should_review != 'false'
+        run: |
+          # Create virtual environment and install dependencies
+          uv venv
+          uv sync --all-extras
+          # Activate venv for subsequent steps
+          echo "VIRTUAL_ENV=$PWD/.venv" >> $GITHUB_ENV
+          echo "$PWD/.venv/bin" >> $GITHUB_PATH
+
       - name: Run Claude Code Review
         if: (github.event_name == 'pull_request' || steps.pr-info.outputs.skip != 'true') && steps.check-recent-review.outputs.should_review != 'false'
         id: claude-review
@@ -270,6 +292,19 @@ jobs:
 
           # Optional: Specify model (defaults to Claude Sonnet 4, uncomment for Claude Opus 4)
           # model: "claude-opus-4-20250514"
+
+          # Allow Claude to run quality checks
+          allowed_tools: |
+            Bash(make lint)
+            Bash(make type-check)
+            Bash(make test-fast)
+            Bash(make check-fast)
+            Bash(make format)
+            Bash(uv run ruff check)
+            Bash(uv run mypy)
+            Bash(uv run pytest --no-cov -x)
+            Bash(git diff)
+            Bash(git status)
 
           # Dynamic prompt based on AI detection
           direct_prompt: |
@@ -358,20 +393,6 @@ jobs:
 
           # Optional: Use sticky comments to make Claude reuse the same comment on subsequent pushes to the same PR
           # use_sticky_comment: true
-          # Optional: Customize review based on file types
-          # direct_prompt: |
-          #   Review this PR focusing on:
-          #   - For TypeScript files: Type safety and proper interface usage
-          #   - For API endpoints: Security, input validation, and error handling
-          #   - For React components: Performance, accessibility, and best practices
-          #   - For tests: Coverage, edge cases, and test quality
-          # Optional: Different prompts for different authors
-          # direct_prompt: |
-          #   ${{ github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR' &&
-          #   'Welcome! Please review this PR from a first-time contributor. Be encouraging and provide detailed explanations for any suggestions.' ||
-          #   'Please provide a thorough code review focusing on our coding standards and best practices.' }}
-          # Optional: Add specific tools for running tests or linting
-          # allowed_tools: "Bash(npm run test),Bash(npm run lint),Bash(npm run typecheck)"
           # Optional: Skip review for certain conditions
           # if: |
           #   !contains(github.event.pull_request.title, '[skip-review]') &&

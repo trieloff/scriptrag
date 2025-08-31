@@ -290,10 +290,11 @@ class ScriptRAGSettings(BaseSettings):
                 if os.getenv("SCRIPTRAG_DEBUG", "").lower() == "true":
                     import sys
 
-                    print(
-                        f"DEBUG: Normalizing LLM model sentinel value '{v}' to None",
-                        file=sys.stderr,
+                    # Use stderr directly since we're in a validator
+                    sys.stderr.write(
+                        f"DEBUG: Normalizing LLM model sentinel value '{v}' to None\n"
                     )
+                    sys.stderr.flush()
                 return None
         return v
 

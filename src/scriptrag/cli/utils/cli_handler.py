@@ -48,7 +48,12 @@ class CLIHandler:
 
         if json_output:
             # Output pure JSON without ANSI escape codes
-            print(self.json_formatter.format_error_response(error, exit_code))
+            # Using stdout directly to avoid Rich formatting
+            json_output_str = self.json_formatter.format_error_response(
+                error, exit_code
+            )
+            sys.stdout.write(json_output_str + "\n")
+            sys.stdout.flush()
         else:
             if isinstance(error, ValidationError):
                 self.console.print(f"[red]Validation Error: {error_msg}[/red]")
@@ -69,7 +74,10 @@ class CLIHandler:
         """
         if json_output:
             # Output pure JSON without ANSI escape codes
-            print(self.json_formatter.format_success(message, data))
+            # Using stdout directly to avoid Rich formatting
+            json_output_str = self.json_formatter.format_success(message, data)
+            sys.stdout.write(json_output_str + "\n")
+            sys.stdout.flush()
         else:
             self.console.print(f"[green]{message}[/green]")
 

@@ -216,9 +216,9 @@ Based on empirical velocity data:
 
 | Scenario | Weekly Velocity | Remaining Work | Completion Date |
 |----------|----------------|----------------|-----------------|
-| **Optimistic** | 150 points | 617 points | September 8, 2025 |
-| **Realistic** | 120 points | 617 points | September 22, 2025 |
-| **Conservative** | 90 points | 617 points | October 6, 2025 |
+| **Optimistic** | 300 points | 1310 points | October 20, 2025 |
+| **Realistic** | 200 points | 1310 points | December 1, 2025 |
+| **Conservative** | 150 points | 1310 points | December 22, 2025 |
 
 ### Phase Completion Estimates
 

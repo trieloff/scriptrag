@@ -42,6 +42,8 @@ uv run scriptrag query "What are the main character relationships?"
 - [Installation Guide](installation.md)
 - [Configuration Guide](configuration.md)
 - [Usage Examples](usage.md)
+- [Fountain TV Format Guide](fountain-tv-format.md)
+- [Troubleshooting Guide](troubleshooting.md)
 - [API Reference](API.md)
 - [Development Setup](development.md)
 

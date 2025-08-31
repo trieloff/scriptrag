@@ -115,6 +115,12 @@ def configure_logging(settings: ScriptRAGSettings) -> None:
     # when the logger has already been configured
     logging.getLogger().setLevel(log_level)
 
+    # Also ensure all handlers are at the correct level
+    # In some environments, handlers might not be properly configured
+    for handler in logging.getLogger().handlers:
+        if handler.level > log_level:
+            handler.setLevel(log_level)
+
     # Configure structlog
     processors: list[Any] = [
         merge_contextvars,

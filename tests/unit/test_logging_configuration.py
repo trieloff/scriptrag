@@ -67,6 +67,9 @@ class TestLoggingConfiguration:
             log_format="console",
         )
 
+        # Ensure settings has the expected log level
+        assert settings.log_level == "INFO", f"Expected INFO, got {settings.log_level}"
+
         configure_logging(settings)
 
         # Get a logger and test it

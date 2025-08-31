@@ -1,12 +1,14 @@
-# Fountain Format for TV Scripts
+# ScriptRAG TV Script Format Requirements
 
-This guide explains how to properly format Fountain files for TV scripts and series to ensure ScriptRAG correctly extracts episode and season metadata.
+> **⚠️ Important Note**: This guide describes **ScriptRAG-specific requirements** for TV scripts. The `Episode:` and `Season:` fields described here are **NOT part of the official Fountain specification** but are custom extensions used by ScriptRAG for better TV series organization.
 
-## Required Title Page Format
+This guide explains how to format Fountain files for TV scripts to ensure ScriptRAG correctly extracts episode and season metadata.
 
-ScriptRAG expects TV scripts to include separate metadata fields for episode and season information in the title page. This differs from the standard Fountain format where episode information is often included as part of the title.
+## ScriptRAG-Specific Title Page Extensions
 
-### Correct Format for ScriptRAG
+While the [official Fountain specification](https://fountain.io/) does not define `Episode:` or `Season:` fields, ScriptRAG uses these custom fields to better organize TV series content. This is a **ScriptRAG convention**, not a Fountain standard.
+
+### Required Format for ScriptRAG (Non-Standard Extensions)
 
 ```fountain
 Title: Show Name - Episode Title
@@ -17,11 +19,11 @@ Episode: 1
 Season: 1
 ```
 
-### Key Requirements
+### ScriptRAG-Specific Requirements
 
-1. **Episode Number**: Must be specified as a separate `Episode:` field
-2. **Season Number**: Must be specified as a separate `Season:` field
-3. **Title**: Should contain the show name and episode title (separated by dash or colon)
+1. **Episode Number**: Must be specified as a separate `Episode:` field (ScriptRAG extension)
+2. **Season Number**: Must be specified as a separate `Season:` field (ScriptRAG extension)
+3. **Title**: Should contain the show name and episode title (standard Fountain field)
 
 ## Examples
 

@@ -81,7 +81,7 @@ ping localhost
 
 ### Commands Don't Respect Database Path
 
-**Problem**: Some commands (search, query) don't respect `--config` database path settings
+**Problem**: Most commands don't support the `--config` option for specifying database paths and other settings (Issue #241). Additionally, commands like `index` lack a `--db-path` option (Issue #243).
 
 **Workaround**:
 
@@ -89,15 +89,17 @@ ping localhost
 2. Or set environment variable:
 
    ```bash
-   export SCRIPTRAG_DB_PATH=/custom/path/scriptrag.db
+   export SCRIPTRAG_DATABASE_PATH=/custom/path/scriptrag.db
    ```
 
 **Affected Commands**:
 
-- `scriptrag search`
+- `scriptrag search` (path validation bug was fixed in #240)
 - `scriptrag query`
+- `scriptrag index` (lacks `--db-path` option)
+- Most other commands (no `--config` support)
 
-**Related Issues**: #240, #241, #243
+**Related Issues**: See #240 (search/query path validation bug - now fixed), #241 (config file support), #243 (index command database path)
 
 ## LLM Setup and Connection
 
@@ -250,19 +252,42 @@ scriptrag index tv-series/**/*.fountain
 
 ### Validation Script
 
-```bash
-#!/bin/bash
-# validate-fountain.sh
-file="$1"
-if [[ ! "$file" =~ \.fountain$ ]]; then
-    echo "Error: File must have .fountain extension"
-    exit 1
-fi
-if ! file -b --mime "$file" | grep -q "utf-8"; then
-    echo "Error: File must be UTF-8 encoded"
-    exit 1
-fi
-echo "File appears valid"
+```python
+#!/usr/bin/env python3
+# validate-fountain.py
+import sys
+from pathlib import Path
+
+def validate_fountain(filepath):
+    path = Path(filepath)
+
+    # Check extension
+    if not path.suffix == '.fountain':
+        print(f"Error: File must have .fountain extension, got {path.suffix}")
+        return False
+
+    # Check if file exists
+    if not path.exists():
+        print(f"Error: File {filepath} does not exist")
+        return False
+
+    # Check encoding
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            f.read()
+        print("File appears valid")
+        return True
+    except UnicodeDecodeError:
+        print("Error: File must be UTF-8 encoded")
+        return False
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python validate-fountain.py <file.fountain>")
+        sys.exit(1)
+
+    if not validate_fountain(sys.argv[1]):
+        sys.exit(1)
 ```
 
 ## Performance Issues
@@ -442,10 +467,7 @@ python -c "import yaml; yaml.safe_load(open('config.yaml'))"
 3. **Database Path**: Must be absolute path, not relative
    - Example: `/home/user/scriptrag.db` not `./scriptrag.db`
 
-4. **Token System**: Authentication tokens expire after 10 minutes
-   - Solution: Re-authenticate when needed
-
-5. **LLM Rate Limits**: Some providers have strict rate limits
+4. **LLM Rate Limits**: Some providers have strict rate limits
    - Solution: Use `--batch-size` to control request rate
 
 ### Platform-Specific Issues

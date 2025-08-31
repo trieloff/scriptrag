@@ -82,7 +82,7 @@ class TestSettingsIntegration:
         settings = ScriptRAGSettings(_env_file=None)
 
         # Check logging settings
-        assert settings.log_level == "INFO"
+        assert settings.log_level == "WARNING"
         assert settings.log_format == "console"
         assert settings.log_file is None
         assert settings.log_file_rotation == "1 day"

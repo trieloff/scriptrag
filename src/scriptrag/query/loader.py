@@ -53,7 +53,7 @@ class QueryLoader:
         if env_dir:
             env_path = Path(env_dir)
             if env_path.exists() and env_path.is_dir():
-                logger.info(f"Using query directory from env: {env_path}")
+                logger.debug(f"Using query directory from env: {env_path}")
                 return env_path
             logger.warning(f"SCRIPTRAG_QUERY_DIR set but path doesn't exist: {env_dir}")
             # Fall back to resolver/default behavior
@@ -109,7 +109,7 @@ class QueryLoader:
             if query_dir.exists() and query_dir.is_dir():
                 # Only use the environment-specified directory
                 sql_files = list(query_dir.glob("*.sql"))
-                logger.info(f"Found {len(sql_files)} SQL files in {query_dir}")
+                logger.debug(f"Found {len(sql_files)} SQL files in {query_dir}")
             else:
                 logger.warning(
                     f"SCRIPTRAG_QUERY_DIR set but path doesn't exist: {env_dir}"
@@ -120,7 +120,7 @@ class QueryLoader:
             # Use only that directory
             if self._query_dir.exists() and self._query_dir.is_dir():
                 sql_files = list(self._query_dir.glob("*.sql"))
-                logger.info(f"Found {len(sql_files)} SQL files in {self._query_dir}")
+                logger.debug(f"Found {len(sql_files)} SQL files in {self._query_dir}")
             else:
                 # Query directory doesn't exist, return empty list
                 logger.warning(f"Query directory doesn't exist: {self._query_dir}")
@@ -128,7 +128,7 @@ class QueryLoader:
         else:
             # Discover all SQL files using the resolver from multiple sources
             sql_files = self._resolver.discover_files(pattern="*.sql")
-            logger.info(f"Found {len(sql_files)} SQL files across search directories")
+            logger.debug(f"Found {len(sql_files)} SQL files across search directories")
 
         for sql_file in sql_files:
             try:
@@ -146,7 +146,7 @@ class QueryLoader:
 
         # Update cache
         self._cache = queries
-        logger.info(f"Loaded {len(queries)} queries")
+        logger.debug(f"Loaded {len(queries)} queries")
 
         return queries
 

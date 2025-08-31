@@ -429,17 +429,84 @@ class ScriptRAGSettings(BaseSettings):
 
 # Global settings instance
 _settings: ScriptRAGSettings | None = None
+# Cache for config file paths that exist
+_config_paths_cache: list[Path | str] | None = None
+
+
+def _get_config_paths() -> list[Path | str]:
+    """Get list of config file paths to check.
+
+    Returns paths in priority order (later files override earlier).
+    Caches the list of existing config files to avoid repeated filesystem checks.
+    """
+    global _config_paths_cache
+
+    if _config_paths_cache is not None:
+        return _config_paths_cache
+
+    # Define all potential config paths in priority order
+    # Based on documented hierarchy in src/scriptrag/config/CLAUDE.md
+    potential_paths = [
+        # System config
+        Path("/etc/scriptrag/config.yaml"),
+        Path("/etc/scriptrag/config.json"),
+        Path("/etc/scriptrag/config.toml"),
+        # User config in home directory
+        Path.home() / ".scriptrag" / "config.yaml",
+        Path.home() / ".scriptrag" / "config.json",
+        Path.home() / ".scriptrag" / "config.toml",
+        # User config in .config directory (XDG standard)
+        Path.home() / ".config" / "scriptrag" / "config.yaml",
+        Path.home() / ".config" / "scriptrag" / "config.json",
+        Path.home() / ".config" / "scriptrag" / "config.toml",
+        # Project config in current directory
+        Path.cwd() / ".scriptrag" / "config.yaml",
+        Path.cwd() / ".scriptrag" / "config.json",
+        Path.cwd() / ".scriptrag" / "config.toml",
+        # Alternative project config names
+        Path.cwd() / "scriptrag.yaml",
+        Path.cwd() / "scriptrag.json",
+        Path.cwd() / "scriptrag.toml",
+    ]
+
+    # Filter to only existing files to avoid unnecessary warnings
+    existing_paths: list[Path | str] = []
+    for path in potential_paths:
+        try:
+            if path.exists() and path.is_file():
+                existing_paths.append(path)
+        except (OSError, PermissionError):
+            # Skip paths we can't access
+            continue
+
+    # Cache the result
+    _config_paths_cache = existing_paths
+    return existing_paths
 
 
 def get_settings() -> ScriptRAGSettings:
     """Get the global settings instance.
+
+    Loads configuration from multiple sources with proper precedence:
+    1. Environment variables (highest priority)
+    2. Config files (in order: system, user, project)
+    3. Default values (lowest priority)
 
     Returns:
         Global ScriptRAGSettings instance.
     """
     global _settings
     if _settings is None:
-        _settings = ScriptRAGSettings.from_env()
+        config_paths = _get_config_paths()
+
+        if config_paths:
+            # Load from existing config files
+            _settings = ScriptRAGSettings.from_multiple_sources(
+                config_files=config_paths
+            )
+        else:
+            # No config files found, load from environment only
+            _settings = ScriptRAGSettings.from_env()
     return _settings
 
 
@@ -460,8 +527,9 @@ def clear_settings_cache() -> None:
     and configuration files on the next call. Useful for testing
     when environment variables are changed via monkeypatch.
     """
-    global _settings
+    global _settings, _config_paths_cache
     _settings = None
+    _config_paths_cache = None
 
 
 def reset_settings() -> None:
@@ -472,3 +540,65 @@ def reset_settings() -> None:
     """
     # Alias to clear_settings_cache for backwards compatibility
     clear_settings_cache()
+
+
+def get_settings_for_cli(
+    config_file: Path | None = None,
+    cli_overrides: dict[str, Any] | None = None,
+) -> ScriptRAGSettings:
+    """Get settings for CLI commands with consistent precedence.
+
+    This is the standard way for CLI commands to load settings. It ensures
+    consistent behavior across all commands with proper precedence:
+    1. CLI arguments (highest priority)
+    2. Specified config file OR standard config locations
+    3. Environment variables
+    4. Default values (lowest priority)
+
+    Args:
+        config_file: Optional specific config file to load. If not provided,
+                    uses standard config locations.
+        cli_overrides: Dictionary of CLI argument overrides (e.g., db_path).
+                      Only non-None values are applied.
+
+    Returns:
+        ScriptRAGSettings instance with all sources merged.
+
+    Raises:
+        FileNotFoundError: If config_file is specified but doesn't exist.
+
+    Example:
+        # In a CLI command
+        settings = get_settings_for_cli(
+            config_file=config,  # From --config option
+            cli_overrides={"database_path": db_path} if db_path else None
+        )
+    """
+    if config_file:
+        # User specified a config file explicitly
+        if not config_file.exists():
+            raise FileNotFoundError(f"Config file not found: {config_file}")
+
+        # Use the specified file with CLI overrides
+        settings = ScriptRAGSettings.from_multiple_sources(
+            config_files=[config_file],
+            cli_args=cli_overrides,
+        )
+    else:
+        # No config file specified, use standard locations
+        # get_settings() already handles all standard paths efficiently
+        settings = get_settings()
+
+        # Apply CLI overrides if any
+        if cli_overrides:
+            # Filter out None values
+            filtered_overrides = {
+                k: v for k, v in cli_overrides.items() if v is not None
+            }
+            if filtered_overrides:
+                # Create new instance with overrides
+                data = settings.model_dump()
+                data.update(filtered_overrides)
+                settings = ScriptRAGSettings(**data)
+
+    return settings

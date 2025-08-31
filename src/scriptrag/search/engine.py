@@ -406,15 +406,20 @@ class SearchEngine:
             rows = cursor.fetchall()
 
             # Count query (without LIMIT/OFFSET)
-            count_sql = (
-                " ".join(sql_parts[:-2])
-                .replace(
-                    "SELECT s.id AS script_id",
-                    "SELECT COUNT(*) as total",
-                )
-                .split("FROM")[1]
+            full_sql = " ".join(sql_parts[:-2])
+            # Replace SELECT clause with COUNT(*)
+            full_sql = full_sql.replace(
+                "SELECT s.id AS script_id",
+                "SELECT COUNT(*) as total",
             )
-            count_sql = "SELECT COUNT(*) as total FROM " + count_sql
+            # Extract FROM clause safely
+            from_parts = full_sql.split("FROM")
+            if len(from_parts) > 1:
+                count_sql = "SELECT COUNT(*) as total FROM " + from_parts[1]
+            else:
+                # Fallback if FROM not found (shouldn't happen with valid SQL)
+                logger.warning("Could not extract FROM clause for count query")
+                count_sql = full_sql
             count_cursor = conn.execute(count_sql, params)
             count_result = count_cursor.fetchone()
             bible_total_count = count_result["total"] if count_result else 0

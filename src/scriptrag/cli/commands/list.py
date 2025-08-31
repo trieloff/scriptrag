@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.table import Table
 
 from scriptrag.api import ScriptLister
-from scriptrag.api.list import FountainMetadata
+from scriptrag.api.sorting import sort_scripts
 
 console = Console()
 
@@ -79,15 +79,8 @@ def list_command(
             )
             return
 
-        # Group scripts by title for series detection
-        series_map: dict[str, list[FountainMetadata]] = {}
-        standalone_scripts = []
-
-        for script in scripts:
-            if script.title and script.is_series:
-                series_map.setdefault(script.title, []).append(script)
-            else:
-                standalone_scripts.append(script)
+        # Sort all scripts using the unified sorting function
+        sorted_scripts = sort_scripts(scripts)
 
         # Create output table
         table = Table(title="Fountain Scripts", show_lines=True)
@@ -97,30 +90,13 @@ def list_command(
         table.add_column("Season", style="yellow", justify="center")
         table.add_column("File", style="blue", no_wrap=False)
 
-        # Add series scripts first (grouped by title)
-        for _title, episodes in sorted(series_map.items()):
-            # Sort episodes by season and episode number
-            episodes.sort(key=lambda x: (x.season_number or 0, x.episode_number or 0))
-            for script in episodes:
-                table.add_row(
-                    script.title or script.file_path.stem,
-                    script.author or "-",
-                    str(script.episode_number) if script.episode_number else "-",
-                    str(script.season_number) if script.season_number else "-",
-                    (
-                        str(script.file_path.relative_to(Path.cwd()))
-                        if script.file_path.is_relative_to(Path.cwd())
-                        else str(script.file_path)
-                    ),
-                )
-
-        # Add standalone scripts
-        for script in sorted(standalone_scripts, key=lambda x: x.display_title):
+        # Add all scripts in sorted order
+        for script in sorted_scripts:
             table.add_row(
                 script.title or script.file_path.stem,
                 script.author or "-",
-                "-",
-                "-",
+                str(script.episode_number) if script.episode_number else "-",
+                str(script.season_number) if script.season_number else "-",
                 (
                     str(script.file_path.relative_to(Path.cwd()))
                     if script.file_path.is_relative_to(Path.cwd())

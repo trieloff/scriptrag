@@ -131,11 +131,7 @@ class MarkdownAgentAnalyzer(BaseSceneAnalyzer):
             # No validation needed for non-LLM agents since they don't generate content
             result = {}
 
-        # Add metadata
-        result["analyzer"] = self.name
-        result["version"] = self.version
-        result["property"] = self.name  # Property is same as name
-
+        # Don't add metadata here - it will be added at the API level
         return result
 
     async def _execute_context_query(self, scene: dict[str, Any]) -> dict[str, Any]:

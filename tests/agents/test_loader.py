@@ -389,9 +389,6 @@ class TestMarkdownAgentAnalyzer:
             result = await analyzer.analyze(scene)
 
             assert result["result"] == "analyzed"
-            assert result["analyzer"] == "test-analyzer"
-            assert result["version"] == "2.0.0"
-            assert result["property"] == "test-analyzer"  # Property is same as name
             mock_client.complete.assert_called_once()
             mock_execute.assert_called_once()
 
@@ -415,10 +412,8 @@ class TestMarkdownAgentAnalyzer:
         scene = {"text": "Test scene"}
         result = await analyzer.analyze(scene)
 
-        # Without LLM, should return empty result with metadata
-        assert result["analyzer"] == "no-llm"
-        assert result["version"] == "1.0.0"
-        assert result["property"] == "no-llm"  # Property is same as name
+        # Without LLM, should return empty result
+        assert result == {}
 
     @pytest.mark.asyncio
     async def test_analyze_llm_not_initialized(self, sample_spec: AgentSpec) -> None:

@@ -118,9 +118,16 @@ class TestAnalyzeCommand:
 
     def test_from_config(self) -> None:
         """Test creating AnalyzeCommand from config."""
+        # Test with auto-loading enabled (default)
         command = AnalyzeCommand.from_config()
         assert isinstance(command, AnalyzeCommand)
-        assert len(command.analyzers) == 0
+        # Should have auto-loaded analyzers (relationships + markdown agents)
+        assert len(command.analyzers) > 0
+
+        # Test with auto-loading disabled
+        command_no_auto = AnalyzeCommand.from_config(auto_load_analyzers=False)
+        assert isinstance(command_no_auto, AnalyzeCommand)
+        assert len(command_no_auto.analyzers) == 0
 
     def test_register_analyzer(self) -> None:
         """Test registering an analyzer class."""

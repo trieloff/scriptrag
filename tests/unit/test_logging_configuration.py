@@ -212,6 +212,94 @@ class TestLoggingConfiguration:
             expected_level = getattr(logging, level)
             assert root_logger.level == expected_level
 
+    def test_invalid_log_level_raises_value_error(self):
+        """Test that an invalid log level raises a helpful ValueError.
+
+        This tests the bug fix where getattr(logging, invalid_level) would
+        raise an AttributeError. Now it should raise a ValueError with a
+        helpful message listing valid levels.
+        """
+        # Test Case 1: Direct instantiation with invalid log level bypassing validation
+        # This simulates scenarios where settings might be created programmatically
+        settings = ScriptRAGSettings.__new__(ScriptRAGSettings)
+        object.__setattr__(settings, "log_level", "INVALID_LEVEL")
+        object.__setattr__(settings, "log_format", "console")
+        object.__setattr__(settings, "log_file", None)
+        object.__setattr__(settings, "debug", False)
+
+        # Should raise ValueError with helpful message
+        with pytest.raises(ValueError) as exc_info:
+            configure_logging(settings)
+
+        # Check the error message contains helpful information
+        error_msg = str(exc_info.value)
+        assert "Invalid log level 'INVALID_LEVEL'" in error_msg
+
+        # Verify it includes dynamically fetched valid levels from logging module
+        import logging as log_module
+
+        for level_name in log_module._nameToLevel:
+            if not level_name.startswith("_"):
+                assert level_name in error_msg, f"Missing {level_name} in error message"
+
+    def test_log_level_case_insensitive_handling(self):
+        """Test that log levels work correctly regardless of case.
+
+        This verifies defensive programming where .upper() is called
+        even if the validator should have normalized the value.
+        """
+        # Test Case 1: Normal flow with lowercase input (validator normalizes)
+        settings = ScriptRAGSettings(log_level="debug")
+        # After validation, it should be uppercase
+        assert settings.log_level == "DEBUG"
+        configure_logging(settings)
+        root_logger = logging.getLogger()
+        assert root_logger.level == logging.DEBUG
+
+        # Test Case 2: Settings with lowercase bypassing validation
+        # This simulates edge cases where validation might be bypassed
+        settings_bypassed = ScriptRAGSettings.__new__(ScriptRAGSettings)
+        object.__setattr__(settings_bypassed, "log_level", "info")
+        object.__setattr__(settings_bypassed, "log_format", "console")
+        object.__setattr__(settings_bypassed, "log_file", None)
+        object.__setattr__(settings_bypassed, "debug", False)
+
+        # Should still work thanks to defensive .upper() call
+        configure_logging(settings_bypassed)
+        root_logger = logging.getLogger()
+        assert root_logger.level == logging.INFO
+
+    def test_dynamic_valid_levels_in_error_message(self):
+        """Test that error messages use dynamically fetched valid levels.
+
+        This ensures we don't hard-code valid levels and the error message
+        always reflects the actual levels available in the logging module.
+        """
+        # Create settings with invalid log level bypassing validation
+        settings = ScriptRAGSettings.__new__(ScriptRAGSettings)
+        object.__setattr__(settings, "log_level", "NOT_A_LEVEL")
+        object.__setattr__(settings, "log_format", "console")
+        object.__setattr__(settings, "log_file", None)
+        object.__setattr__(settings, "debug", False)
+
+        with pytest.raises(ValueError) as exc_info:
+            configure_logging(settings)
+
+        error_msg = str(exc_info.value)
+
+        # Verify the error message format
+        assert "Invalid log level 'NOT_A_LEVEL'" in error_msg
+        assert "Valid levels are:" in error_msg
+
+        # Verify it lists levels in sorted order
+        import logging as log_module
+
+        expected_levels = sorted(
+            [name for name in log_module._nameToLevel if not name.startswith("_")]
+        )
+        levels_str = ", ".join(expected_levels)
+        assert levels_str in error_msg
+
     def test_get_logger_auto_configures(self):
         """Test that get_logger automatically configures logging."""
         # Reset the module-level flag

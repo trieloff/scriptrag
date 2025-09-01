@@ -4,11 +4,43 @@
 
 This guide explains how to format Fountain files for TV scripts to ensure ScriptRAG correctly extracts episode and season metadata.
 
-## ScriptRAG-Specific Title Page Extensions
+## Official Fountain vs ScriptRAG Extensions
 
-While the [official Fountain specification](https://fountain.io/) does not define `Episode:` or `Season:` fields, ScriptRAG uses these custom fields to better organize TV series content. This is a **ScriptRAG convention**, not a Fountain standard.
+### Official Fountain Title Page Fields
 
-### Required Format for ScriptRAG (Non-Standard Extensions)
+The [official Fountain specification](https://fountain.io/syntax#section-titlepage) defines these standard title page fields:
+
+- **Title**: The title of the screenplay
+- **Credit**: (e.g., "Written by")
+- **Author** (or Authors): The writer's name(s)
+- **Source**: Based on what existing work, if any
+- **Draft date**: Date of the current draft
+- **Contact**: Contact information
+
+### ScriptRAG-Specific Extensions (Non-Standard)
+
+ScriptRAG adds these **custom fields** specifically for TV series organization:
+
+- **Episode**: Episode number (e.g., `Episode: 1`)
+- **Season**: Season number (e.g., `Season: 1`)
+
+These fields are **NOT recognized by standard Fountain parsers** and are unique to ScriptRAG. They enable better organization and tracking of TV series scripts within the ScriptRAG system.
+
+## Why ScriptRAG Uses These Extensions
+
+ScriptRAG uses Episode and Season fields to:
+
+1. **Uniquely identify TV episodes** in a series
+2. **Track character arcs** across episodes and seasons
+3. **Analyze pacing and structure** within a series context
+4. **Enable filtering and searching** by season/episode
+5. **Support Git-native workflows** by tracking episode changes across versions
+
+These fields integrate seamlessly with ScriptRAG's Git-native architecture, allowing writers to track the evolution of individual episodes through version control while maintaining series-wide context. While these fields won't affect how your script renders in other Fountain tools, they provide essential metadata for ScriptRAG's analysis features.
+
+## Required Format for ScriptRAG
+
+### Example with ScriptRAG Extensions
 
 ```fountain
 Title: Show Name - Episode Title
@@ -19,7 +51,7 @@ Episode: 1
 Season: 1
 ```
 
-### ScriptRAG-Specific Requirements
+### Key Requirements for TV Scripts in ScriptRAG
 
 1. **Episode Number**: Must be specified as a separate `Episode:` field (ScriptRAG extension)
 2. **Season Number**: Must be specified as a separate `Season:` field (ScriptRAG extension)
@@ -144,8 +176,29 @@ If you have existing Fountain files in the standard format, you can update them 
 2. Keeping the episode title in the main `Title:` field for clarity
 3. Re-indexing the updated files
 
+## Script Portability Considerations
+
+### Exporting Scripts
+
+When exporting scripts from ScriptRAG for use in other Fountain tools:
+
+- The `Episode:` and `Season:` fields will be preserved in the title page
+- Most Fountain parsers will simply ignore these unknown fields
+- The script will render normally in other tools
+- No script content or formatting is affected
+
+### Importing Scripts
+
+When importing standard Fountain scripts into ScriptRAG:
+
+- Scripts without Episode/Season fields will work fine
+- The Season/Episode columns will show "-" in the index
+- You can add these fields manually if needed for TV series organization
+- All standard Fountain formatting is fully supported
+
 ## Additional Resources
 
-- [Fountain Format Specification](https://fountain.io/)
+- [Official Fountain Format Specification](https://fountain.io/syntax)
+- [Fountain Title Page Documentation](https://fountain.io/syntax#section-titlepage)
 - [ScriptRAG Usage Guide](usage.md)
 - [Troubleshooting Guide](troubleshooting.md)

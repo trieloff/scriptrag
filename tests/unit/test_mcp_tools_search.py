@@ -230,7 +230,7 @@ class TestRegisterSearchTool:
                     "parenthetical": "(whispering)",
                     "location": "OFFICE",
                     "project": "Test Project",
-                    "range": "s1e1-s1e5",
+                    "scene_range": "s1e1-s1e5",
                     "fuzzy": False,
                     "strict": True,
                     "limit": 25,

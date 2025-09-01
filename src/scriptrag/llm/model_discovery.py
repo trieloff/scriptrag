@@ -154,7 +154,7 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
                 name: str = model_info.get("display_name") or model_id
 
                 # Default capabilities for Claude models
-                capabilities: list[str] = ["completion", "chat"]
+                capabilities: list[str] = ["chat", "json"]
 
                 # Default context window and output tokens for Claude models
                 # These may need adjustment based on actual API response
@@ -239,15 +239,15 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
                     if isinstance(model_info, dict):
                         name = model_info.get("name") or model_id
                         capabilities = model_info.get("capabilities") or [
-                            "completion",
                             "chat",
+                            "json",
                         ]
                         context_window = model_info.get("context_window") or 200000
                         max_output = model_info.get("max_tokens") or 8192
                     else:
                         # Simple value, use defaults
                         name = model_id
-                        capabilities = ["completion", "chat"]
+                        capabilities = ["chat", "json"]
                         context_window = 200000
                         max_output = 8192
 
@@ -425,12 +425,20 @@ class GitHubModelsDiscovery(ModelDiscovery):
                 )  # e.g. "Cohere-embed-v3-english"
             ):
                 capabilities = ["embedding"]
+            # GPT-4o models support JSON schema structured outputs
+            # (only gpt-4o, not gpt-4o-mini according to GitHub Models docs)
+            elif "gpt-4o" in model_id_lower and "mini" not in model_id_lower:
+                capabilities = ["chat", "json"]
+                logger.debug(
+                    f"Model {model_id} supports JSON schema structured outputs",
+                    capabilities=capabilities,
+                )
             # Common chat/completion model families
             elif any(
                 term in model_id_lower
                 for term in ["gpt", "llama", "claude", "mistral", "phi", "cohere"]
             ):
-                capabilities = ["completion", "chat"]
+                capabilities = ["chat"]
             # Default conservatively to chat for other supported patterns
             if not capabilities:
                 capabilities = ["chat"]

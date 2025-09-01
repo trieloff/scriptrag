@@ -75,7 +75,7 @@ async def test_analyze_relationships_persists_scene_metadata(tmp_path: Path) -> 
         conn.commit()
 
     # Run analyze with relationships analyzer
-    analyze_cmd = AnalyzeCommand.from_config()
+    analyze_cmd = AnalyzeCommand.from_config(auto_load_analyzers=False)
     analyze_cmd.load_analyzer("relationships")
     res2 = await analyze_cmd.analyze(script_path.parent, recursive=False, brittle=True)
     assert res2.total_files_updated >= 1

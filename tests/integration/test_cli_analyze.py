@@ -226,7 +226,7 @@ class TestAnalyzeCommand:
         )
 
         # Patch the AnalyzeCommand.from_config
-        def mock_from_config():
+        def mock_from_config(auto_load_analyzers: bool = True):
             return mock_analyze_cmd
 
         import scriptrag.api.analyze
@@ -280,7 +280,7 @@ class TestAnalyzeCommand:
             spec=["content", "model", "provider", "usage"]
         )
 
-        def mock_from_config():
+        def mock_from_config(auto_load_analyzers: bool = True):
             return mock_analyze_cmd
 
         import scriptrag.api.analyze
@@ -314,7 +314,7 @@ class TestAnalyzeCommand:
             spec=["content", "model", "provider", "usage"]
         )
 
-        def mock_from_config():
+        def mock_from_config(auto_load_analyzers: bool = True):
             return mock_analyze_cmd
 
         import scriptrag.api.analyze
@@ -359,7 +359,7 @@ class TestAnalyzeCommand:
             spec=["content", "model", "provider", "usage"]
         )
 
-        def mock_from_config():
+        def mock_from_config(auto_load_analyzers: bool = True):
             return mock_analyze_cmd
 
         monkeypatch.setattr(
@@ -399,7 +399,7 @@ class TestAnalyzeCommand:
             spec=["content", "model", "provider", "usage"]
         )
 
-        def mock_from_config():
+        def mock_from_config(auto_load_analyzers: bool = True):
             return mock_analyze_cmd
 
         import scriptrag.api.analyze

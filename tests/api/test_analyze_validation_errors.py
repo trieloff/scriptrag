@@ -161,4 +161,4 @@ Come in, John.
                 # Verify success analyzer data is clean
                 success_data = metadata["analyzers"]["success_agent"]
                 assert "error" not in success_data
-                assert "version" in success_data["result"]
+                assert "version" in success_data

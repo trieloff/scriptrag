@@ -212,6 +212,54 @@ class TestLoggingConfiguration:
             expected_level = getattr(logging, level)
             assert root_logger.level == expected_level
 
+    def test_invalid_log_level_raises_value_error(self):
+        """Test that an invalid log level raises a helpful ValueError.
+
+        This tests the bug fix where getattr(logging, invalid_level) would
+        raise an AttributeError. Now it should raise a ValueError with a
+        helpful message listing valid levels.
+        """
+        from unittest.mock import MagicMock
+
+        # Create a settings object with an invalid log level
+        # We need to bypass validation, so we'll mock the settings
+        settings = MagicMock(spec=ScriptRAGSettings)
+        settings.log_level = "INVALID_LEVEL"
+        settings.log_format = "console"
+        settings.log_file = None
+        settings.debug = False
+
+        # Should raise ValueError with helpful message
+        with pytest.raises(ValueError) as exc_info:
+            configure_logging(settings)
+
+        # Check the error message contains helpful information
+        error_msg = str(exc_info.value)
+        assert "Invalid log level 'INVALID_LEVEL'" in error_msg
+        assert "DEBUG" in error_msg
+        assert "INFO" in error_msg
+        assert "WARNING" in error_msg
+        assert "ERROR" in error_msg
+        assert "CRITICAL" in error_msg
+
+    def test_log_level_already_uppercase(self):
+        """Test that log levels already normalized to uppercase work correctly.
+
+        This verifies the fix where we were redundantly calling .upper() on
+        log_level that was already normalized by the validator.
+        """
+        # The validator should have already normalized this to uppercase
+        settings = ScriptRAGSettings(log_level="debug")
+
+        # After validation, it should be uppercase
+        assert settings.log_level == "DEBUG"
+
+        # Configure logging should work without calling .upper() again
+        configure_logging(settings)
+
+        root_logger = logging.getLogger()
+        assert root_logger.level == logging.DEBUG
+
     def test_get_logger_auto_configures(self):
         """Test that get_logger automatically configures logging."""
         # Reset the module-level flag

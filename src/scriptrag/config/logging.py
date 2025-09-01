@@ -33,9 +33,21 @@ def configure_logging(settings: ScriptRAGSettings) -> None:
 
     Args:
         settings: Application settings containing logging configuration.
+
+    Raises:
+        ValueError: If the log level is invalid or not found in the logging module.
     """
     # Configure standard library logging
-    log_level = getattr(logging, settings.log_level.upper())
+    # Note: settings.log_level is already normalized to uppercase by the validator
+    try:
+        log_level = getattr(logging, settings.log_level)
+    except AttributeError as e:
+        # Provide a helpful error message if an invalid log level somehow gets through
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        raise ValueError(
+            f"Invalid log level '{settings.log_level}'. "
+            f"Valid levels are: {', '.join(valid_levels)}"
+        ) from e
 
     # Create formatters based on settings
     if settings.log_format == "json":

@@ -67,23 +67,85 @@ class AnalyzeCommand:
         self._analyzer_registry: dict[str, type[SceneAnalyzer | BaseSceneAnalyzer]] = {}
 
     @classmethod
-    def from_config(cls) -> AnalyzeCommand:
+    def from_config(cls, auto_load_analyzers: bool = True) -> AnalyzeCommand:
         """Create AnalyzeCommand instance from configuration settings.
 
         Factory method that creates a properly initialized AnalyzeCommand
-        using the current ScriptRAG configuration. Currently returns a
-        basic instance, but could be extended to load analyzers from
-        configuration in the future.
+        using the current ScriptRAG configuration. By default, auto-discovers
+        and loads all available analyzers (both code-based and markdown agents).
+
+        Args:
+            auto_load_analyzers: Whether to automatically load all available
+                analyzers. Set to False for explicit analyzer control.
 
         Returns:
-            New AnalyzeCommand instance ready for use
+            New AnalyzeCommand instance with analyzers loaded
 
         Example:
             >>> command = AnalyzeCommand.from_config()
+            >>> # All analyzers are already loaded
+            >>> result = await command.analyze()
+
+            >>> # Or disable auto-loading for manual control
+            >>> command = AnalyzeCommand.from_config(auto_load_analyzers=False)
             >>> command.load_analyzer("relationships")
             >>> result = await command.analyze()
         """
-        return cls()
+        instance = cls()
+
+        if auto_load_analyzers:
+            # Load lightweight built-in code-based analyzers
+            # Skip heavy analyzers like embeddings for default auto-loading
+            try:
+                from scriptrag.analyzers.builtin import BUILTIN_ANALYZERS
+
+                # Only auto-load lightweight analyzers by default
+                # Embeddings analyzer is resource-intensive, load explicitly
+                lightweight_analyzers = ["relationships"]
+
+                for analyzer_name, analyzer_class in BUILTIN_ANALYZERS.items():
+                    if analyzer_name in lightweight_analyzers:
+                        try:
+                            instance.analyzers.append(analyzer_class())
+                            logger.info(
+                                f"Auto-loaded built-in analyzer: {analyzer_name}"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to load analyzer '{analyzer_name}': {e}"
+                            )
+            except ImportError as e:
+                logger.warning(f"Could not import built-in analyzers: {e}")
+
+            # Auto-discover and load ALL markdown-based agents
+            try:
+                from pathlib import Path
+
+                from scriptrag.agents import MarkdownAgentAnalyzer
+                from scriptrag.agents.agent_spec import AgentSpec
+
+                # Find all markdown agents in the builtin directory
+                agents_dir = Path(__file__).parent.parent / "agents" / "builtin"
+                if agents_dir.exists():
+                    for agent_file in agents_dir.glob("*.md"):
+                        # Skip CLAUDE.md and other documentation files
+                        if agent_file.stem.upper() == agent_file.stem:
+                            continue
+
+                        try:
+                            spec = AgentSpec.from_markdown(agent_file)
+                            analyzer = MarkdownAgentAnalyzer(spec)
+                            instance.analyzers.append(analyzer)
+                            logger.info(f"Auto-loaded markdown agent: {spec.name}")
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to load markdown agent "
+                                f"'{agent_file.name}': {e}"
+                            )
+            except ImportError as e:
+                logger.warning(f"Could not import markdown agent components: {e}")
+
+        return instance
 
     def register_analyzer(self, name: str, analyzer_class: type[SceneAnalyzer]) -> None:
         """Register an analyzer class for dynamic loading.

@@ -98,9 +98,11 @@ def analyze_command(
             # but loaded for validation purposes
 
         # Initialize components
-        analyze_cmd = AnalyzeCommand.from_config()
+        # If user explicitly specifies analyzers, disable auto-loading
+        auto_load = analyzer is None or len(analyzer) == 0
+        analyze_cmd = AnalyzeCommand.from_config(auto_load_analyzers=auto_load)
 
-        # Load requested analyzers
+        # Load requested analyzers (if specified)
         if analyzer:
             for analyzer_name in analyzer:
                 try:

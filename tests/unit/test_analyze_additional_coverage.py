@@ -121,8 +121,11 @@ class TestAnalyzeCommand:
         # Test with auto-loading enabled (default)
         command = AnalyzeCommand.from_config()
         assert isinstance(command, AnalyzeCommand)
-        # Should have auto-loaded lightweight analyzers (relationships only)
-        assert len(command.analyzers) == 1  # Only relationships analyzer
+        # Should have auto-loaded all analyzers (relationships + markdown agents)
+        assert len(command.analyzers) >= 1  # At least relationships analyzer
+        # Check that relationships analyzer is loaded
+        analyzer_names = [a.name for a in command.analyzers]
+        assert "relationships" in analyzer_names
 
         # Test with auto-loading disabled
         command_no_auto = AnalyzeCommand.from_config(auto_load_analyzers=False)

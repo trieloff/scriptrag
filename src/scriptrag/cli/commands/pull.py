@@ -113,6 +113,15 @@ def pull_command(
         console.print("\n[cyan]Step 1: Analyzing Fountain files...[/cyan]")
         analyze_cmd = AnalyzeCommand.from_config()
 
+        # Load default analyzers - relationships analyzer for character interactions
+        # Only load if not in dry-run mode (analyzers may require resources)
+        if not dry_run:
+            try:
+                analyze_cmd.load_analyzer("relationships")
+                logger.debug("Loaded relationships analyzer")
+            except Exception as e:
+                logger.warning(f"Failed to load relationships analyzer: {e}")
+
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),

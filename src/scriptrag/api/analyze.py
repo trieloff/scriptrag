@@ -94,18 +94,26 @@ class AnalyzeCommand:
         instance = cls()
 
         if auto_load_analyzers:
-            # Load all built-in code-based analyzers
+            # Load lightweight built-in code-based analyzers
+            # Skip heavy analyzers like embeddings for default auto-loading
             try:
                 from scriptrag.analyzers.builtin import BUILTIN_ANALYZERS
 
+                # Only auto-load lightweight analyzers by default
+                # Embeddings analyzer is resource-intensive, load explicitly
+                lightweight_analyzers = ["relationships"]
+
                 for analyzer_name, analyzer_class in BUILTIN_ANALYZERS.items():
-                    try:
-                        instance.analyzers.append(analyzer_class())
-                        logger.info(f"Auto-loaded built-in analyzer: {analyzer_name}")
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to load built-in analyzer '{analyzer_name}': {e}"
-                        )
+                    if analyzer_name in lightweight_analyzers:
+                        try:
+                            instance.analyzers.append(analyzer_class())
+                            logger.info(
+                                f"Auto-loaded built-in analyzer: {analyzer_name}"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to load analyzer '{analyzer_name}': {e}"
+                            )
             except ImportError as e:
                 logger.warning(f"Could not import built-in analyzers: {e}")
 

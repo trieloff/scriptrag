@@ -363,22 +363,6 @@ class TestQueryBuilder:
         assert "WHERE" not in sql  # No conditions
         assert params == []  # No parameters
 
-    def test_add_dialogue_search_empty_character_conditions(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_action_search_empty_character_conditions(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_location_filters_empty_location_conditions(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_character_only_search_empty_conditions(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
     def test_build_count_query_dialogue_empty_character_conditions(self) -> None:
         """Test build_count_query dialogue branch with empty character conditions."""
         search_query = SearchQuery(
@@ -471,59 +455,3 @@ class TestQueryBuilder:
         assert "SARAH" in params
         assert "%urgently%" in params
         assert params[-2:] == [20, 5]  # limit, offset
-
-    def test_add_project_filter_none(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_project_filter_with_project(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_season_episode_filters_single_episode(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_season_episode_filters_none(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_dialogue_search_no_dialogue(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_dialogue_search_with_parenthetical(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_action_search_no_query(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_action_search_with_characters(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_location_filters_none(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_location_filters_empty_list(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_character_only_search_no_characters(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_character_only_search_with_dialogue(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_character_only_search_with_text_query(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")
-
-    def test_add_character_only_search_with_action(self) -> None:
-        """Test skipped - private method moved to utilities."""
-        pytest.skip("Private method moved to utilities - test no longer applicable")

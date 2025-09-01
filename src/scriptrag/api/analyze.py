@@ -67,23 +67,68 @@ class AnalyzeCommand:
         self._analyzer_registry: dict[str, type[SceneAnalyzer | BaseSceneAnalyzer]] = {}
 
     @classmethod
-    def from_config(cls) -> AnalyzeCommand:
+    def from_config(cls, auto_load_analyzers: bool = True) -> AnalyzeCommand:
         """Create AnalyzeCommand instance from configuration settings.
 
         Factory method that creates a properly initialized AnalyzeCommand
-        using the current ScriptRAG configuration. Currently returns a
-        basic instance, but could be extended to load analyzers from
-        configuration in the future.
+        using the current ScriptRAG configuration. By default, auto-discovers
+        and loads all available analyzers (both code-based and markdown agents).
+
+        Args:
+            auto_load_analyzers: Whether to automatically load all available
+                analyzers. Set to False for explicit analyzer control.
 
         Returns:
-            New AnalyzeCommand instance ready for use
+            New AnalyzeCommand instance with analyzers loaded
 
         Example:
             >>> command = AnalyzeCommand.from_config()
+            >>> # All analyzers are already loaded
+            >>> result = await command.analyze()
+
+            >>> # Or disable auto-loading for manual control
+            >>> command = AnalyzeCommand.from_config(auto_load_analyzers=False)
             >>> command.load_analyzer("relationships")
             >>> result = await command.analyze()
         """
-        return cls()
+        instance = cls()
+
+        if auto_load_analyzers:
+            # Load all built-in code-based analyzers
+            try:
+                from scriptrag.analyzers.builtin import BUILTIN_ANALYZERS
+
+                for analyzer_name, analyzer_class in BUILTIN_ANALYZERS.items():
+                    try:
+                        instance.analyzers.append(analyzer_class())
+                        logger.info(f"Auto-loaded built-in analyzer: {analyzer_name}")
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to load built-in analyzer '{analyzer_name}': {e}"
+                        )
+            except ImportError as e:
+                logger.warning(f"Could not import built-in analyzers: {e}")
+
+            # Load all markdown-based agents
+            try:
+                from scriptrag.agents import AgentLoader
+
+                loader = AgentLoader()
+                available_agents = loader.list_agents()
+
+                for agent_name in available_agents:
+                    try:
+                        agent_analyzer = loader.load_agent(agent_name)
+                        instance.analyzers.append(agent_analyzer)
+                        logger.info(f"Auto-loaded markdown agent: {agent_name}")
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to load markdown agent '{agent_name}': {e}"
+                        )
+            except ImportError as e:
+                logger.warning(f"Could not import agent loader: {e}")
+
+        return instance
 
     def register_analyzer(self, name: str, analyzer_class: type[SceneAnalyzer]) -> None:
         """Register an analyzer class for dynamic loading.

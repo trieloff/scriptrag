@@ -425,12 +425,20 @@ class GitHubModelsDiscovery(ModelDiscovery):
                 )  # e.g. "Cohere-embed-v3-english"
             ):
                 capabilities = ["embedding"]
+            # GPT-4o models support JSON schema structured outputs
+            # (only gpt-4o, not gpt-4o-mini according to GitHub Models docs)
+            elif "gpt-4o" in model_id_lower and "mini" not in model_id_lower:
+                capabilities = ["chat", "json"]
+                logger.debug(
+                    f"Model {model_id} supports JSON schema structured outputs",
+                    capabilities=capabilities,
+                )
             # Common chat/completion model families
             elif any(
                 term in model_id_lower
                 for term in ["gpt", "llama", "claude", "mistral", "phi", "cohere"]
             ):
-                capabilities = ["completion", "chat"]
+                capabilities = ["chat"]
             # Default conservatively to chat for other supported patterns
             if not capabilities:
                 capabilities = ["chat"]

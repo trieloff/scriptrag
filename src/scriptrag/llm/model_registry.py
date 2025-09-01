@@ -16,7 +16,7 @@ class ModelRegistry:
             id="gpt-4o",
             name="GPT-4o",
             provider=LLMProvider.GITHUB_MODELS,
-            capabilities=["completion", "chat"],
+            capabilities=["chat", "json"],  # Supports JSON schema structured outputs
             context_window=128000,
             max_output_tokens=16384,
         ),
@@ -24,7 +24,7 @@ class ModelRegistry:
             id="gpt-4o-mini",
             name="GPT-4o Mini",
             provider=LLMProvider.GITHUB_MODELS,
-            capabilities=["completion", "chat"],
+            capabilities=["chat"],  # No JSON schema support
             context_window=128000,
             max_output_tokens=16384,
         ),
@@ -37,7 +37,7 @@ class ModelRegistry:
             id="claude-3-opus-20240229",
             name="Claude 3 Opus",
             provider=LLMProvider.CLAUDE_CODE,
-            capabilities=["completion", "chat"],
+            capabilities=["chat", "json"],  # Claude supports JSON output
             context_window=200000,
             max_output_tokens=4096,
         ),
@@ -45,7 +45,7 @@ class ModelRegistry:
             id="claude-3-sonnet-20240229",
             name="Claude 3 Sonnet",
             provider=LLMProvider.CLAUDE_CODE,
-            capabilities=["completion", "chat"],
+            capabilities=["chat", "json"],  # Claude supports JSON output
             context_window=200000,
             max_output_tokens=4096,
         ),
@@ -53,7 +53,7 @@ class ModelRegistry:
             id="claude-3-haiku-20240307",
             name="Claude 3 Haiku",
             provider=LLMProvider.CLAUDE_CODE,
-            capabilities=["completion", "chat"],
+            capabilities=["chat", "json"],  # Claude supports JSON output
             context_window=200000,
             max_output_tokens=4096,
         ),
@@ -62,7 +62,7 @@ class ModelRegistry:
             id="claude-3-5-sonnet-20241022",
             name="Claude 3.5 Sonnet",
             provider=LLMProvider.CLAUDE_CODE,
-            capabilities=["completion", "chat"],
+            capabilities=["chat", "json"],  # Claude supports JSON output
             context_window=200000,
             max_output_tokens=8192,
         ),
@@ -70,7 +70,7 @@ class ModelRegistry:
             id="claude-3-5-haiku-20241022",
             name="Claude 3.5 Haiku",
             provider=LLMProvider.CLAUDE_CODE,
-            capabilities=["completion", "chat"],
+            capabilities=["chat", "json"],  # Claude supports JSON output
             context_window=200000,
             max_output_tokens=8192,
         ),
@@ -79,7 +79,7 @@ class ModelRegistry:
             id="sonnet",
             name="Claude Sonnet (Latest)",
             provider=LLMProvider.CLAUDE_CODE,
-            capabilities=["completion", "chat"],
+            capabilities=["chat", "json"],  # Claude supports JSON output
             context_window=200000,
             max_output_tokens=8192,
         ),
@@ -87,7 +87,7 @@ class ModelRegistry:
             id="opus",
             name="Claude Opus (Latest)",
             provider=LLMProvider.CLAUDE_CODE,
-            capabilities=["completion", "chat"],
+            capabilities=["chat", "json"],  # Claude supports JSON output
             context_window=200000,
             max_output_tokens=8192,
         ),
@@ -95,7 +95,7 @@ class ModelRegistry:
             id="haiku",
             name="Claude Haiku (Latest)",
             provider=LLMProvider.CLAUDE_CODE,
-            capabilities=["completion", "chat"],
+            capabilities=["chat", "json"],  # Claude supports JSON output
             context_window=200000,
             max_output_tokens=8192,
         ),

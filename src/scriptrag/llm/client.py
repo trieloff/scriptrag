@@ -278,28 +278,37 @@ class LLMClient:
         )
 
     async def _select_best_model(
-        self, provider: BaseLLMProvider, capability_type: str = "chat"
+        self,
+        provider: BaseLLMProvider,
+        required_capabilities: list[str] | None = None,
     ) -> str | None:
-        """Select the best model for a provider based on capability type.
+        """Select the best model for a provider based on required capabilities.
 
         Uses caching to avoid repeated model discovery and searching.
 
         Args:
             provider: The LLM provider to select a model for
-            capability_type: Type of capability ("chat", "completion", "embedding")
+            required_capabilities: List of required capabilities
+                                 (e.g., ["chat", "json"])
+                                 If None, defaults to ["chat"]
 
         Returns:
             Model ID if found, None otherwise
         """
+        # Default to chat capability if not specified
+        if required_capabilities is None:
+            required_capabilities = ["chat"]
+
         provider_name = provider.__class__.__name__
-        cache_key = f"{provider_name}:{capability_type}"
+        # Create cache key from sorted capabilities for consistency
+        cache_key = f"{provider_name}:{','.join(sorted(required_capabilities))}"
 
         # Check cache first
         if cache_key in self._model_selection_cache:
             logger.debug(
                 f"Using cached model selection for {provider_name}",
                 model=self._model_selection_cache[cache_key],
-                capability=capability_type,
+                capabilities=required_capabilities,
             )
             return self._model_selection_cache[cache_key]
 
@@ -311,17 +320,32 @@ class LLMClient:
 
         selected_model = None
 
-        # Find the first model with the desired capability
+        # Find the first model with ALL required capabilities
         # Models are already sorted by preference in most providers
         for model in models:
-            if capability_type in model.capabilities:
+            if all(cap in model.capabilities for cap in required_capabilities):
                 selected_model = model.id
                 logger.info(
-                    f"Selected {capability_type}-capable model: {model.id}",
+                    f"Selected model with required capabilities: {model.id}",
                     provider=provider_name,
-                    capabilities=model.capabilities,
+                    required=required_capabilities,
+                    model_capabilities=model.capabilities,
                 )
                 break
+
+        # If we need JSON but no model supports it, select a chat model and log warning
+        if not selected_model and "json" in required_capabilities:
+            # Try with just chat capability
+            for model in models:
+                if "chat" in model.capabilities:
+                    selected_model = model.id
+                    logger.warning(
+                        f"No JSON capability found, using chat model: {model.id}",
+                        provider=provider_name,
+                        required=required_capabilities,
+                        model_capabilities=model.capabilities,
+                    )
+                    break
 
         # Fallback to first model if no specific capability found
         if not selected_model and models:
@@ -330,7 +354,7 @@ class LLMClient:
                 f"Using first available model: {models[0].id}",
                 provider=provider_name,
                 capabilities=models[0].capabilities,
-                reason=f"no {capability_type}-capable model found",
+                reason=f"no model with capabilities {required_capabilities} found",
             )
 
         # Cache the result
@@ -351,11 +375,30 @@ class LLMClient:
 
         # Update model if not specified or empty
         if not request.model or request.model == "":
-            # Use optimized model selection with caching
-            selected_model = await self._select_best_model(provider, "chat")
-            if not selected_model:
-                # Try "completion" capability as fallback
-                selected_model = await self._select_best_model(provider, "completion")
+            # Determine required capabilities based on request
+            required_capabilities = ["chat"]
+
+            # Check if request needs JSON/structured output capability
+            if hasattr(request, "response_format") and request.response_format:
+                response_format = request.response_format
+                # Check if it's a JSON schema request
+                if (
+                    response_format.get("type") == "json_object"
+                    or "schema" in response_format
+                    or "json_schema" in response_format
+                ):
+                    required_capabilities.append("json")
+                    logger.debug(
+                        "Request requires JSON capability due to response_format",
+                        response_format_type=response_format.get("type"),
+                        has_schema="schema" in response_format
+                        or "json_schema" in response_format,
+                    )
+
+            # Use optimized model selection with required capabilities
+            selected_model = await self._select_best_model(
+                provider, required_capabilities
+            )
 
             if selected_model:
                 request.model = selected_model
@@ -473,7 +516,7 @@ class LLMClient:
 
         # If model is the default and not explicitly configured, auto-select
         if request.model == default_model and not config.llm_embedding_model:
-            selected_model = await self._select_best_model(provider, "embedding")
+            selected_model = await self._select_best_model(provider, ["embedding"])
             if selected_model:
                 request.model = selected_model
 

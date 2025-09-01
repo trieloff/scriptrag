@@ -78,14 +78,18 @@ class DatabaseInitializer:
 
         # Read existing .gitignore content if it exists
         existing_patterns = set()
+        negated_patterns = set()
         if gitignore_path.exists():
             try:
                 content = gitignore_path.read_text(encoding="utf-8")
-                existing_patterns = {
-                    line.strip()
-                    for line in content.splitlines()
-                    if line.strip() and not line.strip().startswith("#")
-                }
+                for line in content.splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        if line.startswith("!"):
+                            # Track negation patterns (without the ! prefix)
+                            negated_patterns.add(line[1:])
+                        else:
+                            existing_patterns.add(line)
             except Exception as e:
                 logger.warning(
                     "Failed to read existing .gitignore",
@@ -95,7 +99,18 @@ class DatabaseInitializer:
                 return
 
         # Determine which patterns need to be added
-        patterns_to_add = [p for p in db_patterns if p not in existing_patterns]
+        # Skip patterns that are already present OR have a negation pattern
+        patterns_to_add = []
+        for pattern in db_patterns:
+            if pattern not in existing_patterns and pattern not in negated_patterns:
+                patterns_to_add.append(pattern)
+            elif pattern in negated_patterns:
+                logger.warning(
+                    "Skipping pattern due to existing negation rule",
+                    pattern=pattern,
+                    negation_rule=f"!{pattern}",
+                    gitignore_path=str(gitignore_path),
+                )
 
         if not patterns_to_add:
             logger.debug(".gitignore already contains database patterns")

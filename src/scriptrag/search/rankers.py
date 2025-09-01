@@ -32,13 +32,13 @@ class RelevanceRanker(SearchRanker):
     def rank(
         self,
         results: list[SearchResult],
-        query: SearchQuery,  # noqa: ARG002
+        _query: SearchQuery,
     ) -> list[SearchResult]:
         """Rank results by relevance score.
 
         Args:
             results: Results to rank
-            query: Search query for context
+            _query: Search query for context (unused in this implementation)
 
         Returns:
             Results sorted by relevance score (descending)
@@ -144,13 +144,13 @@ class PositionalRanker(SearchRanker):
     def rank(
         self,
         results: list[SearchResult],
-        query: SearchQuery,  # noqa: ARG002
+        _query: SearchQuery,
     ) -> list[SearchResult]:
         """Rank results by position in script.
 
         Args:
             results: Results to rank
-            query: Search query for context
+            _query: Search query for context (unused in this implementation)
 
         Returns:
             Results sorted by script ID and scene number

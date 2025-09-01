@@ -11,12 +11,12 @@ from scriptrag.cli.formatters.base import OutputFormat, OutputFormatter
 class JsonFormatter(OutputFormatter[Any]):
     """Generic JSON formatter for CLI output."""
 
-    def format(self, data: Any, format_type: OutputFormat = OutputFormat.JSON) -> str:  # noqa: ARG002
+    def format(self, data: Any, _format_type: OutputFormat = OutputFormat.JSON) -> str:
         """Format data as JSON.
 
         Args:
             data: Data to format
-            format_type: Output format type (ignored, always JSON)
+            _format_type: Output format type (ignored, always JSON)
 
         Returns:
             JSON string

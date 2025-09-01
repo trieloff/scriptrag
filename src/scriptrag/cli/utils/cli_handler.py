@@ -86,7 +86,7 @@ class CLIHandler:
         json: bool = False,
         csv: bool = False,
         markdown: bool = False,
-        table: bool = True,  # noqa: ARG002
+        _table: bool = True,
     ) -> OutputFormat:
         """Determine output format from flags.
 
@@ -94,7 +94,7 @@ class CLIHandler:
             json: JSON output flag
             csv: CSV output flag
             markdown: Markdown output flag
-            table: Table output flag (default)
+            _table: Table output flag (default, unused as fallback)
 
         Returns:
             Selected output format

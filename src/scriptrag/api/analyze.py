@@ -117,24 +117,9 @@ class AnalyzeCommand:
             except ImportError as e:
                 logger.warning(f"Could not import built-in analyzers: {e}")
 
-            # Load all markdown-based agents
-            try:
-                from scriptrag.agents import AgentLoader
-
-                loader = AgentLoader()
-                available_agents = loader.list_agents()
-
-                for agent_name in available_agents:
-                    try:
-                        agent_analyzer = loader.load_agent(agent_name)
-                        instance.analyzers.append(agent_analyzer)
-                        logger.info(f"Auto-loaded markdown agent: {agent_name}")
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to load markdown agent '{agent_name}': {e}"
-                        )
-            except ImportError as e:
-                logger.warning(f"Could not import agent loader: {e}")
+            # Skip loading markdown-based agents by default
+            # They require LLM resources which may not be available in all environments
+            # Users can explicitly load them with --analyzer flag if needed
 
         return instance
 

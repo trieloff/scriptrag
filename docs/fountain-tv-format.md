@@ -34,10 +34,13 @@ ScriptRAG uses Episode and Season fields to:
 2. **Track character arcs** across episodes and seasons
 3. **Analyze pacing and structure** within a series context
 4. **Enable filtering and searching** by season/episode
+5. **Support Git-native workflows** by tracking episode changes across versions
 
-While these fields won't affect how your script renders in other Fountain tools, they provide essential metadata for ScriptRAG's analysis features.
+These fields integrate seamlessly with ScriptRAG's Git-native architecture, allowing writers to track the evolution of individual episodes through version control while maintaining series-wide context. While these fields won't affect how your script renders in other Fountain tools, they provide essential metadata for ScriptRAG's analysis features.
 
-## Required Format for ScriptRAG\n\n### Example with ScriptRAG Extensions
+## Required Format for ScriptRAG
+
+### Example with ScriptRAG Extensions
 
 ```fountain
 Title: Show Name - Episode Title

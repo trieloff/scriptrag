@@ -52,7 +52,7 @@ def mock_provider():
                 id="test-model",
                 name="Test Model",
                 provider=LLMProvider.GITHUB_MODELS,
-                capabilities=["completion"],
+                capabilities=["chat"],
             )
         ]
     )
@@ -322,7 +322,7 @@ class TestLLMClientAdditionalCoverage:
         cache_key = f"{mock_provider.__class__.__name__}:chat"
         client._model_selection_cache[cache_key] = "cached-model"
 
-        model = await client._select_best_model(mock_provider, "chat")
+        model = await client._select_best_model(mock_provider, ["chat"])
         assert model == "cached-model"
 
     @pytest.mark.asyncio
@@ -340,7 +340,7 @@ class TestLLMClientAdditionalCoverage:
                     id="completion-model",
                     name="Completion Model",
                     provider=LLMProvider.GITHUB_MODELS,
-                    capabilities=["completion"],
+                    capabilities=["chat"],
                 ),
             ]
         )
@@ -348,7 +348,7 @@ class TestLLMClientAdditionalCoverage:
         client = LLMClient()
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
-        model = await client._select_best_model(mock_provider, "chat")
+        model = await client._select_best_model(mock_provider, ["chat"])
         assert model == "chat-model"
 
     @pytest.mark.asyncio
@@ -374,7 +374,7 @@ class TestLLMClientAdditionalCoverage:
         client = LLMClient()
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
-        model = await client._select_best_model(mock_provider, "embedding")
+        model = await client._select_best_model(mock_provider, ["embedding"])
         assert model == "embedding-model"
 
     @pytest.mark.asyncio
@@ -386,7 +386,7 @@ class TestLLMClientAdditionalCoverage:
                     id="completion-only",
                     name="Completion Only",
                     provider=LLMProvider.GITHUB_MODELS,
-                    capabilities=["completion"],
+                    capabilities=["chat"],
                 ),
             ]
         )
@@ -395,7 +395,7 @@ class TestLLMClientAdditionalCoverage:
         client.registry.providers = {LLMProvider.GITHUB_MODELS: mock_provider}
 
         # Should return first model as fallback
-        model = await client._select_best_model(mock_provider, "chat")
+        model = await client._select_best_model(mock_provider, ["chat"])
         assert model == "completion-only"
 
     @pytest.mark.asyncio

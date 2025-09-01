@@ -79,8 +79,8 @@ class TestClaudeCodeProvider:
         opus_model = next(m for m in models if m.id == "claude-3-opus-20240229")
         assert opus_model.name == "Claude 3 Opus"
         assert opus_model.provider == LLMProvider.CLAUDE_CODE
-        assert "completion" in opus_model.capabilities
         assert "chat" in opus_model.capabilities
+        assert "json" in opus_model.capabilities
         assert opus_model.context_window == 200000
         assert opus_model.max_output_tokens == 4096
 

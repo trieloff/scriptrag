@@ -52,7 +52,7 @@ class TestModelDiscoveryCache:
                 id="model-2",
                 name="Test Model 2",
                 provider=LLMProvider.GITHUB_MODELS,
-                capabilities=["chat", "completion"],
+                capabilities=["chat", "json"],
             ),
         ]
 
@@ -190,7 +190,7 @@ class TestModelDiscovery:
                 id="static-model-2",
                 name="Static Model 2",
                 provider=LLMProvider.GITHUB_MODELS,
-                capabilities=["completion"],
+                capabilities=["chat"],
             ),
         ]
 
@@ -769,7 +769,7 @@ class TestClaudeCodeModelDiscovery:
         models_data = {
             "claude-3-5-sonnet": {
                 "name": "Claude 3.5 Sonnet",
-                "capabilities": ["chat", "completion"],
+                "capabilities": ["chat", "json"],
                 "context_window": 200000,
                 "max_tokens": 8192,
             },
@@ -810,7 +810,7 @@ class TestClaudeCodeModelDiscovery:
 
         # Should use defaults for simple values
         assert instant_model.name == "claude-instant"
-        assert instant_model.capabilities == ["completion", "chat"]
+        assert instant_model.capabilities == ["chat", "json"]
         assert instant_model.context_window == 200000
         assert instant_model.max_output_tokens == 8192
 
@@ -1039,7 +1039,7 @@ class TestGitHubModelsDiscovery:
         # Check capabilities
         gpt_model = next(m for m in processed if m.id == "gpt-4o")
         assert "chat" in gpt_model.capabilities
-        assert "completion" in gpt_model.capabilities
+        assert "json" in gpt_model.capabilities
 
         embedding_model = next(m for m in processed if m.id == "text-embedding-ada")
         assert "embedding" in embedding_model.capabilities

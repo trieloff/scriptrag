@@ -154,7 +154,7 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
                 name: str = model_info.get("display_name") or model_id
 
                 # Default capabilities for Claude models
-                capabilities: list[str] = ["completion", "chat"]
+                capabilities: list[str] = ["chat", "json"]
 
                 # Default context window and output tokens for Claude models
                 # These may need adjustment based on actual API response
@@ -239,15 +239,15 @@ class ClaudeCodeModelDiscovery(ModelDiscovery):
                     if isinstance(model_info, dict):
                         name = model_info.get("name") or model_id
                         capabilities = model_info.get("capabilities") or [
-                            "completion",
                             "chat",
+                            "json",
                         ]
                         context_window = model_info.get("context_window") or 200000
                         max_output = model_info.get("max_tokens") or 8192
                     else:
                         # Simple value, use defaults
                         name = model_id
-                        capabilities = ["completion", "chat"]
+                        capabilities = ["chat", "json"]
                         context_window = 200000
                         max_output = 8192
 

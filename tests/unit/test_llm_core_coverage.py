@@ -35,8 +35,8 @@ class TestModelRegistry:
         gpt4o = next(m for m in models if m.id == "gpt-4o")
         assert gpt4o.name == "GPT-4o"
         assert gpt4o.provider == LLMProvider.GITHUB_MODELS
-        assert "completion" in gpt4o.capabilities
         assert "chat" in gpt4o.capabilities
+        assert "json" in gpt4o.capabilities
         assert gpt4o.context_window == 128000
         assert gpt4o.max_output_tokens == 16384
 
@@ -63,8 +63,8 @@ class TestModelRegistry:
         opus = next(m for m in models if m.id == "claude-3-opus-20240229")
         assert opus.name == "Claude 3 Opus"
         assert opus.provider == LLMProvider.CLAUDE_CODE
-        assert "completion" in opus.capabilities
         assert "chat" in opus.capabilities
+        assert "json" in opus.capabilities
         assert opus.context_window == 200000
         assert opus.max_output_tokens == 4096
 

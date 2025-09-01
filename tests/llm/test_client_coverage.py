@@ -170,20 +170,24 @@ class TestLLMClientCoverage:
         """Test model selection cache hit logging (lines 282-287)."""
         client = LLMClient()
 
-        # Pre-populate cache
-        client._model_selection_cache["TestProvider:chat"] = "cached-model"
-
         mock_provider = Mock(spec=BaseLLMProvider)
         mock_provider.__class__.__name__ = "TestProvider"
 
+        # Pre-populate cache with dynamic key
+        cache_key = f"{mock_provider.__class__.__name__}:chat"
+        client._model_selection_cache[cache_key] = "cached-model"
+
+        # Ensure the mock has proper list_models to avoid fallback logic
+        mock_provider.list_models = AsyncMock(return_value=[])
+
         with patch("scriptrag.llm.client.logger.debug") as mock_debug:
-            result = await client._select_best_model(mock_provider, "chat")
+            result = await client._select_best_model(mock_provider, ["chat"])
 
             # Should log cache hit
             mock_debug.assert_called_with(
                 "Using cached model selection for TestProvider",
                 model="cached-model",
-                capability="chat",
+                capabilities=["chat"],
             )
             assert result == "cached-model"
 

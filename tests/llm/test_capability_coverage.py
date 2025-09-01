@@ -341,3 +341,6 @@ async def test_complete_with_no_response_format():
         for call in mock_logger.debug.call_args_list:
             if call[0][0] == "Request requires JSON capability due to response_format":
                 pytest.fail("Should not detect JSON capability when no response_format")
+
+
+# Additional test for edge case

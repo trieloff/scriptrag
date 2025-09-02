@@ -143,13 +143,13 @@ class TestContextQuerySystem:
                 heading,
                 json_extract(
                     metadata,
-                    '$.boneyard.analyzers.props_inventory.result.props_mentioned'
+                    '$.boneyard.analyzers.props_inventory.props_mentioned'
                 ) as props_json
             FROM scenes
             WHERE script_id = ?
                 AND json_extract(
                     metadata,
-                    '$.boneyard.analyzers.props_inventory.result.props_mentioned'
+                    '$.boneyard.analyzers.props_inventory.props_mentioned'
                 ) IS NOT NULL
             ORDER BY scene_number
             """,

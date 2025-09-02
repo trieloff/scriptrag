@@ -156,7 +156,11 @@ class SearchEngine:
             if result is None:
                 raise RuntimeError("Search result should not be None")
             return result
-        except RuntimeError:
+        except RuntimeError as e:
+            # Only handle "no event loop" errors, not timeout errors
+            if "Search operation timed out" in str(e):
+                # Re-raise timeout errors instead of treating them as "no event loop"
+                raise
             # No event loop is running, we can create one
             loop = asyncio.new_event_loop()
             try:

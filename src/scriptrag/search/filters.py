@@ -162,13 +162,13 @@ class TimeOfDayFilter(SearchFilter):
     def filter(
         self,
         results: list[SearchResult],
-        query: SearchQuery,  # noqa: ARG002
+        _query: SearchQuery,
     ) -> list[SearchResult]:
         """Filter results by time of day.
 
         Args:
             results: Results to filter
-            query: Search query for context
+            _query: Search query for context (unused in this implementation)
 
         Returns:
             Filtered results
@@ -266,13 +266,13 @@ class DuplicateFilter(SearchFilter):
     def filter(
         self,
         results: list[SearchResult],
-        query: SearchQuery,  # noqa: ARG002
+        _query: SearchQuery,
     ) -> list[SearchResult]:
         """Remove duplicate results.
 
         Args:
             results: Results to filter
-            query: Search query for context
+            _query: Search query for context (unused in this implementation)
 
         Returns:
             Filtered results with duplicates removed

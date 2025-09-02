@@ -281,14 +281,14 @@ class SceneValidator:
     def _generate_suggestions(
         self,
         parsed_data: Any,
-        errors: list[str],  # noqa: ARG002
+        _errors: list[str],
         warnings: list[str],
     ) -> list[str]:
         """Generate helpful suggestions based on validation results.
 
         Args:
             parsed_data: Parsed scene data
-            errors: List of errors found
+            _errors: List of errors found (unused in this implementation)
             warnings: List of warnings found
 
         Returns:
@@ -324,14 +324,14 @@ class SceneValidator:
         self,
         new_content: str,
         existing_content: str,
-        last_modified: Any | None = None,  # noqa: ARG002
+        _last_modified: Any | None = None,
     ) -> ValidationResult:
         """Check for conflicts between new and existing scene content.
 
         Args:
             new_content: New scene content
             existing_content: Existing scene content
-            last_modified: Last modification timestamp
+            _last_modified: Last modification timestamp (reserved for future use)
 
         Returns:
             Validation result with conflict information

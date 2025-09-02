@@ -64,11 +64,11 @@ def demonstrate_command_composition() -> None:
         validator = SceneContentValidator()
         return validator.validate(scene_data["content"])
 
-    def update_scene(content: str) -> dict[str, str | bool]:  # noqa: ARG001
+    def update_scene(_content: str) -> dict[str, str | bool]:
         print("  → Updating scene in database")
         return {"success": True, "scene_id": "scene_42"}
 
-    def send_notification(result: dict[str, str | bool]) -> bool:  # noqa: ARG001
+    def send_notification(_result: dict[str, str | bool]) -> bool:
         print("  → Sending update notification")
         return True
 
@@ -103,7 +103,7 @@ def demonstrate_transactional_operations() -> None:
         print("  → Updating scene index")
         return {"index_updated": True}
 
-    def rollback_index(data: dict[str, bool]) -> None:  # noqa: ARG001
+    def rollback_index(_data: dict[str, bool]) -> None:
         print("  ← Rolling back index update")
 
     # Add steps with rollback functions

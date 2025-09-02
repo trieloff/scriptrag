@@ -162,7 +162,7 @@ class EmbeddingOperations:
     def search_similar_scenes(
         self,
         conn: sqlite3.Connection,
-        query_embedding: bytes,  # noqa: ARG002
+        _query_embedding: bytes,
         script_id: int | None,
         embedding_model: str,
         limit: int = 10,
@@ -175,7 +175,7 @@ class EmbeddingOperations:
 
         Args:
             conn: Database connection
-            query_embedding: Query embedding vector (binary)
+            _query_embedding: Query embedding vector (binary, reserved for future use)
             script_id: Optional script ID to limit search
             embedding_model: Model used for embeddings
             limit: Maximum number of results

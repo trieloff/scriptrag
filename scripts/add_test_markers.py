@@ -9,7 +9,7 @@ from pathlib import Path
 
 def detect_test_type(
     file_path: Path,
-    test_name: str,  # noqa: ARG001
+    _test_name: str,
     test_content: str,
 ) -> set[str]:
     """Detect the type of test based on file path and content."""

@@ -29,7 +29,7 @@ def register_search_tool(mcp: FastMCP) -> None:
         parenthetical: str | None = None,
         location: str | None = None,
         project: str | None = None,
-        range: str | None = None,  # noqa: A002 - Shadows builtin but matches API
+        scene_range: str | None = None,
         fuzzy: bool = False,
         strict: bool = False,
         limit: int = 5,
@@ -59,7 +59,7 @@ def register_search_tool(mcp: FastMCP) -> None:
             parenthetical: Search for parenthetical directions
             location: Filter by location
             project: Filter by project/script title
-            range: Episode range (e.g., s1e2-s1e5)
+            scene_range: Episode range (e.g., s1e2-s1e5)
             fuzzy: Force semantic search regardless of query length
             strict: Disable semantic search, use exact text matching only
             limit: Maximum number of results to return
@@ -98,7 +98,7 @@ def register_search_tool(mcp: FastMCP) -> None:
                 dialogue=dialogue,
                 parenthetical=parenthetical,
                 project=project,
-                range_str=range,
+                range_str=scene_range,
                 fuzzy=fuzzy,
                 strict=strict,
                 limit=limit,

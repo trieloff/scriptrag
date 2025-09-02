@@ -466,9 +466,8 @@ class AnalyzeCommand:
                     for analyzer in self.analyzers:
                         try:
                             result = await analyzer.analyze(scene_data)
-                            analyzer_result = {
-                                "result": result,
-                            }
+                            # Store the result directly with version at top level
+                            analyzer_result = result if result else {}
                             if hasattr(analyzer, "version"):  # pragma: no cover
                                 analyzer_result["version"] = analyzer.version
                             metadata["analyzers"][analyzer.name] = analyzer_result

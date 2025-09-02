@@ -12,11 +12,11 @@ requires_llm: true
 -- Get all props from previous scenes
 SELECT DISTINCT
     s.scene_number,
-    json_extract(s.metadata, '$.boneyard.analyzers.props_inventory.result.props_mentioned') as props_list
+    json_extract(s.metadata, '$.boneyard.analyzers.props_inventory.props_mentioned') as props_list
 FROM scenes s
 WHERE s.script_id = :script_id
     AND s.scene_number < :scene_number
-    AND json_extract(s.metadata, '$.boneyard.analyzers.props_inventory.result.props_mentioned') IS NOT NULL
+    AND json_extract(s.metadata, '$.boneyard.analyzers.props_inventory.props_mentioned') IS NOT NULL
 ORDER BY s.scene_number;
 ```
 

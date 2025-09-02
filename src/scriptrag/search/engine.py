@@ -129,16 +129,21 @@ class SearchEngine:
                     self._cleanup_event_loop(new_loop)
                     new_loop.close()
 
-            thread = threading.Thread(target=run_in_new_loop)
+            # Create thread as daemon to prevent resource leaks on timeout
+            thread = threading.Thread(target=run_in_new_loop, daemon=True)
             thread.start()
             thread.join(timeout=self.settings.search_thread_timeout)
 
             # Check if thread is still alive (timeout occurred)
             if thread.is_alive():
                 logger.error(
-                    "Search thread timed out after %s seconds",
+                    "Search thread timed out after %s seconds. "
+                    "Thread will be abandoned as daemon.",
                     self.settings.search_thread_timeout,
                 )
+                # Note: The thread is now a daemon thread, so it will be terminated
+                # when the main program exits. We can't forcefully kill it in Python,
+                # but marking it as daemon prevents it from keeping the program alive.
                 raise RuntimeError("Search operation timed out")
 
             if exception is not None:

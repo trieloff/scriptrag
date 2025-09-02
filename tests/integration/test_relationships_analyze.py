@@ -92,12 +92,7 @@ async def test_analyze_relationships_persists_scene_metadata(tmp_path: Path) -> 
         ).fetchone()
         assert row is not None
         smeta = json.loads(row["metadata"]) if row["metadata"] else {}
-        rel = (
-            smeta.get("boneyard", {})
-            .get("analyzers", {})
-            .get("relationships", {})
-            .get("result", {})
-        )
+        rel = smeta.get("boneyard", {}).get("analyzers", {}).get("relationships", {})
         assert rel
         # At least Jane speaking and Mr. Johnson mentioned
         assert "JANE SMITH" in rel.get("speaking", [])

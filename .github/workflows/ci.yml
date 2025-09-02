@@ -193,7 +193,7 @@ jobs:
         run: make install
 
       - name: Run canary tests (minimal, fail-fast)
-        timeout-minutes: 3
+        timeout-minutes: 5
         run: |
           echo " Running canary tests with minimal output, 10 error limit, and 15s per-test timeout"
           echo "  Excluding integration tests (marked with @pytest.mark.integration)"

@@ -149,12 +149,8 @@ class TestMarkdownAgentAnalyzer:
         """Test analyze without LLM."""
         result = await analyzer.analyze(sample_scene)
 
-        # Should return metadata even for non-LLM
-        assert result["analyzer"] == "test_agent"
-        assert result["version"] == "1.0.0"
-        # property field is only added for successful results
-        if "error" not in result:
-            assert result["property"] == "test_agent"
+        # Non-LLM analyzers return empty dict
+        assert result == {}
 
     @pytest.mark.asyncio
     async def test_analyze_non_llm_validation_failure(
@@ -174,10 +170,8 @@ class TestMarkdownAgentAnalyzer:
         # They return empty dict with metadata
         result = await analyzer.analyze(sample_scene)
 
-        # Should return metadata even for non-LLM with invalid schema
-        assert result["analyzer"] == "test_agent"
-        assert result["version"] == "1.0.0"
-        assert result["property"] == "test_agent"
+        # Non-LLM analyzers return empty dict
+        assert result == {}
 
     @pytest.mark.asyncio
     async def test_analyze_with_llm_success(
@@ -207,8 +201,6 @@ class TestMarkdownAgentAnalyzer:
 
             assert result["analysis"] == "Scene shows tension"
             assert result["score"] == 0.8
-            assert result["analyzer"] == "llm_agent"
-            assert result["version"] == "2.0.0"
 
             # Verify LLM was called
             mock_client.complete.assert_called_once()

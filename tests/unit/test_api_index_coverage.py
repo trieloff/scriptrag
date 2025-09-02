@@ -454,7 +454,7 @@ class TestIndexCommandCoverage:
             dialogue_lines=[],
             action_lines=[],
             boneyard_metadata={
-                "analyzers": {"scene_embeddings": {"result": {"model": "test-model"}}}
+                "analyzers": {"scene_embeddings": {"model": "test-model"}}
             },
         )
 

@@ -42,8 +42,10 @@ class TestPermissionDeniedScenarios:
         config_file = tmp_path / "restricted.yaml"
         config_file.write_text("app_name: test-app")
 
-        # Mock open to raise PermissionError
-        with patch("builtins.open", side_effect=PermissionError("Permission denied")):
+        # Mock Path.open to raise PermissionError (not builtins.open)
+        with patch.object(
+            Path, "open", side_effect=PermissionError("Permission denied")
+        ):
             with pytest.raises(PermissionError) as exc_info:
                 ScriptRAGSettings.from_file(config_file)
 

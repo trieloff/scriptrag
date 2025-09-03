@@ -62,7 +62,7 @@ def _is_temp_directory(db_path_str: str, path_parts: list[str]) -> bool:
 
     # Check for temp indicators in path or CI paths
     return any(indicator in path_lower for indicator in temp_indicators) or any(
-        ci_path in db_path_str for ci_path in ci_indicators
+        db_path_str.startswith(ci_path) for ci_path in ci_indicators
     )
 
 

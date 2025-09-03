@@ -22,44 +22,32 @@ classifiers = [
 ]
 
 dependencies = [
-    # Core dependencies
-    "sqlalchemy>=2.0.0",
-    "aiosqlite>=0.19.0",
-    "sqlite-vec>=0.1.0",
-    "numpy>=1.24.0",
-    "scipy>=1.11.0",
+    # Core database dependencies
+    "sqlite-vec>=0.1.0",  # Vector storage for embeddings
+    "numpy>=1.24.0",  # Required for vector operations
     # API and networking
-    "httpx>=0.25.0",
-    "fastapi>=0.104.0",
-    "uvicorn[standard]>=0.24.0",
+    "httpx>=0.25.0",  # Async HTTP client for LLM APIs
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
     # CLI
     "typer>=0.9.0",
     "rich>=13.7.0",
-    # Data processing
-    "pandas>=2.1.0",
-    "networkx>=3.2.0",
     # Utilities
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.1",
-    "tomli-w>=1.0.0",  # For writing TOML config files
     "structlog>=23.2.0",
-    "tenacity>=8.2.0",
-    "python-frontmatter>=1.0.0", # For parsing agent markdown files
-    "jsonschema>=4.25.0", # For validating agent output schemas
+    "tenacity>=8.2.0",  # Retry logic for LLM calls
+    "python-frontmatter>=1.0.0",  # For parsing agent markdown files
+    "jsonschema>=4.25.0",  # For validating agent output schemas
     # MCP server
     "mcp[cli]>=0.1.0",
     # LLM integration
-    "openai>=1.99.7",
-    "claude-code-sdk>=0.0.20",
-    # Fountain parsing - will need to add specific library later
-    # "fountain-parser>=0.1.0",  # placeholder
+    "claude-code-sdk>=0.0.20",  # Claude integration
+    # Fountain parsing
     "jouvence>=0.4.2",
     # Git integration
     "gitpython>=3.1.0",
-    # HTTP requests (used in CLI)
-    "requests>=2.31.0",
+    # Markdown processing
     "markdown-it-py>=3.0.0",
     # File system monitoring
     "watchdog>=3.0.0",

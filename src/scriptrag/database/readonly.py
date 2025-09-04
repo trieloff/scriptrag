@@ -36,17 +36,15 @@ def _is_allowed_development_path(db_path_str: str) -> bool:
     return False
 
 
-def _is_temp_directory(db_path_str: str, path_parts: list[str]) -> bool:
+def _is_temp_directory(db_path_str: str) -> bool:
     """Check if path is in a temporary directory.
 
     Args:
         db_path_str: Resolved database path as string
-        path_parts: Path components split by /
 
     Returns:
         True if path is in a temp directory
     """
-    _ = path_parts  # Kept for potential future use
     path_lower = db_path_str.lower()
     temp_indicators = ["temp", "tmp", "pytest", ".pytest_cache"]
 
@@ -146,7 +144,7 @@ def get_read_only_connection(
                 if prefix == "/var" and "/private/var/folders/" in db_path_str:
                     continue
                 # Exception: Allow temp directories and CI environments
-                if _is_temp_directory(db_path_str, path_parts):
+                if _is_temp_directory(db_path_str):
                     continue
                 raise ValueError("Invalid database path detected")
 
@@ -160,7 +158,7 @@ def get_read_only_connection(
         for disallowed in disallowed_components:
             if disallowed in path_components_lower:
                 # Exception: Allow temp directories that contain these components
-                if _is_temp_directory(db_path_str, path_parts):
+                if _is_temp_directory(db_path_str):
                     continue
                 raise ValueError("Invalid database path detected")
 
@@ -182,7 +180,7 @@ def get_read_only_connection(
                 if not (
                     resolved_str.startswith(allowed_str + "/")
                     or resolved_str == allowed_str
-                    or _is_temp_directory(db_path_str, path_parts)
+                    or _is_temp_directory(db_path_str)
                 ):
                     raise ValueError("Invalid database path detected")
             except (OSError, ValueError) as e:
@@ -192,7 +190,7 @@ def get_read_only_connection(
         # Validate Windows user directories
         if (
             ":\\Users" in db_path_str
-            and not _is_temp_directory(db_path_str, path_parts)
+            and not _is_temp_directory(db_path_str)
             and not any(
                 dev_dir in path_parts
                 for dev_dir in ["Documents", "Desktop", "Projects", "repos"]

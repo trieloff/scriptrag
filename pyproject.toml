@@ -35,6 +35,7 @@ dependencies = [
     # Utilities
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0.1",
+    "tomli-w>=1.0.0",  # For writing TOML config files
     "structlog>=23.2.0",
     "tenacity>=8.2.0",  # Retry logic for LLM calls
     "python-frontmatter>=1.0.0",  # For parsing agent markdown files

@@ -95,6 +95,7 @@ dev = [
     "pytest-sugar>=0.9.7",      # Better test output formatting
     "coverage-badge>=1.1.0",    # Generate coverage badges
     "tox>=4.11.0",              # Test across Python versions
+    "sqlalchemy>=2.0.0",        # Required by test fixtures
 ]
 
 test = [
@@ -105,6 +106,7 @@ test = [
     "pytest-timeout>=2.2.0",
     "pytest-xdist>=3.5.0",
     "hypothesis>=6.92.0",
+    "sqlalchemy>=2.0.0",  # Required by test fixtures in tests/fixtures/database.py
 ]
 
 docs = [

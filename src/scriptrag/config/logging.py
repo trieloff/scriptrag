@@ -44,13 +44,15 @@ def configure_logging(settings: ScriptRAGSettings) -> None:
         log_level = getattr(logging, settings.log_level.upper())
     except AttributeError as e:
         # Provide a helpful error message if an invalid log level somehow gets through
-        # Use dynamic list from logging module to avoid hard-coding
-        valid_levels = [
-            name for name in logging._nameToLevel if not name.startswith("_")
-        ]
+        # Use public API from logging module to get valid levels (Python 3.11+)
+        valid_levels = list(logging.getLevelNamesMapping().keys())
+        # Filter out numeric aliases and sort
+        valid_levels = sorted(
+            [level for level in valid_levels if not level.startswith("_")]
+        )
         raise ValueError(
             f"Invalid log level '{settings.log_level}'. "
-            f"Valid levels are: {', '.join(sorted(valid_levels))}"
+            f"Valid levels are: {', '.join(valid_levels)}"
         ) from e
 
     # Create formatters based on settings

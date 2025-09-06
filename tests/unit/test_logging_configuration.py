@@ -238,7 +238,8 @@ class TestLoggingConfiguration:
         # Verify it includes dynamically fetched valid levels from logging module
         import logging as log_module
 
-        for level_name in log_module._nameToLevel:
+        # Use public API to get valid levels (Python 3.11+)
+        for level_name in log_module.getLevelNamesMapping():
             if not level_name.startswith("_"):
                 assert level_name in error_msg, f"Missing {level_name} in error message"
 
@@ -294,8 +295,13 @@ class TestLoggingConfiguration:
         # Verify it lists levels in sorted order
         import logging as log_module
 
+        # Use public API to get valid levels (Python 3.11+)
         expected_levels = sorted(
-            [name for name in log_module._nameToLevel if not name.startswith("_")]
+            [
+                name
+                for name in log_module.getLevelNamesMapping()
+                if not name.startswith("_")
+            ]
         )
         levels_str = ", ".join(expected_levels)
         assert levels_str in error_msg

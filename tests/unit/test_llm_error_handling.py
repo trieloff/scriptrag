@@ -305,9 +305,9 @@ class TestLLMClientErrorHandling:
 
         error = exc_info.value
         assert len(error.provider_errors) == 3
-        assert "ClaudeProvider" in error.provider_errors
-        assert "GitHubProvider" in error.provider_errors
-        assert "OpenAIProvider" in error.provider_errors
+        assert "claude_code" in error.provider_errors
+        assert "github_models" in error.provider_errors
+        assert "openai_compatible" in error.provider_errors
 
         assert error.attempted_providers == [
             "claude_code",

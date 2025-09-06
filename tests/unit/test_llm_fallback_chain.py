@@ -231,9 +231,9 @@ class TestFallbackChain:
         error = exc_info.value
         assert "All LLM providers failed" in str(error)
         assert len(error.provider_errors) == 3
-        assert "ClaudeCodeProvider" in error.provider_errors
-        assert "GitHubModelsProvider" in error.provider_errors
-        assert "OpenAIProvider" in error.provider_errors
+        assert "claude_code" in error.provider_errors
+        assert "github_models" in error.provider_errors
+        assert "openai_compatible" in error.provider_errors
         assert error.attempted_providers == [
             "claude_code",
             "github_models",

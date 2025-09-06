@@ -325,7 +325,7 @@ class FallbackHandler:
 
         if not is_available:
             error_msg = f"Provider {provider_name} not available"
-            provider_errors[provider_name] = RuntimeError(error_msg)
+            provider_errors[provider_type.value] = RuntimeError(error_msg)
             logger.warning(error_msg)
             return None
 
@@ -342,7 +342,7 @@ class FallbackHandler:
             LLMRetryableError,
             Exception,
         ) as e:
-            provider_errors[provider_name] = e
+            provider_errors[provider_type.value] = e
             error_details: ErrorDetails = {
                 "provider": provider_name,
                 "error": str(e),

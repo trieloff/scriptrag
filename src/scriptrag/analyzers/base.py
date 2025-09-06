@@ -63,7 +63,7 @@ class BaseSceneAnalyzer(ABC):
         """
         return False
 
-    async def initialize(self) -> None:  # noqa: B027 - Optional hook for subclasses
+    async def initialize(self) -> None:  # noqa: B027
         """Initialize any resources needed by the analyzer.
 
         Called once before processing begins.
@@ -74,7 +74,7 @@ class BaseSceneAnalyzer(ABC):
         # Intentionally empty - subclasses override as needed
         ...  # pragma: no cover
 
-    async def cleanup(self) -> None:  # noqa: B027 - Optional hook for subclasses
+    async def cleanup(self) -> None:  # noqa: B027
         """Clean up any resources used by the analyzer.
 
         Called once after processing completes.

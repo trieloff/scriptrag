@@ -571,7 +571,8 @@ class DatabaseConnectionManager:
         """Ensure all connections are truly closed (Windows-specific)."""
         return (
             self._pool._closed
-            and self._pool._total_connections == self._pool._active_connections
+            and self._pool._total_connections == 0
+            and self._pool._active_connections == 0
         )
 
     def __enter__(self) -> DatabaseConnectionManager:

@@ -296,17 +296,17 @@ class TestDatabaseConnectionManager:
         assert "min_size" in stats
         assert "max_size" in stats
 
-    def test_ensure_closed_when_open(
+    def test_ensure_closed_when_pool_not_closed(
         self, connection_manager: DatabaseConnectionManager
     ) -> None:
-        """Test ensure_closed returns False when connections are open."""
-        # Get a connection to keep it active
+        """Test ensure_closed returns False when pool is not closed."""
+        # Get a connection and release it
         conn = connection_manager.get_connection()
-
-        # Should return False because there are active connections
-        assert not connection_manager.ensure_closed()
-
         connection_manager.release_connection(conn)
+
+        # Should return False because pool is not closed
+        # (even with no active connections)
+        assert not connection_manager.ensure_closed()
 
     def test_ensure_closed_after_close(
         self, connection_manager: DatabaseConnectionManager

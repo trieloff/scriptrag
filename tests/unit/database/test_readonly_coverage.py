@@ -1,5 +1,6 @@
 """Additional tests to improve coverage for the readonly module."""
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -155,6 +156,7 @@ class TestGetReadOnlyConnectionAdditional:
                     assert conn == mock_conn
 
     @pytest.mark.unit
+    @pytest.mark.skipif(sys.platform != "win32", reason="Windows path test")
     def test_windows_user_directory_blocked(self, mock_settings):
         """Test that non-development Windows user paths are blocked."""
         # Path in Windows Users but not in a development directory

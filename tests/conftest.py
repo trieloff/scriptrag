@@ -109,11 +109,6 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(skip_llm)
 
 
-# Note: protect_fixture_files fixture was removed as it was interfering with
-# temporary test files. The verify_fixtures_clean fixture provides sufficient
-# protection by detecting any contamination of the actual fixture files.
-
-
 @pytest.fixture(autouse=True)
 def cleanup_singletons():
     """Ensure singletons are cleaned up between tests to prevent contamination."""

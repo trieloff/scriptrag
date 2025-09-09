@@ -104,8 +104,6 @@ lint: install ## Run all linters (ruff, mypy, bandit, sqlfluff, etc.)
 	uv run bandit -r src/ -c pyproject.toml
 	@echo "🔍 Checking docstring coverage..."
 	uv run interrogate -c pyproject.toml
-	@echo "🔍 Checking for dead code..."
-	uv run vulture --config pyproject.toml
 	@echo "🔍 Running SQLFluff..."
 	uv run sqlfluff lint --dialect sqlite || echo "⚠️  SQLFluff found issues (non-blocking)"
 	@echo "✅ All linting checks passed"

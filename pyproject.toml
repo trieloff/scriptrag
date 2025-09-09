@@ -62,21 +62,20 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.12.0",
     "pytest-timeout>=2.2.0",
+    "pytest-xdist>=3.5.0",      # Parallel test execution
     "hypothesis>=6.92.0",
+    "sqlalchemy>=2.0.0",        # Required by test fixtures
 
     # Code quality
     "ruff>=0.1.0",
-    "isort>=5.13.0",
     "mypy>=1.17.1",
     "types-PyYAML>=6.0.12.20250809",
     "types-requests>=2.31.0",
     "pre-commit>=3.6.0",
-    "bandit[toml]>=1.7.5",  # Security linting
-    "interrogate>=1.5.0",   # Docstring coverage
-    "safety>=3.0.0",        # Dependency vulnerability scanner
-    "vulture>=2.10",        # Dead code detection
-    "pylint>=3.3.8",        # Additional linting (optional with ruff)
-    "sqlfluff>=3.0.0",      # SQL linting
+    "bandit[toml]>=1.7.5",      # Security linting
+    "interrogate>=1.5.0",       # Docstring coverage
+    "safety>=3.0.0",            # Dependency vulnerability scanner
+    "sqlfluff>=3.0.0",          # SQL linting
 
     # Documentation
     "mkdocs>=1.5.0",
@@ -85,18 +84,8 @@ dev = [
 
     # Development tools
     "ipython>=8.18.0",
-    "jupyter>=1.0.0",
-    "notebook>=7.0.0",
-    "build>=1.3.0",  # Package building
-    "twine>=5.0.0",  # Package validation and upload
-
-    # Additional testing tools
-    "pytest-benchmark>=4.0.0",  # Performance testing
-    "pytest-xdist>=3.5.0",      # Parallel test execution
-    "pytest-sugar>=0.9.7",      # Better test output formatting
-    "coverage-badge>=1.1.0",    # Generate coverage badges
-    "tox>=4.11.0",              # Test across Python versions
-    "sqlalchemy>=2.0.0",        # Required by test fixtures
+    "build>=1.3.0",             # Package building
+    "twine>=5.0.0",             # Package validation and upload
 ]
 
 test = [
@@ -151,37 +140,19 @@ exclude = [
     "scripts/",
     "notebooks/",
     "examples/",
-    "cache/",
-    "logs/",
-    "exports/",
-    "temp/",
-    "data/",
-    "embeddings/",
-    "test_data/",
     "**/CLAUDE.md",
     "**/*.backup",
     "**/__pycache__/",
     "**/.pytest_cache/",
     "**/*.pyc",
     "**/*.pyo",
-    "**/node_modules/",
     "Makefile",
     "mkdocs.yml",
     "codecov.yml",
-    "pyrightconfig.json",
-    "pytest*.ini",
-    "commit_fixes.sh",
+    "uv.lock",
+    "*.md",              # Exclude all markdown documentation
     "terragon-setup.sh",
     "trigger_ci.txt",
-    "uv.lock",
-    "AGENTS.md",
-    "AI_CONTENT_INDICATORS_DATABASE.md",
-    "ARCHITECTURE.md",
-    "SIMPLIFICATION_SUMMARY.md",
-    "TEST_IMPROVEMENTS_SUMMARY.md",
-    "TO-NEVER-DO.md",
-    "TYPE_COVERAGE_IMPROVEMENTS.md",
-    "WEEKLY_STATUS_REPORT.md",
     ".editorconfig",
     ".env.example",
     ".markdownlint.yaml",
@@ -274,18 +245,6 @@ ignore = [
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-# Temporarily disable mypy for problematic database files
-
-
-
-
-
-
-
-
-
-
-
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
@@ -294,7 +253,6 @@ line-ending = "auto"
 
 [tool.mypy]
 python_version = "3.11"
-mypy_path = "stubs"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -306,8 +264,6 @@ warn_unused_ignores = true
 warn_no_return = true
 follow_imports = "normal"
 ignore_missing_imports = true
-# Platform-agnostic configuration (no Darwin hardcoding)
-# Tests are included by default for comprehensive type checking
 
 # Per-module configuration for gradual strictness
 [[tool.mypy.overrides]]
@@ -319,16 +275,11 @@ disallow_incomplete_defs = false
 
 [tool.isort]
 profile = "ruff"
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-ensure_newline_before_comments = true
 line_length = 88
 
 [tool.bandit]
 exclude_dirs = ["tests", "docs"]
-skips = ["B101", "B601", "B608", "B105", "B301", "B403"]  # Skip assert_used, shell_use, SQL injection tests, hardcoded password string, pickle usage and import (used for trusted cache only)
+skips = ["B101", "B601", "B608", "B105", "B301", "B403"]
 
 [tool.interrogate]
 ignore-init-method = true
@@ -341,63 +292,16 @@ ignore-module = true
 ignore-nested-functions = true
 ignore-nested-classes = true
 fail-under = 80
-exclude = ["tests", "docs", "scripts", "migrations"]
+exclude = ["tests", "docs", "scripts"]
 verbose = 1
 quiet = false
-whitelist-regex = []
 color = true
 
 [tool.vulture]
 exclude = ["tests/", "docs/", ".venv/", "build/", "dist/"]
 min_confidence = 80
 paths = ["src/scriptrag"]
-ignore_names = ["sql", "texts", "exc_type", "exc_val", "exc_tb"]  # Ignore Protocol method parameters and context manager args
+ignore_names = ["sql", "texts", "exc_type", "exc_val", "exc_tb"]
 
-[tool.pylint.messages_control]
-disable = [
-    "C0103",  # Invalid name (we use some short names)
-    "C0114",  # Missing module docstring (handled by interrogate)
-    "C0115",  # Missing class docstring (handled by interrogate)
-    "C0116",  # Missing function docstring (handled by interrogate)
-    "R0903",  # Too few public methods
-    "R0913",  # Too many arguments
-    "W0212",  # Protected member access
-    "E1101",  # No member (false positives with dynamic attributes)
-]
-
-[tool.tox]
-legacy_tox_ini = """
-[tox]
-envlist = py311,py312,py313,lint,type,security
-isolated_build = true
-
-[testenv]
-deps =
-    pytest
-    pytest-cov
-    pytest-asyncio
-commands = pytest {posargs}
-
-[testenv:lint]
-deps =
-    ruff
-    interrogate
-commands =
-    ruff check src tests
-    interrogate -c pyproject.toml
-
-[testenv:type]
-deps =
-    mypy
-    types-pyyaml
-    types-requests
-commands = mypy src
-
-[testenv:security]
-deps =
-    bandit[toml]
-    safety
-commands =
-    bandit -r src -f json
-    safety check
-"""
+# Pylint is not actively used (ruff handles linting)
+# Configuration kept for legacy compatibility only

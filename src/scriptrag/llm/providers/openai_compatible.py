@@ -74,13 +74,11 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         Returns:
             Initialized HTTP client
         """
-        if self._client is None:
-            async with self._client_lock:  # Prevent race conditions
-                # Double-check pattern - check again inside lock
-                if self._client is None:
-                    # Use the timeout from constructor, not hardcoded value
-                    timeout = httpx.Timeout(self.timeout)
-                    self._client = httpx.AsyncClient(timeout=timeout)
+        async with self._client_lock:  # Prevent race conditions
+            if self._client is None:
+                # Use the timeout from constructor, not hardcoded value
+                timeout = httpx.Timeout(self.timeout)
+                self._client = httpx.AsyncClient(timeout=timeout)
         return self._client
 
     @property
@@ -243,6 +241,14 @@ class OpenAICompatibleProvider(BaseLLMProvider):
 
             # Sort models by preference order
             def model_sort_key(model: Model) -> tuple[int, str]:
+                """Sort key function to order models by preference.
+
+                Args:
+                    model: Model to get sort key for
+
+                Returns:
+                    Tuple of (preference_index, model_id) for sorting
+                """
                 try:
                     # Check if model ID is in preference list
                     idx = self.MODEL_PREFERENCE_ORDER.index(model.id)

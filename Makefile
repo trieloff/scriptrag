@@ -333,9 +333,6 @@ run-api-dev: install ## Run the REST API server in development mode with auto-re
 shell: install ## Start IPython shell with project context
 	uv run ipython -i -c "from scriptrag import *; print('ScriptRAG modules loaded')"
 
-.PHONY: notebook
-notebook: install ## Start Jupyter notebook server
-	uv run jupyter notebook --notebook-dir=notebooks/
 
 # Database tasks
 .PHONY: db-init

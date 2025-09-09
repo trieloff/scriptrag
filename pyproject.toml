@@ -273,9 +273,7 @@ disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
 
-[tool.isort]
-profile = "ruff"
-line_length = 88
+# isort configuration removed - ruff handles import sorting via the "I" rule
 
 [tool.bandit]
 exclude_dirs = ["tests", "docs"]
@@ -297,11 +295,5 @@ verbose = 1
 quiet = false
 color = true
 
-[tool.vulture]
-exclude = ["tests/", "docs/", ".venv/", "build/", "dist/"]
-min_confidence = 80
-paths = ["src/scriptrag"]
-ignore_names = ["sql", "texts", "exc_type", "exc_val", "exc_tb"]
-
-# Pylint is not actively used (ruff handles linting)
-# Configuration kept for legacy compatibility only
+# Note: pylint, vulture, and isort configurations have been removed.
+# Ruff handles all linting and import sorting tasks.

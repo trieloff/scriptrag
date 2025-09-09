@@ -512,7 +512,9 @@ class TestEdgeCases:
             endpoint="https://test.com",
             api_key="test-key",  # pragma: allowlist secret
         )
-        # OpenAICompatibleProvider initializes client directly, no need to init
+
+        # Ensure client is initialized first
+        await provider._ensure_client()
 
         # Test empty completion response
         mock_response = Mock(spec=["status_code", "json"])

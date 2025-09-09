@@ -22,6 +22,8 @@ class TestOpenAICompatibleExceptions:
             api_key="test",  # pragma: allowlist secret
         )
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client,
             "get",

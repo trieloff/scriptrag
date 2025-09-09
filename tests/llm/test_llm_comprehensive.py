@@ -691,6 +691,8 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         mock_response = Mock(spec=object)
         mock_response.status_code = 500
         mock_response.text = "Internal server error"
@@ -736,6 +738,8 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         mock_response = Mock(spec=object)
         mock_response.status_code = 401
         mock_response.text = "Unauthorized"

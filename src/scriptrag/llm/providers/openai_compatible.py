@@ -103,6 +103,15 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         """
         self._client = value
 
+    @client.deleter
+    def client(self) -> None:
+        """Delete the HTTP client for test cleanup.
+
+        This is required for unittest.mock.patch.object() to work properly
+        when patching the client property.
+        """
+        self._client = None
+
     async def is_available(self) -> bool:
         """Check if endpoint and API key are configured."""
         if not self.base_url or not self.api_key:

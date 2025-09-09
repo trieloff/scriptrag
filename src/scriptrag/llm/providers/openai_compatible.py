@@ -54,7 +54,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         self.api_key = api_key or os.getenv("SCRIPTRAG_LLM_API_KEY", "")
         self.timeout = timeout
         # Initialize client as None - will be created lazily
-        self.client: httpx.AsyncClient | None = None
+        self._client: httpx.AsyncClient | None = None
         self._client_lock = asyncio.Lock()  # Protect against race conditions
         self._availability_cache: bool | None = None
         self._cache_timestamp: float = 0
@@ -74,13 +74,34 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         Returns:
             Initialized HTTP client
         """
-        if self.client is None:
+        if self._client is None:
             async with self._client_lock:  # Prevent race conditions
                 # Double-check pattern - check again inside lock
-                if self.client is None:
+                if self._client is None:
                     # Use the timeout from constructor, not hardcoded value
-                    self.client = httpx.AsyncClient(timeout=httpx.Timeout(self.timeout))
-        return self.client
+                    timeout = httpx.Timeout(self.timeout)
+                    self._client = httpx.AsyncClient(timeout=timeout)
+        return self._client
+
+    @property
+    def client(self) -> httpx.AsyncClient | None:
+        """Get the HTTP client for backward compatibility.
+
+        Returns:
+            The HTTP client if initialized, None otherwise.
+
+        Note: Direct assignment to this property is supported for test mocking.
+        """
+        return self._client
+
+    @client.setter
+    def client(self, value: httpx.AsyncClient | None) -> None:
+        """Set the HTTP client for backward compatibility (mainly for tests).
+
+        Args:
+            value: The HTTP client to set, or None to clear it.
+        """
+        self._client = value
 
     async def is_available(self) -> bool:
         """Check if endpoint and API key are configured."""
@@ -159,9 +180,9 @@ class OpenAICompatibleProvider(BaseLLMProvider):
 
     async def close(self) -> None:
         """Close the HTTP client and release resources."""
-        if self.client is not None:
-            await self.client.aclose()
-            self.client = None
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
 
     # Note: No __del__ method needed - proper resource management is handled via
     # async context manager (__aenter__/__aexit__) or explicit close() calls.

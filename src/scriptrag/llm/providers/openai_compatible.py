@@ -55,6 +55,7 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         self.timeout = timeout
         # Initialize client as None - will be created lazily
         self.client: httpx.AsyncClient | None = None
+        self._client_lock = asyncio.Lock()  # Protect against race conditions
         self._availability_cache: bool | None = None
         self._cache_timestamp: float = 0
         # Semaphore to prevent concurrent requests for local LLM servers
@@ -68,9 +69,17 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         )
 
     async def _ensure_client(self) -> httpx.AsyncClient:
-        """Ensure HTTP client is initialized."""
+        """Ensure HTTP client is initialized with thread-safe lazy initialization.
+
+        Returns:
+            Initialized HTTP client
+        """
         if self.client is None:
-            self.client = httpx.AsyncClient(timeout=httpx.Timeout(120.0))
+            async with self._client_lock:  # Prevent race conditions
+                # Double-check pattern - check again inside lock
+                if self.client is None:
+                    # Use the timeout from constructor, not hardcoded value
+                    self.client = httpx.AsyncClient(timeout=httpx.Timeout(self.timeout))
         return self.client
 
     async def is_available(self) -> bool:
@@ -154,20 +163,9 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             await self.client.aclose()
             self.client = None
 
-    def __del__(self) -> None:
-        """Cleanup when the provider is garbage collected."""
-        if self.client is not None:
-            # Try to close the client, but we can't await in __del__
-            try:
-                # Schedule the coroutine to close the client
-                _ = asyncio.create_task(self.close())  # noqa: RUF006
-            except RuntimeError:
-                # If there's no event loop, we can't close async
-                # Log a warning about the resource leak
-                logger.warning(
-                    "OpenAI-compatible provider not properly closed. "
-                    "Use 'async with' or call close() to avoid resource leaks."
-                )
+    # Note: No __del__ method needed - proper resource management is handled via
+    # async context manager (__aenter__/__aexit__) or explicit close() calls.
+    # Using __del__ with async operations is an anti-pattern that causes issues.
 
     async def list_models(self) -> list[Model]:
         """List available models from OpenAI-compatible endpoint."""

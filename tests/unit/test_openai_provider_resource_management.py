@@ -135,27 +135,26 @@ class TestOpenAIProviderResourceManagement:
         assert provider.client is None
 
     @pytest.mark.asyncio
-    async def test_destructor_warning_without_cleanup(self) -> None:
-        """Test that destructor warns about resource leak."""
-        with patch("scriptrag.llm.providers.openai_compatible.logger") as mock_logger:
-            provider = OpenAICompatibleProvider(
-                endpoint="http://test.com/v1",
-                api_key="test-key",  # pragma: allowlist secret
-            )
+    async def test_no_destructor_resource_management(self) -> None:
+        """Test that provider doesn't use __del__ for resource management.
 
-            # Initialize client
-            await provider._ensure_client()
-            assert provider.client is not None
+        Resource management should be handled via async context manager
+        or explicit close() calls, not via __del__ which is unreliable.
+        """
+        provider = OpenAICompatibleProvider(
+            endpoint="http://test.com/v1",
+            api_key="test-key",  # pragma: allowlist secret
+        )
 
-            # Simulate destructor without event loop
-            with patch(
-                "asyncio.create_task", side_effect=RuntimeError("No event loop")
-            ):
-                provider.__del__()
+        # Initialize client
+        await provider._ensure_client()
+        assert provider.client is not None
 
-            # Should log a warning about resource leak
-            mock_logger.warning.assert_called_once()
-            assert "not properly closed" in mock_logger.warning.call_args[0][0]
+        # Verify that __del__ doesn't exist (correct pattern)
+        assert not hasattr(provider, "__del__"), (
+            "Provider should not use __del__ for resource management. "
+            "Use async context manager or explicit close() instead."
+        )
 
     @pytest.mark.asyncio
     async def test_is_available_initializes_client(self) -> None:

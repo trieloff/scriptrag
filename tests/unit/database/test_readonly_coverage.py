@@ -102,6 +102,8 @@ class TestGetReadOnlyConnectionAdditional:
         settings.database_cache_size = -2000
         settings.database_temp_store = "MEMORY"
         settings.database_journal_mode = "WAL"
+        settings.database_synchronous = "NORMAL"
+        settings.database_foreign_keys = True
         return settings
 
     @pytest.mark.unit

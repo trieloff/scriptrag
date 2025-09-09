@@ -724,7 +724,7 @@ class TestEmbeddingCache:
         assert "model-b" in stats["models"]
         assert stats["strategy"] == "lru"
 
-    def test_cleanup_old(self, embedding_cache):
+    def test_cleanup_old_entries(self, embedding_cache):
         """Removing aged memories from the palace."""
         embedding = [0.1, 0.2, 0.3]
 
@@ -735,7 +735,7 @@ class TestEmbeddingCache:
         # Make it appear very old
         embedding_cache._index[key].timestamp = time.time() - (31 * 86400)
 
-        count = embedding_cache.cleanup_old(max_age_days=30)
+        count = embedding_cache.cleanup_old_entries(max_age_days=30)
         assert count == 1
 
         assert embedding_cache.get("old_text", "model") is None

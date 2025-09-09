@@ -292,7 +292,7 @@ class EmbeddingService:
         Returns:
             Number of cache files removed
         """
-        return self.cache.cleanup_old(max_age_days)
+        return self.cache.cleanup_old_entries(max_age_days)
 
     async def generate_batch_embeddings(
         self,

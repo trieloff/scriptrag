@@ -238,7 +238,3 @@ class BibleExtractor:
 
         # Merge results
         return self.formatter.merge_results(character_result, scene_result)
-
-
-# Legacy alias for backward compatibility
-BibleCharacterExtractor = BibleExtractor

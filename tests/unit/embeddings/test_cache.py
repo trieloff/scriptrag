@@ -576,7 +576,7 @@ class TestEmbeddingCache:
         assert len(cache._index) == 2
 
         # Cleanup entries older than 30 days
-        count = cache.cleanup_old(max_age_days=30)
+        count = cache.cleanup_old_entries(max_age_days=30)
         assert count == 1
         assert len(cache._index) == 1
 
@@ -589,7 +589,7 @@ class TestEmbeddingCache:
         cache.put("text1", "model", [0.1])
         cache.put("text2", "model", [0.2])
 
-        count = cache.cleanup_old(max_age_days=30)
+        count = cache.cleanup_old_entries(max_age_days=30)
         assert count == 0
         assert len(cache._index) == 2
 
@@ -608,7 +608,7 @@ class TestEmbeddingCache:
         monkeypatch.setattr(Path, "unlink", mock_unlink)
 
         # Cleanup should handle errors gracefully
-        count = cache.cleanup_old(max_age_days=30)
+        count = cache.cleanup_old_entries(max_age_days=30)
         # Count might be 0 due to file removal error, but index should be cleaned
         assert key not in cache._index
 

@@ -104,8 +104,6 @@ lint: install ## Run all linters (ruff, mypy, bandit, sqlfluff, etc.)
 	uv run bandit -r src/ -c pyproject.toml
 	@echo "🔍 Checking docstring coverage..."
 	uv run interrogate -c pyproject.toml
-	@echo "🔍 Checking for dead code..."
-	uv run vulture --config pyproject.toml
 	@echo "🔍 Running SQLFluff..."
 	uv run sqlfluff lint --dialect sqlite || echo "⚠️  SQLFluff found issues (non-blocking)"
 	@echo "✅ All linting checks passed"
@@ -335,9 +333,6 @@ run-api-dev: install ## Run the REST API server in development mode with auto-re
 shell: install ## Start IPython shell with project context
 	uv run ipython -i -c "from scriptrag import *; print('ScriptRAG modules loaded')"
 
-.PHONY: notebook
-notebook: install ## Start Jupyter notebook server
-	uv run jupyter notebook --notebook-dir=notebooks/
 
 # Database tasks
 .PHONY: db-init

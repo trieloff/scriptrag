@@ -129,7 +129,7 @@ class SearchEngine:
                     self._cleanup_event_loop(new_loop)
                     new_loop.close()
 
-            thread = threading.Thread(target=run_in_new_loop)
+            thread = threading.Thread(target=run_in_new_loop, daemon=True)
             thread.start()
             thread.join(timeout=self.settings.search_thread_timeout)
 
@@ -139,6 +139,8 @@ class SearchEngine:
                     "Search thread timed out after %s seconds",
                     self.settings.search_thread_timeout,
                 )
+                # Thread is daemon, so it won't prevent program exit
+                # but we should still raise an error to indicate timeout
                 raise RuntimeError("Search operation timed out")
 
             if exception is not None:

@@ -335,16 +335,6 @@ class TestVSSServiceExtended:
                 )
             assert "Failed to search similar bible chunks" in str(exc_info.value)
 
-    # Migration tests removed - migration function no longer exists
-    # def test_migrate_no_old_table(self, vss_service):
-    #     pass
-
-    # def test_migrate_with_bible_chunks(self, vss_service):
-    #     pass
-
-    # def test_migrate_with_corrupted_data(self, vss_service):
-    #     pass
-
     def test_initialize_vss_tables_with_migration_file(self, mock_settings, tmp_path):
         """Test VSS table initialization with migration file."""
         db_path = tmp_path / "test.db"

@@ -414,7 +414,7 @@ class EmbeddingCache:
             else 0,
         }
 
-    def cleanup_old(self, max_age_days: int = 30) -> int:
+    def cleanup_old_entries(self, max_age_days: int = 30) -> int:
         """Remove cache entries older than specified age.
 
         Args:

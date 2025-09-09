@@ -38,6 +38,8 @@ class TestOpenAICompatibleExceptions:
             api_key="test",  # pragma: allowlist secret
         )
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client,
             "get",
@@ -60,6 +62,8 @@ class TestOpenAICompatibleExceptions:
         mock_response.status_code = 200
         mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             models = await provider.list_models()
             assert models == []
@@ -78,6 +82,8 @@ class TestOpenAICompatibleExceptions:
             temperature=0.7,
         )
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client,
             "post",
@@ -107,6 +113,8 @@ class TestOpenAICompatibleExceptions:
         mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
         mock_response.text = "Invalid JSON"
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "post", return_value=mock_response):
             with pytest.raises(ValueError) as exc_info:
                 await provider.complete(request)
@@ -127,6 +135,8 @@ class TestOpenAICompatibleExceptions:
         mock_response.status_code = 200
         mock_response.json.return_value = {}  # Missing expected fields
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "post", return_value=mock_response):
             # Should return response with empty data since we're missing fields
             result = await provider.embed(request)
@@ -145,6 +155,9 @@ class TestGitHubModelsExceptions:
 
         mock_response = Mock(spec=["status_code"])
         mock_response.status_code = 403
+        # Ensure client is initialized first
+        provider._init_http_client()
+
         with patch.object(
             provider.client,
             "get",
@@ -176,6 +189,8 @@ class TestGitHubModelsExceptions:
         mock_response.json.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
         mock_response.text = "Invalid JSON"
 
+        # Ensure client is initialized first
+        provider._init_http_client()
         with patch.object(provider.client, "post", return_value=mock_response):
             with pytest.raises(ValueError) as exc_info:
                 await provider.complete(request)
@@ -201,6 +216,8 @@ class TestGitHubModelsExceptions:
         mock_response.json.return_value = {"choices": "not a list"}  # Invalid structure
         mock_response.text = "Invalid response structure"
 
+        # Ensure client is initialized first
+        provider._init_http_client()
         with patch.object(provider.client, "post", return_value=mock_response):
             # The provider now sanitizes invalid responses and provides fallback data
             result = await provider.complete(request)
@@ -220,6 +237,8 @@ class TestGitHubModelsExceptions:
 
         request = EmbeddingRequest(model="test-model", input="test text")
 
+        # Ensure client is initialized first
+        provider._init_http_client()
         with patch.object(
             provider.client,
             "post",

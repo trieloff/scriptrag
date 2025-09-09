@@ -558,6 +558,9 @@ class TestOpenAICompatibleProviderExtended:
         mock_response = Mock(spec=object)
         mock_response.status_code = 200
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
+
         with patch.object(provider.client, "get", return_value=mock_response):
             result = await provider.is_available()
             assert result is True
@@ -570,6 +573,8 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client, "get", side_effect=httpx.ConnectError("Connection failed")
         ):
@@ -598,6 +603,8 @@ class TestOpenAICompatibleProviderExtended:
         mock_response = Mock(spec=object)
         mock_response.status_code = 403
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             models = await provider.list_models()
             assert models == []
@@ -614,6 +621,8 @@ class TestOpenAICompatibleProviderExtended:
         mock_response.status_code = 200
         mock_response.json.return_value = {"invalid": "format"}
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             models = await provider.list_models()
             assert models == []
@@ -626,6 +635,8 @@ class TestOpenAICompatibleProviderExtended:
             api_key="test-key",  # pragma: allowlist secret
         )
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client, "get", side_effect=RuntimeError("Unexpected error")
         ):
@@ -660,6 +671,8 @@ class TestOpenAICompatibleProviderExtended:
             max_tokens=50,
         )
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client, "post", return_value=mock_response
         ) as mock_post:
@@ -704,6 +717,8 @@ class TestOpenAICompatibleProviderExtended:
 
         request = EmbeddingRequest(model="embedding", input="test", dimensions=512)
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client, "post", return_value=mock_response
         ) as mock_post:

@@ -39,7 +39,7 @@ class TestOpenAICompatibleProvider:
         assert provider.base_url == "http://example.com/api"
         assert provider.api_key == "my-key"  # pragma: allowlist secret
         assert provider.timeout == 120.0
-        assert provider.client is not None
+        assert provider.client is None  # Client is lazily initialized now
         assert provider._availability_cache is None
         assert isinstance(provider._request_semaphore, asyncio.Semaphore)
 
@@ -111,6 +111,8 @@ class TestOpenAICompatibleProvider:
         mock_response = MagicMock(spec_set=["status_code", "text", "json"])
         mock_response.status_code = 200
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             result = await provider.is_available()
             assert result is True
@@ -126,6 +128,8 @@ class TestOpenAICompatibleProvider:
         mock_response = MagicMock(spec_set=["status_code", "text", "json"])
         mock_response.status_code = 200
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             result = await provider.is_available()
             assert result is True
@@ -136,6 +140,8 @@ class TestOpenAICompatibleProvider:
         self, provider: OpenAICompatibleProvider
     ) -> None:
         """Test API error during availability check."""
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client, "get", side_effect=RuntimeError("Connection error")
         ):
@@ -151,6 +157,8 @@ class TestOpenAICompatibleProvider:
         mock_response = MagicMock(spec_set=["status_code", "text", "json"])
         mock_response.status_code = 404
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             result = await provider.is_available()
             assert result is False
@@ -178,6 +186,8 @@ class TestOpenAICompatibleProvider:
             ]
         }
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             models = await provider.list_models()
 
@@ -195,6 +205,8 @@ class TestOpenAICompatibleProvider:
         self, provider: OpenAICompatibleProvider
     ) -> None:
         """Test model listing with API error."""
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client, "get", side_effect=RuntimeError("API Error")
         ):
@@ -217,6 +229,8 @@ class TestOpenAICompatibleProvider:
             ]
         }
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "get", return_value=mock_response):
             models = await provider.list_models()
 
@@ -248,6 +262,8 @@ class TestOpenAICompatibleProvider:
             "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
         }
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "post", return_value=mock_response):
             request = CompletionRequest(
                 model="llama3", messages=[{"role": "user", "content": "Hello"}]
@@ -288,6 +304,8 @@ class TestOpenAICompatibleProvider:
             }
             return mock_response
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "post", side_effect=mock_post):
             request = CompletionRequest(
                 model="test", messages=[{"role": "user", "content": "Hello"}]
@@ -336,6 +354,8 @@ class TestOpenAICompatibleProvider:
             }
             return mock_response
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "post", side_effect=capture_post):
             request = CompletionRequest(
                 model="test",
@@ -377,6 +397,8 @@ class TestOpenAICompatibleProvider:
             }
             return mock_response
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "post", side_effect=capture_post):
             request = CompletionRequest(
                 model="test",
@@ -391,6 +413,8 @@ class TestOpenAICompatibleProvider:
     @pytest.mark.asyncio
     async def test_complete_api_error(self, provider: OpenAICompatibleProvider) -> None:
         """Test completion with API error."""
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client, "post", side_effect=RuntimeError("API Error")
         ):
@@ -407,6 +431,8 @@ class TestOpenAICompatibleProvider:
         self, provider: OpenAICompatibleProvider
     ) -> None:
         """Test completion with timeout."""
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client, "post", side_effect=TimeoutError("Request timed out")
         ):
@@ -429,6 +455,8 @@ class TestOpenAICompatibleProvider:
             "usage": {"prompt_tokens": 5, "total_tokens": 5},
         }
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "post", return_value=mock_response):
             request = EmbeddingRequest(
                 model="text-embedding-ada-002", input="Test text"
@@ -444,6 +472,8 @@ class TestOpenAICompatibleProvider:
     @pytest.mark.asyncio
     async def test_embed_api_error(self, provider: OpenAICompatibleProvider) -> None:
         """Test embedding with API error."""
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(
             provider.client, "post", side_effect=RuntimeError("API Error")
         ):
@@ -487,6 +517,8 @@ class TestOpenAICompatibleProvider:
             }
             return mock_response
 
+        # Ensure client is initialized first
+        await provider._ensure_client()
         with patch.object(provider.client, "post", side_effect=capture_post):
             request = CompletionRequest(
                 model="test",

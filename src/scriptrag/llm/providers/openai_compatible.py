@@ -53,8 +53,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
         self.base_url = endpoint or os.getenv("SCRIPTRAG_LLM_ENDPOINT", "")
         self.api_key = api_key or os.getenv("SCRIPTRAG_LLM_API_KEY", "")
         self.timeout = timeout
-        # Use a longer timeout for the httpx client
-        self.client = httpx.AsyncClient(timeout=httpx.Timeout(120.0))
+        # Initialize client as None - will be created lazily
+        self.client: httpx.AsyncClient | None = None
         self._availability_cache: bool | None = None
         self._cache_timestamp: float = 0
         # Semaphore to prevent concurrent requests for local LLM servers
@@ -66,6 +66,12 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             has_api_key=bool(self.api_key),
             timeout=timeout,
         )
+
+    async def _ensure_client(self) -> httpx.AsyncClient:
+        """Ensure HTTP client is initialized."""
+        if self.client is None:
+            self.client = httpx.AsyncClient(timeout=httpx.Timeout(120.0))
+        return self.client
 
     async def is_available(self) -> bool:
         """Check if endpoint and API key are configured."""
@@ -97,7 +103,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             }
             models_url = f"{self.base_url}/models"
             logger.debug(f"Checking OpenAI-compatible availability at {models_url}")
-            response = await self.client.get(models_url, headers=headers)
+            client = await self._ensure_client()
+            response = await client.get(models_url, headers=headers)
             result = bool(response.status_code == 200)
             self._availability_cache = result
             self._cache_timestamp = time.time()
@@ -139,7 +146,28 @@ class OpenAICompatibleProvider(BaseLLMProvider):
 
     async def __aexit__(self, *_: Any) -> None:
         """Exit async context manager and cleanup."""
-        await self.client.aclose()
+        await self.close()
+
+    async def close(self) -> None:
+        """Close the HTTP client and release resources."""
+        if self.client is not None:
+            await self.client.aclose()
+            self.client = None
+
+    def __del__(self) -> None:
+        """Cleanup when the provider is garbage collected."""
+        if self.client is not None:
+            # Try to close the client, but we can't await in __del__
+            try:
+                # Schedule the coroutine to close the client
+                _ = asyncio.create_task(self.close())  # noqa: RUF006
+            except RuntimeError:
+                # If there's no event loop, we can't close async
+                # Log a warning about the resource leak
+                logger.warning(
+                    "OpenAI-compatible provider not properly closed. "
+                    "Use 'async with' or call close() to avoid resource leaks."
+                )
 
     async def list_models(self) -> list[Model]:
         """List available models from OpenAI-compatible endpoint."""
@@ -151,7 +179,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
                 "Authorization": f"Bearer {self.api_key}",
                 "Accept": "application/json",
             }
-            response = await self.client.get(f"{self.base_url}/models", headers=headers)
+            client = await self._ensure_client()
+            response = await client.get(f"{self.base_url}/models", headers=headers)
 
             if response.status_code != 200:
                 logger.warning(f"Failed to list models: {response.status_code}")
@@ -258,7 +287,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             )
 
             try:
-                response = await self.client.post(
+                client = await self._ensure_client()
+                response = await client.post(
                     completions_url,
                     headers=headers,
                     json=payload,
@@ -362,7 +392,8 @@ class OpenAICompatibleProvider(BaseLLMProvider):
             payload["dimensions"] = request.dimensions
 
         try:
-            response = await self.client.post(
+            client = await self._ensure_client()
+            response = await client.post(
                 f"{self.base_url}/embeddings",
                 headers=headers,
                 json=payload,

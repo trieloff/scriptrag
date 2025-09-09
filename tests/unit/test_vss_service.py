@@ -424,8 +424,3 @@ class TestVSSService:
                 assert "Failed to search similar scenes" in str(exc_info.value)
                 # Verify the connection was properly cleaned up
                 mock_conn.close.assert_called_once()
-
-    # Migration function has been removed - no longer needed in pre-production
-    # def test_migrate_from_blob_storage(self, vss_service):
-    #     """Test migration from old BLOB storage."""
-    #     pass

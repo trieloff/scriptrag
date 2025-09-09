@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from scriptrag.api.bible_extraction import BibleCharacterExtractor
+from scriptrag.api.bible_extraction import BibleExtractor
 
 
 @pytest.fixture
@@ -89,7 +89,7 @@ class TestBibleCharacterExtraction:
         completion_response.usage = {}
         mock_llm.complete = AsyncMock(return_value=completion_response)
 
-        extractor = BibleCharacterExtractor(llm_client=mock_llm)
+        extractor = BibleExtractor(llm_client=mock_llm)
         result = await extractor.extract_characters_from_bible(temp_bible_file)
 
         # Check structure
@@ -144,7 +144,7 @@ class TestBibleCharacterExtraction:
         completion_response.usage = {}
         mock_llm.complete = AsyncMock(return_value=completion_response)
 
-        extractor = BibleCharacterExtractor(llm_client=mock_llm)
+        extractor = BibleExtractor(llm_client=mock_llm)
         result = await extractor.extract_characters_from_bible(temp_bible_file)
 
         characters = result["characters"]
@@ -172,7 +172,7 @@ class TestBibleCharacterExtraction:
         mock_llm = AsyncMock(
             spec=["complete", "cleanup", "embed", "list_models", "is_available"]
         )
-        extractor = BibleCharacterExtractor(llm_client=mock_llm)
+        extractor = BibleExtractor(llm_client=mock_llm)
 
         result = await extractor.extract_characters_from_bible(bible_path)
 
@@ -193,7 +193,7 @@ class TestBibleCharacterExtraction:
         )
         mock_llm.complete = AsyncMock(side_effect=Exception("LLM API error"))
 
-        extractor = BibleCharacterExtractor(llm_client=mock_llm)
+        extractor = BibleExtractor(llm_client=mock_llm)
         result = await extractor.extract_characters_from_bible(temp_bible_file)
 
         # Should return empty result on failure
@@ -215,7 +215,7 @@ class TestBibleCharacterExtraction:
         mock_response.usage = {}
         mock_llm.complete = AsyncMock(return_value=mock_response)
 
-        extractor = BibleCharacterExtractor(llm_client=mock_llm)
+        extractor = BibleExtractor(llm_client=mock_llm)
         result = await extractor.extract_characters_from_bible(temp_bible_file)
 
         # Should handle gracefully
@@ -248,7 +248,7 @@ These are the main characters from the Bible."""
         completion_response.usage = {}
         mock_llm.complete = AsyncMock(return_value=completion_response)
 
-        extractor = BibleCharacterExtractor(llm_client=mock_llm)
+        extractor = BibleExtractor(llm_client=mock_llm)
         result = await extractor.extract_characters_from_bible(temp_bible_file)
 
         # Should extract JSON successfully
@@ -299,7 +299,7 @@ ALICE - Supporting character
         completion_response.usage = {}
         mock_llm.complete = AsyncMock(return_value=completion_response)
 
-        extractor = BibleCharacterExtractor(llm_client=mock_llm)
+        extractor = BibleExtractor(llm_client=mock_llm)
         result = await extractor.extract_characters_from_bible(bible_path)
 
         # Should find all character sections

@@ -11,7 +11,7 @@ from scriptrag.api.bible.character_bible import (
     BibleCharacterExtractor as RealBibleCharacterExtractor,
 )
 from scriptrag.api.bible.scene_bible import BibleScene
-from scriptrag.api.bible_extraction import BibleCharacterExtractor, BibleExtractor
+from scriptrag.api.bible_extraction import BibleExtractor
 from scriptrag.parser.bible_parser import BibleChunk, ParsedBible
 
 
@@ -81,7 +81,7 @@ class TestBibleCharacter:
         assert char.notes is None
 
 
-class TestBibleCharacterExtractor:
+class TestRealBibleCharacterExtractor:
     """Test REAL BibleCharacterExtractor class from bible.character_bible."""
 
     def test_init_with_llm_client(self) -> None:
@@ -279,7 +279,7 @@ class TestBibleCharacterExtractor:
         )
         mock_client.complete = AsyncMock(return_value=mock_response)
 
-        extractor = BibleCharacterExtractor(llm_client=mock_client)
+        extractor = BibleExtractor(llm_client=mock_client)
         characters = await extractor._extract_via_llm(chunks)
 
         assert len(characters) == 1
@@ -298,7 +298,7 @@ class TestBibleCharacterExtractor:
         mock_client = AsyncMock()
         mock_client.complete.side_effect = Exception("LLM error")
 
-        extractor = BibleCharacterExtractor(llm_client=mock_client)
+        extractor = BibleExtractor(llm_client=mock_client)
         characters = await extractor._extract_via_llm(chunks)
 
         assert characters == []
@@ -320,7 +320,7 @@ class TestBibleCharacterExtractor:
         )
         mock_client.complete = AsyncMock(return_value=mock_response)
 
-        extractor = BibleCharacterExtractor(llm_client=mock_client)
+        extractor = BibleExtractor(llm_client=mock_client)
         characters = await extractor._extract_via_llm(chunks)
 
         assert characters == []
@@ -335,7 +335,7 @@ class TestBibleCharacterExtractor:
         mock_response = json.dumps([{"canonical": "JANE", "aliases": ["J"]}])
         mock_client.complete = AsyncMock(return_value=mock_response)
 
-        extractor = BibleCharacterExtractor(llm_client=mock_client)
+        extractor = BibleExtractor(llm_client=mock_client)
         characters = await extractor._extract_via_llm(chunks)
 
         assert len(characters) == 1
@@ -752,19 +752,4 @@ class TestBibleExtractor:
             assert scene["location"] == "POLICE STATION"
 
 
-class TestBibleExtractorLegacyAlias:
-    """Test the legacy BibleCharacterExtractor alias."""
-
-    def test_legacy_alias_is_same_class(self) -> None:
-        """Test that BibleCharacterExtractor is an alias for BibleExtractor."""
-        # This tests line 244 which defines the legacy alias
-        assert BibleCharacterExtractor is BibleExtractor
-
-    def test_legacy_alias_initialization(self) -> None:
-        """Test initialization through legacy alias."""
-        mock_client = Mock(spec=object)
-        extractor = BibleCharacterExtractor(llm_client=mock_client)
-
-        # Should be same type as BibleExtractor
-        assert isinstance(extractor, BibleExtractor)
-        assert extractor.llm_client is mock_client
+# Legacy alias tests removed - BibleCharacterExtractor alias has been removed

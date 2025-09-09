@@ -393,7 +393,7 @@ class TestEmbeddingServiceComprehensive:
         """Test cleanup_old_cache as wrapper method."""
         expected_count = 25
 
-        with patch.object(service.cache, "cleanup_old") as mock_cleanup:
+        with patch.object(service.cache, "cleanup_old_entries") as mock_cleanup:
             mock_cleanup.return_value = expected_count
 
             result = service.cleanup_old_cache(max_age_days=7)
@@ -403,7 +403,7 @@ class TestEmbeddingServiceComprehensive:
 
     def test_cleanup_old_cache_default_age(self, service):
         """Test cleanup_old_cache with default age."""
-        with patch.object(service.cache, "cleanup_old") as mock_cleanup:
+        with patch.object(service.cache, "cleanup_old_entries") as mock_cleanup:
             mock_cleanup.return_value = 10
 
             result = service.cleanup_old_cache()

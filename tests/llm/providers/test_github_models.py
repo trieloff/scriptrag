@@ -423,6 +423,170 @@ class TestGitHubModelsProvider:
         )
 
     @pytest.mark.asyncio
+    async def test_complete_malformed_choices(
+        self, provider: GitHubModelsProvider
+    ) -> None:
+        """Test completion with malformed choices in response."""
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "chatcmpl-123",
+            "model": "gpt-4o",
+            "choices": [
+                # Valid choice
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Valid response"},
+                    "finish_reason": "stop",
+                },
+                # Missing message field
+                {
+                    "index": 1,
+                    "finish_reason": "stop",
+                },
+                # Message is not a dict
+                {
+                    "index": 2,
+                    "message": "not a dict",
+                    "finish_reason": "stop",
+                },
+                # Missing content in message
+                {
+                    "index": 3,
+                    "message": {"role": "assistant"},
+                    "finish_reason": "stop",
+                },
+                # Content is None
+                {
+                    "index": 4,
+                    "message": {"role": "assistant", "content": None},
+                    "finish_reason": "stop",
+                },
+            ],
+            "usage": {"total_tokens": 10},
+        }
+
+        # Initialize client before mocking
+        provider._init_http_client()
+        with patch.object(provider.client, "post", return_value=mock_response):
+            request = CompletionRequest(
+                model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
+            )
+            response = await provider.complete(request)
+
+            # Should have sanitized all 5 choices
+            assert len(response.choices) == 5
+
+            # First choice should be intact
+            assert response.choices[0]["message"]["content"] == "Valid response"
+            assert response.choices[0]["message"]["role"] == "assistant"
+
+            # Second choice should have default message
+            assert response.choices[1]["message"]["content"] == ""
+            assert response.choices[1]["message"]["role"] == "assistant"
+
+            # Third choice should have default message (message was invalid)
+            assert response.choices[2]["message"]["content"] == ""
+            assert response.choices[2]["message"]["role"] == "assistant"
+
+            # Fourth choice should have empty content
+            assert response.choices[3]["message"]["content"] == ""
+            assert response.choices[3]["message"]["role"] == "assistant"
+
+            # Fifth choice should have empty content (None converted to "")
+            assert response.choices[4]["message"]["content"] == ""
+            assert response.choices[4]["message"]["role"] == "assistant"
+
+    @pytest.mark.asyncio
+    async def test_complete_empty_choices(self, provider: GitHubModelsProvider) -> None:
+        """Test completion with empty choices array."""
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "chatcmpl-123",
+            "model": "gpt-4o",
+            "choices": [],
+            "usage": {"total_tokens": 0},
+        }
+
+        # Initialize client before mocking
+        provider._init_http_client()
+        with patch.object(provider.client, "post", return_value=mock_response):
+            request = CompletionRequest(
+                model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
+            )
+            response = await provider.complete(request)
+
+            # Should have created a default choice
+            assert len(response.choices) == 1
+            assert response.choices[0]["message"]["content"] == ""
+            assert response.choices[0]["message"]["role"] == "assistant"
+            assert response.choices[0]["finish_reason"] == "stop"
+
+    @pytest.mark.asyncio
+    async def test_complete_non_list_choices(
+        self, provider: GitHubModelsProvider
+    ) -> None:
+        """Test completion with choices not being a list."""
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "chatcmpl-123",
+            "model": "gpt-4o",
+            "choices": "not a list",  # Invalid type
+            "usage": {"total_tokens": 0},
+        }
+
+        # Initialize client before mocking
+        provider._init_http_client()
+        with patch.object(provider.client, "post", return_value=mock_response):
+            request = CompletionRequest(
+                model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
+            )
+            response = await provider.complete(request)
+
+            # Should have created a default choice
+            assert len(response.choices) == 1
+            assert response.choices[0]["message"]["content"] == ""
+            assert response.choices[0]["message"]["role"] == "assistant"
+
+    @pytest.mark.asyncio
+    async def test_complete_non_dict_choice(
+        self, provider: GitHubModelsProvider
+    ) -> None:
+        """Test completion with choice items that are not dicts."""
+        mock_response = MagicMock(spec=["status_code", "raise_for_status", "json"])
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "id": "chatcmpl-123",
+            "model": "gpt-4o",
+            "choices": [
+                "string choice",  # Not a dict
+                123,  # Not a dict
+                None,  # Not a dict
+                [],  # Not a dict
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": "Valid one"},
+                    "finish_reason": "stop",
+                },
+            ],
+            "usage": {"total_tokens": 10},
+        }
+
+        # Initialize client before mocking
+        provider._init_http_client()
+        with patch.object(provider.client, "post", return_value=mock_response):
+            request = CompletionRequest(
+                model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
+            )
+            response = await provider.complete(request)
+
+            # Should only have the valid choice
+            assert len(response.choices) == 1
+            assert response.choices[0]["message"]["content"] == "Valid one"
+
+    @pytest.mark.asyncio
     async def test_complete_with_all_parameters(
         self, provider: GitHubModelsProvider
     ) -> None:

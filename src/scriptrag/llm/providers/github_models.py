@@ -275,58 +275,53 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
             "total_tokens": usage_data.get("total_tokens", 0),
         }
 
-        try:
-            return CompletionResponse(
-                id=data.get("id", ""),
-                model=data.get("model", model),
-                choices=data.get("choices", []),
-                usage=usage,
-                provider=self.provider_type,
-            )
-        except Exception as e:
-            # Handle response validation errors
+        # Always sanitize choices data to ensure type safety
+        raw_choices = data.get("choices", [])
+        sanitized_choices: list[CompletionChoice] = []
+
+        for choice in raw_choices:
+            if isinstance(choice, dict):
+                # Safely extract message data
+                message_data = choice.get("message", {})
+                if not isinstance(message_data, dict):
+                    message_data = {}
+
+                message: CompletionMessage = {
+                    "role": message_data.get("role", "assistant"),
+                    "content": message_data.get("content") or "",
+                }
+                sanitized_choice: CompletionChoice = {
+                    "index": choice.get("index", 0),
+                    "message": message,
+                    "finish_reason": choice.get("finish_reason", "stop"),
+                }
+                sanitized_choices.append(sanitized_choice)
+
+        # Create default if no valid choices
+        if not sanitized_choices:
             logger.warning(
-                "GitHub Models response validation failed, creating safe response",
-                error=str(e),
+                "GitHub Models response contained no valid choices, creating default",
+                model=model,
+                raw_choices_count=len(raw_choices),
             )
+            default_message: CompletionMessage = {
+                "role": "assistant",
+                "content": "",
+            }
+            default_choice: CompletionChoice = {
+                "index": 0,
+                "message": default_message,
+                "finish_reason": "stop",
+            }
+            sanitized_choices = [default_choice]
 
-            # Sanitize choices data
-            raw_choices = data.get("choices", [])
-            sanitized_choices: list[CompletionChoice] = []
-
-            for choice in raw_choices:
-                if isinstance(choice, dict):
-                    message: CompletionMessage = {
-                        "role": choice.get("message", {}).get("role", "assistant"),
-                        "content": choice.get("message", {}).get("content") or "",
-                    }
-                    sanitized_choice: CompletionChoice = {
-                        "index": choice.get("index", 0),
-                        "message": message,
-                        "finish_reason": choice.get("finish_reason", "stop"),
-                    }
-                    sanitized_choices.append(sanitized_choice)
-
-            # Create default if no valid choices
-            if not sanitized_choices:
-                default_message: CompletionMessage = {
-                    "role": "assistant",
-                    "content": "",
-                }
-                default_choice: CompletionChoice = {
-                    "index": 0,
-                    "message": default_message,
-                    "finish_reason": "stop",
-                }
-                sanitized_choices = [default_choice]
-
-            return CompletionResponse(
-                id=data.get("id", ""),
-                model=data.get("model", model),
-                choices=sanitized_choices,
-                usage=usage,
-                provider=self.provider_type,
-            )
+        return CompletionResponse(
+            id=data.get("id", ""),
+            model=data.get("model", model),
+            choices=sanitized_choices,
+            usage=usage,
+            provider=self.provider_type,
+        )
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Generate embeddings using GitHub Models."""

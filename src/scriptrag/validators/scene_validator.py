@@ -340,6 +340,10 @@ class SceneValidator:
         warnings: list[str] = []
         metadata: dict[str, Any] = {}
 
+        # Handle None values gracefully
+        new_content = new_content or ""
+        existing_content = existing_content or ""
+
         # Check if content has changed
         if new_content.strip() == existing_content.strip():
             warnings.append("No changes detected in scene content")
@@ -348,12 +352,21 @@ class SceneValidator:
             metadata["has_changes"] = True
 
             # Analyze what changed
-            new_lines = new_content.strip().split("\n")
-            existing_lines = existing_content.strip().split("\n")
+            new_lines = new_content.strip().split("\n") if new_content.strip() else []
+            existing_lines = (
+                existing_content.strip().split("\n") if existing_content.strip() else []
+            )
 
-            if new_lines[0] != existing_lines[0]:
+            # Check heading changes only if both have content
+            if new_lines and existing_lines and new_lines[0] != existing_lines[0]:
                 metadata["heading_changed"] = True
                 warnings.append("Scene heading has been modified")
+            elif new_lines and not existing_lines:
+                metadata["heading_changed"] = True
+                warnings.append("New scene content added")
+            elif not new_lines and existing_lines:
+                metadata["heading_changed"] = True
+                warnings.append("Scene content removed")
 
             # Count line changes
             lines_added = len(new_lines) - len(existing_lines)

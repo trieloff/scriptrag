@@ -169,6 +169,70 @@ New action here."""
         assert result.metadata["heading_changed"] is True
         assert result.metadata["lines_added"] == 0  # Both have same number of lines
 
+    def test_check_scene_conflicts_empty_content(
+        self, validator: SceneValidator
+    ) -> None:
+        """Test conflict checking with empty content."""
+        # Test with empty strings
+        result = validator.check_scene_conflicts("", "")
+        assert result.is_valid is True
+        assert result.metadata["has_changes"] is False
+        assert "No changes detected in scene content" in result.warnings
+
+        # Test with whitespace-only strings
+        result = validator.check_scene_conflicts("  \n  ", "  \n  ")
+        assert result.is_valid is True
+        assert result.metadata["has_changes"] is False
+
+    def test_check_scene_conflicts_empty_vs_content(
+        self, validator: SceneValidator
+    ) -> None:
+        """Test conflict checking when one side is empty."""
+        content = """INT. OFFICE - DAY
+
+Some action."""
+
+        # Empty new content vs existing content
+        result = validator.check_scene_conflicts("", content)
+        assert result.is_valid is True
+        assert result.metadata["has_changes"] is True
+        assert "Scene content removed" in result.warnings
+        assert result.metadata["heading_changed"] is True
+        assert result.metadata["lines_added"] == -3  # 3 lines in content
+
+        # Existing empty vs new content
+        result = validator.check_scene_conflicts(content, "")
+        assert result.is_valid is True
+        assert result.metadata["has_changes"] is True
+        assert "New scene content added" in result.warnings
+        assert result.metadata["heading_changed"] is True
+        assert result.metadata["lines_added"] == 3  # 3 lines in content
+
+    def test_check_scene_conflicts_none_handling(
+        self, validator: SceneValidator
+    ) -> None:
+        """Test conflict checking with None values (despite type hints)."""
+        # Test that None is handled gracefully even though type hints say str
+        # This tests defensive programming against runtime type issues
+
+        # Both None (treated as empty)
+        result = validator.check_scene_conflicts(None, None)  # type: ignore
+        assert result.is_valid is True
+        assert result.metadata["has_changes"] is False
+        assert "No changes detected" in result.warnings[0]
+
+        # One None, one with content
+        content = "INT. OFFICE - DAY\n\nAction."
+        result = validator.check_scene_conflicts(None, content)  # type: ignore
+        assert result.is_valid is True
+        assert result.metadata["has_changes"] is True
+        assert "Scene content removed" in result.warnings
+
+        result = validator.check_scene_conflicts(content, None)  # type: ignore
+        assert result.is_valid is True
+        assert result.metadata["has_changes"] is True
+        assert "New scene content added" in result.warnings
+
     def test_generate_suggestions_missing_time(self, validator: SceneValidator) -> None:
         """Test suggestion generation for missing time."""
         content = """INT. OFFICE

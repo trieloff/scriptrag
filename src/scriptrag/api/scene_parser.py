@@ -209,11 +209,24 @@ class SceneParser:
 
         # Ensure proper capitalization of INT/EXT
         heading = heading.strip()
+        heading_lower = heading.lower()
+
+        # First normalize spaces around the period for prefixes
+        # This handles cases like "int ." or "ext  ."
+        heading_lower_normalized = re.sub(
+            r"(int|ext|i/e|int/ext)\s*\.", r"\1.", heading_lower
+        )
+
         for prefix in ["int.", "ext.", "i/e.", "int/ext."]:
-            if heading.lower().startswith(prefix):
-                # Slice after the prefix length
-                heading = prefix.upper() + heading[len(prefix) :]
-                break
+            if heading_lower_normalized.startswith(prefix):
+                # Find where the prefix actually ends in the original heading
+                # by looking for the pattern with optional spaces
+                pattern = prefix.replace(".", r"\s*\.")
+                match = re.match(pattern, heading_lower)
+                if match:
+                    # Replace the matched prefix with the normalized uppercase version
+                    heading = prefix.upper() + heading[match.end() :]
+                    break
 
         # Ensure single space after period
         heading = re.sub(r"\.\s+", ". ", heading)

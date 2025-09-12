@@ -144,6 +144,39 @@ The meeting begins."""
         assert parser.normalize_scene_heading("int/ext. border") == "INT/EXT. border"
         assert parser.normalize_scene_heading("") == ""
 
+        # Test mixed case variations that could expose the slicing bug
+        assert parser.normalize_scene_heading("Int. OFFICE") == "INT. OFFICE"
+        assert parser.normalize_scene_heading("INT. OFFICE") == "INT. OFFICE"
+        assert parser.normalize_scene_heading("InT. OFFICE") == "INT. OFFICE"
+        assert parser.normalize_scene_heading("Ext. STREET") == "EXT. STREET"
+        assert parser.normalize_scene_heading("EXT. STREET") == "EXT. STREET"
+        assert parser.normalize_scene_heading("ExT. STREET") == "EXT. STREET"
+        assert parser.normalize_scene_heading("I/E. BORDER") == "I/E. BORDER"
+        assert parser.normalize_scene_heading("i/E. BORDER") == "I/E. BORDER"
+        assert (
+            parser.normalize_scene_heading("Int/Ext. COMPOUND") == "INT/EXT. COMPOUND"
+        )
+        assert (
+            parser.normalize_scene_heading("INT/EXT. COMPOUND") == "INT/EXT. COMPOUND"
+        )
+        assert (
+            parser.normalize_scene_heading("INT/ext. COMPOUND") == "INT/EXT. COMPOUND"
+        )
+
+        # Test with unusual spacing
+        assert parser.normalize_scene_heading("int.OFFICE") == "INT.OFFICE"
+        assert parser.normalize_scene_heading("int .  OFFICE") == "INT. OFFICE"
+
+        # Test edge cases with prefix-like content
+        assert (
+            parser.normalize_scene_heading("int.ernational airport")
+            == "INT.ernational airport"
+        )
+        assert (
+            parser.normalize_scene_heading("ext.reme sports center")
+            == "EXT.reme sports center"
+        )
+
     def test_parse_scene_with_complex_location(self, parser: SceneParser) -> None:
         """Test parsing scene with complex location."""
         content = """INT. SARAH'S APARTMENT - LIVING ROOM - NIGHT

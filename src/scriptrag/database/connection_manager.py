@@ -462,9 +462,13 @@ class DatabaseConnectionManager:
         try:
             # Set to read-only mode using PRAGMA
             conn.execute("PRAGMA query_only = ON")
-            yield conn
+            try:
+                yield conn
+            finally:
+                # Always reset query_only mode, even if an exception occurred
+                conn.execute("PRAGMA query_only = OFF")
         finally:
-            conn.execute("PRAGMA query_only = OFF")
+            # Always release the connection back to the pool
             self.release_connection(conn)
 
     @contextmanager

@@ -222,6 +222,95 @@ class TestDatabaseConnectionManager:
             with pytest.raises(sqlite3.OperationalError):
                 conn.execute("INSERT INTO test (id) VALUES (1)")
 
+    def test_readonly_context_exception_handling(
+        self, connection_manager: DatabaseConnectionManager
+    ) -> None:
+        """Test readonly context handles exceptions and releases connections."""
+        # Create a table first
+        connection_manager.execute_write("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+
+        # Get initial pool stats
+        initial_stats = connection_manager.get_pool_stats()
+        initial_active = initial_stats["active_connections"]
+
+        # Test that exception in the context is properly handled
+        with pytest.raises(ValueError):
+            with connection_manager.readonly() as conn:
+                # Verify we're in readonly mode
+                conn.execute("SELECT * FROM test")
+                # Raise an exception
+                raise ValueError("Test exception")
+
+        # Verify connection was released back to pool
+        after_stats = connection_manager.get_pool_stats()
+        assert after_stats["active_connections"] == initial_active
+
+        # Verify we can still get a connection (pool not exhausted)
+        with connection_manager.readonly() as conn:
+            result = conn.execute("SELECT * FROM test").fetchall()
+            assert result == []
+
+    def test_readonly_context_query_only_reset(
+        self, connection_manager: DatabaseConnectionManager
+    ) -> None:
+        """Test that query_only pragma is properly reset even after exceptions."""
+        # Create a table first
+        connection_manager.execute_write("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+
+        # Force an exception in readonly context
+        try:
+            with connection_manager.readonly() as conn:
+                # This will succeed (read operation)
+                conn.execute("SELECT * FROM test")
+                # Force an exception
+                raise RuntimeError("Test error")
+        except RuntimeError:
+            pass
+
+        # Get the same connection again and verify it's not stuck in readonly mode
+        conn = connection_manager.get_connection()
+        try:
+            # This should succeed if query_only was properly reset
+            conn.execute("INSERT INTO test (id) VALUES (1)")
+            conn.commit()
+
+            # Verify the insert worked
+            result = conn.execute("SELECT COUNT(*) FROM test").fetchone()
+            assert result[0] == 1
+        finally:
+            connection_manager.release_connection(conn)
+
+    def test_readonly_context_nested_exceptions(
+        self, connection_manager: DatabaseConnectionManager
+    ) -> None:
+        """Test that nested finally blocks in readonly context work correctly."""
+        # Create a table first
+        connection_manager.execute_write("CREATE TABLE test (id INTEGER PRIMARY KEY)")
+
+        # Track pool state
+        initial_stats = connection_manager.get_pool_stats()
+
+        # Test multiple exceptions and ensure proper cleanup
+        exceptions = [ValueError, TypeError, RuntimeError]
+        messages = ["First exception", "Second exception", "Third exception"]
+
+        for exc_type, msg in zip(exceptions, messages, strict=False):
+            with pytest.raises(exc_type):
+                with connection_manager.readonly() as conn:
+                    conn.execute("SELECT * FROM test")
+                    raise exc_type(msg)
+
+        # Verify pool is still healthy
+        final_stats = connection_manager.get_pool_stats()
+        assert final_stats["active_connections"] == initial_stats["active_connections"]
+
+        # Verify we can still use the connection manager normally
+        with connection_manager.transaction() as conn:
+            conn.execute("INSERT INTO test (id) VALUES (99)")
+
+        result = connection_manager.execute_query("SELECT COUNT(*) FROM test")
+        assert result[0][0] == 1
+
     def test_batch_operation_context(
         self, connection_manager: DatabaseConnectionManager
     ) -> None:

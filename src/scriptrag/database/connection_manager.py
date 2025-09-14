@@ -169,9 +169,17 @@ class ConnectionPool:
                     if self._is_connection_healthy(conn):
                         self._active_connections += 1
                         return conn
-                    # Connection is dead, create a new one
-                    self._total_connections -= 1
-                    conn.close()
+                    # Connection is dead, clean it up safely
+                    try:
+                        conn.close()
+                    except Exception:
+                        # Connection is already unhealthy, safe to ignore close errors
+                        logger.debug(
+                            "Failed to close unhealthy connection", exc_info=True
+                        )
+                    finally:
+                        # Always decrement the counter after attempting cleanup
+                        self._total_connections -= 1
                 except Empty:
                     pass
 

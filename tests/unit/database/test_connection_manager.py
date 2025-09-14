@@ -397,6 +397,92 @@ class TestDatabaseConnectionManager:
         # (even with no active connections)
         assert not connection_manager.ensure_closed()
 
+    def test_unhealthy_connection_close_exception(
+        self, connection_pool: ConnectionPool
+    ) -> None:
+        """Test pool state remains consistent when close raises exception."""
+        from unittest.mock import MagicMock, patch
+
+        # Get initial pool stats
+        initial_total = connection_pool._total_connections
+
+        # Create a mock connection that appears unhealthy and raises on close
+        mock_conn = MagicMock(spec=sqlite3.Connection)
+        mock_conn.close.side_effect = sqlite3.Error("Connection close failed")
+
+        # Put the mock connection in the pool
+        connection_pool._pool.put((mock_conn, time.time()))
+        connection_pool._total_connections += 1
+
+        # Mock _is_connection_healthy to return False for our mock connection
+        with patch.object(
+            connection_pool, "_is_connection_healthy", return_value=False
+        ):
+            # Try to get a connection - should handle gracefully
+            conn = connection_pool.acquire()
+
+            # Should get a new healthy connection
+            assert conn is not mock_conn
+            assert isinstance(conn, sqlite3.Connection)
+
+            # Pool counter should be consistent
+            # The unhealthy connection should have been removed from the count
+            assert connection_pool._total_connections == initial_total + 1
+
+            # Clean up
+            connection_pool.release(conn)
+
+    def test_unhealthy_connection_cleanup_with_multiple_failures(
+        self, connection_pool: ConnectionPool
+    ) -> None:
+        """Test pool handles multiple unhealthy connections with close failures."""
+        from unittest.mock import MagicMock, patch
+
+        # Store initial connection count and the original method
+        initial_total = connection_pool._total_connections
+        original_health_check = connection_pool._is_connection_healthy
+
+        # Create a mock connection that appears unhealthy and raises on close
+        mock_conn = MagicMock(spec=sqlite3.Connection)
+        mock_conn.close.side_effect = sqlite3.Error("Close failed")
+
+        # Put the mock connection in the pool
+        connection_pool._pool.put((mock_conn, time.time()))
+        connection_pool._total_connections += 1
+
+        # Create a counter for health checks
+        health_checks = []
+
+        def health_check_wrapper(conn):
+            health_checks.append(conn)
+            # Return False for our mock connection, True for real ones
+            if conn is mock_conn:
+                return False
+            # Call the original method for real connections
+            return original_health_check(conn)
+
+        with patch.object(
+            connection_pool, "_is_connection_healthy", side_effect=health_check_wrapper
+        ):
+            # Get a connection - should skip the unhealthy one and create new
+            conn = connection_pool.acquire()
+
+            # Should have checked the mock connection
+            assert mock_conn in health_checks
+
+            # Should get a real connection, not the mock
+            assert conn is not mock_conn
+            assert isinstance(conn, sqlite3.Connection)
+
+            # Mock connection should have had close() called despite exception
+            mock_conn.close.assert_called_once()
+
+            # Pool counter should be consistent
+            assert connection_pool._total_connections == initial_total + 1
+
+            # Clean up
+            connection_pool.release(conn)
+
     def test_ensure_closed_after_close(
         self, connection_manager: DatabaseConnectionManager
     ) -> None:

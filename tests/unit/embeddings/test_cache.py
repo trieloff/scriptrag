@@ -771,3 +771,159 @@ class TestEmbeddingCache:
         # Verify that last_access was adjusted to be greater than timestamp
         assert entry.last_access > entry.timestamp
         assert entry.last_access == entry.timestamp + 0.001
+
+    def test_index_persistence_after_put(self, cache_dir):
+        """Test that index is persisted to disk after put operation."""
+        cache = EmbeddingCache(cache_dir=cache_dir)
+
+        # Put an embedding
+        cache.put("test_text", "model", [0.1, 0.2])
+
+        # Verify index file was created and updated
+        index_file = cache_dir / "index.json"
+        assert index_file.exists()
+
+        # Load the index file and verify content
+        with index_file.open() as f:
+            index_data = json.load(f)
+
+        key = cache._get_cache_key("test_text", "model")
+        assert key in index_data
+        assert index_data[key]["model"] == "model"
+
+        # Create a new cache instance to verify persistence
+        cache2 = EmbeddingCache(cache_dir=cache_dir)
+        assert key in cache2._index
+        assert cache2._index[key].model == "model"
+
+    def test_index_persistence_after_invalidate(self, cache_dir):
+        """Test that index is persisted to disk after invalidate operation."""
+        cache = EmbeddingCache(cache_dir=cache_dir)
+
+        # Put embeddings
+        cache.put("text1", "model", [0.1, 0.2])
+        cache.put("text2", "model", [0.3, 0.4])
+
+        # Invalidate one entry
+        cache.invalidate("text1", "model")
+
+        # Verify index file reflects the change
+        index_file = cache_dir / "index.json"
+        with index_file.open() as f:
+            index_data = json.load(f)
+
+        key1 = cache._get_cache_key("text1", "model")
+        key2 = cache._get_cache_key("text2", "model")
+        assert key1 not in index_data
+        assert key2 in index_data
+
+        # Create a new cache instance to verify persistence
+        cache2 = EmbeddingCache(cache_dir=cache_dir)
+        assert key1 not in cache2._index
+        assert key2 in cache2._index
+
+    def test_index_persistence_after_invalidate_model(self, cache_dir):
+        """Test that index is persisted to disk after invalidate_model operation."""
+        cache = EmbeddingCache(cache_dir=cache_dir)
+
+        # Put embeddings for different models
+        cache.put("text1", "model1", [0.1, 0.2])
+        cache.put("text2", "model1", [0.3, 0.4])
+        cache.put("text3", "model2", [0.5, 0.6])
+
+        # Invalidate all entries for model1
+        cache.invalidate_model("model1")
+
+        # Verify index file reflects the change
+        index_file = cache_dir / "index.json"
+        with index_file.open() as f:
+            index_data = json.load(f)
+
+        key1 = cache._get_cache_key("text1", "model1")
+        key2 = cache._get_cache_key("text2", "model1")
+        key3 = cache._get_cache_key("text3", "model2")
+        assert key1 not in index_data
+        assert key2 not in index_data
+        assert key3 in index_data
+
+        # Create a new cache instance to verify persistence
+        cache2 = EmbeddingCache(cache_dir=cache_dir)
+        assert key1 not in cache2._index
+        assert key2 not in cache2._index
+        assert key3 in cache2._index
+
+    def test_index_persistence_after_eviction(self, cache_dir):
+        """Test that index is persisted to disk after eviction."""
+        cache = EmbeddingCache(cache_dir=cache_dir, max_size=2)
+
+        # Fill cache to capacity
+        cache.put("text1", "model", [0.1])
+        cache.put("text2", "model", [0.2])
+
+        # Add another entry to trigger eviction
+        cache.put("text3", "model", [0.3])
+
+        # Verify index file reflects the eviction
+        index_file = cache_dir / "index.json"
+        with index_file.open() as f:
+            index_data = json.load(f)
+
+        # Should only have 2 entries due to max_size
+        assert len(index_data) == 2
+
+        # Create a new cache instance to verify persistence
+        cache2 = EmbeddingCache(cache_dir=cache_dir, max_size=2)
+        assert len(cache2._index) == 2
+
+    def test_destructor_saves_index(self, cache_dir):
+        """Test that __del__ saves the index when object is garbage collected."""
+        import gc
+
+        # Create cache and add an entry
+        cache = EmbeddingCache(cache_dir=cache_dir)
+        cache.put("test_text", "model", [0.1, 0.2])
+        key = cache._get_cache_key("test_text", "model")
+
+        # Delete the cache object to trigger __del__
+        del cache
+        gc.collect()  # Force garbage collection
+
+        # Verify index was saved
+        index_file = cache_dir / "index.json"
+        assert index_file.exists()
+
+        with index_file.open() as f:
+            index_data = json.load(f)
+        assert key in index_data
+
+        # Create a new cache instance to verify persistence
+        cache2 = EmbeddingCache(cache_dir=cache_dir)
+        assert key in cache2._index
+
+    def test_multiple_operations_persistence(self, cache_dir):
+        """Test index persistence across multiple operations without context manager."""
+        # Simulate a crash scenario where cache object is not properly closed
+        cache = EmbeddingCache(cache_dir=cache_dir, max_size=3)
+
+        # Perform multiple operations
+        cache.put("text1", "model", [0.1])
+        cache.put("text2", "model", [0.2])
+        cache.invalidate("text1", "model")
+        cache.put("text3", "model", [0.3])
+        cache.put("text4", "model", [0.4])  # Should trigger eviction
+
+        # Get the current index state
+        expected_keys = set(cache._index.keys())
+
+        # Simulate abrupt termination (no context manager, no explicit close)
+        # Just delete the reference
+        cache_ref = cache
+        del cache
+
+        # Create a new cache instance - should restore from persisted index
+        cache2 = EmbeddingCache(cache_dir=cache_dir, max_size=3)
+        actual_keys = set(cache2._index.keys())
+
+        # Verify the index was properly persisted and restored
+        assert actual_keys == expected_keys
+        assert len(cache2._index) <= 3  # Respects max_size

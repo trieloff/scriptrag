@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import time
@@ -224,6 +225,9 @@ class EmbeddingCache:
 
             logger.debug(f"Cached embedding: {key}")
 
+            # Save index to disk after adding new entry
+            self._save_index()
+
         except Exception as e:
             logger.warning(f"Failed to cache embedding: {e}")
 
@@ -254,6 +258,10 @@ class EmbeddingCache:
                 logger.warning(f"Failed to remove cache file: {e}")
 
         logger.debug(f"Invalidated cache entry: {key}")
+
+        # Save index to disk after invalidation
+        self._save_index()
+
         return True
 
     def invalidate_model(self, model: str) -> int:
@@ -284,6 +292,11 @@ class EmbeddingCache:
             del self._index[key]
 
         logger.info(f"Invalidated {count} cache entries for model {model}")
+
+        # Save index to disk after bulk invalidation
+        if count > 0:
+            self._save_index()
+
         return count
 
     def _evict(self) -> None:
@@ -344,6 +357,9 @@ class EmbeddingCache:
 
         del self._index[key]
         logger.debug(f"Evicted cache entry: {key}")
+
+        # Save index to disk after eviction
+        self._save_index()
 
     def clear(self) -> int:
         """Clear all cache entries.
@@ -457,3 +473,9 @@ class EmbeddingCache:
     def __exit__(self, *args: Any) -> None:
         """Context manager exit - save index."""
         self._save_index()
+
+    def __del__(self) -> None:
+        """Destructor - ensure index is saved when object is garbage collected."""
+        # Silently ignore errors during cleanup to avoid issues during shutdown
+        with contextlib.suppress(Exception):
+            self._save_index()

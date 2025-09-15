@@ -248,15 +248,15 @@ wheels = [
 
 [[package]]
 name = "claude-code-sdk"
-version = "0.0.21"
+version = "0.0.22"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "mcp" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5b/51/ed3bdf0e316c6df2938fae41b914d45f7f5e486053aca99e59d452b0c2d7/claude_code_sdk-0.0.21.tar.gz", hash = "sha256:780759353fddb547df1db5df30ea8e5a891f6a8a7b78bd8b52bea9c5f45038ad", size = 36552, upload-time = "2025-09-05T20:39:47.432Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/17/f4/18af88204c4090be0a852a73e528177482f4b9c88e6c58708eb3aa09fd22/claude_code_sdk-0.0.22.tar.gz", hash = "sha256:67dc234fcd3454fd0e229621df6ae1265e5efdeac8f94c840f55b9ffa6699853", size = 40694, upload-time = "2025-09-12T15:25:30.177Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/03/1c29bdd0124ae92e256de24071dc3cccb838bb70f535db0614ff6e7b645f/claude_code_sdk-0.0.21-py3-none-any.whl", hash = "sha256:36b6741064959de7782360e7c066d1e45d175675ba7561a657820162fb817db7", size = 27754, upload-time = "2025-09-05T20:39:46.178Z" },
+    { url = "https://files.pythonhosted.org/packages/01/5d/cea7b9cd70fac6cc8e1e6952bbd141e7ee695f5c004833d22575d8eadb63/claude_code_sdk-0.0.22-py3-none-any.whl", hash = "sha256:c66f5d01e2c9c803a100d5f22579cbafa338e6ce604e58033fcc03e8f5ddd7df", size = 30688, upload-time = "2025-09-12T15:25:28.688Z" },
 ]
 
 [[package]]

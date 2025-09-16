@@ -170,6 +170,7 @@ class ClaudeCodeProvider(BaseLLMProvider):
             return True
 
         except (ImportError, AttributeError):
+            # SDK not available or missing expected attributes
             pass
         except ModuleNotFoundError as e:
             logger.debug(f"Claude Code SDK module not found: {e}")

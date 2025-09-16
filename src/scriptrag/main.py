@@ -219,6 +219,7 @@ class ScriptRAG:
             if scene_type in ["INT", "EXT"]:
                 # This is a simplified implementation for test compatibility
                 # The actual filtering would be handled at search engine level
+                # TODO: Implement scene type filtering in search engine
                 pass
 
         logger.debug(f"Executing search: {parsed_query.raw_query}")

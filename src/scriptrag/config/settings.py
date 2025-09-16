@@ -399,6 +399,7 @@ class ScriptRAGSettings(BaseSettings):
                             UserWarning,
                             stacklevel=2,
                         )
+                    # Config file doesn't exist - use defaults
                     pass
 
         # Create settings with env vars and .env file

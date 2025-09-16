@@ -76,6 +76,7 @@ class LLMResponseParser:
             result = json.loads(response)
             return result if isinstance(result, list) else []
         except json.JSONDecodeError:
+            # Response is not valid JSON - try to extract JSON array from it
             pass
 
         # Try to find JSON array in response

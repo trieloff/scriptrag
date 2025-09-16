@@ -191,9 +191,18 @@ class GitLFSVectorStore(VectorStore):
 
         Args:
             lfs_dir: Directory for LFS-tracked embeddings
+
+        Note:
+            This store does not support similarity search operations.
+            Use HybridVectorStore with a database backend for search capabilities.
         """
         self.lfs_dir = lfs_dir or Path(".embeddings")
         self._ensure_gitattributes()
+
+        logger.info(
+            "Initialized Git LFS vector store (storage-only, no search support)",
+            lfs_dir=str(self.lfs_dir),
+        )
 
     def _ensure_gitattributes(self) -> None:
         """Ensure .gitattributes is set up for LFS."""
@@ -276,17 +285,45 @@ class GitLFSVectorStore(VectorStore):
 
     def search(
         self,
-        query_embedding: list[float],
+        query_embedding: list[float],  # noqa: ARG002
         entity_type: str,
         model: str,
-        limit: int = 10,
-        threshold: float | None = None,
-        filter_criteria: dict[str, Any] | None = None,
+        limit: int = 10,  # noqa: ARG002
+        threshold: float | None = None,  # noqa: ARG002
+        filter_criteria: dict[str, Any] | None = None,  # noqa: ARG002
     ) -> list[tuple[int, float, dict[str, Any]]]:
-        """Search is not supported in Git LFS store."""
+        """Search is not supported in Git LFS store.
+
+        Git LFS is designed for efficient storage and retrieval of embeddings,
+        but does not support similarity search operations.
+
+        Raises:
+            NotImplementedError: Always raised with helpful alternatives
+        """
+        logger.warning(
+            "Attempted similarity search on Git LFS store",
+            entity_type=entity_type,
+            model=model,
+            suggestion="Use HybridVectorStore with a database-backed primary store",
+        )
+
         raise NotImplementedError(
-            "Git LFS store does not support similarity search. "
-            "Use a database-backed store for search operations."
+            "Git LFS store does not support similarity search.\n"
+            "\n"
+            "Git LFS is designed for persistent storage of embeddings, not search.\n"
+            "Consider one of these alternatives:\n"
+            "\n"
+            "1. Use HybridVectorStore with a database-backed primary store:\n"
+            "   from scriptrag.embeddings.vector_store import HybridVectorStore\n"
+            "   hybrid = HybridVectorStore(primary=db_store, secondary=lfs_store)\n"
+            "\n"
+            "2. For development/testing with small datasets, implement a custom:\n"
+            "   # Load all embeddings and compute similarities manually\n"
+            "   # Note: This is inefficient for production use\n"
+            "\n"
+            "3. Use Git LFS only for backup/persistence, not for search operations.\n"
+            "\n"
+            "For more information, see the vector store documentation."
         )
 
     def delete(

@@ -1,5 +1,7 @@
 """Tests for CLI validators."""
 
+from pathlib import Path
+
 import pytest
 
 from scriptrag.api.scene_models import SceneIdentifier
@@ -302,6 +304,110 @@ class TestDirectoryValidator:
 
         with pytest.raises(ValidationError, match="not a directory"):
             validator.validate(str(test_file))
+
+    def test_writable_directory(self, tmp_path):
+        """Test writable directory check."""
+        validator = DirectoryValidator(must_be_writable=True)
+        result = validator.validate(str(tmp_path))
+        assert result == tmp_path
+
+    def test_non_writable_directory(self, tmp_path, monkeypatch):
+        """Test non-writable directory check."""
+        validator = DirectoryValidator(must_be_writable=True)
+
+        # Simulate write failure by mocking touch to raise PermissionError
+        def mock_touch(*args, **kwargs):
+            raise PermissionError("Permission denied")
+
+        monkeypatch.setattr(Path, "touch", mock_touch)
+
+        with pytest.raises(ValidationError, match="not writable"):
+            validator.validate(str(tmp_path))
+
+    def test_writable_check_cleanup_on_unlink_failure(self, tmp_path, monkeypatch):
+        """Test that temporary file is cleaned up even if first unlink fails."""
+
+        validator = DirectoryValidator(must_be_writable=True)
+
+        # Track unlink calls
+        unlink_calls = []
+        original_unlink = Path.unlink
+
+        def mock_unlink(self, *args, **kwargs):
+            unlink_calls.append(self.name)
+            # Fail the first unlink call
+            if len(unlink_calls) == 1:
+                raise OSError("Simulated unlink failure")
+            # Succeed on the second call (cleanup)
+            return
+
+        monkeypatch.setattr(Path, "unlink", mock_unlink)
+
+        with pytest.raises(ValidationError, match="not writable"):
+            validator.validate(str(tmp_path))
+
+        # Verify cleanup was attempted
+        assert len(unlink_calls) == 2
+
+    def test_concurrent_writable_checks(self, tmp_path):
+        """Test that concurrent writable checks don't interfere with each other."""
+        import threading
+
+        validator = DirectoryValidator(must_be_writable=True)
+        errors = []
+        results = []
+
+        def validate_directory():
+            try:
+                result = validator.validate(str(tmp_path))
+                results.append(result)
+            except Exception as e:
+                errors.append(str(e))
+
+        # Create multiple threads to test concurrently
+        threads = []
+        for _ in range(10):
+            thread = threading.Thread(target=validate_directory)
+            threads.append(thread)
+            thread.start()
+
+        # Wait for all threads to complete
+        for thread in threads:
+            thread.join(timeout=5)
+
+        # All validations should succeed without errors
+        assert len(errors) == 0, f"Concurrent validation errors: {errors}"
+        assert len(results) == 10
+        assert all(r == tmp_path for r in results)
+
+    def test_writable_check_unique_filenames(self, tmp_path, monkeypatch):
+        """Test that writable check uses unique filenames to avoid collisions."""
+
+        validator = DirectoryValidator(must_be_writable=True)
+
+        # Track created test files
+        created_files = []
+        original_touch = Path.touch
+
+        def mock_touch(self, *args, **kwargs):
+            created_files.append(self.name)
+            return original_touch(self, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "touch", mock_touch)
+
+        # Run validation multiple times
+        for _ in range(3):
+            result = validator.validate(str(tmp_path))
+            assert result == tmp_path
+
+        # Verify each validation used a unique filename
+        assert len(created_files) == 3
+        assert len(set(created_files)) == 3  # All unique
+        # Verify format includes UUID pattern
+        for filename in created_files:
+            assert filename.startswith(".write_test_")
+            # UUID hex is 32 characters
+            assert len(filename) > len(".write_test_") + 30
 
 
 class TestConfigFileValidator:

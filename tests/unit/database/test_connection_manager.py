@@ -142,6 +142,8 @@ class TestConnectionPool:
         assert stats["min_size"] == 1
         assert stats["max_size"] == 3
         assert not stats["closed"]
+        assert "unhealthy_close_failures" in stats
+        assert stats["unhealthy_close_failures"] == 0
 
         connection_pool.release(conn)
 
@@ -155,6 +157,78 @@ class TestConnectionPool:
 
         stats = connection_pool.get_stats()
         assert stats["closed"]
+
+    def test_unhealthy_connection_metrics_tracking(
+        self, connection_pool: ConnectionPool
+    ) -> None:
+        """Test metrics tracking for unhealthy connection close failures."""
+        from unittest.mock import MagicMock, patch
+
+        # Initial metrics should be zero
+        initial_stats = connection_pool.get_stats()
+        assert initial_stats["unhealthy_close_failures"] == 0
+
+        # Create a mock connection that fails to close
+        mock_conn = MagicMock(spec=sqlite3.Connection)
+        mock_conn.close.side_effect = sqlite3.Error("Close failed")
+
+        # Put it in the pool
+        connection_pool._pool.put((mock_conn, time.time()))
+        connection_pool._total_connections += 1
+
+        # Make mock connection appear unhealthy
+        original_health_check = connection_pool._is_connection_healthy
+
+        def health_check_wrapper(conn):
+            if conn is mock_conn:
+                return False
+            return original_health_check(conn)
+
+        with patch.object(
+            connection_pool, "_is_connection_healthy", side_effect=health_check_wrapper
+        ):
+            # Try to acquire a connection - should encounter the unhealthy one
+            conn = connection_pool.acquire()
+            assert conn is not mock_conn  # Should get healthy connection
+            connection_pool.release(conn)
+
+        # Check that metrics were properly tracked
+        final_stats = connection_pool.get_stats()
+        assert final_stats["unhealthy_close_failures"] == 1
+
+        # Verify mock connection had close attempted
+        mock_conn.close.assert_called_once()
+
+    def test_unhealthy_connection_release_metrics(
+        self, connection_pool: ConnectionPool
+    ) -> None:
+        """Test metrics tracking when unhealthy connections are released."""
+        from unittest.mock import MagicMock, patch
+
+        # Get initial metrics
+        initial_failures = connection_pool._unhealthy_close_failures
+
+        # Create a mock connection
+        mock_conn = MagicMock(spec=sqlite3.Connection)
+        mock_conn.close.side_effect = sqlite3.Error("Close failed during release")
+
+        # Make the mock connection appear unhealthy
+        with patch.object(
+            connection_pool, "_is_connection_healthy", return_value=False
+        ):
+            # Release the unhealthy connection
+            connection_pool._active_connections = 1  # Simulate it was active
+            connection_pool._total_connections = 2  # Simulate we have 2 connections
+            connection_pool.release(mock_conn)
+
+        # Verify metrics were updated
+        assert connection_pool._unhealthy_close_failures == initial_failures + 1
+        assert connection_pool._active_connections == 0
+        assert connection_pool._total_connections == 1
+
+        # Verify stats include the metric
+        stats = connection_pool.get_stats()
+        assert stats["unhealthy_close_failures"] == initial_failures + 1
 
 
 class TestDatabaseConnectionManager:
@@ -441,6 +515,7 @@ class TestDatabaseConnectionManager:
         # Store initial connection count and the original method
         initial_total = connection_pool._total_connections
         original_health_check = connection_pool._is_connection_healthy
+        initial_failures = connection_pool._unhealthy_close_failures
 
         # Create a mock connection that appears unhealthy and raises on close
         mock_conn = MagicMock(spec=sqlite3.Connection)
@@ -479,6 +554,9 @@ class TestDatabaseConnectionManager:
 
             # Pool counter should be consistent
             assert connection_pool._total_connections == initial_total + 1
+
+            # Unhealthy close failure counter should have incremented
+            assert connection_pool._unhealthy_close_failures == initial_failures + 1
 
             # Clean up
             connection_pool.release(conn)

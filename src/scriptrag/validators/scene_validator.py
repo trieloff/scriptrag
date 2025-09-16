@@ -322,15 +322,15 @@ class SceneValidator:
 
     def check_scene_conflicts(
         self,
-        new_content: str,
-        existing_content: str,
+        new_content: str | None,
+        existing_content: str | None,
         _last_modified: Any | None = None,
     ) -> ValidationResult:
         """Check for conflicts between new and existing scene content.
 
         Args:
-            new_content: New scene content
-            existing_content: Existing scene content
+            new_content: New scene content (can be None)
+            existing_content: Existing scene content (can be None)
             _last_modified: Last modification timestamp (reserved for future use)
 
         Returns:

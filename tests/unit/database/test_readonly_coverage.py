@@ -1,5 +1,6 @@
 """Additional tests to improve coverage for the readonly module."""
 
+import sqlite3
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -142,7 +143,7 @@ class TestGetReadOnlyConnectionAdditional:
                 "scriptrag.database.readonly.get_connection_manager"
             ) as mock_mgr:
                 mock_manager = MagicMock()
-                mock_conn = MagicMock()
+                mock_conn = MagicMock(spec_set=sqlite3.Connection)
                 mock_mgr.return_value = mock_manager
                 mock_manager.readonly.return_value.__enter__ = MagicMock(
                     return_value=mock_conn
@@ -179,7 +180,7 @@ class TestGetReadOnlyConnectionAdditional:
 
         with patch("scriptrag.database.readonly.get_connection_manager") as mock_mgr:
             mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_conn = MagicMock(spec_set=sqlite3.Connection)
             mock_mgr.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -203,7 +204,7 @@ class TestGetReadOnlyConnectionAdditional:
 
         with patch("scriptrag.database.readonly.get_connection_manager") as mock_mgr:
             mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_conn = MagicMock(spec_set=sqlite3.Connection)
             mock_mgr.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -221,7 +222,7 @@ class TestGetReadOnlyConnectionAdditional:
 
         with patch("scriptrag.database.readonly.get_connection_manager") as mock_mgr:
             mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_conn = MagicMock(spec_set=sqlite3.Connection)
             mock_mgr.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -249,7 +250,7 @@ class TestGetReadOnlyConnectionAdditional:
 
         with patch("scriptrag.database.readonly.get_connection_manager") as mock_mgr:
             mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_conn = MagicMock(spec_set=sqlite3.Connection)
             mock_mgr.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn
@@ -267,7 +268,7 @@ class TestGetReadOnlyConnectionAdditional:
 
         with patch("scriptrag.database.readonly.get_connection_manager") as mock_mgr:
             mock_manager = MagicMock()
-            mock_conn = MagicMock()
+            mock_conn = MagicMock(spec_set=sqlite3.Connection)
             mock_mgr.return_value = mock_manager
             mock_manager.readonly.return_value.__enter__ = MagicMock(
                 return_value=mock_conn

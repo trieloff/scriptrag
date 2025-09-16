@@ -119,7 +119,8 @@ class TestSearchEngineDaemonThread:
             return SearchResponse(query=q, results=[], total_count=0)
 
         with patch("asyncio.get_running_loop") as mock_get_loop:
-            mock_get_loop.return_value = Mock()  # Simulate a running loop
+            # Simulate a running loop
+            mock_get_loop.return_value = Mock(spec_set=asyncio.AbstractEventLoop)
 
             with patch("threading.Thread", TrackedThread):
                 with patch.object(engine, "search_async", normal_search_async):
@@ -177,7 +178,8 @@ class TestSearchEngineDaemonThread:
             return result
 
         with patch("asyncio.get_running_loop") as mock_get_loop:
-            mock_get_loop.return_value = Mock()  # Simulate a running loop
+            # Simulate a running loop
+            mock_get_loop.return_value = Mock(spec_set=asyncio.AbstractEventLoop)
 
             with patch.object(threading.Thread, "__init__", track_thread_init):
                 with patch.object(threading.Thread, "start", track_thread_start):
@@ -213,7 +215,8 @@ class TestSearchEngineDaemonThread:
             raise ValueError("Test exception from async search")
 
         with patch("asyncio.get_running_loop") as mock_get_loop:
-            mock_get_loop.return_value = Mock()  # Simulate a running loop
+            # Simulate a running loop
+            mock_get_loop.return_value = Mock(spec_set=asyncio.AbstractEventLoop)
 
             with patch.object(engine, "search_async", failing_search_async):
                 # Exception should be propagated
@@ -290,7 +293,8 @@ class TestSearchEngineDaemonThread:
             return SearchResponse(query=q, results=[], total_count=0)
 
         with patch("asyncio.get_running_loop") as mock_get_loop:
-            mock_get_loop.return_value = Mock()  # Simulate a running loop
+            # Simulate a running loop
+            mock_get_loop.return_value = Mock(spec_set=asyncio.AbstractEventLoop)
 
             with patch.object(threading.Thread, "__init__", track_thread_init):
                 with patch.object(engine, "search_async", normal_search_async):

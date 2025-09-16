@@ -39,6 +39,39 @@ def temp_fountain_files(tmp_path):
     return tmp_path
 
 
+@pytest.fixture
+def mock_llm_client(monkeypatch):
+    """Mock LLM client to prevent actual API calls during integration tests."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    # Mock the LLM client
+    mock_client = MagicMock()
+    mock_client.complete = AsyncMock(
+        return_value='{"result": "mocked", "props_mentioned": [], "themes": []}'
+    )
+
+    # Mock both create_llm_client and get_default_llm_client to return our mock
+    def mock_create_llm_client(*args, **kwargs):
+        return mock_client
+
+    async def mock_get_default_llm_client(*args, **kwargs):
+        return mock_client
+
+    import scriptrag.utils
+    import scriptrag.utils.llm_factory
+
+    monkeypatch.setattr(
+        scriptrag.utils.llm_factory,
+        "create_llm_client",
+        mock_create_llm_client,
+    )
+    monkeypatch.setattr(
+        scriptrag.utils,
+        "get_default_llm_client",
+        mock_get_default_llm_client,
+    )
+
+
 class TestAnalyzeCommand:
     """Test the analyze CLI command."""
 
@@ -53,7 +86,8 @@ class TestAnalyzeCommand:
         assert "--dry-run" in clean_output
         assert "--analyzer" in clean_output
 
-    def test_analyze_basic(self, temp_fountain_files):
+    @pytest.mark.integration
+    def test_analyze_basic(self, temp_fountain_files, mock_llm_client):
         """Test basic analyze command."""
         result = runner.invoke(app, ["analyze", str(temp_fountain_files)])
 
@@ -63,14 +97,16 @@ class TestAnalyzeCommand:
         assert result.exit_code == 0
         assert "Total:" in result.stdout
 
-    def test_analyze_force(self, temp_fountain_files):
+    @pytest.mark.integration
+    def test_analyze_force(self, temp_fountain_files, mock_llm_client):
         """Test analyze with force flag."""
         result = runner.invoke(app, ["analyze", str(temp_fountain_files), "--force"])
 
         assert result.exit_code == 0
         assert "Updated:" in result.stdout or "Would update:" in result.stdout
 
-    def test_analyze_dry_run(self, temp_fountain_files):
+    @pytest.mark.integration
+    def test_analyze_dry_run(self, temp_fountain_files, mock_llm_client):
         """Test analyze with dry run."""
         result = runner.invoke(
             app, ["analyze", str(temp_fountain_files), "--dry-run", "--force"]
@@ -80,7 +116,8 @@ class TestAnalyzeCommand:
         assert "DRY RUN" in result.stdout
         assert "Would update:" in result.stdout
 
-    def test_analyze_no_recursive(self, temp_fountain_files):
+    @pytest.mark.integration
+    def test_analyze_no_recursive(self, temp_fountain_files, mock_llm_client):
         """Test analyze without recursive search."""
         result = runner.invoke(
             app, ["analyze", str(temp_fountain_files), "--no-recursive", "--force"]
@@ -90,7 +127,8 @@ class TestAnalyzeCommand:
         # Should not include the nested file
         assert "nested.fountain" not in result.stdout
 
-    def test_analyze_with_analyzer(self, temp_fountain_files):
+    @pytest.mark.integration
+    def test_analyze_with_analyzer(self, temp_fountain_files, mock_llm_client):
         """Test analyze with specific analyzer."""
         result = runner.invoke(
             app,
@@ -99,7 +137,10 @@ class TestAnalyzeCommand:
 
         assert result.exit_code == 0
 
-    def test_analyze_with_multiple_analyzers(self, temp_fountain_files):
+    @pytest.mark.integration
+    def test_analyze_with_multiple_analyzers(
+        self, temp_fountain_files, mock_llm_client
+    ):
         """Test analyze with multiple analyzers."""
         result = runner.invoke(
             app,
@@ -116,7 +157,8 @@ class TestAnalyzeCommand:
 
         assert result.exit_code == 0
 
-    def test_analyze_with_invalid_analyzer(self, temp_fountain_files):
+    @pytest.mark.integration
+    def test_analyze_with_invalid_analyzer(self, temp_fountain_files, mock_llm_client):
         """Test analyze with invalid analyzer."""
         result = runner.invoke(
             app, ["analyze", str(temp_fountain_files), "--analyzer", "nonexistent"]
@@ -127,7 +169,8 @@ class TestAnalyzeCommand:
         assert "Warning" in result.stdout
         assert "nonexistent" in result.stdout
 
-    def test_analyze_no_files(self, tmp_path):
+    @pytest.mark.integration
+    def test_analyze_no_files(self, tmp_path, mock_llm_client):
         """Test analyze with no fountain files."""
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
@@ -140,7 +183,10 @@ class TestAnalyzeCommand:
         assert "No files needed updating" in clean_output
         assert "Total: 0 scenes" in clean_output
 
-    def test_analyze_current_directory(self, temp_fountain_files, monkeypatch):
+    @pytest.mark.integration
+    def test_analyze_current_directory(
+        self, temp_fountain_files, monkeypatch, mock_llm_client
+    ):
         """Test analyze with no path argument (current directory)."""
         # IMPORTANT: Change to temp directory to avoid modifying repository files
         monkeypatch.chdir(temp_fountain_files)
@@ -150,7 +196,8 @@ class TestAnalyzeCommand:
         # Should at least run without error
         assert result.exit_code == 0
 
-    def test_analyze_updates_file(self, temp_fountain_files):
+    @pytest.mark.integration
+    def test_analyze_updates_file(self, temp_fountain_files, mock_llm_client):
         """Test that analyze actually updates files."""
         runner = CliRunner()
         simple_file = temp_fountain_files / "simple.fountain"

@@ -4,6 +4,7 @@ This test module specifically tests the fix for the bug where
 exception checking used truthiness instead of None comparison.
 """
 
+import asyncio
 import sqlite3
 from unittest.mock import MagicMock, Mock, patch
 
@@ -118,7 +119,8 @@ class TestSearchEngineExceptionHandling:
 
         # We need to simulate being in an async context
         with patch("asyncio.get_running_loop") as mock_get_loop:
-            mock_get_loop.return_value = Mock()  # Simulate a running loop
+            # Simulate a running loop
+            mock_get_loop.return_value = Mock(spec_set=asyncio.AbstractEventLoop)
 
             with patch.object(engine, "search_async", mock_search_async_falsy):
                 # The exception should be properly caught and re-raised
@@ -148,7 +150,8 @@ class TestSearchEngineExceptionHandling:
             raise ValueError("Normal exception")
 
         with patch("asyncio.get_running_loop") as mock_get_loop:
-            mock_get_loop.return_value = Mock()  # Simulate a running loop
+            # Simulate a running loop
+            mock_get_loop.return_value = Mock(spec_set=asyncio.AbstractEventLoop)
 
             with patch.object(engine, "search_async", mock_search_async_normal):
                 with pytest.raises(ValueError) as exc_info:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import uuid
 from pathlib import Path
 
 from scriptrag.cli.validators.base import ValidationError, Validator
@@ -112,11 +114,15 @@ class DirectoryValidator(Validator[Path]):
 
         if self.must_be_writable and path.exists():
             # Check if we can write to the directory
-            test_file = path / ".write_test"
+            # Use a unique filename to avoid race conditions with concurrent processes
+            test_file = path / f".write_test_{uuid.uuid4().hex}"
             try:
                 test_file.touch()
                 test_file.unlink()
             except Exception as exc:
+                # Clean up in case touch succeeded but unlink failed
+                with contextlib.suppress(Exception):
+                    test_file.unlink(missing_ok=True)
                 raise ValidationError(f"Directory is not writable: {path}") from exc
 
         return path

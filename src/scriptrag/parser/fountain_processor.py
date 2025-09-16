@@ -172,6 +172,7 @@ class SceneProcessor:
                 existing_data.update(metadata)
                 metadata = existing_data
             except json.JSONDecodeError:
+                # Invalid JSON in boneyard section - use fresh metadata dict
                 pass
 
             # Replace existing boneyard

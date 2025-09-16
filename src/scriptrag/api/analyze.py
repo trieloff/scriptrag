@@ -209,6 +209,7 @@ class AnalyzeCommand:
                     logger.info(f"Loaded built-in analyzer: {name}")
                     return
             except ImportError:
+                # Built-in analyzers not available - try other loading methods
                 pass
 
             # Try to load as markdown-based agent
@@ -221,6 +222,7 @@ class AnalyzeCommand:
                 logger.info(f"Loaded markdown agent: {name}")
                 return
             except (ImportError, ValueError):
+                # Not a valid markdown agent - analyzer not found
                 pass
 
             raise ValueError(f"Unknown analyzer: {name}")

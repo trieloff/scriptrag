@@ -32,10 +32,16 @@ class ScriptStatsDict(TypedDict):
 
 
 class CharacterMapDict(TypedDict):
-    """Mapping of character names to database IDs."""
+    """Mapping of character names to database IDs.
 
-    # Dynamic keys - character names map to their database IDs
-    pass
+    This TypedDict allows dynamic keys where each key is a character name
+    (str) and each value is the database ID (int) for that character.
+
+    Example:
+        {"WALTER": 1, "JESSE": 2, "SKYLER": 3}
+    """
+
+    # TypedDict with dynamic keys - actual keys determined at runtime
 
 
 class BoneyardAnalyzersDict(TypedDict, total=False):

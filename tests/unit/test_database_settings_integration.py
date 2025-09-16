@@ -22,7 +22,7 @@ class TestDatabaseSettingsIntegration:
         initializer = DatabaseInitializer()
 
         with patch("sqlite3.connect") as mock_connect:
-            mock_conn = MagicMock()
+            mock_conn = MagicMock(spec_set=sqlite3.Connection)
             mock_conn.execute = MagicMock()
             mock_conn.commit = MagicMock()
             mock_conn.close = MagicMock()

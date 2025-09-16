@@ -27,7 +27,7 @@ def script_ops() -> ScriptOperations:
 @pytest.fixture
 def sample_script() -> Mock:
     """Create a sample script for testing."""
-    script = Mock(spec=object)
+    script = Mock(spec=Script)
     script.title = "Test Script"
     script.author = "Test Author"
     script.metadata = {
@@ -76,7 +76,7 @@ class TestScriptOperationsGetExistingScript:
     ) -> None:
         """Test getting existing script when found."""
         # Mock cursor and row data
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_row = {
             "id": 1,
             "title": "Test Script",
@@ -101,7 +101,7 @@ class TestScriptOperationsGetExistingScript:
         self, script_ops: ScriptOperations, mock_connection: sqlite3.Connection
     ) -> None:
         """Test getting existing script when not found."""
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(return_value=None)
         mock_connection.execute.return_value = mock_cursor
 
@@ -114,7 +114,7 @@ class TestScriptOperationsGetExistingScript:
         self, script_ops: ScriptOperations, mock_connection: sqlite3.Connection
     ) -> None:
         """Test getting existing script with null metadata."""
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_row = {
             "id": 1,
             "title": "Test Script",
@@ -143,7 +143,7 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test upserting a new script."""
         # Mock no existing script
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(return_value=None)  # No existing script
         mock_cursor.lastrowid = 123
         mock_connection.execute.return_value = mock_cursor
@@ -164,7 +164,7 @@ class TestScriptOperationsUpsertScript:
         """Test upserting an existing script."""
         # Mock existing script
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 (existing_id,),  # First call for SELECT id
@@ -196,7 +196,7 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script with existing bible metadata
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 (existing_id,),  # First call for SELECT id
@@ -236,7 +236,7 @@ class TestScriptOperationsUpsertScript:
         script.metadata = None
 
         # Mock no existing script
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(return_value=None)
         mock_cursor.lastrowid = 123
         mock_connection.execute.return_value = mock_cursor
@@ -262,7 +262,7 @@ class TestScriptOperationsUpsertScript:
     ) -> None:
         """Test upsert raises error when lastrowid is None."""
         # Mock no existing script
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(return_value=None)
         mock_cursor.lastrowid = None  # Simulate failed insert
         mock_connection.execute.return_value = mock_cursor
@@ -285,7 +285,7 @@ class TestScriptOperationsUpsertScript:
         """Test upsert handles existing metadata parse errors gracefully."""
         # Mock existing script with invalid JSON metadata
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 (existing_id,),  # First call for SELECT id
@@ -314,7 +314,7 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is not a dict
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 (existing_id,),
@@ -348,7 +348,7 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is also not a dict
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 (existing_id,),
@@ -382,7 +382,7 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is a dict
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 (existing_id,),
@@ -416,7 +416,7 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is not a dict
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 (existing_id,),
@@ -450,7 +450,7 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is None/missing
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 (existing_id,),
@@ -484,7 +484,7 @@ class TestScriptOperationsUpsertScript:
 
         # Mock existing script where bible is also None/empty
         existing_id = 456
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 (existing_id,),
@@ -540,7 +540,7 @@ class TestScriptOperationsGetScriptStats:
         script_id = 123
 
         # Mock cursor responses for each count query
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 {"count": 10},  # scenes count
@@ -573,7 +573,7 @@ class TestScriptOperationsGetScriptStats:
         script_id = 456
 
         # Mock cursor responses for empty script
-        mock_cursor = Mock()
+        mock_cursor = Mock(spec_set=sqlite3.Cursor)
         mock_cursor.fetchone = Mock(
             side_effect=[
                 {"count": 0},  # scenes count

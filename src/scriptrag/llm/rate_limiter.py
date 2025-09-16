@@ -112,6 +112,7 @@ class GitHubRateLimitParser:
                     if match:
                         return int(match.group(1))
         except (json.JSONDecodeError, KeyError, ValueError):
+            # Unable to parse retry time from response - will use default
             pass
         return None
 

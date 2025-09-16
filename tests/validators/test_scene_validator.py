@@ -211,24 +211,23 @@ Some action."""
     def test_check_scene_conflicts_none_handling(
         self, validator: SceneValidator
     ) -> None:
-        """Test conflict checking with None values (despite type hints)."""
-        # Test that None is handled gracefully even though type hints say str
-        # This tests defensive programming against runtime type issues
+        """Test conflict checking with None values."""
+        # Test that None is handled gracefully as per the type signature
 
         # Both None (treated as empty)
-        result = validator.check_scene_conflicts(None, None)  # type: ignore
+        result = validator.check_scene_conflicts(None, None)
         assert result.is_valid is True
         assert result.metadata["has_changes"] is False
         assert "No changes detected" in result.warnings[0]
 
         # One None, one with content
         content = "INT. OFFICE - DAY\n\nAction."
-        result = validator.check_scene_conflicts(None, content)  # type: ignore
+        result = validator.check_scene_conflicts(None, content)
         assert result.is_valid is True
         assert result.metadata["has_changes"] is True
         assert "Scene content removed" in result.warnings
 
-        result = validator.check_scene_conflicts(content, None)  # type: ignore
+        result = validator.check_scene_conflicts(content, None)
         assert result.is_valid is True
         assert result.metadata["has_changes"] is True
         assert "New scene content added" in result.warnings

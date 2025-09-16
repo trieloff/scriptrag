@@ -177,11 +177,12 @@ class BibleParser:
                     current_heading = ""
 
             elif token.type == "heading_close":
-                # Already handled in heading_open
+                # Already handled in heading_open - nothing to do here
                 pass
 
             elif token.type in ["paragraph_open", "blockquote_open", "list_item_open"]:
                 # Start collecting content
+                # Actual content comes in subsequent inline tokens
                 pass
 
             elif token.type == "inline":

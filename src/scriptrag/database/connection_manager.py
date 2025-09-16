@@ -185,6 +185,7 @@ class ConnectionPool:
                         # Always decrement the counter after attempting cleanup
                         self._total_connections -= 1
                 except Empty:
+                    # Queue is empty - no stale connections to clean up
                     pass
 
                 # Create a new connection if we haven't reached the limit

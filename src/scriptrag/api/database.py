@@ -130,7 +130,7 @@ class DatabaseInitializer:
                         if last_char != b"\n":
                             new_content.append("")  # Add blank line
                 except OSError:
-                    # File might be empty or inaccessible
+                    # File might be empty or inaccessible - treat as needing newline
                     pass
 
             new_content.append("")  # Blank line before section

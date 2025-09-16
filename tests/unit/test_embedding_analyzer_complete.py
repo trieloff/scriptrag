@@ -534,8 +534,8 @@ class TestSceneEmbeddingAnalyzerComplete:
         scene = {"content": "test"}
 
         with patch("scriptrag.analyzers.embedding.git.Repo") as mock_repo_class:
-            mock_repo = Mock()
-            mock_repo.index = Mock()
+            mock_repo = Mock(spec_set=git.Repo)
+            mock_repo.index = Mock(spec_set=git.index.IndexFile)
             mock_repo.index.add = Mock()
             mock_repo_class.return_value = mock_repo
 

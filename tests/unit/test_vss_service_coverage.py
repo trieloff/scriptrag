@@ -154,7 +154,7 @@ class TestVSSServiceExtended:
         ):
             # Mock the connection execute to simulate VSS search
             mock_conn = MagicMock(spec=sqlite3.Connection)
-            mock_cursor = MagicMock()
+            mock_cursor = MagicMock(spec_set=sqlite3.Cursor)
 
             # Mock results - only scenes from script 10
             mock_rows = [
@@ -193,7 +193,7 @@ class TestVSSServiceExtended:
                     "MATCH" in query and params and len(params) > 1 and params[1] == 10
                 ):  # script_id filter
                     return mock_cursor
-                return MagicMock()
+                return MagicMock(spec_set=sqlite3.Cursor)
 
             mock_conn.execute = mock_execute
             mock_conn.rollback = Mock(spec=object)
@@ -228,7 +228,7 @@ class TestVSSServiceExtended:
         ):
             # Mock the connection execute to simulate VSS search
             mock_conn = MagicMock(spec=sqlite3.Connection)
-            mock_cursor = MagicMock()
+            mock_cursor = MagicMock(spec_set=sqlite3.Cursor)
 
             # Mock results - only chunks from script 10
             mock_rows = [
@@ -275,7 +275,7 @@ class TestVSSServiceExtended:
                     and params[1] == 10
                 ):  # script_id filter
                     return mock_cursor
-                return MagicMock()
+                return MagicMock(spec_set=sqlite3.Cursor)
 
             mock_conn.execute = mock_execute
             mock_conn.rollback = Mock(spec=object)

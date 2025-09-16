@@ -1,5 +1,6 @@
 """Tests for CLI main module."""
 
+import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -135,8 +136,8 @@ class TestCLIMain:
             with patch(
                 "scriptrag.api.database_operations.DatabaseOperations"
             ) as mock_db_ops:
-                mock_conn = MagicMock()
-                mock_cursor = MagicMock()
+                mock_conn = MagicMock(spec_set=sqlite3.Connection)
+                mock_cursor = MagicMock(spec_set=sqlite3.Cursor)
                 mock_cursor.fetchone.side_effect = [(5,), (25,)]  # 5 scripts, 25 scenes
                 mock_conn.execute.return_value = mock_cursor
 

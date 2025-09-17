@@ -63,6 +63,9 @@ class ConnectionPool:
         self._lock = threading.RLock()
         self._closed = False
 
+        # Metrics tracking
+        self._unhealthy_close_failures = 0  # Track failed cleanup attempts
+
         # Health check thread
         # Use shorter interval in CI to prevent pytest timeout issues
         import os
@@ -177,6 +180,7 @@ class ConnectionPool:
                         logger.debug(
                             "Failed to close unhealthy connection", exc_info=True
                         )
+                        self._unhealthy_close_failures += 1  # Track failure metric
                     finally:
                         # Always decrement the counter after attempting cleanup
                         self._total_connections -= 1
@@ -228,8 +232,16 @@ class ConnectionPool:
 
             # Check if connection is still healthy
             if not self._is_connection_healthy(conn):
-                conn.close()
-                self._total_connections -= 1
+                try:
+                    conn.close()
+                except Exception:
+                    logger.debug(
+                        "Failed to close unhealthy connection during release",
+                        exc_info=True,
+                    )
+                    self._unhealthy_close_failures += 1
+                finally:
+                    self._total_connections -= 1
                 return
 
             # Return to pool if there's space
@@ -278,8 +290,16 @@ class ConnectionPool:
                         elif self._is_connection_healthy(conn):
                             healthy_connections.append((conn, last_used))
                         else:
-                            conn.close()
-                            self._total_connections -= 1
+                            try:
+                                conn.close()
+                            except Exception:
+                                logger.debug(
+                                    "Failed to close unhealthy conn in health check",
+                                    exc_info=True,
+                                )
+                                self._unhealthy_close_failures += 1
+                            finally:
+                                self._total_connections -= 1
                             logger.debug("Closed unhealthy connection")
                     except Empty:
                         break
@@ -308,7 +328,7 @@ class ConnectionPool:
         """Get pool statistics.
 
         Returns:
-            Dictionary with pool statistics
+            Dictionary with pool statistics including health metrics
         """
         with self._lock:
             return {
@@ -318,6 +338,7 @@ class ConnectionPool:
                 "min_size": self.min_size,
                 "max_size": self.max_size,
                 "closed": self._closed,
+                "unhealthy_close_failures": self._unhealthy_close_failures,
             }
 
     def close(self, force: bool = False) -> None:

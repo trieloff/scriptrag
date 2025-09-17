@@ -248,12 +248,18 @@ class SceneEmbeddingAnalyzer(BaseSceneAnalyzer):
             # Extract embedding vector
             if response.data and len(response.data) > 0:
                 embedding_data = response.data[0]
-                if hasattr(embedding_data, "embedding") and embedding_data.get(
-                    "embedding"
-                ):
+                # Check if embedding_data is a dict with 'embedding' key
+                if isinstance(embedding_data, dict) and "embedding" in embedding_data:
                     return np.array(embedding_data["embedding"], dtype=np.float32)
-                # Handle dict response
-                return np.array(embedding_data["embedding"], dtype=np.float32)
+                # Check if embedding_data is an object with embedding attribute
+                if hasattr(embedding_data, "embedding"):
+                    # Use getattr to satisfy mypy type checking
+                    embedding = getattr(embedding_data, "embedding", None)
+                    if embedding:
+                        return np.array(embedding, dtype=np.float32)
+                # Try direct dict access as last resort
+                if isinstance(embedding_data, dict):
+                    return np.array(embedding_data["embedding"], dtype=np.float32)
 
             raise RuntimeError("No embedding data in response")
 

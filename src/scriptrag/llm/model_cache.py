@@ -256,9 +256,10 @@ class ModelDiscoveryCache:
         )
 
         # Initialize for safe cleanup if temporary file creation fails early
-        # Use -1 as sentinel value to indicate fd was not allocated
-        temp_fd: int = -1
+        temp_fd: int | None = None
         temp_path: str | None = None
+        fd_owned_by_fdopen = False
+
         try:
             cache_data = {
                 "timestamp": timestamp,
@@ -278,11 +279,10 @@ class ModelDiscoveryCache:
                 # Write data to temp file
                 # fdopen takes ownership of the file descriptor
                 with os.fdopen(temp_fd, "w") as f:
+                    # Mark ownership transfer BEFORE any operations that could fail
+                    fd_owned_by_fdopen = True
                     json.dump(cache_data, f, indent=2)
-                    # After this point, temp_fd is closed by fdopen's context manager
-
-                # Mark that fd was consumed by fdopen using sentinel value
-                temp_fd = -1
+                    # File descriptor is closed by the file object's context manager
 
                 # Set restrictive permissions on the temp file
                 Path(temp_path).chmod(0o600)
@@ -296,9 +296,9 @@ class ModelDiscoveryCache:
                 )
 
             except Exception:
-                # Clean up file descriptor if it wasn't consumed by fdopen
-                # File descriptors are non-negative integers, so >= 0 means it's valid
-                if temp_fd >= 0:
+                # Clean up file descriptor only if it exists and wasn't consumed
+                # by fdopen. File descriptors are non-negative (0 is valid for stdin)
+                if temp_fd is not None and not fd_owned_by_fdopen:
                     with contextlib.suppress(OSError):
                         os.close(temp_fd)
 

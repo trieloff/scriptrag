@@ -66,3 +66,85 @@ class TestModelCacheAtomicWrites:
                 cache.CACHE_DIR.glob(f".{cache.provider_name}_models_*.tmp")
             )
             assert len(temp_files) == 0
+
+    def test_file_descriptor_cleanup_on_fdopen_failure(self, tmp_path):
+        """File descriptor is properly closed when os.fdopen fails."""
+        import os
+
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            models = [
+                Model(
+                    id="model-fd-test",
+                    name="FD Cleanup Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Track open file descriptors before the operation
+            open_fds_before = set()
+            try:
+                # Try to get a list of open file descriptors
+                for fd in range(3, 256):  # Skip stdin/stdout/stderr
+                    try:
+                        os.fstat(fd)
+                        open_fds_before.add(fd)
+                    except OSError:
+                        pass
+            except Exception:
+                pass  # If we can't track FDs, skip this check
+
+            # Patch os.fdopen to raise immediately (before taking ownership)
+            with patch("os.fdopen", side_effect=OSError("Simulated fdopen failure")):
+                cache.set(models)
+
+            # Verify no new file descriptors are leaked
+            open_fds_after = set()
+            try:
+                for fd in range(3, 256):
+                    try:
+                        os.fstat(fd)
+                        open_fds_after.add(fd)
+                    except OSError:
+                        pass
+            except Exception:
+                pass
+
+            # No new file descriptors should be open
+            new_fds = open_fds_after - open_fds_before
+            assert len(new_fds) == 0, f"File descriptors leaked: {new_fds}"
+
+            # Also verify no temp files left behind
+            temp_files = list(
+                cache.CACHE_DIR.glob(f".{cache.provider_name}_models_*.tmp")
+            )
+            assert len(temp_files) == 0
+
+    def test_file_descriptor_cleanup_on_json_dump_failure(self, tmp_path):
+        """File descriptor is closed when json.dump fails after fdopen succeeds."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+
+            models = [
+                Model(
+                    id="model-json-test",
+                    name="JSON Dump Test",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+
+            # Patch json.dump to raise after fdopen has taken ownership
+            with patch("json.dump", side_effect=OSError("Simulated json.dump failure")):
+                cache.set(models)
+
+            # Verify no temp files left behind
+            temp_files = list(
+                cache.CACHE_DIR.glob(f".{cache.provider_name}_models_*.tmp")
+            )
+            assert len(temp_files) == 0
+
+            # The file descriptor should have been closed by the context manager
+            # even though json.dump failed

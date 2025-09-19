@@ -273,15 +273,24 @@ class ModelDiscoveryCache:
                 suffix=".tmp",
             )
 
+            # Track whether the fd has been consumed by fdopen
+            fd_consumed = False
+
             try:
                 # Write data to temp file
-                # fdopen takes ownership of the file descriptor
-                with os.fdopen(temp_fd, "w") as f:
-                    json.dump(cache_data, f, indent=2)
-                    # After this point, temp_fd is closed by fdopen's context manager
-
-                # Mark that fd was consumed by fdopen
-                temp_fd = None
+                # fdopen takes ownership of the file descriptor on success
+                try:
+                    with os.fdopen(temp_fd, "w") as f:
+                        # Mark that fd is now owned by fdopen (even if dump fails)
+                        fd_consumed = True
+                        json.dump(cache_data, f, indent=2)
+                        # temp_fd is closed by fdopen's context manager
+                except Exception:
+                    # If fdopen failed to take ownership, we need to close the fd
+                    if not fd_consumed:
+                        with contextlib.suppress(OSError):
+                            os.close(temp_fd)
+                    raise
 
                 # Set restrictive permissions on the temp file
                 Path(temp_path).chmod(0o600)
@@ -295,11 +304,6 @@ class ModelDiscoveryCache:
                 )
 
             except Exception:
-                # Clean up file descriptor if it wasn't consumed by fdopen
-                if temp_fd is not None:
-                    with contextlib.suppress(OSError):
-                        os.close(temp_fd)
-
                 # Clean up temp file if it exists
                 if temp_path is not None:
                     with contextlib.suppress(OSError):

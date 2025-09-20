@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import queue
 import sqlite3
 import threading
 import time
@@ -114,17 +115,19 @@ class SearchEngine:
             # We're in an async context, can't use run_until_complete
             # Create a new thread to run the async function
 
-            result: SearchResponse | None = None
-            exception: Exception | None = None
+            # Use a thread-safe queue to communicate between threads
+            result_queue: queue.Queue[SearchResponse | Exception] = queue.Queue()
 
             def run_in_new_loop() -> None:
-                nonlocal result, exception
                 new_loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(new_loop)
                 try:
-                    result = new_loop.run_until_complete(self.search_async(query))
+                    search_result = new_loop.run_until_complete(
+                        self.search_async(query)
+                    )
+                    result_queue.put(search_result)
                 except Exception as e:
-                    exception = e
+                    result_queue.put(e)
                 finally:
                     self._cleanup_event_loop(new_loop)
                     new_loop.close()
@@ -143,15 +146,22 @@ class SearchEngine:
                 # but we should still raise an error to indicate timeout
                 raise RuntimeError("Search operation timed out")
 
-            if exception is not None:
+            # Get result from queue (thread-safe)
+            try:
+                result = result_queue.get_nowait()
+            except queue.Empty as e:
+                raise RuntimeError(
+                    "Search thread completed but no result was produced"
+                ) from e
+
+            if isinstance(result, Exception):
                 logger.error(
                     "Search failed",
                     query=query.raw_query[:100] if query.raw_query else None,
-                    error=str(exception),
+                    error=str(result),
                 )
-                raise exception
-            if result is None:
-                raise RuntimeError("Search result should not be None")
+                raise result
+
             return result
         except RuntimeError:
             # No event loop is running, we can create one

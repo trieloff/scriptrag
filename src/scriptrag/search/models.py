@@ -42,6 +42,7 @@ class SearchQuery:
     offset: int = 0
     include_bible: bool = True  # Include bible content in search
     only_bible: bool = False  # Search only bible content
+    scene_type: str | None = None  # Filter by scene type (INT/EXT/INT/EXT)
 
     def __eq__(self, other: object) -> bool:
         """Allow comparison with strings for backwards compatibility."""

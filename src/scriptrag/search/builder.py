@@ -64,6 +64,11 @@ class QueryBuilder:
             where_conditions, params, search_query.locations
         )
 
+        # Add scene type filter
+        self.filter_utils.add_scene_type_filter(
+            where_conditions, params, search_query.scene_type
+        )
+
         # Add character-only search (when searching for characters without text)
         if search_query.characters and not (
             search_query.dialogue or search_query.text_query or search_query.action
@@ -125,6 +130,11 @@ class QueryBuilder:
         # Add location filters
         self.filter_utils.add_location_filters(
             where_conditions, params, search_query.locations
+        )
+
+        # Add scene type filter
+        self.filter_utils.add_scene_type_filter(
+            where_conditions, params, search_query.scene_type
         )
 
         # Add character-only search

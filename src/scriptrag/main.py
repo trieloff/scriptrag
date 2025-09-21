@@ -212,15 +212,12 @@ class ScriptRAG:
         if location:
             parsed_query.locations = [location]
 
-        # Handle filters (basic implementation for test compatibility)
+        # Handle filters
         if filters and "scene_type" in filters:
             scene_type = filters["scene_type"]
-            # Filter by scene type (INT/EXT) by checking if location contains it
-            if scene_type in ["INT", "EXT"]:
-                # This is a simplified implementation for test compatibility
-                # The actual filtering would be handled at search engine level
-                # TODO: Implement scene type filtering in search engine
-                pass
+            # Filter by scene type (INT/EXT/INT/EXT)
+            if scene_type in ["INT", "EXT", "INT/EXT"]:
+                parsed_query.scene_type = scene_type
 
         logger.debug(f"Executing search: {parsed_query.raw_query}")
 

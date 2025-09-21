@@ -99,6 +99,26 @@ class SearchFilterUtils:
             where_conditions.append(f"({' OR '.join(location_conditions)})")
 
     @staticmethod
+    def add_scene_type_filter(
+        where_conditions: list[str],
+        params: list[Any],
+        scene_type: str | None,
+    ) -> None:
+        """Add scene type filter to query.
+
+        Args:
+            where_conditions: List of WHERE conditions to append to
+            params: List of query parameters to append to
+            scene_type: Scene type to filter by (INT, EXT, INT/EXT)
+        """
+        if not scene_type:
+            return
+
+        # Scene headings typically start with INT., EXT., or INT/EXT.
+        where_conditions.append("sc.heading LIKE ?")
+        params.append(f"{scene_type}.%")
+
+    @staticmethod
     def add_character_filter(
         where_conditions: list[str],
         params: list[Any],

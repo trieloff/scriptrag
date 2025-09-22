@@ -231,7 +231,18 @@ class ScriptRAGSettings(BaseSettings):
     @field_validator("database_path", "log_file", mode="before")
     @classmethod
     def expand_path(cls, v: Any) -> Path | None:
-        """Expand environment variables and resolve path."""
+        """Expand environment variables and resolve path.
+
+        Accepts:
+        - None (for optional fields)
+        - str: Path as string, supports env vars and ~ expansion
+        - Path: pathlib.Path object
+        - Numbers: Converted to string (e.g., 123 -> "123")
+
+        Rejects:
+        - dict, list, set: Not valid path representations
+        - Complex objects without proper string conversion
+        """
         if v is None:
             return None
         if isinstance(v, str):
@@ -242,10 +253,25 @@ class ScriptRAGSettings(BaseSettings):
             return path.resolve()
         if isinstance(v, Path):
             return v.resolve()
-        # Default case - convert to Path
-        return Path(v)  # pragma: no cover
-        # This line is a defensive fallback for unexpected types.
-        # In practice, Pydantic ensures v is always str or Path.
+
+        # Explicitly reject collection types that shouldn't be paths
+        if isinstance(v, dict | list | set | tuple):
+            raise ValueError(
+                f"Path fields cannot accept {type(v).__name__} types. "
+                f"Expected str or Path, got: {v!r}"
+            )
+
+        # For other types (numbers, bools, etc.), try string conversion
+        try:
+            # Convert to string and then to Path for numeric types, etc.
+            str_value = str(v)
+            return Path(str_value).resolve()
+        except (TypeError, ValueError, OSError) as e:
+            # Provide a clear error message for unsupported types
+            raise ValueError(
+                f"Path fields must be string, Path, or convertible to string. "
+                f"Got {type(v).__name__}: {v!r}"
+            ) from e
 
     @field_validator("log_level", mode="before")
     @classmethod

@@ -255,7 +255,7 @@ class ScriptRAGSettings(BaseSettings):
             return v.resolve()
 
         # Explicitly reject collection types that shouldn't be paths
-        if isinstance(v, dict | list | set | tuple):
+        if isinstance(v, (dict, list, set, tuple)):  # noqa: UP038
             raise ValueError(
                 f"Path fields cannot accept {type(v).__name__} types. "
                 f"Expected str or Path, got: {v!r}"

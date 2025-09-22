@@ -136,3 +136,34 @@ class TestExpandPathValidatorBug:
         settings = ScriptRAGSettings()
         assert settings.database_path is not None
         assert str(settings.database_path).endswith("scriptrag.db")
+
+    def test_expand_path_with_object_str_raises_error(self):
+        """Test that an object whose __str__ raises an error is properly handled.
+
+        This tests the exception handler in the validator.
+        """
+
+        class BadObject:
+            """Object that raises error when converting to string."""
+
+            def __str__(self):
+                raise TypeError("Cannot convert to string")
+
+        with pytest.raises(ValidationError) as exc_info:
+            ScriptRAGSettings(database_path=BadObject())
+
+        error_str = str(exc_info.value)
+        # Should contain information about the error
+        assert "BadObject" in error_str or "path" in error_str.lower()
+
+    def test_expand_path_with_null_byte_in_string(self):
+        """Test that strings with null bytes are properly rejected.
+
+        Path objects cannot contain null bytes, so this should fail.
+        """
+        with pytest.raises(ValidationError) as exc_info:
+            ScriptRAGSettings(database_path="/path/with\x00null/byte")
+
+        error_str = str(exc_info.value)
+        # Should contain information about the error
+        assert "null" in error_str.lower() or "path" in error_str.lower()

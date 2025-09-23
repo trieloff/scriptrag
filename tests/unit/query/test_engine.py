@@ -256,6 +256,59 @@ class TestQueryEngine:
         # In a real read-only connection, writes would fail
         assert engine.check_read_only() is True
 
+    def test_strict_column_row_matching(self, engine, monkeypatch, tmp_path):
+        """Test that strict=True in zip ensures column-row count matching.
+
+        This test verifies that the fix for strict=False -> strict=True
+        properly catches any mismatches between column count and row values.
+        """
+        spec = QuerySpec(
+            name="test",
+            description="Test query",
+            sql="SELECT id, name, active FROM users ORDER BY id",
+        )
+
+        # Mock get_read_only_connection to return a connection with mismatched data
+        class MockConnection:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+            def execute(self, sql, params):
+                cursor = MagicMock()
+                # Return 3 columns but only 2 values per row (simulating a bug)
+                cursor.fetchall.return_value = [
+                    (1, "Alice"),  # Missing third value
+                    (2, "Bob"),  # Missing third value
+                ]
+                cursor.description = [("id",), ("name",), ("active",)]
+                return cursor
+
+        # Patch get_read_only_connection to return our mock
+        with patch("scriptrag.query.engine.get_read_only_connection") as mock_get_conn:
+            mock_get_conn.return_value = MockConnection()
+            # With strict=True, this should raise ValueError from zip
+            with pytest.raises(ValueError, match="zip\\(\\) argument"):
+                engine.execute(spec)
+
+    def test_strict_zip_normal_case(self, engine):
+        """Test that strict=True works correctly with matching column/row counts."""
+        spec = QuerySpec(
+            name="test",
+            description="Test query",
+            sql="SELECT id, name, active FROM users ORDER BY id",
+        )
+
+        # This should work normally with strict=True since columns match row values
+        rows, _ = engine.execute(spec)
+
+        assert len(rows) == 3
+        assert rows[0] == {"id": 1, "name": "Alice", "active": 1}
+        assert rows[1] == {"id": 2, "name": "Bob", "active": 1}
+        assert rows[2] == {"id": 3, "name": "Charlie", "active": 0}
+
     def test_empty_result_set(self, engine):
         """Test handling empty result set."""
         spec = QuerySpec(

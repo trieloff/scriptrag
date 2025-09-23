@@ -138,7 +138,7 @@ class QueryEngine:
                 # Convert rows to list of dicts
                 if rows:
                     columns = [description[0] for description in cursor.description]
-                    result = [dict(zip(columns, row, strict=False)) for row in rows]
+                    result = [dict(zip(columns, row, strict=True)) for row in rows]
                 else:
                     result = []
 

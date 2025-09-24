@@ -255,32 +255,103 @@ class ScriptRAGSettings(BaseSettings):
                 return path.resolve()
             except RuntimeError as e:
                 # RuntimeError is raised for circular symlinks
-                if "Symlink loop" in str(e):
+                # Check for common symlink loop patterns across Python versions
+                error_msg = str(e).lower()
+                if "symlink" in error_msg and "loop" in error_msg:
                     raise ValueError(f"Path contains circular symlinks: {path}") from e
+                # Also check for the maximum recursion pattern
+                if "maximum" in error_msg and "recursion" in error_msg:
+                    raise ValueError(
+                        f"Path resolution exceeded maximum depth, "
+                        f"likely due to circular symlinks: {path}"
+                    ) from e
                 raise  # Re-raise if it's a different RuntimeError
             except OSError as e:
                 # OSError can occur for various path resolution issues
                 raise ValueError(f"Path resolution failed for {path}: {e}") from e
 
         if isinstance(v, str):
+            # Check for null bytes (security issue)
+            if "\x00" in v:
+                raise ValueError(f"Path cannot contain null bytes: {v!r}")
+
+            # Check for excessively long paths
+            if len(v) > 4096:  # Common Linux PATH_MAX
+                raise ValueError(f"Path is too long ({len(v)} chars): {v[:50]!r}...")
+
             # Expand environment variables like $HOME
             expanded = os.path.expandvars(v)
+
+            # Handle empty string after expansion
+            if not expanded:
+                expanded = "."
+
             # Expand user home directory ~
             path = Path(expanded).expanduser()
 
-            # Check for Windows-style paths on Unix or vice versa
-            if os.name != "nt" and len(expanded) > 1 and expanded[1] == ":":
-                # Looks like Windows path on Unix system
-                raise ValueError(f"Windows-style path not supported on Unix: {v!r}")
-            if (
-                os.name == "nt"
-                and expanded.startswith("/")
-                and not expanded.startswith("//")
-            ):
-                # Looks like Unix absolute path on Windows
-                raise ValueError(
-                    f"Unix-style absolute path not supported on Windows: {v!r}"
-                )
+            # More comprehensive cross-platform validation
+            if os.name != "nt":
+                # On Unix, check for Windows-style paths
+                # Check for drive letter patterns (C:, D:, etc.)
+                # But allow relative paths like "./a:b" or "../x:y"
+                if (
+                    len(expanded) > 1
+                    and expanded[1] == ":"
+                    and expanded[0].isalpha()
+                    and (len(expanded) == 2 or expanded[2] in "/\\")
+                ):
+                    raise ValueError(f"Windows-style path not supported on Unix: {v!r}")
+
+                # Check for UNC paths (\\server\share or //server/share)
+                if expanded.startswith("\\\\") and "\\" in expanded[2:]:
+                    raise ValueError(f"Windows UNC path not supported on Unix: {v!r}")
+
+            else:  # Windows
+                # On Windows, check for Unix absolute paths (but allow UNC paths)
+                # Additional check: make sure it's not a valid Windows path
+                if (
+                    expanded.startswith("/")
+                    and not expanded.startswith("//")
+                    and not (len(expanded) > 2 and expanded[1] == ":")
+                ):
+                    raise ValueError(
+                        f"Unix-style absolute path not supported on Windows: {v!r}"
+                    )
+
+                # Check for reserved device names on Windows
+                base_name = Path(expanded).name.upper().split(".")[0]
+                reserved = {
+                    "CON",
+                    "PRN",
+                    "AUX",
+                    "NUL",
+                    "COM1",
+                    "COM2",
+                    "COM3",
+                    "COM4",
+                    "COM5",
+                    "COM6",
+                    "COM7",
+                    "COM8",
+                    "COM9",
+                    "LPT1",
+                    "LPT2",
+                    "LPT3",
+                    "LPT4",
+                    "LPT5",
+                    "LPT6",
+                    "LPT7",
+                    "LPT8",
+                    "LPT9",
+                }
+                if base_name in reserved:
+                    raise ValueError(f"Reserved device name not allowed: {v!r}")
+
+                # Check for paths ending with dots or spaces (invalid on Windows)
+                if expanded.rstrip() != expanded or expanded.rstrip(".") != expanded:
+                    raise ValueError(
+                        f"Path cannot end with spaces or dots on Windows: {v!r}"
+                    )
 
             return safe_resolve(path)
         if isinstance(v, Path):

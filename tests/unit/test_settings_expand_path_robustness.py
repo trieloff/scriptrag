@@ -276,3 +276,104 @@ class TestExpandPathRobustness:
         error_dict = validation_error.errors()[0]
         assert error_dict["loc"] == ("database_path",)
         assert "Windows-style path" in error_dict["msg"]
+
+    def test_null_bytes_rejected(self) -> None:
+        """Test that paths containing null bytes are rejected."""
+        path_with_null = "/test/path\x00/database.db"
+
+        with pytest.raises(ValidationError) as exc_info:
+            ScriptRAGSettings(database_path=path_with_null)
+
+        error_msg = str(exc_info.value)
+        assert "null bytes" in error_msg
+
+    def test_excessively_long_path_rejected(self) -> None:
+        """Test that excessively long paths are rejected."""
+        # Create a path longer than 4096 characters
+        long_path = "/" + "a" * 5000 + "/database.db"
+
+        with pytest.raises(ValidationError) as exc_info:
+            ScriptRAGSettings(database_path=long_path)
+
+        error_msg = str(exc_info.value)
+        assert "too long" in error_msg
+
+    def test_windows_unc_paths_rejected_on_unix(self) -> None:
+        """Test that Windows UNC paths are rejected on Unix."""
+        if os.name == "nt":
+            pytest.skip("This test only runs on Unix systems")
+
+        unc_paths = [
+            "\\\\server\\share\\database.db",
+            "\\\\192.168.1.1\\data\\file.db",
+        ]
+
+        for unc_path in unc_paths:
+            with pytest.raises(ValidationError) as exc_info:
+                ScriptRAGSettings(database_path=unc_path)
+            assert "UNC path not supported" in str(exc_info.value)
+
+    def test_windows_reserved_names_rejected(self) -> None:
+        """Test that Windows reserved device names are rejected on Windows."""
+        if os.name != "nt":
+            pytest.skip("This test only runs on Windows systems")
+
+        reserved_names = [
+            "CON",
+            "PRN",
+            "AUX",
+            "NUL",
+            "COM1",
+            "LPT1",
+            "con.txt",
+            "prn.log",
+            "aux.db",
+        ]
+
+        for name in reserved_names:
+            with pytest.raises(ValidationError) as exc_info:
+                ScriptRAGSettings(database_path=f"C:\\test\\{name}")
+            error_msg = str(exc_info.value)
+            assert "Reserved device name" in error_msg
+
+    def test_windows_trailing_dots_spaces_rejected(self) -> None:
+        """Test that paths ending with dots or spaces are rejected on Windows."""
+        if os.name != "nt":
+            pytest.skip("This test only runs on Windows systems")
+
+        invalid_paths = [
+            "C:\\test\\database.db ",
+            "C:\\test\\file.",
+            "C:\\test\\dir...",
+        ]
+
+        for path in invalid_paths:
+            with pytest.raises(ValidationError) as exc_info:
+                ScriptRAGSettings(database_path=path)
+            error_msg = str(exc_info.value)
+            assert "cannot end with spaces or dots" in error_msg
+
+    def test_relative_colon_paths_allowed_on_unix(self) -> None:
+        """Test that relative paths containing colons are allowed on Unix."""
+        if os.name == "nt":
+            pytest.skip("This test only runs on Unix systems")
+
+        # These should be allowed as they're not Windows drive letters
+        valid_paths = [
+            "./a:b/database.db",
+            "../x:y/file.db",
+            "test:file.db",
+        ]
+
+        for path in valid_paths:
+            settings = ScriptRAGSettings(database_path=path)
+            assert settings.database_path is not None
+
+    def test_empty_string_after_expansion(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that empty string after environment expansion is handled."""
+        monkeypatch.setenv("EMPTY_VAR", "")
+        settings = ScriptRAGSettings(database_path="$EMPTY_VAR")
+        # Should default to current directory
+        assert settings.database_path == Path.cwd()

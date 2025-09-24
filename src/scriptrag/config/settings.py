@@ -242,17 +242,49 @@ class ScriptRAGSettings(BaseSettings):
         Rejects:
         - dict, list, set: Not valid path representations
         - Complex objects without proper string conversion
+        - Circular symlinks
+        - Invalid cross-platform paths
         """
         if v is None:
             return None
+
+        # Helper function to safely resolve paths
+        def safe_resolve(path: Path) -> Path:
+            """Safely resolve a path, catching circular symlink errors."""
+            try:
+                return path.resolve()
+            except RuntimeError as e:
+                # RuntimeError is raised for circular symlinks
+                if "Symlink loop" in str(e):
+                    raise ValueError(f"Path contains circular symlinks: {path}") from e
+                raise  # Re-raise if it's a different RuntimeError
+            except OSError as e:
+                # OSError can occur for various path resolution issues
+                raise ValueError(f"Path resolution failed for {path}: {e}") from e
+
         if isinstance(v, str):
             # Expand environment variables like $HOME
             expanded = os.path.expandvars(v)
             # Expand user home directory ~
             path = Path(expanded).expanduser()
-            return path.resolve()
+
+            # Check for Windows-style paths on Unix or vice versa
+            if os.name != "nt" and len(expanded) > 1 and expanded[1] == ":":
+                # Looks like Windows path on Unix system
+                raise ValueError(f"Windows-style path not supported on Unix: {v!r}")
+            if (
+                os.name == "nt"
+                and expanded.startswith("/")
+                and not expanded.startswith("//")
+            ):
+                # Looks like Unix absolute path on Windows
+                raise ValueError(
+                    f"Unix-style absolute path not supported on Windows: {v!r}"
+                )
+
+            return safe_resolve(path)
         if isinstance(v, Path):
-            return v.resolve()
+            return safe_resolve(v)
 
         # Explicitly reject collection types that shouldn't be paths
         if isinstance(v, (dict, list, set, tuple)):  # noqa: UP038
@@ -265,7 +297,7 @@ class ScriptRAGSettings(BaseSettings):
         try:
             # Convert to string and then to Path for numeric types, etc.
             str_value = str(v)
-            return Path(str_value).resolve()
+            return safe_resolve(Path(str_value))
         except (TypeError, ValueError, OSError) as e:
             # Provide a clear error message for unsupported types
             raise ValueError(

@@ -207,6 +207,10 @@ class FileSourceResolver:
 
             # Try to find git repo from current directory
             repo = git.Repo(".", search_parent_directories=True)
+            # Handle bare repositories or edge cases where working_dir is None
+            if repo.working_dir is None:
+                logger.debug("Git repository has no working directory (bare repo?)")
+                return None
             self._git_root = Path(repo.working_dir)
             logger.debug(f"Found git repository root: {self._git_root}")
             return self._git_root

@@ -80,6 +80,50 @@ class TestFileSourceResolver:
             # May or may not have default depending on package structure
             assert len(dirs) >= 0
 
+    def test_get_search_directories_bare_git_repo(self):
+        """Test getting search dirs with bare git repo (working_dir is None)."""
+        with patch("git.Repo") as mock_repo_class:
+            mock_repo = MagicMock(spec=["working_dir"])
+            mock_repo.working_dir = None  # Simulates a bare repository
+            mock_repo_class.return_value = mock_repo
+
+            resolver = FileSourceResolver(
+                file_type="test",
+                default_subdir="test/default",
+            )
+
+            # This should not raise TypeError from Path(None)
+            dirs = resolver.get_search_directories()
+
+            # Should handle None working_dir gracefully and return default directories
+            # The git root should not be added since working_dir is None
+            assert len(dirs) >= 0
+            # Verify that Path(None) is not called (would raise TypeError)
+            # The test passing means we handled it correctly
+
+    def test_git_repo_none_working_dir_edge_case(self):
+        """Test that Path(None) TypeError is avoided when working_dir is None."""
+        with patch("git.Repo") as mock_repo_class:
+            mock_repo = MagicMock(spec=["working_dir"])
+            mock_repo.working_dir = None  # Simulates a bare repository
+            mock_repo_class.return_value = mock_repo
+
+            resolver = FileSourceResolver(file_type="test")
+
+            # Clear cache to force re-checking
+            resolver._cache_git_root_checked = False
+            resolver._git_root = None
+
+            # This would raise TypeError if we tried Path(None)
+            git_root = resolver._find_git_root()
+
+            # Should return None instead of crashing
+            assert git_root is None
+
+            # Verify resolver state is consistent
+            assert resolver._cache_git_root_checked is True
+            assert resolver._git_root is None
+
     def test_discover_files(self, tmp_path):
         """Test discovering files across directories."""
         # Create test directories and files

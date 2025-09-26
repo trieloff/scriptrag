@@ -336,7 +336,7 @@ class EmbeddingPipeline:
         items = []
         cached_results: dict[int, list[float]] = {}
 
-        for i, (text, metadata) in enumerate(zip(texts, metadata_list, strict=False)):
+        for i, (text, metadata) in enumerate(zip(texts, metadata_list, strict=True)):
             # Preprocess
             processed_text = self.preprocessor.process(text)
 
@@ -431,7 +431,7 @@ class EmbeddingPipeline:
 
             # Combine with IDs
             results = []
-            for scene_id, embedding in zip(scene_ids, embeddings, strict=False):
+            for scene_id, embedding in zip(scene_ids, embeddings, strict=True):
                 results.append((scene_id, embedding))
 
             return results

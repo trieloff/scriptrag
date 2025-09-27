@@ -1443,3 +1443,30 @@ That's it."""
             provider = ClaudeCodeProvider()
             assert provider.model_discovery.cache is not None
             assert provider.model_discovery.force_static is False
+
+    @pytest.mark.asyncio
+    async def test_execute_query_timeout_with_wait_for(
+        self, provider: ClaudeCodeProvider
+    ) -> None:
+        """Test that asyncio.wait_for handles timeouts during async iteration."""
+
+        async def hanging_query(prompt: str, options: object):
+            """Simulate a hanging async iterator."""
+            await asyncio.sleep(10)
+            mock_message = MagicMock()
+            mock_message.__class__.__name__ = "AssistantMessage"
+            mock_text_block = MagicMock()
+            mock_text_block.text = "Should not reach"
+            mock_message.content = [mock_text_block]
+            yield mock_message
+
+        with (
+            patch("claude_code_sdk.query", hanging_query),
+            patch("claude_code_sdk.ClaudeCodeOptions"),
+            patch("scriptrag.llm.providers.claude_code.DEFAULT_QUERY_TIMEOUT", 0.1),
+        ):
+            sdk = provider._get_sdk()
+            options = sdk.ClaudeCodeOptions()
+
+            with pytest.raises(TimeoutError):
+                await provider._execute_query("Test prompt", options, 0, 1)

@@ -382,13 +382,16 @@ class ClaudeCodeProvider(BaseLLMProvider):
         try:
             # Execute the query with a timeout
             query_timeout = DEFAULT_QUERY_TIMEOUT
-            async with asyncio.timeout(query_timeout):
+
+            async def _query_iterator() -> None:
                 async for message in query(prompt=prompt, options=options):
                     messages.append(message)
                     logger.debug(
                         "Received message from Claude Code SDK",
                         message_type=message.__class__.__name__,
                     )
+
+            await asyncio.wait_for(_query_iterator(), timeout=query_timeout)
 
             # Query completed, cancel progress monitoring
             progress_task.cancel()

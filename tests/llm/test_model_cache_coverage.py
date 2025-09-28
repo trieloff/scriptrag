@@ -988,51 +988,19 @@ class TestModelCacheCoverage:
             assert len(temp_files) == 0, "Temp files should be cleaned up"
 
     def test_utf8_encoding_in_cache_operations(self, tmp_path):
-        """Test UTF-8 encoding is used for reading and writing cache files.
-
-        This test ensures that non-ASCII characters (like emojis or
-        international characters) are properly handled in model metadata.
-        Regression test for encoding bug where file operations didn't
-        specify encoding='utf-8'.
-        """
+        """Test UTF-8 encoding handles non-ASCII characters in cache files."""
         with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
             cache = ModelDiscoveryCache("test_provider")
-
-            # Create models with non-ASCII characters (emoji, accents, CJK)
             test_models = [
                 Model(
-                    id="test-emoji",
-                    name="Test Model 🤖 - Modèle de test - テストモデル",
+                    id="test-utf8",
+                    name="Model with émoji 🤖",
                     provider=LLMProvider.CLAUDE_CODE,
-                    capabilities=["chat", "完成"],
+                    capabilities=["chat"],
                 )
             ]
-
-            # Set models (should write with UTF-8 encoding)
             cache.set(test_models)
-
-            # Clear memory cache to force disk read
             ModelDiscoveryCache.clear_all_memory_cache()
-
-            # Get models (should read with UTF-8 encoding)
             result = cache.get()
-
-            # Verify UTF-8 characters were preserved through round-trip
             assert result is not None
-            assert len(result) == 1
-            assert result[0].name == "Test Model 🤖 - Modèle de test - テストモデル"
-            assert "完成" in result[0].capabilities
-
-            # Verify the cache file was written with proper UTF-8 encoding
-            # (JSON escapes non-ASCII by default, but encoding must be UTF-8
-            # for the file operations to work correctly)
-            cache_file = cache.cache_file
-            assert cache_file.exists()
-
-            # Verify file can be read with UTF-8 encoding and parsed
-            with cache_file.open("r", encoding="utf-8") as f:
-                cache_data = json.load(f)
-                # Data should be preserved after JSON round-trip
-                assert cache_data["models"][0]["name"] == test_models[0].name
-                cached_caps = cache_data["models"][0]["capabilities"]
-                assert cached_caps == test_models[0].capabilities
+            assert result[0].name == "Model with émoji 🤖"

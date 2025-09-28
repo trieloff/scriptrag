@@ -236,6 +236,7 @@ class ModelDiscoveryCache:
             ValidationError,
             OSError,
             PermissionError,
+            UnicodeDecodeError,
         ) as e:
             logger.warning(f"Failed to read cache for {self.provider_name}: {e}")
             return None

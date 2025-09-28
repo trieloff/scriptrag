@@ -986,3 +986,21 @@ class TestModelCacheCoverage:
             # Verify no temp files leaked
             temp_files = list(tmp_path.glob(".test_provider_models_*.tmp"))
             assert len(temp_files) == 0, "Temp files should be cleaned up"
+
+    def test_utf8_encoding_in_cache_operations(self, tmp_path):
+        """Test UTF-8 encoding handles non-ASCII characters in cache files."""
+        with patch.object(ModelDiscoveryCache, "CACHE_DIR", tmp_path):
+            cache = ModelDiscoveryCache("test_provider")
+            test_models = [
+                Model(
+                    id="test-utf8",
+                    name="Model with émoji 🤖",
+                    provider=LLMProvider.CLAUDE_CODE,
+                    capabilities=["chat"],
+                )
+            ]
+            cache.set(test_models)
+            ModelDiscoveryCache.clear_all_memory_cache()
+            result = cache.get()
+            assert result is not None
+            assert result[0].name == "Model with émoji 🤖"

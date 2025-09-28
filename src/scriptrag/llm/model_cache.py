@@ -198,7 +198,7 @@ class ModelDiscoveryCache:
             return None
 
         try:
-            with self.cache_file.open("r") as f:
+            with self.cache_file.open("r", encoding="utf-8") as f:
                 cache_data: dict[str, Any] = json.load(f)
 
             timestamp = cache_data.get("timestamp", 0)
@@ -236,6 +236,7 @@ class ModelDiscoveryCache:
             ValidationError,
             OSError,
             PermissionError,
+            UnicodeDecodeError,
         ) as e:
             logger.warning(f"Failed to read cache for {self.provider_name}: {e}")
             return None
@@ -280,7 +281,7 @@ class ModelDiscoveryCache:
                 # Write data to temp file
                 # fdopen takes ownership of the file descriptor on success
                 try:
-                    with os.fdopen(temp_fd, "w") as f:
+                    with os.fdopen(temp_fd, "w", encoding="utf-8") as f:
                         # Mark that fd is now owned by fdopen (even if dump fails)
                         fd_consumed = True
                         json.dump(cache_data, f, indent=2)

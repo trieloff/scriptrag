@@ -46,6 +46,11 @@ def _is_temp_directory(db_path_str: str) -> bool:
         True if path is in a temp directory
     """
     path_lower = db_path_str.lower()
+
+    # Split path into components for more precise matching
+    path_components = path_lower.replace("\\", "/").split("/")
+
+    # Temp directory indicators that should match complete directory names
     temp_indicators = ["temp", "tmp", "pytest", ".pytest_cache"]
 
     # Check for CI-specific paths
@@ -58,10 +63,16 @@ def _is_temp_directory(db_path_str: str) -> bool:
     ):
         return True
 
-    # Check for temp indicators in path or CI paths
-    return any(indicator in path_lower for indicator in temp_indicators) or any(
-        db_path_str.startswith(ci_path) for ci_path in ci_indicators
+    # Check for temp indicators in path components (exact match for directory names)
+    # This prevents false positives from directories like "temperature" or "attempt"
+    has_temp_component = any(
+        component in temp_indicators for component in path_components
     )
+
+    # Check for CI paths
+    has_ci_path = any(db_path_str.startswith(ci_path) for ci_path in ci_indicators)
+
+    return has_temp_component or has_ci_path
 
 
 @contextmanager

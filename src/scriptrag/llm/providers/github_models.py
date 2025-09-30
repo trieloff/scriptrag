@@ -296,9 +296,14 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
 
             for choice in raw_choices:
                 if isinstance(choice, dict):
+                    # Safely extract message, handling None case
+                    message_data = choice.get("message")
+                    if not isinstance(message_data, dict):
+                        message_data = {}
+
                     message: CompletionMessage = {
-                        "role": choice.get("message", {}).get("role", "assistant"),
-                        "content": choice.get("message", {}).get("content") or "",
+                        "role": message_data.get("role") or "assistant",
+                        "content": message_data.get("content") or "",
                     }
                     sanitized_choice: CompletionChoice = {
                         "index": choice.get("index", 0),

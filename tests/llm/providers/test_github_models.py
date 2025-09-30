@@ -465,3 +465,142 @@ class TestGitHubModelsProvider:
             assert captured_json["max_tokens"] == 1000
             assert captured_json["top_p"] == 0.9
             assert captured_json["stream"] is False
+
+    @pytest.mark.asyncio
+    async def test_complete_with_null_message_in_response(
+        self, provider: GitHubModelsProvider
+    ) -> None:
+        """Test handling of API response with null message field in choices."""
+        # This tests the bug fix for when the API returns "message": null
+        # instead of a proper message object
+        mock_response = MagicMock(
+            spec=["status_code", "raise_for_status", "json", "text"]
+        )
+        mock_response.status_code = 200
+        mock_response.text = '{"choices": [{"message": null}]}'
+        mock_response.json.return_value = {
+            "id": "chatcmpl-123",
+            "model": "gpt-4o",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": None,  # This is the bug condition
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        }
+
+        # Initialize client before mocking
+        provider._init_http_client()
+        with patch.object(provider.client, "post", return_value=mock_response):
+            request = CompletionRequest(
+                model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
+            )
+            response = await provider.complete(request)
+
+            # Should handle the null message gracefully and provide defaults
+            assert response.choices[0]["message"]["role"] == "assistant"
+            assert response.choices[0]["message"]["content"] == ""
+            assert response.provider == LLMProvider.GITHUB_MODELS
+
+    @pytest.mark.asyncio
+    async def test_complete_with_malformed_message_types(
+        self, provider: GitHubModelsProvider
+    ) -> None:
+        """Test handling of various malformed message types in API response."""
+        test_cases = [
+            # message is a string instead of dict
+            {
+                "message": "not a dict",
+                "expected_role": "assistant",
+                "expected_content": "",
+            },
+            # message is a number
+            {"message": 42, "expected_role": "assistant", "expected_content": ""},
+            # message is a list
+            {
+                "message": ["invalid"],
+                "expected_role": "assistant",
+                "expected_content": "",
+            },
+            # message is missing entirely
+            {"expected_role": "assistant", "expected_content": ""},
+        ]
+
+        for i, test_case in enumerate(test_cases):
+            mock_response = MagicMock(
+                spec=["status_code", "raise_for_status", "json", "text"]
+            )
+            mock_response.status_code = 200
+            mock_response.text = f"test case {i}"
+
+            choice_data = {"index": 0, "finish_reason": "stop"}
+            if "message" in test_case:
+                choice_data["message"] = test_case["message"]
+
+            mock_response.json.return_value = {
+                "id": f"chatcmpl-{i}",
+                "model": "gpt-4o",
+                "choices": [choice_data],
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                },
+            }
+
+            # Initialize client before mocking
+            provider._init_http_client()
+            with patch.object(provider.client, "post", return_value=mock_response):
+                request = CompletionRequest(
+                    model="gpt-4o", messages=[{"role": "user", "content": f"Test {i}"}]
+                )
+                response = await provider.complete(request)
+
+                # Should handle malformed messages gracefully
+                expected_role = test_case["expected_role"]
+                expected_content = test_case["expected_content"]
+                assert response.choices[0]["message"]["role"] == expected_role
+                assert response.choices[0]["message"]["content"] == expected_content
+                assert response.provider == LLMProvider.GITHUB_MODELS
+
+    @pytest.mark.asyncio
+    async def test_complete_with_partial_message_fields(
+        self, provider: GitHubModelsProvider
+    ) -> None:
+        """Test handling of messages with missing role or content fields."""
+        mock_response = MagicMock(
+            spec=["status_code", "raise_for_status", "json", "text"]
+        )
+        mock_response.status_code = 200
+        resp_text = '{"choices": [{"message": {"role": null, "content": null}}]}'
+        mock_response.text = resp_text
+        mock_response.json.return_value = {
+            "id": "chatcmpl-123",
+            "model": "gpt-4o",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": None,  # null role should default to "assistant"
+                        "content": None,  # null content should default to ""
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+        }
+
+        # Initialize client before mocking
+        provider._init_http_client()
+        with patch.object(provider.client, "post", return_value=mock_response):
+            request = CompletionRequest(
+                model="gpt-4o", messages=[{"role": "user", "content": "Hello"}]
+            )
+            response = await provider.complete(request)
+
+            # Should provide sensible defaults for null fields
+            assert response.choices[0]["message"]["role"] == "assistant"
+            assert response.choices[0]["message"]["content"] == ""
+            assert response.provider == LLMProvider.GITHUB_MODELS

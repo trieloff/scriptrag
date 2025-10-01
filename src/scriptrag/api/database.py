@@ -227,8 +227,13 @@ class DatabaseInitializer:
 
                 manager = get_connection_manager(settings)
                 has_schema = manager.check_database_exists()
-            except Exception:
-                # If we can't check, assume no schema
+            except Exception as e:
+                # Log the error but continue - database might not be initialized yet
+                logger.warning(
+                    "Could not check database schema",
+                    error=str(e),
+                    path=str(db_path),
+                )
                 has_schema = False
 
         if has_schema and not force:

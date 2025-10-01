@@ -214,6 +214,145 @@ class TestDatabaseInitializer:
         # Verify cleanup - database should not exist
         assert not db_path.exists()
 
+    def test_check_database_exists_exception_handling(self, tmp_path, caplog):
+        """Test that exceptions in check_database_exists are logged properly."""
+        import logging
+
+        # Setup database file
+        db_path = tmp_path / "test.db"
+        db_path.touch()  # Create empty file
+
+        # Setup SQL directory
+        sql_dir = tmp_path / "sql"
+        sql_dir.mkdir()
+        sql_file = sql_dir / "init_database.sql"
+        sql_file.write_text("CREATE TABLE test (id INTEGER);")
+
+        initializer = DatabaseInitializer(sql_dir=sql_dir)
+
+        # Mock get_connection_manager - first call fails, subsequent calls succeed
+        mock_manager = Mock()
+        mock_manager.db_path = db_path
+        mock_manager.get_connection = Mock(return_value=MockConnection())
+        mock_manager.release_connection = Mock()
+
+        with patch(
+            "scriptrag.database.connection_manager.get_connection_manager"
+        ) as mock_get_manager:
+            # First call raises an error (during check_database_exists)
+            # Subsequent calls return the mock manager (for actual initialization)
+            mock_get_manager.side_effect = [
+                RuntimeError("Connection pool error"),
+                mock_manager,
+                mock_manager,
+            ]
+
+            # Set log level to capture warnings
+            caplog.set_level(logging.WARNING)
+
+            # Initialize should succeed despite the error
+            result_path = initializer.initialize_database(db_path, force=True)
+            assert result_path == db_path
+
+            # Verify the warning was logged
+            assert "Could not check database schema" in caplog.text
+            assert "Connection pool error" in caplog.text
+            assert str(db_path) in caplog.text
+
+    def test_check_database_exists_import_error(self, tmp_path, caplog):
+        """Test that import errors in check_database_exists are logged properly."""
+        import logging
+
+        # Setup database file
+        db_path = tmp_path / "test.db"
+        db_path.touch()  # Create empty file
+
+        # Setup SQL directory
+        sql_dir = tmp_path / "sql"
+        sql_dir.mkdir()
+        sql_file = sql_dir / "init_database.sql"
+        sql_file.write_text("CREATE TABLE test (id INTEGER);")
+
+        initializer = DatabaseInitializer(sql_dir=sql_dir)
+
+        # Mock get_connection_manager - first call fails, subsequent calls succeed
+        mock_manager = Mock()
+        mock_manager.db_path = db_path
+        mock_manager.get_connection = Mock(return_value=MockConnection())
+        mock_manager.release_connection = Mock()
+
+        # Mock the import to fail initially
+        with patch(
+            "scriptrag.database.connection_manager.get_connection_manager"
+        ) as mock_get_manager:
+            mock_get_manager.side_effect = [
+                ImportError("Module not found"),
+                mock_manager,
+                mock_manager,
+            ]
+
+            # Set log level to capture warnings
+            caplog.set_level(logging.WARNING)
+
+            # Initialize should succeed despite the error
+            result_path = initializer.initialize_database(db_path, force=True)
+            assert result_path == db_path
+
+            # Verify the warning was logged
+            assert "Could not check database schema" in caplog.text
+            assert "Module not found" in caplog.text
+            assert str(db_path) in caplog.text
+
+    def test_check_database_exists_permission_error(self, tmp_path, caplog):
+        """Test that permission errors in check_database_exists are logged properly."""
+        import logging
+
+        # Setup database file
+        db_path = tmp_path / "test.db"
+        db_path.touch()  # Create empty file
+
+        # Setup SQL directory
+        sql_dir = tmp_path / "sql"
+        sql_dir.mkdir()
+        sql_file = sql_dir / "init_database.sql"
+        sql_file.write_text("CREATE TABLE test (id INTEGER);")
+
+        initializer = DatabaseInitializer(sql_dir=sql_dir)
+
+        # Mock get_connection_manager - first call has permission error,
+        # subsequent calls succeed
+        mock_manager = Mock()
+        mock_manager.db_path = db_path
+        mock_manager.get_connection = Mock(return_value=MockConnection())
+        mock_manager.release_connection = Mock()
+
+        # Create a mock manager that raises permission error on check_database_exists
+        failing_manager = Mock()
+        failing_manager.check_database_exists.side_effect = PermissionError(
+            "Access denied"
+        )
+
+        with patch(
+            "scriptrag.database.connection_manager.get_connection_manager"
+        ) as mock_get_manager:
+            mock_get_manager.side_effect = [
+                failing_manager,  # First call returns manager that fails on check
+                mock_manager,  # Subsequent calls return working manager
+                mock_manager,
+            ]
+
+            # Set log level to capture warnings
+            caplog.set_level(logging.WARNING)
+
+            # Initialize should succeed despite the error
+            result_path = initializer.initialize_database(db_path, force=True)
+            assert result_path == db_path
+
+            # Verify the warning was logged
+            assert "Could not check database schema" in caplog.text
+            assert "Access denied" in caplog.text
+            assert str(db_path) in caplog.text
+
     def test_initialize_with_connection_no_cleanup(self, tmp_path):
         """Test that provided connection is not closed after initialization."""
         # Setup

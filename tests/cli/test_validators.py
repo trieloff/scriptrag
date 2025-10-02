@@ -261,6 +261,56 @@ class TestFileValidator:
         with pytest.raises(ValidationError, match="Invalid file extension"):
             validator.validate(str(invalid_file))
 
+    def test_file_extension_case_insensitive(self, tmp_path):
+        """Test case-insensitive file extension validation (bug fix)."""
+        # Create test files with different case extensions
+        lower_file = tmp_path / "script.fountain"
+        lower_file.write_text("content")
+
+        upper_file = tmp_path / "document.TXT"
+        upper_file.write_text("content")
+
+        mixed_file = tmp_path / "readme.Md"
+        mixed_file.write_text("content")
+
+        # Test 1: Validator with lowercase extensions should match any case
+        validator_lower = FileValidator(extensions=[".fountain", ".txt", ".md"])
+        # .fountain matches .fountain
+        assert validator_lower.validate(str(lower_file)) == lower_file
+        # .txt matches .TXT
+        assert validator_lower.validate(str(upper_file)) == upper_file
+        # .md matches .Md
+        assert validator_lower.validate(str(mixed_file)) == mixed_file
+
+        # Test 2: Validator with uppercase extensions should also match any case
+        # This is the main bug fix - uppercase extensions now work correctly
+        validator_upper = FileValidator(extensions=[".FOUNTAIN", ".TXT", ".MD"])
+        # .FOUNTAIN matches .fountain
+        assert validator_upper.validate(str(lower_file)) == lower_file
+        # .TXT matches .TXT
+        assert validator_upper.validate(str(upper_file)) == upper_file
+        # .MD matches .Md
+        assert validator_upper.validate(str(mixed_file)) == mixed_file
+
+        # Test 3: Validator with mixed case extensions should match any case
+        validator_mixed = FileValidator(extensions=[".Fountain", ".TxT", ".mD"])
+        # .Fountain matches .fountain
+        assert validator_mixed.validate(str(lower_file)) == lower_file
+        # .TxT matches .TXT
+        assert validator_mixed.validate(str(upper_file)) == upper_file
+        # .mD matches .Md
+        assert validator_mixed.validate(str(mixed_file)) == mixed_file
+
+        # Test 4: Invalid extension still fails regardless of case
+        invalid_file = tmp_path / "video.MP4"
+        invalid_file.write_text("content")
+
+        with pytest.raises(ValidationError, match="Invalid file extension"):
+            validator_lower.validate(str(invalid_file))
+
+        with pytest.raises(ValidationError, match="Invalid file extension"):
+            validator_upper.validate(str(invalid_file))
+
     def test_path_is_directory(self, tmp_path):
         """Test path that is a directory."""
         validator = FileValidator(must_be_file=True)
@@ -434,6 +484,29 @@ class TestConfigFileValidator:
 
         with pytest.raises(ValidationError, match="Invalid file extension"):
             validator.validate(str(invalid_file))
+
+    def test_config_extension_case_insensitive(self, tmp_path):
+        """Test that config file validator handles case-insensitive extensions."""
+        validator = ConfigFileValidator()
+
+        # Test uppercase and mixed case extensions
+        uppercase_yaml = tmp_path / "config.YAML"
+        uppercase_yaml.write_text("content")
+
+        uppercase_yml = tmp_path / "config.YML"
+        uppercase_yml.write_text("content")
+
+        mixed_json = tmp_path / "config.Json"
+        mixed_json.write_text("content")
+
+        uppercase_toml = tmp_path / "config.TOML"
+        uppercase_toml.write_text("content")
+
+        # All should validate successfully after the fix
+        assert validator.validate(str(uppercase_yaml)) == uppercase_yaml
+        assert validator.validate(str(uppercase_yml)) == uppercase_yml
+        assert validator.validate(str(mixed_json)) == mixed_json
+        assert validator.validate(str(uppercase_toml)) == uppercase_toml
 
 
 class TestCompositeValidator:

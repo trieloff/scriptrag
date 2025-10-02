@@ -27,7 +27,8 @@ class FileValidator(Validator[Path]):
         """
         self.must_exist = must_exist
         self.must_be_file = must_be_file
-        self.extensions = extensions
+        # Normalize extensions to lowercase for case-insensitive comparison
+        self.extensions = [ext.lower() for ext in extensions] if extensions else None
 
     def validate(self, value: str | Path) -> Path:
         """Validate file path.

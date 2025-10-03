@@ -216,7 +216,20 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
                 if isinstance(first_choice, dict):
                     message = first_choice.get("message", {})
                     if isinstance(message, dict):
-                        response_content = message.get("content", "") or ""
+                        content = message.get("content")
+                        # Ensure content is a string for logging
+                        if isinstance(content, str):
+                            response_content = content
+                        elif content is None:
+                            response_content = ""
+                        else:
+                            # Content is non-string (dict, list, int, etc.)
+                            content_str = str(content)
+                            response_content = (
+                                content_str
+                                if len(content_str) < 100
+                                else content_str[:100] + "..."
+                            )
 
             logger.info(
                 "GitHub Models completion successful",
@@ -276,10 +289,45 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
         }
 
         try:
+            # Sanitize choices to ensure content is always a string
+            raw_choices = data.get("choices", [])
+            sanitized_choices: list[CompletionChoice] = []
+
+            for choice in raw_choices:
+                if isinstance(choice, dict):
+                    # Get the message or use empty dict
+                    message_data = choice.get("message", {})
+                    if not isinstance(message_data, dict):
+                        message_data = {}
+
+                    # Safely handle content field
+                    content_raw = message_data.get("content")
+                    if isinstance(content_raw, str):
+                        content = content_raw
+                    elif content_raw is None:
+                        content = ""
+                    else:
+                        # Content is non-string (dict, list, int, etc.)
+                        # Convert to string representation
+                        content = str(content_raw)
+
+                    message: CompletionMessage = {
+                        "role": message_data.get("role") or "assistant",
+                        "content": content,
+                    }
+                    sanitized_choice: CompletionChoice = {
+                        "index": choice.get("index", 0),
+                        "message": message,
+                        "finish_reason": choice.get("finish_reason", "stop"),
+                    }
+                    sanitized_choices.append(sanitized_choice)
+
             return CompletionResponse(
                 id=data.get("id", ""),
                 model=data.get("model", model),
-                choices=data.get("choices", []),
+                choices=(
+                    sanitized_choices if sanitized_choices else data.get("choices", [])
+                ),
                 usage=usage,
                 provider=self.provider_type,
             )
@@ -292,7 +340,7 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
 
             # Sanitize choices data
             raw_choices = data.get("choices", [])
-            sanitized_choices: list[CompletionChoice] = []
+            fallback_choices: list[CompletionChoice] = []
 
             for choice in raw_choices:
                 if isinstance(choice, dict):
@@ -301,19 +349,30 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
                     if not isinstance(message_data, dict):
                         message_data = {}
 
-                    message: CompletionMessage = {
+                    # Safely handle content field
+                    content_raw = message_data.get("content")
+                    if isinstance(content_raw, str):
+                        fallback_content = content_raw
+                    elif content_raw is None:
+                        fallback_content = ""
+                    else:
+                        # Content is non-string (dict, list, int, etc.)
+                        # Convert to string representation
+                        fallback_content = str(content_raw)
+
+                    fallback_message: CompletionMessage = {
                         "role": message_data.get("role") or "assistant",
-                        "content": message_data.get("content") or "",
+                        "content": fallback_content,
                     }
-                    sanitized_choice: CompletionChoice = {
+                    fallback_choice: CompletionChoice = {
                         "index": choice.get("index", 0),
-                        "message": message,
+                        "message": fallback_message,
                         "finish_reason": choice.get("finish_reason", "stop"),
                     }
-                    sanitized_choices.append(sanitized_choice)
+                    fallback_choices.append(fallback_choice)
 
             # Create default if no valid choices
-            if not sanitized_choices:
+            if not fallback_choices:
                 default_message: CompletionMessage = {
                     "role": "assistant",
                     "content": "",
@@ -323,12 +382,12 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
                     "message": default_message,
                     "finish_reason": "stop",
                 }
-                sanitized_choices = [default_choice]
+                fallback_choices = [default_choice]
 
             return CompletionResponse(
                 id=data.get("id", ""),
                 model=data.get("model", model),
-                choices=sanitized_choices,
+                choices=fallback_choices,
                 usage=usage,
                 provider=self.provider_type,
             )

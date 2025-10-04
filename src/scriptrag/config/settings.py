@@ -291,6 +291,24 @@ class ScriptRAGSettings(BaseSettings):
         # Only accept string values, reject other types
         raise ValueError(f"log_format must be a string, got {type(v).__name__}")
 
+    @field_validator(
+        "database_journal_mode",
+        "database_synchronous",
+        "database_temp_store",
+        mode="before",
+    )
+    @classmethod
+    def normalize_database_modes(cls, v: Any) -> str | None:
+        """Normalize database mode fields to uppercase for case-insensitive handling."""
+        if v is None:
+            return None  # Allow None to pass through for default values
+        if isinstance(v, str):
+            return v.strip().upper()  # Strip whitespace and convert to uppercase
+        # Only accept string values or None, reject other types
+        raise ValueError(
+            f"Database mode fields must be strings, got {type(v).__name__}"
+        )
+
     @classmethod
     def from_env(cls) -> ScriptRAGSettings:
         """Create settings from environment variables."""

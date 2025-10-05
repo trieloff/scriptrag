@@ -170,7 +170,22 @@ class FountainParser:
             Parsed Script object
         """
         # Get the full content for scene processing
-        content = file_path.read_text(encoding="utf-8")
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as e:
+            logger.error(f"File encoding error for {file_path}: {e}")
+            raise ParseError(
+                message=f"File is not UTF-8 encoded: {file_path}",
+                hint=(
+                    "Fountain files must be UTF-8 encoded. "
+                    "Use 'iconv' or a text editor to convert the file."
+                ),
+                details={
+                    "file": str(file_path),
+                    "error": str(e),
+                    "byte_position": e.start,
+                },
+            ) from e
 
         # Apply jouvence workaround to avoid infinite loop bug
         cleaned_content = self._apply_jouvence_workaround(content)
@@ -231,7 +246,22 @@ class FountainParser:
         if dry_run:
             return
 
-        content = file_path.read_text(encoding="utf-8")
+        try:
+            content = file_path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as e:
+            logger.error(f"File encoding error for {file_path}: {e}")
+            raise ParseError(
+                message=f"File is not UTF-8 encoded: {file_path}",
+                hint=(
+                    "Fountain files must be UTF-8 encoded. "
+                    "Use 'iconv' or a text editor to convert the file."
+                ),
+                details={
+                    "file": str(file_path),
+                    "error": str(e),
+                    "byte_position": e.start,
+                },
+            ) from e
 
         # Safety check: don't write if no scenes have new metadata
         # But still ensure newline at end of file

@@ -130,7 +130,7 @@ repos:
     rev: v2.9.0
     hooks:
       - id: pip-audit
-        args: ['--desc', 'on', '--fix']
+        args: ['--desc', 'on', '--fix', '--ignore-vuln', 'GHSA-4xh5-x5gv-qwph']
 
   # Check for print statements
   - repo: https://github.com/pre-commit/pygrep-hooks

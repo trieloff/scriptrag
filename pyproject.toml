@@ -297,3 +297,9 @@ color = true
 
 # Note: pylint, vulture, and isort configurations have been removed.
 # Ruff handles all linting and import sorting tasks.
+
+[tool.pip-audit]
+# Temporary ignore for pip vulnerability GHSA-4xh5-x5gv-qwph
+# This vulnerability affects pip 25.2, but the fix (pip 25.3) hasn't been released yet
+# Remove this ignore once pip 25.3 is available
+ignore-vulns = ["GHSA-4xh5-x5gv-qwph"]

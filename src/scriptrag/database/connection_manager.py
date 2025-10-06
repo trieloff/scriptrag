@@ -234,14 +234,14 @@ class ConnectionPool:
             if not self._is_connection_healthy(conn):
                 try:
                     conn.close()
+                    self._total_connections -= 1
                 except Exception:
                     logger.debug(
                         "Failed to close unhealthy connection during release",
                         exc_info=True,
                     )
                     self._unhealthy_close_failures += 1
-                finally:
-                    self._total_connections -= 1
+                    # Don't decrement if close failed - connection may still be alive
                 return
 
             # Return to pool if there's space
@@ -249,8 +249,16 @@ class ConnectionPool:
                 self._pool.put_nowait((conn, time.time()))
             except Exception:
                 # Pool is full, close the connection
-                conn.close()
-                self._total_connections -= 1
+                try:
+                    conn.close()
+                    self._total_connections -= 1
+                except Exception:
+                    logger.debug(
+                        "Failed to close connection when pool is full",
+                        exc_info=True,
+                    )
+                    self._unhealthy_close_failures += 1
+                    # Don't decrement counter if close failed
 
     def _is_connection_healthy(self, conn: sqlite3.Connection) -> bool:
         """Check if a connection is still healthy.
@@ -292,15 +300,15 @@ class ConnectionPool:
                         else:
                             try:
                                 conn.close()
+                                self._total_connections -= 1
+                                logger.debug("Closed unhealthy connection")
                             except Exception:
                                 logger.debug(
                                     "Failed to close unhealthy conn in health check",
                                     exc_info=True,
                                 )
                                 self._unhealthy_close_failures += 1
-                            finally:
-                                self._total_connections -= 1
-                            logger.debug("Closed unhealthy connection")
+                                # Don't decrement if close failed
                     except Empty:
                         break
 
@@ -309,8 +317,16 @@ class ConnectionPool:
                     try:
                         self._pool.put_nowait(conn_tuple)
                     except Exception:
-                        conn_tuple[0].close()
-                        self._total_connections -= 1
+                        try:
+                            conn_tuple[0].close()
+                            self._total_connections -= 1
+                        except Exception:
+                            logger.debug(
+                                "Failed to close conn when pool full in health check",
+                                exc_info=True,
+                            )
+                            self._unhealthy_close_failures += 1
+                            # Don't decrement counter if close failed
 
                 # Ensure minimum connections
                 while self._total_connections < self.min_size:
@@ -368,8 +384,16 @@ class ConnectionPool:
             while not self._pool.empty():
                 try:
                     conn, _ = self._pool.get_nowait()
-                    conn.close()
-                    self._total_connections -= 1
+                    try:
+                        conn.close()
+                        self._total_connections -= 1
+                    except Exception:
+                        logger.debug(
+                            "Failed to close connection during pool shutdown",
+                            exc_info=True,
+                        )
+                        self._unhealthy_close_failures += 1
+                        # Don't decrement counter if close failed
                 except Empty:
                     break
 

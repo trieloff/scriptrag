@@ -224,7 +224,8 @@ class TestConnectionPool:
         # Verify metrics were updated
         assert connection_pool._unhealthy_close_failures == initial_failures + 1
         assert connection_pool._active_connections == 0
-        assert connection_pool._total_connections == 1
+        # With the bug fix, the counter should NOT be decremented when close fails
+        assert connection_pool._total_connections == 2
 
         # Verify stats include the metric
         stats = connection_pool.get_stats()

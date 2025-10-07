@@ -97,7 +97,7 @@ class TestQueryEngine:
             sql="SELECT * FROM users WHERE active = :active ORDER BY id",
         )
 
-        rows, exec_time = engine.execute(spec, params={"active": True})
+        rows, _exec_time = engine.execute(spec, params={"active": True})
 
         assert len(rows) == 2
         assert rows[0]["name"] == "Alice"
@@ -111,7 +111,7 @@ class TestQueryEngine:
             sql="SELECT * FROM users ORDER BY id",
         )
 
-        rows, exec_time = engine.execute(spec, limit=2, offset=1)
+        rows, _exec_time = engine.execute(spec, limit=2, offset=1)
 
         assert len(rows) == 2
         assert rows[0]["name"] == "Bob"
@@ -129,7 +129,7 @@ class TestQueryEngine:
             sql="SELECT * FROM users ORDER BY id LIMIT :limit OFFSET :offset",
         )
 
-        rows, exec_time = engine.execute(spec, params={"limit": 1, "offset": 2})
+        rows, _exec_time = engine.execute(spec, params={"limit": 1, "offset": 2})
 
         assert len(rows) == 1
         assert rows[0]["name"] == "Charlie"
@@ -326,7 +326,7 @@ class TestQueryEngine:
             sql="SELECT * FROM users ORDER BY id",
         )
 
-        rows, exec_time = engine.execute(spec, limit=2)
+        rows, _exec_time = engine.execute(spec, limit=2)
 
         assert len(rows) == 2
         assert rows[0]["name"] == "Alice"
@@ -340,7 +340,7 @@ class TestQueryEngine:
             sql="SELECT * FROM users ORDER BY id",
         )
 
-        rows, exec_time = engine.execute(spec, offset=1)
+        rows, _exec_time = engine.execute(spec, offset=1)
 
         assert len(rows) == 2
         assert rows[0]["name"] == "Bob"
@@ -355,7 +355,7 @@ class TestQueryEngine:
             sql="SELECT * FROM users ORDER BY id LIMIT :limit",
         )
 
-        rows, exec_time = engine.execute(spec, params={"limit": 2}, offset=1)
+        rows, _exec_time = engine.execute(spec, params={"limit": 2}, offset=1)
 
         assert len(rows) == 2
         assert rows[0]["name"] == "Bob"
@@ -607,7 +607,7 @@ class TestQueryEngine:
 
         # Test case where has_limit=False, has_offset=False, limit provided, no offset
         # This should hit line 88: sql = f"SELECT * FROM ({sql}) LIMIT :limit"
-        rows, exec_time = engine.execute(spec, limit=2)
+        rows, _exec_time = engine.execute(spec, limit=2)
 
         assert len(rows) == 2
         assert rows[0]["name"] == "Alice"
@@ -623,7 +623,7 @@ class TestQueryEngine:
 
         # Test case where has_limit=False, has_offset=False, offset provided, no limit
         # This should hit line 102: sql = f"SELECT * FROM ({sql}) OFFSET :offset"
-        rows, exec_time = engine.execute(spec, offset=1)
+        rows, _exec_time = engine.execute(spec, offset=1)
 
         assert len(rows) == 2
         assert rows[0]["name"] == "Bob"

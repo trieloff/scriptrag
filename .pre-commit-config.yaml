@@ -6,7 +6,7 @@ default_language_version:
 repos:
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
@@ -50,7 +50,7 @@ repos:
 
   # Python linting and import sorting with Ruff
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.5
+    rev: v0.13.3
     hooks:
       # Run the linter
       - id: ruff
@@ -60,7 +60,7 @@ repos:
 
   # Type checking with mypy
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.17.0
+    rev: v1.18.2
     hooks:
       - id: mypy
         additional_dependencies:
@@ -118,7 +118,7 @@ repos:
 
   # SQL linting with SQLFluff
   - repo: https://github.com/sqlfluff/sqlfluff
-    rev: 3.3.0
+    rev: 3.4.2
     hooks:
       - id: sqlfluff-lint
         args: ['--dialect', 'sqlite']
@@ -148,7 +148,7 @@ repos:
 
   # Check Python package metadata
   - repo: https://github.com/python-jsonschema/check-jsonschema
-    rev: 0.33.2
+    rev: 0.34.0
     hooks:
       - id: check-github-workflows
       - id: check-github-actions

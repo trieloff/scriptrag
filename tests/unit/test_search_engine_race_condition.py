@@ -154,8 +154,8 @@ class TestSearchEngineRaceCondition:
                     with pytest.raises(
                         RuntimeError,
                         match=(
-                            "Search operation timed out|"
-                            "Cannot run the event loop while another loop is running"
+                            r"Search operation timed out|"
+                            r"Cannot run the event loop while another loop is running"
                         ),
                     ):
                         engine.search(
@@ -185,9 +185,9 @@ class TestSearchEngineRaceCondition:
                         with pytest.raises(
                             RuntimeError,
                             match=(
-                                "Search thread completed but no result was produced|"
-                                "Cannot run the event loop while another loop is "
-                                "running"
+                                r"Search thread completed but no result was produced|"
+                                r"Cannot run the event loop while another loop is "
+                                r"running"
                             ),
                         ):
                             engine.search(

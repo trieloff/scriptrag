@@ -262,7 +262,7 @@ class TestSemanticAdapterCoverage:
             mock_bible_result
         ]
 
-        enhanced, bible = await semantic_adapter.enhance_results_with_semantic_search(
+        _enhanced, bible = await semantic_adapter.enhance_results_with_semantic_search(
             query, existing_results, limit=5
         )
 

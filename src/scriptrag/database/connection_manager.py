@@ -13,7 +13,7 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from queue import Empty, LifoQueue
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 import sqlite_vec
 
@@ -452,7 +452,8 @@ class DatabaseConnectionManager:
 
     @contextmanager
     def transaction(
-        self, isolation_level: str | None = None
+        self,
+        isolation_level: Literal["DEFERRED", "EXCLUSIVE", "IMMEDIATE"] | None = None,
     ) -> Generator[sqlite3.Connection, None, None]:
         """Get a transactional database context.
 

@@ -37,12 +37,12 @@ from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+from scriptrag.database.operations import DatabaseOperations
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from scriptrag.config import ScriptRAGSettings, set_settings
-from scriptrag.database.operations import DatabaseOperations
 
 
 @pytest.fixture(scope="function")

@@ -30,7 +30,7 @@ class TestScriptRAG:
         scriptrag = ScriptRAG(auto_init_db=False)
 
         with pytest.raises(
-            FileNotFoundError, match="Fountain file not found: nonexistent.fountain"
+            FileNotFoundError, match=r"Fountain file not found: nonexistent\.fountain"
         ):
             scriptrag.parse_fountain("nonexistent.fountain")
 

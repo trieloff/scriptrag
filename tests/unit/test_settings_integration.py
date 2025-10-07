@@ -291,7 +291,7 @@ debug = true
         assert settings.database_timeout == 60.0
 
         # Invalid timeout (too small)
-        with pytest.raises(ValueError, match="greater than or equal to 0.1"):
+        with pytest.raises(ValueError, match=r"greater than or equal to 0\.1"):
             ScriptRAGSettings(database_timeout=0.05)
 
     def test_from_multiple_sources_with_env_file(self, tmp_path):

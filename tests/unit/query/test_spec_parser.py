@@ -275,7 +275,7 @@ class TestParamSpec:
         assert param_spec.cast_value(42) == 42.0
 
         # Invalid float conversion
-        with pytest.raises(ValidationError, match="Cannot convert.*to float"):
+        with pytest.raises(ValidationError, match=r"Cannot convert.*to float"):
             param_spec.cast_value("not_a_float")
 
     def test_cast_value_bool_variations(self):
@@ -301,7 +301,7 @@ class TestParamSpec:
         assert param_spec.cast_value("off") is False
 
         # Invalid bool conversion
-        with pytest.raises(ValidationError, match="Cannot convert.*to bool"):
+        with pytest.raises(ValidationError, match=r"Cannot convert.*to bool"):
             param_spec.cast_value("maybe")
 
     def test_cast_value_unknown_type(self):
@@ -315,7 +315,7 @@ class TestParamSpec:
         param_spec.help = None
         param_spec.choices = None
 
-        with pytest.raises(ValidationError, match="Unknown.*type"):
+        with pytest.raises(ValidationError, match=r"Unknown.*type"):
             param_spec.cast_value("value")
 
 

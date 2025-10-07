@@ -512,13 +512,13 @@ SELECT * FROM test WHERE id = :id""")
         settings.database_foreign_keys = True
         loader = QueryLoader(settings)
 
-        with pytest.raises(ValueError, match="Only read-only queries.*are allowed"):
+        with pytest.raises(ValueError, match=r"Only read-only queries.*are allowed"):
             loader._validate_sql_syntax("INSERT INTO test VALUES (1)")
 
-        with pytest.raises(ValueError, match="Only read-only queries.*are allowed"):
+        with pytest.raises(ValueError, match=r"Only read-only queries.*are allowed"):
             loader._validate_sql_syntax("UPDATE test SET col = 1")
 
-        with pytest.raises(ValueError, match="Only read-only queries.*are allowed"):
+        with pytest.raises(ValueError, match=r"Only read-only queries.*are allowed"):
             loader._validate_sql_syntax("DELETE FROM test")
 
     def test_validate_sql_syntax_valid_queries(self):

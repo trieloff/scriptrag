@@ -1048,7 +1048,7 @@ comment */
             mock_doc = MagicMock(spec=["content", "model", "provider", "usage"])
             mock_doc.title_values = {"title": "Test", field_name: expected_author}
 
-            title, author, metadata = parser._extract_doc_metadata(mock_doc)
+            _title, author, _metadata = parser._extract_doc_metadata(mock_doc)
             assert author == expected_author, f"Failed for field: {field_name}"
 
     def test_extract_doc_metadata_no_title_values(self, parser):

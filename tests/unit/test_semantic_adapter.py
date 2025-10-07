@@ -116,7 +116,7 @@ class TestSemanticSearchAdapter:
         )
         existing_results = []
 
-        enhanced, bible = await adapter.enhance_results_with_semantic_search(
+        enhanced, _bible = await adapter.enhance_results_with_semantic_search(
             query=query,
             existing_results=existing_results,
             limit=5,
@@ -235,7 +235,7 @@ class TestSemanticSearchAdapter:
         )
         existing_results = [existing_result]
 
-        enhanced, bible = await adapter.enhance_results_with_semantic_search(
+        enhanced, _bible = await adapter.enhance_results_with_semantic_search(
             query=query,
             existing_results=existing_results,
             limit=5,

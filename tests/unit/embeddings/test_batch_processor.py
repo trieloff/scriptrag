@@ -191,6 +191,28 @@ class TestBatchProcessor:
         assert "No embedding in response" in results[0].error
 
     @pytest.mark.asyncio
+    async def test_process_batch_with_metadata_preserved(
+        self, batch_processor, mock_llm_client
+    ):
+        """Test that metadata is preserved when processing succeeds."""
+        # This also tests the fix for IndexError with proper embedding response
+        mock_response = EmbeddingResponse(
+            model="test-model",
+            data=[{"embedding": [0.1, 0.2, 0.3]}],
+            provider=LLMProvider.OPENAI_COMPATIBLE,
+        )
+        mock_llm_client.embed.return_value = mock_response
+
+        metadata = {"scene_id": 42, "type": "dialogue"}
+        items = [BatchItem(id="1", text="test text", metadata=metadata)]
+        results = await batch_processor.process_batch(items, "test-model")
+
+        assert len(results) == 1
+        assert results[0].embedding == [0.1, 0.2, 0.3]
+        assert results[0].metadata == metadata  # Metadata preserved
+        assert results[0].error is None
+
+    @pytest.mark.asyncio
     async def test_process_single_with_retry_success(
         self, batch_processor, mock_llm_client
     ):

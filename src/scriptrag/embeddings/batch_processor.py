@@ -115,7 +115,11 @@ class BatchProcessor:
 
                 response = await self.llm_client.embed(request)
 
-                if response.data and response.data[0].get("embedding"):
+                if (
+                    response.data
+                    and len(response.data) > 0
+                    and response.data[0].get("embedding")
+                ):
                     embedding = response.data[0]["embedding"]
                     return BatchResult(
                         id=item.id,

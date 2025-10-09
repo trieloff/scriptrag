@@ -188,13 +188,20 @@ class ScreenplayUtils:
                 if line.strip():
                     parts.append(line)
 
-        if dialogue := scene.get("dialogue"):
+        # Only process if dialogue is a list
+        if (dialogue := scene.get("dialogue")) and isinstance(dialogue, list):
             parts.append("DIALOGUE:")
             for entry in dialogue:
-                character = entry.get("character", "")
-                text = entry.get("text", "")
-                if character and text:
-                    parts.append(f"{character}: {text}")
+                # Handle both dict and string formats
+                if isinstance(entry, dict):
+                    character = entry.get("character", "")
+                    text = entry.get("text", "")
+                    if character and text:
+                        parts.append(f"{character}: {text}")
+                elif isinstance(entry, str):
+                    # String format like "CHARACTER: text"
+                    if entry.strip():
+                        parts.append(entry)
 
         # Fallback to raw content if no structured data
         if not parts and (content := scene.get("content")):
@@ -233,13 +240,19 @@ class ScreenplayUtils:
             if action_text:
                 parts.append(f"Action: {action_text}")
 
-        # Add dialogue
-        if dialogue := scene.get("dialogue"):
+        # Add dialogue (only process if dialogue is a list)
+        if (dialogue := scene.get("dialogue")) and isinstance(dialogue, list):
             for entry in dialogue:
-                character = entry.get("character", "")
-                text = entry.get("text", "")
-                if character and text:
-                    parts.append(f"{character}: {text}")
+                # Handle both dict and string formats
+                if isinstance(entry, dict):
+                    character = entry.get("character", "")
+                    text = entry.get("text", "")
+                    if character and text:
+                        parts.append(f"{character}: {text}")
+                elif isinstance(entry, str):
+                    # String format like "CHARACTER: text"
+                    if entry.strip():
+                        parts.append(entry)
 
         # Fallback to content field
         if not parts and (content := scene.get("content")):

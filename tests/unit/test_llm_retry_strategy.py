@@ -481,3 +481,84 @@ class TestRetryStrategy:
         assert results == ["s1_success", "s2_success"]
         assert call_counts["s1"] == 2
         assert call_counts["s2"] == 3
+
+    @pytest.mark.asyncio
+    async def test_retry_logging_shows_correct_attempt_numbers(
+        self, retry_strategy, caplog
+    ):
+        """Test retry logging shows correct attempt numbers out of total attempts."""
+        import logging
+
+        caplog.set_level(logging.WARNING)
+
+        call_count = 0
+
+        async def mock_func():
+            nonlocal call_count
+            call_count += 1
+            if call_count < 3:  # Fail first 2 attempts
+                raise ConnectionError("Temporary network error")
+            return "success"
+
+        with patch("asyncio.sleep"):
+            result = await retry_strategy.execute_with_retry(
+                mock_func,
+                "test_provider",
+                None,
+            )
+
+        assert result == "success"
+
+        # Check log messages for correct attempt numbering
+        log_messages = [record.message for record in caplog.records]
+
+        # Should see "Attempt 1/3 failed" and "Attempt 2/3 failed"
+        assert any("Attempt 1/3 failed" in msg for msg in log_messages)
+        assert any("Attempt 2/3 failed" in msg for msg in log_messages)
+        # Should NOT see "Attempt 3/3 failed" because the third attempt succeeded
+        assert not any("Attempt 3/3 failed" in msg for msg in log_messages)
+
+    @pytest.mark.asyncio
+    async def test_retry_error_message_uses_total_attempts(self):
+        """Test that the final error message correctly states total attempts."""
+        strategy = RetryStrategy(max_retries=4)  # 4 total attempts
+
+        async def mock_func():
+            raise ConnectionError("Persistent error")
+
+        with patch("asyncio.sleep"):
+            with pytest.raises(LLMRetryableError) as exc_info:
+                await strategy.execute_with_retry(
+                    mock_func,
+                    "test_provider",
+                    None,
+                )
+
+        error = exc_info.value
+        # Should say "failed after 4 attempts" not "after 4 retries"
+        assert "failed after 4 attempts" in str(error)
+        assert error.max_attempts == 4
+        assert error.attempt == 4
+
+    @pytest.mark.asyncio
+    async def test_retry_with_max_retries_one(self):
+        """Test retry behavior with max_retries=1 (single attempt)."""
+        strategy = RetryStrategy(max_retries=1)
+
+        async def mock_func():
+            raise ConnectionError("Connection failed")
+
+        with patch("asyncio.sleep"):
+            with pytest.raises(LLMRetryableError) as exc_info:
+                await strategy.execute_with_retry(
+                    mock_func,
+                    "test_provider",
+                    None,
+                )
+
+        error = exc_info.value
+        # Should say "failed after 1 attempts" - singular would be better,
+        # but consistency is key
+        assert "failed after 1 attempts" in str(error)
+        assert error.max_attempts == 1
+        assert error.attempt == 1

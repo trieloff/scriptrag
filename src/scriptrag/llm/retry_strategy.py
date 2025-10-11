@@ -153,7 +153,7 @@ class RetryStrategy:
                 delay = retry_after or self.calculate_retry_delay(attempt)
 
                 logger.warning(
-                    f"Attempt {attempt}/{self.max_retries} failed for {provider_name}, "
+                    f"Attempt {attempt}/{total_attempts} failed for {provider_name}, "
                     f"retrying in {delay:.2f}s",
                     error=str(e),
                     error_type=type(e).__name__,
@@ -166,10 +166,10 @@ class RetryStrategy:
         # All attempts failed
         if last_error:
             raise LLMRetryableError(
-                f"Provider {provider_name} failed after {self.max_retries} attempts",
+                f"Provider {provider_name} failed after {total_attempts} attempts",
                 provider=provider_name,
-                attempt=self.max_retries,
-                max_attempts=self.max_retries,
+                attempt=total_attempts,
+                max_attempts=total_attempts,
                 original_error=last_error,
             )
 

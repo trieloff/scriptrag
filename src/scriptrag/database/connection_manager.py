@@ -365,13 +365,29 @@ class ConnectionPool:
                     logger.warning("Health check thread did not stop within timeout")
 
             # Close all idle connections
+            close_failures = 0
             while not self._pool.empty():
                 try:
                     conn, _ = self._pool.get_nowait()
-                    conn.close()
-                    self._total_connections -= 1
                 except Empty:
                     break
+
+                # Try to close the connection, but always decrement counter
+                try:
+                    conn.close()
+                except Exception as e:
+                    logger.error(
+                        f"Failed to close connection during pool shutdown: {e}"
+                    )
+                    close_failures += 1
+                finally:
+                    # Always decrement counter as connection is removed from pool
+                    self._total_connections -= 1
+
+            if close_failures > 0:
+                logger.warning(
+                    f"Failed to close {close_failures} connections during shutdown"
+                )
 
             # If force is True and we're on Windows with active connections,
             # reset the counts (connections will be closed when garbage collected)

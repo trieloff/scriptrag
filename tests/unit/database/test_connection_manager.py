@@ -698,3 +698,123 @@ class TestThreadSafety:
         # All inserts should have succeeded
         result = connection_manager.execute_query("SELECT COUNT(*) FROM test")
         assert result[0][0] == 5
+
+    def test_close_with_connection_close_failures(
+        self, settings: ScriptRAGSettings
+    ) -> None:
+        """Test pool close handles connection.close() failures gracefully."""
+        from unittest.mock import MagicMock, patch
+
+        # Create a pool
+        pool = ConnectionPool(
+            settings=settings,
+            min_size=2,
+            max_size=3,
+            max_idle_time=1.0,
+            enable_vss=False,
+        )
+
+        # Acquire and release connections to populate the pool
+        conns = [pool.acquire() for _ in range(3)]
+        for conn in conns:
+            pool.release(conn)
+
+        # Mock the pool's internal queue to return connections that fail to close
+        mock_connections = []
+        for _ in range(3):
+            mock_conn = MagicMock(spec=sqlite3.Connection)
+            mock_conn.close.side_effect = sqlite3.Error("Close failed")
+            mock_connections.append((mock_conn, time.time()))
+
+        # Replace pool contents with mock connections
+        while not pool._pool.empty():
+            try:
+                pool._pool.get_nowait()
+            except Exception:
+                break
+
+        for mock_conn_tuple in mock_connections:
+            pool._pool.put(mock_conn_tuple)
+
+        initial_total = pool._total_connections
+
+        # Close the pool - should handle close failures gracefully
+        with patch("scriptrag.database.connection_manager.logger") as mock_logger:
+            pool.close()
+
+            # Verify error logging occurred
+            assert mock_logger.error.call_count == 3
+            for call in mock_logger.error.call_args_list:
+                assert "Failed to close connection during pool shutdown" in call[0][0]
+
+            # Verify warning about failures
+            mock_logger.warning.assert_any_call(
+                "Failed to close 3 connections during shutdown"
+            )
+
+        # Verify pool state is consistent
+        assert pool._closed
+        assert pool._total_connections == 0  # All connections removed from tracking
+        assert pool._pool.empty()
+
+    def test_close_with_partial_connection_close_failures(
+        self, settings: ScriptRAGSettings
+    ) -> None:
+        """Test pool close with some connections failing to close."""
+        from unittest.mock import MagicMock, patch
+
+        # Create a pool
+        pool = ConnectionPool(
+            settings=settings,
+            min_size=2,
+            max_size=4,
+            max_idle_time=1.0,
+            enable_vss=False,
+        )
+
+        # Acquire and release connections to populate the pool
+        conns = [pool.acquire() for _ in range(4)]
+        for conn in conns:
+            pool.release(conn)
+
+        # Clear the pool
+        mock_connections = []
+        while not pool._pool.empty():
+            try:
+                pool._pool.get_nowait()
+            except Exception:
+                break
+
+        # Add mix of working and failing connections
+        # Two that close successfully
+        for _ in range(2):
+            mock_conn = MagicMock(spec=sqlite3.Connection)
+            mock_conn.close.return_value = None
+            mock_connections.append((mock_conn, time.time()))
+            pool._pool.put((mock_conn, time.time()))
+
+        # Two that fail to close
+        for i in range(2):
+            mock_conn = MagicMock(spec=sqlite3.Connection)
+            mock_conn.close.side_effect = sqlite3.Error(f"Close failed {i}")
+            mock_connections.append((mock_conn, time.time()))
+            pool._pool.put((mock_conn, time.time()))
+
+        # Close the pool
+        with patch("scriptrag.database.connection_manager.logger") as mock_logger:
+            pool.close()
+
+            # Verify we logged 2 errors and 1 warning
+            assert mock_logger.error.call_count == 2
+            mock_logger.warning.assert_any_call(
+                "Failed to close 2 connections during shutdown"
+            )
+
+        # Verify pool state is consistent
+        assert pool._closed
+        assert pool._total_connections == 0
+        assert pool._pool.empty()
+
+        # Verify all connections had close() called
+        for mock_conn, _ in mock_connections:
+            mock_conn.close.assert_called_once()

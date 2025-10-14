@@ -375,9 +375,28 @@ class GitHubModelsProvider(EnhancedBaseLLMProvider):
                 raise ValueError(f"GitHub Models API error: {response.text}")
 
             data: dict[str, Any] = response.json()
+
+            # Validate that we have embedding data
+            embedding_data = data.get("data", [])
+            if not embedding_data or len(embedding_data) == 0:
+                raise ValueError("GitHub Models API returned empty embedding data")
+
+            # Validate that each embedding entry has the required structure
+            for idx, entry in enumerate(embedding_data):
+                if not isinstance(entry, dict) or "embedding" not in entry:
+                    raise ValueError(
+                        f"Invalid embedding data at index {idx}: "
+                        "missing 'embedding' field"
+                    )
+                if not isinstance(entry.get("embedding"), list):
+                    raise ValueError(
+                        f"Invalid embedding data at index {idx}: "
+                        "'embedding' must be a list"
+                    )
+
             return EmbeddingResponse(
                 model=data.get("model", request.model),
-                data=data.get("data", []),
+                data=embedding_data,
                 usage=data.get("usage", {}),
                 provider=self.provider_type,
             )

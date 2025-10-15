@@ -65,50 +65,51 @@ class FountainParser:
             Tuple of (title, author, metadata_dict)
         """
         # Extract title
-        title = doc.title_values.get("title") if doc.title_values else None
+        title_values = getattr(doc, "title_values", None)
+        title = title_values.get("title") if title_values else None
 
         # Check various author field variations
         author = None
-        if doc.title_values:
+        if title_values:
             # Check all common variations of author fields
             author_fields = ["author", "authors", "writer", "writers", "written by"]
             for field in author_fields:
-                if field in doc.title_values:
-                    author = doc.title_values[field]
+                if field in title_values:
+                    author = title_values[field]
                     break
 
         # Extract additional metadata
         metadata: dict[str, Any] = {}
-        if doc.title_values:
+        if title_values:
             # Extract episode number
-            if "episode" in doc.title_values:
+            if "episode" in title_values:
                 try:
                     # Try to parse as int, but keep as string if it fails
-                    metadata["episode"] = int(doc.title_values["episode"])
+                    metadata["episode"] = int(title_values["episode"])
                 except (ValueError, TypeError):  # pragma: no cover
-                    metadata["episode"] = doc.title_values["episode"]
+                    metadata["episode"] = title_values["episode"]
 
             # Extract season number
-            if "season" in doc.title_values:
+            if "season" in title_values:
                 try:
                     # Try to parse as int, but keep as string if it fails
-                    metadata["season"] = int(doc.title_values["season"])
+                    metadata["season"] = int(title_values["season"])
                 except (ValueError, TypeError):  # pragma: no cover
-                    metadata["season"] = doc.title_values["season"]
+                    metadata["season"] = title_values["season"]
 
             # Extract series title (for TV scripts)
-            if "series" in doc.title_values:
-                metadata["series_title"] = doc.title_values["series"]
-            elif "series_title" in doc.title_values:
-                metadata["series_title"] = doc.title_values["series_title"]
-            elif "show" in doc.title_values:
-                metadata["series_title"] = doc.title_values["show"]
+            if "series" in title_values:
+                metadata["series_title"] = title_values["series"]
+            elif "series_title" in title_values:
+                metadata["series_title"] = title_values["series_title"]
+            elif "show" in title_values:
+                metadata["series_title"] = title_values["show"]
 
             # Extract project title (for grouping multiple drafts)
-            if "project" in doc.title_values:
-                metadata["project_title"] = doc.title_values["project"]
-            elif "project_title" in doc.title_values:
-                metadata["project_title"] = doc.title_values["project_title"]
+            if "project" in title_values:
+                metadata["project_title"] = title_values["project"]
+            elif "project_title" in title_values:
+                metadata["project_title"] = title_values["project_title"]
 
         return title, author, metadata
 
@@ -124,9 +125,10 @@ class FountainParser:
         """
         scenes = []
         scene_number = 0
-        for jouvence_scene in doc.scenes:
+        doc_scenes = getattr(doc, "scenes", [])
+        for jouvence_scene in doc_scenes:
             # Skip scenes without headers (like FADE IN sections)
-            if jouvence_scene.header:
+            if hasattr(jouvence_scene, "header") and jouvence_scene.header:
                 scene_number += 1
                 scene = self.processor.process_jouvence_scene(
                     scene_number, jouvence_scene, content

@@ -270,6 +270,60 @@ SCRIPTRAG-META-END */
         assert "new_key" in updated_content
         assert "new_value" in updated_content
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "Anna waits \u2014 then leaves.",
+            "Anna says \u201cno\u201d.",
+            "REN\u00c9E",
+            "C:\\scripts\\draft",
+            "matches \\1 and \\g<0>",
+        ],
+        ids=["em-dash", "smart-quotes", "accented", "backslash", "regex-template"],
+    )
+    def test_write_over_existing_boneyard_keeps_non_ascii(
+        self, parser, tmp_path, value
+    ):
+        """Re-analyzing a scene must not corrupt non-ASCII or backslash metadata.
+
+        ``json.dumps`` escapes non-ASCII as ``\\uXXXX``, and ``re.sub`` parses its
+        replacement as a template, so handing the JSON straight to ``sub`` raises
+        ``re.error: bad escape \\u`` -- and quietly mangles backslashes when it
+        does not raise. The replacement has to be applied literally.
+
+        This is the second ``analyze`` pass over a script: the first inserts a
+        boneyard by concatenation (safe), the second rewrites it through
+        ``re.sub``. LLM-written summaries routinely contain em dashes.
+        """
+        content = """Title: Test
+
+INT. ROOM - DAY
+
+A scene with metadata.
+
+/* SCRIPTRAG-META-START
+{
+    "existing_key": "existing_value"
+}
+SCRIPTRAG-META-END */
+"""
+        file_path = tmp_path / "test.fountain"
+        file_path.write_text(content, encoding="utf-8")
+
+        script = parser.parse_file(file_path)
+        scene = script.scenes[0]
+        scene.update_boneyard({"summary": value})
+
+        parser.write_with_updated_scenes(file_path, script, [scene])
+
+        # Re-parse: the boneyard must still be valid JSON and round-trip exactly.
+        reparsed = parser.parse_file(file_path)
+        metadata = reparsed.scenes[0].boneyard_metadata
+
+        assert metadata is not None, "boneyard metadata was lost on rewrite"
+        assert metadata["summary"] == value
+        assert metadata["existing_key"] == "existing_value"
+
     def test_write_ensures_newline_at_end(self, parser, tmp_path):
         """Test that writing ensures file ends with newline."""
         content = "Title: Test\n\nINT. ROOM - DAY\n\nTest"  # No ending newline

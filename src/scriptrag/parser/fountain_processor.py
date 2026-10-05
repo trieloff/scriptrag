@@ -180,7 +180,12 @@ class SceneProcessor:
             new_boneyard = (
                 f"/* SCRIPTRAG-META-START\n{boneyard_json}\nSCRIPTRAG-META-END */\n"
             )
-            updated_scene = self.BONEYARD_PATTERN.sub(new_boneyard, scene_text)
+            # sub() parses its replacement as a template; a function
+            # replacement applies it literally, so \uXXXX and backslashes
+            # in the JSON survive intact.
+            updated_scene = self.BONEYARD_PATTERN.sub(
+                lambda _: new_boneyard, scene_text
+            )
         else:
             # Add new boneyard at the end of scene
             boneyard_json = json.dumps(metadata, indent=2)
